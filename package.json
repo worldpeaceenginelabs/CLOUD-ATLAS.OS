@@ -19,7 +19,7 @@
     "vite": "^5.2.0"
   },
   "dependencies": {
-    "cesium": "^1.123.0",
+    "cesium": "^1.125.0",
     "trystero": "^0.18.0"
   }
 }
