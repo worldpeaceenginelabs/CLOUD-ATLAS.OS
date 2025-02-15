@@ -14,7 +14,7 @@
 
   <div style="position: fixed; left: 0px; top: 5px; width: 100%; display: flex; justify-content: center; align-items: center;">
     <div class="animated-gradient" style="width: 100%; height: 30px; position: relative; display: flex; align-items: center;">
-      <h5 style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); width: 100%;">⚠️ Decentralized Government coming 2024 ⚠️</h5>
+      <h5 style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); width: 100%;">⚠️ Decentralized Government coming 2025 ⚠️</h5>
       
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
