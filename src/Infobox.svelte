@@ -14,7 +14,7 @@
 
   <div style="position: fixed; left: 0px; top: 5px; width: 100%; display: flex; justify-content: center; align-items: center;">
     <div class="animated-gradient" style="width: 100%; height: 30px; position: relative; display: flex; align-items: center;">
-      <h5 style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); width: 100%;">⚠️ Decentralized Government coming 2025 ⚠️</h5>
+      <h4 style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); width: 100%;">⚠️ Decentralized Government coming 2025 ⚠️</h4>
       
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -37,7 +37,9 @@
   </div>
 
   <div class="textbox" style="text-align:center;">
-    <h3><strong>We've developed Crowd Engineering into a Social Network application...</strong></h3>
+    <h2><strong>UI Update Coming: Corporate Control Ends Now!</strong></h2>
+    <h3><strong>"Cloud Atlas OS is evolving – with a new UI and a shift in power. We're taking corporate control that was never meant to be in the hands of a few and putting it where it belongs: with the people. The revolution begins now."</strong></h3>
+    <br><h3><strong>We've developed Crowd Engineering into a Social Network application...</strong></h3>
     <h4><strong>Cloud Atlas OS is a Community-Owned real-world platform 🔥 featuring a Community-Driven dApp Store 🔥 with Built-In Backend 🔥 Spatial Intelligence baked in 🔥 Run by the people, for the people.<br><br>But this is more than just a map...</strong><br><br>
     <strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong><br><br>
     </h4>
