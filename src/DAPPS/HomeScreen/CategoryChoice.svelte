@@ -3,7 +3,7 @@
   import ActionEvent from "./ActionEvent.svelte";
   import Petition from "./Petition.svelte";
   import Crowdfunding from "./Crowdfunding.svelte";
-  import { coordinates } from '../../store.js';
+  import { onDestroy } from 'svelte';
 
   let showModal = false;
   let currentComponent = null;
@@ -24,11 +24,24 @@
     showModal = false;
     currentComponent = null;
   }
+
+  // Event listener for closing modals on Escape key press
+function handleKeyDown(event) {
+  if (event.key === "Escape") {
+    closeModal();
+  }
+}
+
+window.addEventListener("keydown", handleKeyDown);
+
+onDestroy(() => {
+  window.removeEventListener("keydown", handleKeyDown);
+});
 </script>
 
 
 
-<p class="coordgreen animated-gradient">Coordinates: {$coordinates.latitude}, {$coordinates.longitude}</p>
+
   <div style="padding: 20px;">
     <div class="box glassmorphism" on:click={() => openModal("Brainstorming")}>
       <div class="title">Brainstorming (Zoom.us)</div>

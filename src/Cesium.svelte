@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Import necessary modules from Cesium and Svelte
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import {
 	  Ion,
 	  Viewer,
@@ -381,6 +381,20 @@ function handleCoordinatePick(result) {
   });
   isCategoryModalVisible = true;
 }
+
+// Event listener for closing modals on Escape key press
+function handleKeyDown(event) {
+  if (event.key === "Escape") {
+    closeCategoryModal();
+    closeRecordModal();
+  }
+}
+
+window.addEventListener("keydown", handleKeyDown);
+
+onDestroy(() => {
+  window.removeEventListener("keydown", handleKeyDown);
+});
 
 // Debounce function to prevent multiple rapid touches
 function debounce(func, wait) {
