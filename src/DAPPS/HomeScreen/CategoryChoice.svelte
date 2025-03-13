@@ -25,18 +25,6 @@
     currentComponent = null;
   }
 
-  // Event listener for closing modals on Escape key press
-function handleKeyDown(event) {
-  if (event.key === "Escape") {
-    closeModal();
-  }
-}
-
-window.addEventListener("keydown", handleKeyDown);
-
-onDestroy(() => {
-  window.removeEventListener("keydown", handleKeyDown);
-});
 </script>
 
 
