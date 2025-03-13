@@ -23,9 +23,9 @@
 	import { fade } from 'svelte/transition';
   
 	// Global variables and states
-	let showModal = false;
-	let showModalButton = false;
-	let modalRecord = null;
+	let isRecordModalVisible = false;
+	let isCategoryModalVisible = false;
+	let selectedRecord = null;
 	let viewer: Viewer;
 	let db: IDBDatabase;
 	let customDataSource = new CustomDataSource('locationpins');
@@ -195,14 +195,14 @@
   
 	// Reactive statement to update recordButtonText based on modalRecord
 	$: {
-	if (modalRecord) {
+	if (selectedRecord) {
 		const categoryMap = {
 		brainstorming: "Join Brainstorming",
 		actionevent: "Take Action Now",
 		petition: "Sign Now",
 		crowdfunding: "Back this Project",
 		};
-		recordButtonText = categoryMap[modalRecord.category] || "Go";
+		recordButtonText = categoryMap[selectedRecord.category] || "Go";
 	} else {
 		recordButtonText = "Go";
 	}
@@ -222,7 +222,7 @@
 	  viewer = new Viewer('cesiumContainer', {
 		animation: false,
 		fullscreenButton: false,
-		vrButton: true,
+		vrButton: false,
 		geocoder: false,
 		homeButton: false,
 		infoBox: true,
@@ -346,8 +346,8 @@ async function handleEntityPick(pickedFeature) {
   try {
     const record = await fetchRecord(mapid);
     if (record) {
-      showModal = true;
-      modalRecord = record;
+      isRecordModalVisible = true;
+      selectedRecord = record;
     }
   } catch (error) {
     console.error('Error fetching record:', error);
@@ -372,12 +372,14 @@ function handleCoordinatePick(result) {
   pointEntity = viewer.entities.add({
     id: "pickedPoint",
     position: cartesian,
-    point: {
-      pixelSize: 20,
-      color: Cesium.Color.GREEN,
+    billboard: {
+      image: '../location-on.png', // Path to your map marker icon
+      width: 32, // Adjust the width as needed
+      height: 32, // Adjust the height as needed
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
-    }
+    },
   });
+  isCategoryModalVisible = true;
 }
 
 // Debounce function to prevent multiple rapid touches
@@ -409,7 +411,7 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
   if (!Cesium.defined(pickedObject) || !pickedObject.id) return;
 
   if (pickedObject.id.id === "pickedPoint") {
-    openModalButton();
+    
   } else {
     await handleEntityPick(pickedObject);
   }
@@ -420,18 +422,18 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
 	});
   
 	// Function to open modal
-	function openModalButton() {
-	  showModalButton = true;
+	function openCategoryModal() {
+	  isCategoryModalVisible = true;
 	}
   
 	// Function to close modal
-	function closeModalButton() {
-	  showModalButton = false;
+	function closeCategoryModal() {
+	  isCategoryModalVisible = false;
 	}
 
 	// Function to close modal
-	function closeModal() {
-	  showModal = false;
+	function closeRecordModal() {
+	  isRecordModalVisible = false;
 	}
   
 
@@ -463,12 +465,12 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
 
 
 
-{#if showModalButton}
+{#if isCategoryModalVisible}
   <div class="modal" transition:fade={{ duration: 500 }}>
     <div class="modal-category">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closeModalButton}>
+      <div class="close float-right" on:click={closeCategoryModal}>
         <svg viewBox="0 0 36 36" class="circle">
           <path
             stroke-dasharray="100, 100"
@@ -487,12 +489,12 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
   </div>
 {/if}
 
-{#if showModal && modalRecord}
+{#if isRecordModalVisible && selectedRecord}
   <div class="modal" transition:fade={{ duration: 500 }}>
     <div class="modal-record">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closeModal}>
+      <div class="close float-right" on:click={closeRecordModal}>
         <svg viewBox="0 0 36 36" class="circle">
           <path
             stroke-dasharray="100, 100"
@@ -507,17 +509,17 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
         <span></span>
       </div>
       <div>
-        <p class="title">{modalRecord.title}</p>
-        <p class="text">{modalRecord.text}</p>
+        <p class="title">{selectedRecord.title}</p>
+        <p class="text">{selectedRecord.text}</p>
       </div>
       <div>
-        <p class="created">CREATED {formatTimestamp(modalRecord.timestamp)}</p>
-        <p><button class="glassmorphism"><a target="_blank" href={modalRecord.link}>{recordButtonText}</a></button></p>
+        <p class="created">CREATED {formatTimestamp(selectedRecord.timestamp)}</p>
+        <p><button class="glassmorphism"><a target="_blank" href={selectedRecord.link}>{recordButtonText}</a></button></p>
       </div>
       <div><ShareButton 
-          title={modalRecord.title} 
-          text={modalRecord.text} 
-          link={modalRecord.link} 
+          title={selectedRecord.title} 
+          text={selectedRecord.text} 
+          link={selectedRecord.link} 
         /></div>
     </div>
   </div>

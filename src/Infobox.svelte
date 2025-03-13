@@ -38,7 +38,7 @@
 
   <div class="textbox" style="text-align:center;">
     <h2><strong>UI Update Coming: Corporate Control Ends Now!</strong></h2>
-    <h3><strong>"Cloud Atlas OS is evolving – picture a world where your favorite services are cheaper for the customer and fairer, with more money for the worker. No more middlemen. Just direct connections, where value goes where it should. We’re shifting the power from the few to the many, and building a future that works for everyone. The revolution begins now."</strong></h3>
+    <h3><strong>"Cloud Atlas OS is evolving – picture a world where your favorite services are cheaper for the customer, and fairer with more money for the worker. No more middlemen. Just direct connections, where value goes where it should. We’re shifting the power from the few to the many, and building a future that works for everyone. The revolution begins now."</strong></h3>
     <br><h3><strong>We've developed Crowd Engineering into a Social Network application...</strong></h3>
     <h4><strong>Cloud Atlas OS is a Community-Owned real-world platform 🔥 featuring a Community-Driven dApp Store 🔥 with Built-In Backend 🔥 Spatial Intelligence baked in 🔥 Run by the people, for the people.<br><br>But this is more than just a map...</strong><br><br>
     <strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong><br><br>
