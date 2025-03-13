@@ -20,6 +20,6 @@
   },
   "dependencies": {
     "cesium": "^1.127.0",
-    "trystero": "^0.20.1"
+    "trystero": "^0.20.0"
   }
 }
