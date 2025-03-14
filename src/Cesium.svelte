@@ -435,6 +435,20 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
 	function closeRecordModal() {
 	  isRecordModalVisible = false;
 	}
+
+	// Event listener for closing modals on Escape key press
+	function handleKeyDown(event) {
+  	if (event.key === "Escape") {
+    closeCategoryModal();
+    closeRecordModal();
+  	}
+	}
+
+	window.addEventListener("keydown", handleKeyDown);
+
+	onDestroy(() => {
+  	window.removeEventListener("keydown", handleKeyDown);
+	});
   
 
 	
