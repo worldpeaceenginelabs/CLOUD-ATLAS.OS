@@ -112,7 +112,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 25rem; /* Adjust the font size */
+    font-size: 35rem; /* Adjust the font size */
     padding-bottom: 5px;
     background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
     background-size: 400% 400%;

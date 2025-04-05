@@ -17,7 +17,8 @@
 	} from 'cesium';
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
-	import CategoryChoice from "./DAPPS/HomeScreen/CategoryChoice.svelte";   
+	import CategoryChoice from "./DAPPS/HomeScreen/CategoryChoice.svelte";
+	import EventcalendarDaNang from './DAPPS/EventcalendarDaNang.svelte';   
 	import { coordinates } from './store.js';
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
@@ -31,6 +32,7 @@
 	let customDataSource = new CustomDataSource('locationpins');
 	let recordButtonText = '';
 	let isZoomModalVisible = false;
+	let isDaNangModalVisible = false;
   
 	// Open connection to IndexedDB
 	const openDB = (): Promise<IDBDatabase> => {
@@ -193,6 +195,8 @@
 		console.error('Invalid latitude or longitude for record:', record);
 	}
 };
+
+
   
 	// Reactive statement to update recordButtonText based on modalRecord
 	$: {
@@ -241,6 +245,36 @@
 	
 	// Render the Cesium Container background transparent
 	  viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
+
+	  const daNangPosition = Cartesian3.fromDegrees(108.210138, 16.047660);
+
+const daNangBillboard = new Entity({
+    id: 'daNangBillboard',
+    position: daNangPosition,
+    billboard: {
+        image: new Cesium.ConstantProperty('data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#ee7752;stop-opacity:1" />
+                        <stop offset="25%" style="stop-color:#e73c7e;stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:#23a6d5;stop-opacity:1" />
+                        <stop offset="75%" style="stop-color:#23d5ab;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <rect x="50" y="30" width="200" height="40" fill="white" opacity="0.01"/>
+                <text x="150" y="50" font-size="40" font-family="sans-serif" font-weight="bold" fill="url(#gradient)" text-anchor="middle" alignment-baseline="middle">DA NANG</text>
+            </svg>
+        `)),
+        eyeOffset: new Cartesian3(0.0, 0.0, -5000.0),
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    }
+});
+
+viewer.entities.add(daNangBillboard);
 
 	// Remove the doubleclick event handler
 	  viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
@@ -316,10 +350,6 @@
   
 	  viewer.dataSources.add(customDataSource);
 
-
-
-// This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
-
 // Function to fetch record from IndexedDB
 async function fetchRecord(mapid) {
   return new Promise((resolve, reject) => {
@@ -336,6 +366,8 @@ async function fetchRecord(mapid) {
     };
   });
 }
+
+// This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
 
 // Function to handle entity picking
 async function handleEntityPick(pickedFeature) {
@@ -356,6 +388,7 @@ async function handleEntityPick(pickedFeature) {
 }
 
 // Function to handle coordinate picking
+let pointEntity;
 function handleCoordinatePick(result) {
   const cartesian = viewer.scene.pickPosition(result.position);
   if (!cartesian) return;
@@ -392,37 +425,36 @@ function debounce(func, wait) {
   };
 }
 
-// Event handler for picking entities
-viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(movement) {
-  const pickedFeature = viewer.scene.pick(movement.position);
-  await handleEntityPick(pickedFeature);
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+// Combined event handler for picking entities and coordinates
+viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
+  const pickedObject = viewer.scene.pick(click.position);
+  if (!Cesium.defined(pickedObject) || !pickedObject.id) return;
+
+  if (pickedObject.id.id === 'daNangBillboard') {
+    isDaNangModalVisible = true;
+    click.cancelBubble = true; // Prevent other click handlers from being triggered
+    return;
+  }
+
+  if (pickedObject.id.id === "pickedPoint") {
+    // Do nothing or handle pickedPoint specific logic here if needed
+  } else {
+    await handleEntityPick(pickedObject);
+  }
+}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 // Event handler for picking coordinates
 let handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-let pointEntity;
 
 handler.setInputAction(debounce(function(result) {
+  if (isDaNangModalVisible) return; // Prevent zoom message if Da Nang modal is visible
+
   const height = viewer.camera.positionCartographic.height;
   if (height > 6000000) {
     // Show the zoom modal
     isZoomModalVisible = true;
   } else {
     handleCoordinatePick(result);
-  }
-}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-
-
-// Combined event handler for picking entities and coordinates
-viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
-  const pickedObject = viewer.scene.pick(click.position);
-  if (!Cesium.defined(pickedObject) || !pickedObject.id) return;
-
-  if (pickedObject.id.id === "pickedPoint") {
-    
-  } else {
-    await handleEntityPick(pickedObject);
   }
 }, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -448,6 +480,11 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
 	// Function to close zoom modal
 function closeZoomModal() {
   isZoomModalVisible = false;
+}
+
+// Function to close Da Nang modal
+function closeDaNangModal() {
+  isDaNangModalVisible = false;
 }
 
 	// Event listener for closing modals on Escape key press
@@ -580,6 +617,29 @@ function handleKeyDown(event) {
   </div>
 {/if}
 
+{#if isDaNangModalVisible}
+  <div class="modal" transition:fade={{ duration: 500 }}>
+    <div class="modal-content">
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div class="close float-right" on:click={closeDaNangModal}>
+        <svg viewBox="0 0 36 36" class="circle">
+          <path
+            stroke-dasharray="100, 100"
+            d="M18 2.0845
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+        </svg>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <EventcalendarDaNang />
+    </div>
+  </div>
+{/if}
 
 <style>
 	main {
@@ -679,6 +739,21 @@ function handleKeyDown(event) {
    	  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	  background-color: rgba(0, 0, 0, 0.5);
 	  padding: 20px;
+	}
+
+	.modal-content {
+	width: 90%;
+	max-width: 800px;
+	max-height: 80vh; /* Ensure there's some distance from the top and bottom of the screen */
+	overflow-y: auto; /* Make the modal scrollable */
+	border-radius: 15px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+	background-color: rgba(0, 0, 0, 0.5);
+	padding: 20px;
+	position: fixed;
+	top: 10%;
+	left: 50%;
+	transform: translate(-50%, 0);
 	}
 
 	.float-right {
