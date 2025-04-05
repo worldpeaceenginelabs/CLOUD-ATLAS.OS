@@ -30,6 +30,7 @@
 	let db: IDBDatabase;
 	let customDataSource = new CustomDataSource('locationpins');
 	let recordButtonText = '';
+	let isZoomModalVisible = false;
   
 	// Open connection to IndexedDB
 	const openDB = (): Promise<IDBDatabase> => {
@@ -402,8 +403,16 @@ let handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 let pointEntity;
 
 handler.setInputAction(debounce(function(result) {
-  handleCoordinatePick(result);
+  const height = viewer.camera.positionCartographic.height;
+  if (height > 6000000) {
+    // Show the zoom modal
+    isZoomModalVisible = true;
+  } else {
+    handleCoordinatePick(result);
+  }
 }, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+
 
 // Combined event handler for picking entities and coordinates
 viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
@@ -436,13 +445,19 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
 	  isRecordModalVisible = false;
 	}
 
+	// Function to close zoom modal
+function closeZoomModal() {
+  isZoomModalVisible = false;
+}
+
 	// Event listener for closing modals on Escape key press
-	function handleKeyDown(event) {
-  	if (event.key === "Escape") {
+function handleKeyDown(event) {
+  if (event.key === "Escape") {
     closeCategoryModal();
     closeRecordModal();
-  	}
-	}
+    closeZoomModal();
+  }
+}
 
 	window.addEventListener("keydown", handleKeyDown);
 
@@ -539,7 +554,31 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
   </div>
 {/if}
 
-
+{#if isZoomModalVisible}
+  <div class="modal" transition:fade={{ duration: 500 }}>
+    <div class="modal-zoom">
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div class="close float-right" on:click={closeZoomModal}>
+        <svg viewBox="0 0 36 36" class="circle">
+          <path
+            stroke-dasharray="100, 100"
+            d="M18 2.0845
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+        </svg>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div>
+        <p class="zoom-message">Zoom in further to place a pin.</p>
+      </div>
+    </div>
+  </div>
+{/if}
 
 
 <style>
