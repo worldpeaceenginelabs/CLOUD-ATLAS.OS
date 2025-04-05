@@ -7,7 +7,6 @@
   import Grid from "./Grid.svelte"; 
   import { writable } from 'svelte/store';
 
-  // State to track visibility of the picture
   let showPicture = true;
   let pictureUrl = "./cloudatlas8kzip.jpg";
   let quote = "“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.” Buckminster Fuller";
@@ -16,25 +15,23 @@
 </script>
 
 <div>
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
   {#if showPicture}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div class="picture-container" on:click={() => showPicture = false}>
       <img class="picture" src={pictureUrl} alt="Inspiring" />
+      <div class="overlay"></div>
       <div class="quote">{quote}</div>
-      <div class="enter-text animated-gradient">ENTER</div> <!-- Pulsating ENTER text -->
+      <div class="enter-text animated-gradient">ENTER</div>
     </div>
   {:else}
-     
-  <div class="gridcontainer"><Grid /></div>
-  <div class="cesiumcontainer"><Cesium /></div>
-  
-  <div class="searchcontainer"><Appsearch /></div>
+    <div class="gridcontainer"><Grid /></div>
+    <div class="cesiumcontainer"><Cesium /></div>
+    <div class="searchcontainer"><Appsearch /></div>
     <div class="liveeditcontainer"><LiveEdit/></div>
     <div class="infoboxcontainer"><Infobox {isVisible} /></div>
   {/if}
 </div>
 
+<!-- Hidden component off-screen -->
 <div style="position: absolute; left: -9999px; top: -9999px;">
   <AddMapmarker />
 </div>
@@ -45,14 +42,14 @@
     overflow: hidden;
   }
 
-  .gridcontainer{
-      top: 0px;
-      z-index: 10;
-      position: absolute;
-      height: 100%;
-      width: 100%;
+  .gridcontainer {
+    top: 0;
+    z-index: 10;
+    position: absolute;
+    height: 100%;
+    width: 100%;
   }
-  
+
   .cesiumcontainer {
     display: flex;
     flex-direction: column;
@@ -61,7 +58,7 @@
     z-index: 20;
     position: relative;
   }
-  
+
   .searchcontainer {
     position: absolute;
     top: 1em;
@@ -72,48 +69,86 @@
     max-width: 800px;
   }
 
-  .infoboxcontainer{
+  .infoboxcontainer {
     z-index: 30;
     position: absolute;
   }
 
   .liveeditcontainer {
     position: absolute;
-        bottom: 0.3em;
-        right:0.3em;
-        z-index: 50;
+    bottom: 0.3em;
+    right: 0.3em;
+    z-index: 50;
   }
 
   .picture-container {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;
+    flex-direction: column;
     text-align: center;
-    background-color: #f0f0f0;
+    background-color: #000;
     height: 100vh;
     width: 100vw;
     position: relative;
+    overflow: hidden;
   }
+
   .picture {
-    max-width: 100%;
-    max-height: 80vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
     cursor: pointer;
   }
+
+  @media (max-width: 768px) {
+  .picture {
+    object-fit: contain;
+  }
+
+  .quote, .enter-text {
+    font-size: 1.2em;
+    padding: 0 1em;
+  }
+
+  .enter-text {
+    font-size: 15vw;
+  }
+}
+
+
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.7));
+    z-index: 2;
+    pointer-events: none;
+  }
+
   .quote {
-    margin-top: 20px;
+    margin-top: 2em;
     font-size: 1.5em;
     font-style: italic;
-    color: black;
+    color: white;
+    z-index: 3;
+    max-width: 80%;
   }
+
   .enter-text {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 35rem; /* Adjust the font size */
-    padding-bottom: 5px;
+    width: 100%;
+    text-align: center;
+    font-size: 30vw;
     background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
     background-size: 400% 400%;
     animation: gradientBG 5s ease infinite, pulse 10s infinite;
@@ -121,7 +156,10 @@
     -webkit-text-fill-color: transparent;
     line-height: 1.2;
     cursor: pointer;
+    z-index: 4;
+    pointer-events: none;
   }
+
   @keyframes pulse {
     0% {
       opacity: 1;
@@ -133,6 +171,7 @@
       opacity: 1;
     }
   }
+
   @keyframes gradientBG {
     0% {
       background-position: 0% 50%;
