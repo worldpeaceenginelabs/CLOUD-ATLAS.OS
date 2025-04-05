@@ -105,22 +105,6 @@
     cursor: pointer;
   }
 
-  @media (max-width: 768px) {
-  .picture {
-    object-fit: contain;
-  }
-
-  .quote, .enter-text {
-    font-size: 1.2em;
-    padding: 0 1em;
-  }
-
-  .enter-text {
-    font-size: 15vw;
-  }
-}
-
-
   .overlay {
     position: absolute;
     top: 0;
@@ -181,6 +165,26 @@
     }
     100% {
       background-position: 0% 50%;
+    }
+  }
+
+  /* Mobile Layout */
+  @media (max-width: 768px) {
+    .picture {
+      object-fit: contain;
+      background-color: black;
+    }
+
+    .quote {
+      position: absolute;
+      bottom: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.1em;
+      padding: 0 1em;
+      text-align: center;
+      max-width: 90%;
+      z-index: 3;
     }
   }
 </style>
