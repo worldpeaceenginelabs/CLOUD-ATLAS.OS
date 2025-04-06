@@ -176,14 +176,14 @@
   /* Mobile Layout */
   @media (max-width: 768px) {
   .picture-container {
-    background-color: white;
+    background: black;
     justify-content: center;
     align-items: center;
   }
 
   .picture {
     object-fit: contain;
-    background-color: white;
+    background-color: rgba(255, 255, 255, 0.97);
   }
 
   .quote {
@@ -216,4 +216,22 @@
     font-size: 6vw;
   }
 }
+
+/* Specific fix for very small screens (under 400px) */
+@media (max-width: 400px) {
+    .quote {
+      font-size: 1em; /* Reduce the font size further */
+      bottom: 5%; /* Adjust the position of the quote */
+      max-width: 80%; /* Make sure the quote is within bounds */
+    }
+    
+    .enter-text {
+      font-size: 35vw; /* Adjust font size of enter text for smaller screens */
+    }
+
+    .twpg-text.under-enter {
+      font-size: 7vw; /* Adjust font size for the secondary text */
+    }
+  }
+
 </style>
