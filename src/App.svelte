@@ -21,6 +21,7 @@
       <div class="overlay"></div>
       <div class="quote">{quote}</div>
       <div class="enter-text animated-gradient">ENTER</div>
+      <div class="twpg-text under-enter animated-gradient">THE WORLD PEACE GAME</div>
     </div>
   {:else}
     <div class="gridcontainer"><Grid /></div>
@@ -127,64 +128,92 @@
 
   .enter-text {
     position: absolute;
-    top: 50%;
+    top: 33%;
     left: 50%;
     transform: translate(-50%, -50%);
     width: 100%;
     text-align: center;
     font-size: 30vw;
-    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-    background-size: 400% 400%;
-    animation: gradientBG 5s ease infinite, pulse 10s infinite;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     line-height: 1.2;
     cursor: pointer;
     z-index: 4;
     pointer-events: none;
   }
 
+  .twpg-text.under-enter {
+    position: absolute;
+    top: calc(33% + 18vw);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 4vw;
+    width: fit-content;
+    max-width: 100%;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  /* Gradient animation for ENTER + TWPG */
+  .animated-gradient {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientBG 5s ease infinite, pulse 10s infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
   @keyframes pulse {
-    0% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-    }
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
   }
 
   @keyframes gradientBG {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
   /* Mobile Layout */
   @media (max-width: 768px) {
-    .picture {
-      object-fit: contain;
-      background-color: black;
-    }
-
-    .quote {
-      position: absolute;
-      bottom: 10%;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 1.1em;
-      padding: 0 1em;
-      text-align: center;
-      max-width: 90%;
-      z-index: 3;
-    }
+  .picture-container {
+    background-color: white;
+    justify-content: center;
+    align-items: center;
   }
+
+  .picture {
+    object-fit: contain;
+    background-color: white;
+  }
+
+  .quote {
+    color: black;
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.1em;
+    padding: 0 1em;
+    text-align: center;
+    max-width: 90%;
+    z-index: 3;
+  }
+
+  .enter-text {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    font-size: 30vw;
+    margin-bottom: 0.5em;
+  }
+
+  .twpg-text.under-enter {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    font-size: 6vw;
+  }
+}
 </style>
