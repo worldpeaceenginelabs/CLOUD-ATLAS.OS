@@ -18,7 +18,8 @@
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
 	import CategoryChoice from "./DAPPS/HomeScreen/CategoryChoice.svelte";
-	import EventcalendarDaNang from './DAPPS/EventcalendarDaNang.svelte';   
+	import EventcalendarDaNang from './DAPPS/EventcalendarDaNang.svelte';
+	import EventcalendarPai from './DAPPS/EventcalendarPai.svelte'; 
 	import { coordinates } from './store.js';
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
@@ -33,6 +34,7 @@
 	let recordButtonText = '';
 	let isZoomModalVisible = false;
 	let isDaNangModalVisible = false;
+	let isPaiModalVisible = false;
   
 	// Open connection to IndexedDB
 	const openDB = (): Promise<IDBDatabase> => {
@@ -276,6 +278,36 @@ const daNangBillboard = new Entity({
 
 viewer.entities.add(daNangBillboard);
 
+const PaiPosition = Cartesian3.fromDegrees(98.441512, 19.360014);
+
+const PaiBillboard = new Entity({
+    id: 'PaiBillboard',
+    position: PaiPosition,
+    billboard: {
+        image: new Cesium.ConstantProperty('data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#ee7752;stop-opacity:1" />
+                        <stop offset="25%" style="stop-color:#e73c7e;stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:#23a6d5;stop-opacity:1" />
+                        <stop offset="75%" style="stop-color:#23d5ab;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <rect x="50" y="30" width="200" height="40" fill="white" opacity="0.01"/>
+                <text x="150" y="50" font-size="40" font-family="sans-serif" font-weight="bold" fill="url(#gradient)" text-anchor="middle" alignment-baseline="middle">PAI</text>
+            </svg>
+        `)),
+        eyeOffset: new Cartesian3(0.0, 0.0, -5000.0),
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    }
+});
+
+viewer.entities.add(PaiBillboard);
+
 	// Remove the doubleclick event handler
 	  viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   
@@ -430,9 +462,17 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
   const pickedObject = viewer.scene.pick(click.position);
   if (!Cesium.defined(pickedObject) || !pickedObject.id) return;
 
+  // Check if the picked object is daNangBillboard
   if (pickedObject.id.id === 'daNangBillboard') {
-    isDaNangModalVisible = true;
-    click.cancelBubble = true; // Prevent other click handlers from being triggered
+    isDaNangModalVisible = true;  // Open Da Nang modal
+    click.cancelBubble = true;    // Prevent other click handlers from being triggered
+    return;
+  }
+
+  // Check if the picked object is PaiBillboard
+  if (pickedObject.id.id === 'PaiBillboard') {
+    isPaiModalVisible = true;    // Open Pai modal
+    click.cancelBubble = true;   // Prevent other click handlers from being triggered
     return;
   }
 
@@ -447,7 +487,7 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
 let handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
 handler.setInputAction(debounce(function(result) {
-  if (isDaNangModalVisible) return; // Prevent zoom message if Da Nang modal is visible
+  if (isDaNangModalVisible || isPaiModalVisible) return; // Prevent zoom message if any modal is visible
 
   const height = viewer.camera.positionCartographic.height;
   if (height > 6000000) {
@@ -460,12 +500,8 @@ handler.setInputAction(debounce(function(result) {
 
 
 
+
 	});
-  
-	// Function to open modal
-	function openCategoryModal() {
-	  isCategoryModalVisible = true;
-	}
   
 	// Function to close modal
 	function closeCategoryModal() {
@@ -486,6 +522,12 @@ function closeZoomModal() {
 function closeDaNangModal() {
   isDaNangModalVisible = false;
 }
+
+// Function to close Pai modal
+function closePaiModal() {
+  isPaiModalVisible = false;
+}
+
 
 	// Event listener for closing modals on Escape key press
 function handleKeyDown(event) {
@@ -637,6 +679,30 @@ function handleKeyDown(event) {
         <span></span>
       </div>
       <EventcalendarDaNang />
+    </div>
+  </div>
+{/if}
+
+{#if isPaiModalVisible}
+  <div class="modal" transition:fade={{ duration: 500 }}>
+    <div class="modal-content">
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div class="close float-right" on:click={closePaiModal}>
+        <svg viewBox="0 0 36 36" class="circle">
+          <path
+            stroke-dasharray="100, 100"
+            d="M18 2.0845
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+        </svg>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <EventcalendarPai />
     </div>
   </div>
 {/if}
