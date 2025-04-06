@@ -145,7 +145,7 @@
     top: calc(33% + 18vw);
     left: 50%;
     transform: translateX(-50%);
-    font-size: 4vw;
+    font-size: 4.3vw;
     width: fit-content;
     max-width: 100%;
     z-index: 4;
@@ -213,7 +213,7 @@
     top: auto;
     left: auto;
     transform: none;
-    font-size: 6vw;
+    font-size: 7vw;
   }
 }
 
@@ -226,7 +226,7 @@
     }
     
     .enter-text {
-      font-size: 35vw; /* Adjust font size of enter text for smaller screens */
+      font-size: 30vw; /* Adjust font size of enter text for smaller screens */
     }
 
     .twpg-text.under-enter {
