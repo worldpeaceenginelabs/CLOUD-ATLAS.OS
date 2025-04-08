@@ -126,7 +126,7 @@ END:VCALENDAR`.replace(/\n/g, '%0A')
 </script>
 
 <main>
-	<h1>GoDaNang.com</h1>
+	<h1>GoPai</h1>
 
 	<select bind:value={selectedCategory} style="margin-bottom: 20px;">
 		{#each categories as category}
