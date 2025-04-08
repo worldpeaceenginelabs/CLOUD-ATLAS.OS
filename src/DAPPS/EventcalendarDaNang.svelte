@@ -140,7 +140,8 @@
 		date.setHours(hours, parseInt(minute));
 		const formattedTime = `${(hours % 12 || 12).toString().padStart(2, '0')}:${minute} ${ampm}`;
 		const formattedDate = date.toLocaleDateString();
-		return { eventDate: formattedDate, time: formattedTime, full: date };
+		const weekday = date.toLocaleString('en-US', { weekday: 'long' });
+		return { eventDate: formattedDate, time: formattedTime, full: date, weekday };
 	};
 
 	const getCalendarLinks = (event) => {
@@ -182,7 +183,7 @@ END:VCALENDAR`.replace(/\n/g, '%0A')
 	<div class="event-container">
 		{#each filteredEvents as event, index}
 			<div class="event" on:click={() => toggle(index)}>
-				<strong>{splitDateAndTime(event.eventDate, event.eventTime).eventDate} {splitDateAndTime(event.eventDate, event.eventTime).time}</strong> - {event.title}
+				<strong>{splitDateAndTime(event.eventDate, event.eventTime).weekday}, {splitDateAndTime(event.eventDate, event.eventTime).eventDate} {splitDateAndTime(event.eventDate, event.eventTime).time}</strong> - {event.title}
 				{#if openIndex === index}
 					<div class="details">
 						<p>{event.details}</p>
@@ -265,4 +266,4 @@ END:VCALENDAR`.replace(/\n/g, '%0A')
 		50% {background-position: 100% 50%;}
 		100% {background-position: 0% 50%;}
 	}
-</style> 
+</style>
