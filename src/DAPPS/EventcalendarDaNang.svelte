@@ -56,6 +56,40 @@
 			frequency: "weekly",
 			weekdays: []
 		},
+
+		{
+			eventDate: "2025-04-11",
+			eventTime: "9:30 PM",
+			title: "🍹 FREE COMMUNITY EVENT: DANANG BAR CRAWL! 🍹",
+			details: "Location-independence doesn\'t just mean working from anywhere—it means LIVING and CONNECTING from anywhere too! Break Outwards is excited to partner with our sister company Bar Crawl Tours to bring you a FREE community-building event that perfectly aligns with our mission of creating meaningful connections through unique experiences. 🌟 WHY JOIN US? This isn\'t just another tourist bar hop—it's a carefully curated journey through Da Nang\'s vibrant nightlife where authentic connections happen naturally. Whether you\'re a digital nomad, expat, traveler, or local resident, this event brings diverse people together in a fun, safe environment. ✨ WHAT\'S INCLUDED (ALL FREE!): Entry to 4 iconic venues across Da Nang 1 complimentary drink at each location Expert guides who know the city intimately Built-in community of like-minded adventurers An experience that goes beyond the typical \"digital nomad meetup\" 🕘 THE ROUTE & SCHEDULE: 9:30 PM: The Craft Rooftop (Meeting Point) @danangrooftop 10:30 PM: Hair of the Dog @HairOfTheDogClubDaNang 11:30 PM: Karma @karmahousedanang 12:30 AM: Nuna @nunaclublounge 📍 STARTING LOCATION: The Craft Rooftop Tầng thượng, 1B Đ. Lê Duẩn, Hải Châu 1, Hải Châu, Đà Nẵng 550000, Vietnam 🔍 IMPORTANT NOTES: Drinking is 100% OPTIONAL — Many attendees come just for the social experience! Arrive around 9:30 PM; crawl leaves frist stop at approximately 10:30 PM First come, first served Transportation between venues is self-arranged ( we walk ) This event embodies the Break Outwards philosophy that curiosity is our currency and the world is our office—even after work hours! It\'s about expanding your comfort zone and creating connections that enrich your location-independent lifestyle. Tag someone who needs a night out or come solo and leave with new friends! #BreakOutwards #BarCrawlTours #DaNangNightlife #CommunityFirst #DigitalNomadLife #LocationIndependence Follow both @breakoutwards and @BarCrawlTours for more community events! Bar Crawl Tours: https://vlnk.one/@bct Break Outwards: https://vlnk.one/@BrkOut",
+			location: { name: "Da Nang Rooftop - Craft Beer", link: "https://maps.app.goo.gl/R4Ts2EKb549qWsdp9" },
+			category: "Meetup",
+			frequency: "weekly",
+			weekdays: []
+		},
+
+		{
+			eventDate: "2025-04-11",
+			eventTime: "7:30 PM",
+			title: "🍹 Nomad night 🍹",
+			details: "Our meet up on Friday night 🥰 🌍 Danang Nomad Night – – Connect, Share & Chill! 🎱✨ Looking for a fun way to meet fellow digital nomads, remote workers, and entrepreneurs in Danang? Join Danang Nomad Night—your weekly Friday evening meetup to network, share ideas, and have fun! 📍 Where? Garden by Bottega5, 42 Ngô Thì Sỹ 🕢 When? Every Friday at 7:30 PM Whether you’re new in town or a seasoned traveler, this is the perfect space to exchange experiences, find collaborations, and make new friends in a relaxed, friendly atmosphere. Grab a drink, play some pool, and enjoy great conversations with an amazing international crowd. ✅ No sign-up needed—just show up! For more details, contact Hana: +84972490977 See you there! 🚀 https://maps.app.goo.gl/79NvhUd3nmoskYr47?g_st=ic Event organized by Hana ( Hana’s Coworking )❤️",
+			location: { name: "Garden by Bottega5", link: "https://maps.app.goo.gl/YuWZweu9bYz9QZpP9" },
+			category: "Meetup",
+			frequency: "weekly",
+			weekdays: []
+		},
+
+		{
+			eventDate: "2025-04-12",
+			eventTime: "3:30 PM",
+			title: "🌴 Saturday Beach Chill & Volleyball 🌴",
+			details: "Kick off your sandals and join us for an afternoon of fun, friends, and a bit of friendly competition! From volleyball to badminton, frisbee to beach games, there’s something for everyone. Whether you’re new in town or a regular, come to unwind, play, and recharge after a week of hard work. Stick around to soak up the sunset vibes with great company! Bring a friend, some snacks, or just yourself – everyone’s welcome! 🏖 Feel free to contact Hana if you want to know more details. WhatsApp or Zalo +84972490977 🗓 Saturday ⏰ 3:30 PM 📍 https://maps.app.goo.gl/6A1ft7ZmSqxs7BnY6?g_st=ic Everyone is welcome. 🤗 https://chat.whatsapp.com/EuCffKTX3LD3vUcIVRyeai",
+			location: { name: "Công viên Sao Biển Beach", link: "https://maps.app.goo.gl/6A1ft7ZmSqxs7BnY6?g_st=ic" },
+			category: "Meetup",
+			frequency: "weekly",
+			weekdays: []
+		},
+
 	];
 
 	let openIndex: number | null = null;
@@ -190,8 +224,8 @@ END:VCALENDAR`.replace(/\n/g, '%0A')
 						<p><strong>Location:</strong> <a href={event.location.link} target="_blank">{event.location.name}</a></p>
 						<p><strong>Frequency:</strong> {event.frequency} {event.weekdays?.length ? `on ${event.weekdays.join(', ')}` : ''}</p>
 						<div style="margin-top: 10px;">
-							<a href={getCalendarLinks(event).apple} target="_blank">🍏 Add to Apple Calendar</a><br>
-							<a href={getCalendarLinks(event).google} target="_blank">📅 Add to Google Calendar</a>
+							<a href={getCalendarLinks(event).apple} target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" width="16" height="16" /> Add to Apple Calendar</a><br>
+							<a href={getCalendarLinks(event).google} target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/2560px-Google_2015_logo.svg.png" alt="Google" width="16" height="16" /> Add to Google Calendar</a>
 						</div>
 					</div>
 				{/if}

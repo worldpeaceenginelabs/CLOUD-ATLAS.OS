@@ -144,8 +144,8 @@ END:VCALENDAR`.replace(/\n/g, '%0A')
 						<p><strong>Location:</strong> <a href={event.location.link} target="_blank">{event.location.name}</a></p>
 						<p><strong>Frequency:</strong> {event.frequency} {event.weekdays?.length ? `on ${event.weekdays.join(', ')}` : ''}</p>
 						<div style="margin-top: 10px;">
-							<a href={getCalendarLinks(event).apple} target="_blank">🍏 Add to Apple Calendar</a><br>
-							<a href={getCalendarLinks(event).google} target="_blank">📅 Add to Google Calendar</a>
+							<a href={getCalendarLinks(event).apple} target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" width="16" height="16" /> Add to Apple Calendar</a><br>
+							<a href={getCalendarLinks(event).google} target="_blank"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/2560px-Google_2015_logo.svg.png" alt="Google" width="16" height="16" /> Add to Google Calendar</a>
 						</div>
 					</div>
 				{/if}
