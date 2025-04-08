@@ -1,6 +1,6 @@
 # 🌍 Cloud Atlas Community License (v1.0)
 
-**Applies to:** Cloud Atlas OS, all official Cloud Atlas modules, dApps, tools, services, components, and any derivative works.  
+**Applies to:** Cloud Atlas OS, all Cloud Atlas modules, dApps, tools, services, components, and any derivative works.  
 **Author:** Boris Kowalczuk  
 **Copyright © 2025**
 
