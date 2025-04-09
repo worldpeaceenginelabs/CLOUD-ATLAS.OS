@@ -72,7 +72,7 @@
     
     <h4><strong>🔥 Want more apps? Reach out to me and our community anytime on GitHub, Element.io (DEVChat), or during our upcoming weekly Zoom brainstorming sessions on YouTube.</strong></h4><br>
 
-    <strong>Cloud Atlas, my passion project, intentionally remains non-profit and free forever. Why I Need Your Support? While Cloud Atlas is my passion, I also have to meet my day-to-day living expenses. Instead of requesting large sums of money to hire developers or to cover substantial project costs, I’ve decided to take a more sustainable and humble approach. I am seeking support to continue my journey as a digital nomad, which allows me to live and work full-time on Cloud Atlas with minimal expenses. With just €6,000 a year, I can live comfortably in Southeast Asia, dedicating all my time and energy to developing and growing Cloud Atlas. This amount covers my living costs and allows me to focus on what truly matters—building this platform for the benefit of all. Please consider supporting me by contributing to my Bitcoin address <a target="_blank" href="https://bitcoinblockexplorers.com/address/12KQqWzc4BkVgm6syqEMjy3yoBd7hhoCHA">12KQqWzc4BkVgm6syqEMjy3yoBd7hhoCHA</a> or via <a target="_blank" href="https://paypal.me/worldpeaceengine">PayPal Me</a>. Everything above €6,000 a year will flow directly into enhancing Cloud Atlas.</strong>
+    <strong>Cloud Atlas, my passion project, intentionally remains non-profit and free forever. Why I Need Your Support? While Cloud Atlas is my passion, I also have to meet my day-to-day living expenses. Instead of requesting large sums of money to hire developers or to cover substantial project costs, I’ve decided to take a more sustainable and humble approach. I am seeking support to continue my journey as a digital nomad, which allows me to live and work full-time on Cloud Atlas with minimal expenses. With just €6,000 a year, I can live comfortably in Southeast Asia, dedicating all my time and energy to developing and growing Cloud Atlas. This amount covers my living costs and allows me to focus on what truly matters—building this platform for the benefit of all. Please consider supporting me by contributing to my Bitcoin address <a target="_blank" href="https://bitcoinblockexplorers.com/address/bc1q5z07snhwpdw7s3tdf8mxjlq3nk5qwm4qsgwyh8">bc1q5z07snhwpdw7s3tdf8mxjlq3nk5qwm4qsgwyh8</a> or via <a target="_blank" href="https://paypal.me/worldpeaceengine">PayPal Me</a>. Everything above €6,000 a year will flow directly into enhancing Cloud Atlas OS.</strong>
     <br><br>
     <div class="center"><h4><strong>⚠️ Please note our one essential guideline:⚠️</strong></h4></div>
     <h4 style="text-align:justify;">
@@ -86,24 +86,28 @@
 
 
   <div style="position: fixed; bottom: 5px; left: 0; height: 30px; width: 100%; display: flex; justify-content: center; align-items: center;">
-    <a href="https://worldpeaceenginelabs.org/" target="_blank">
+    
+    <a href="https://github.com/worldpeaceenginelabs/METAVERSE-SEED#readme" target="_blank">
+      <img class="bottomicons" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
+  </a>
+
+    <a href="https://linktr.ee/worldpeaceenginelabs" target="_blank">
         <img class="bottomicons" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
     </a>
-    <a href="https://bitcoinblockexplorers.com/address/12KQqWzc4BkVgm6syqEMjy3yoBd7hhoCHA" target="_blank">
-      <img class="bottomicons" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
-  </a>
+   
     <a href="https://app.element.io/#/room/#METAVERSE-DAO_CLOUD-ATLAS_community:gitter.im" target="_blank">
         <img class="bottomicons" src="chat-icon.svg" alt="" title="Developer Chat" height="30" width="30">
     </a>
-    <a href="https://github.com/worldpeaceenginelabs/METAVERSE-SEED#readme" target="_blank">
-        <img class="bottomicons" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
-    </a>
+    
     <a href="https://twitter.com/peace_engine" target="_blank">
         <img class="bottomicons" src="x-icon.svg" alt="" title="X" height="30" width="30">
     </a>
     <a href="https://www.youtube.com/@worldpeaceenginelabs3955/videos" target="_blank">
         <img class="bottomicons" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
     </a>
+    <a href="https://bitcoinblockexplorers.com/address/bc1q5z07snhwpdw7s3tdf8mxjlq3nk5qwm4qsgwyh8" target="_blank">
+      <img class="bottomicons" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
+  </a>
 </div>
 
 
