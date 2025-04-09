@@ -2,7 +2,7 @@
 
 # 🚨Call to Apple, Android, Web Devs, and Entrepreneurs🚨
 
-I’ve built a decentralized Google Maps—no servers, pure edge tech 🔥—and it’s called Cloud Atlas OS. Right now, it’s a blank slate, like an empty Maps app begging for life 🌱. Think of me as Google in 2000, hunting badass flagship apps and ideas—yours! Code it once for Cloud Atlas 💻, and it’s instantly on every device, every platform—no extra grind, no limits. iOS devs, port your Swift with WebAssembly or Rust; Android crew, same deal; web devs, it’s JAMStack native—JS, HTML, CSS, stupid-lightweight. Entrepreneurs, bring your vision—this scales to billions for free 💸. Your win kickstarts the platform, ignites the spotlight ✨, and as more jump in, we all amp each other up. It’s “pay it forward” with a twist: blazing-fast, future-proof, zero-cost, no BS. Check it: https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS. Ready to plant the seeds and make it massive? 🚀
+I’ve built a decentralized Google Earth/Maps—no servers, pure edge tech 🔥—and it’s called Cloud Atlas OS. Right now, it’s a blank slate, like an empty Maps app begging for life 🌱. Think of me as Google in 2000, hunting badass flagship apps and ideas—yours! Code it once for Cloud Atlas 💻, and it’s instantly on every device, every platform—no extra grind, no limits. iOS devs, port your Swift with WebAssembly or Rust; Android crew, same deal; web devs, it’s JAMStack native—JS, HTML, CSS, stupid-lightweight. Entrepreneurs, bring your vision—this scales to billions for free 💸. Your win kickstarts the platform, ignites the spotlight ✨, and as more jump in, we all amp each other up. It’s “pay it forward” with a twist: blazing-fast, future-proof, zero-cost, no BS. Check it: https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS. Ready to plant the seeds and make it massive? 🚀
 
 I’m onboarding folks to Cloud Atlas OS right now. We can collab on your app—plus, I’ve got volunteers lined up, itching to beef up their resumes. What’s your project about? Oh, and **FYI: you’re never tied to me—fork the project on GitHub anytime, go solo if you want, and still ride Cloud Atlas OS’s success.** Sound good?
 <br><br><br>
@@ -11,7 +11,7 @@ I’m onboarding folks to Cloud Atlas OS right now. We can collab on your app—
 
 We’ve evolved **Crowd Engineering** into a **social network application**.
 
-**Cloud Atlas OS** is a revolutionary, decentralized, and community-owned **real-world platform**——think Google Maps, Wikipedia, and an App Store fused into one. Powered by a **P2P network of user devices**, it’s **self-scaling**, runs **without server farms, costs, or central authority**, and empowers users globally. Here is how it works:
+**Cloud Atlas OS** is a revolutionary, decentralized, and community-owned **real-world platform**——think Google Earth/Maps, Wikipedia, and an App Store fused into one. Powered by a **P2P network of user devices**, it’s **self-scaling**, runs **without server farms, costs, or central authority**, and empowers users globally. Here is how it works:
 <br><br><br>
 
 # Technical Summary
@@ -95,7 +95,7 @@ We’ve evolved **Crowd Engineering** into a **social network application**.
 
 We’ve evolved **Crowd Engineering** into a **social network application**.
 
-**Cloud Atlas OS** is a revolutionary, decentralized, and community-owned **real-world platform**——think Google Maps, Wikipedia, and an App Store fused into one. Powered by a **P2P network of user devices**, it’s **self-scaling**, runs **without server farms, costs, or central authority**, and empowers users globally.
+**Cloud Atlas OS** is a revolutionary, decentralized, and community-owned **real-world platform**——think Google Earth/Maps, Wikipedia, and an App Store fused into one. Powered by a **P2P network of user devices**, it’s **self-scaling**, runs **without server farms, costs, or central authority**, and empowers users globally.
 
 <br><br><br>
 ![image](https://github.com/user-attachments/assets/27fd64c9-28b7-492c-a5d9-6f180fb5817c)
