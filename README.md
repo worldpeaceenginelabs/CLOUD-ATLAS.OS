@@ -125,10 +125,8 @@ Picture a **3D animated Wikipedia where articles visually roam the globe**, repr
 ![image](https://github.com/user-attachments/assets/69342182-2418-498b-8f48-0b978d95eed5)
 <br><br>
 
-### Couchsurfing
+### Cutting out the middlemen
 The first privately developed dApp, **Couchsurfing Free**, sets the stage for what’s possible. Upcoming projects like **dAmazon**, **dUber**, **dUber Eats**, and **dAirBNB** showcase the limitless potential for innovation, cutting out the middlemen. By the (p)eople, for the (p)eople – P2P at its finest.<br>
-
-![image](https://github.com/user-attachments/assets/03c7895a-ab26-4483-aa89-d75c89c0cc1a)
 
 ---
 
