@@ -42,8 +42,6 @@
     <h3>"I used to complain about things in my city but never knew where to start. Cloud Atlas OS gave me a platform to turn frustration into collaboration. I launched a local cleanup mission, got support from people I never met before, and now we’re organizing monthly events. My friends saw the impact and created their own missions too—this platform made me believe change is possible again." — Daniel R., Community Starter, Cloud Atlas OS</h3>
     <h3><strong>Turning ideas into action just got easier.</strong></h3>
     <h3><strong>Small changes that change everything. One at a time.</strong></h3>
-    <div><img src="butterfly.gif" width="50" height="50" style="display: block; margin: 0px auto;" /></div>
-
     <br><h3><strong>We've developed Crowd Engineering into a Social Network application...</strong></h3>
     <h4><strong>Cloud Atlas OS is a Community-Owned real-world platform 🔥 featuring a Community-Driven dApp Store 🔥 with Built-In Backend 🔥 Spatial Intelligence baked in 🔥 Run by the people, for the people.<br><br>But this is more than just a map...</strong><br><br>
     <strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong><br><br>
