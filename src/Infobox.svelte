@@ -44,7 +44,7 @@
     <h3><strong>Small changes that change everything. One at a time.</strong></h3>
   
     <p align="center">
-  <img src="butterfly.gif"/>
+  <img src="butterfly.gif" width="200" height="200" />
 </p>
 
     <br><h3><strong>We've developed Crowd Engineering into a Social Network application...</strong></h3>
