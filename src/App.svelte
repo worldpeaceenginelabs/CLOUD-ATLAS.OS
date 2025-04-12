@@ -123,7 +123,7 @@
     font-style: italic;
     color: white;
     z-index: 3;
-    max-width: 80%;
+    max-width: 90%;
   }
 
   .enter-text {
@@ -190,8 +190,6 @@
     color: black;
     position: absolute;
     bottom: 10%;
-    left: 50%;
-    transform: translateX(-50%);
     font-size: 1.1em;
     padding: 0 1em;
     text-align: center;
@@ -221,8 +219,8 @@
 @media (max-width: 400px) {
     .quote {
       font-size: 1em; /* Reduce the font size further */
-      bottom: 5%; /* Adjust the position of the quote */
-      max-width: 80%; /* Make sure the quote is within bounds */
+      bottom: 10%; /* Adjust the position of the quote */
+      max-width: 90%; /* Make sure the quote is within bounds */
     }
     
     .enter-text {
