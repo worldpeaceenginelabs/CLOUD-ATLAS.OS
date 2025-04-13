@@ -44,7 +44,7 @@
     <h3><strong>Small changes that change everything. One at a time.</strong></h3>
     <img src="butterfly.gif" width="200" height="200"/>
 
-    <h3>We’ve evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong>.</h3>
+    <h3>We’ve evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></h3>
 
     <h4><strong>Cloud Atlas OS</strong> is a <strong>community-owned</strong>, <strong>decentralized real-world platform</strong> — imagine <strong>Google Earth</strong>, <strong>Wikipedia</strong>, and an <strong>App Store</strong> fused into one.</h4>
     
@@ -52,7 +52,7 @@
     
     <h4><strong>Powered by a peer-to-peer network of user devices</strong>, it’s <strong>self-scaling</strong>, <strong>serverless</strong>, <strong>cost-free</strong>, and <strong>free from central authority</strong>.</h4>
     
-    <h4><strong>Run by the people, for the people.</strong></h4>
+    <h4><strong>Run by the people, for the people</strong></h4>
     
     <h4><strong>But this is more than just a map...</strong></h4>
     <br><br>
@@ -66,7 +66,7 @@
     <strong>What is Cloud Atlas?</strong><br>
     <strong>Cloud Atlas</strong> is a <strong>decentralized, community-owned real-world platform</strong> — free from centralized servers and monopolistic control.
     Entirely owned by <strong>you and the public</strong>, it functions as a truly <strong>Global Public Collective Computer</strong> — where data, applications, and intelligence live across the globe, not in corporate silos.
-    The name <strong>Cloud Atlas</strong> reflects its vision: a global 'atlas' of everything happening on Earth — powered by a decentralized 'cloud' made up of people, devices, and places. It’s not just a platform — it’s the foundation of a new, open internet.
+    The name <strong>Cloud Atlas</strong> reflects its vision: a living, global 'atlas' of everything happening on Earth — powered by a decentralized, human-powered 'cloud' of people, devices, and places. It’s not just a platform — it’s the foundation of a new, open internet.
     
     <br><br>
 
@@ -76,16 +76,16 @@
     The <strong>Home Screen</strong> is a social network for crowdengineering good deeds where you can actively create and participate in missions addressing <strong>local and global</strong> issues. It offers a space to <strong>brainstorm (zoom.us)</strong> solutions,  with people from all walks of life, realize your solutions through collaborations or sheer manpower with <strong>in-person ActionEvents (Telegram's live location feature allows up to 200,000 users to coordinate seamlessly)</strong>, secure eventually necessary permissions to enhance public spaces via <strong>Petition (change.org)</strong>, and turn your visionary ideas into reality with the power of <strong>Crowdfunding (gofundme.com).</strong><br><br>
     
     <strong>Your creations will never be limited to just one environment again...</strong><br>
-    The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map. A coordinate can represent everything: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>
+    The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map—where every coordinate tells a story: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>
     
-    <strong>In-Browser Development:</strong> The <strong>Stackblitz IDE</strong> is seamlessly integrated (settings icon top-right), enabling you to propose, create, and implement new applications, enhancements, and bug fixes directly - <strong>in Browser</strong> — all without the need for installing a coding environment. Contributions can be made effortlessly via a simple pull request. (For developers and non-technicians: <a target="_blank" href="https://githubnext.com/projects/copilot-workspace">GitHub Copilot Workspace coming - "If you can describe it, you can code it"</a>)<br><br>
+    <strong>In-Browser Development:</strong> The <strong>Stackblitz IDE</strong> is seamlessly integrated (settings icon top-right), enabling you to propose, create, and implement new applications, enhancements, and bug fixes directly - <strong>in Browser</strong> — all without the need for installing a coding environment. Contributions are easy via a simple pull request. (For developers and non-technicians: <a target="_blank" href="https://githubnext.com/projects/copilot-workspace">GitHub Copilot Workspace coming - "If you can describe it, you can code it"</a>)<br><br>
     
     <strong>It’s free and scales 99% autonomously!</strong> More users mean more app storage and computational power.
     <strong>No need for back-end servers!</strong> Cloud Atlas syncs via public tracker networks using BitTorrent, with Nostr as a fallback coming soon. However, persistent storage and computational power (cloud/servers) can be simply added if needed.<br><br>
     </h4>
 
 
-    <div class="center"><h4><strong>What's stopping you from creating right now? Your creativity is the limit.</strong></h4></div>
+    <div class="center"><h4><strong>What's stopping you from creating right now? Your imagination is the only limit.</strong></h4></div>
     
     <div class="center">
       <a class="neumorphic" target="_blank" href="https://github.com/worldpeaceenginelabs/METAVERSE-SEED">Check out our GitHub and Collaboration Hub</a><br>
