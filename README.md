@@ -15,7 +15,7 @@ I’m inviting people to join Cloud Atlas OS right now. We can team up on your a
 
 ## UI Update Coming: Corporate Control Ends Now!
 
-### "Cloud Atlas OS is evolving – picture a world where your favorite services are cheaper for the customer, and fairer with more money for the worker. No more middlemen. Just direct connections, where value goes where it should. We’re shifting the power from the few to the many, and building a future that works for everyone. The revolution begins now."
+### "Cloud Atlas OS is evolving – picture a world where your favorite services are cheaper for the customer, and fairer with more money for the worker. No more middlemen. Just direct connections, where value goes where it should. We’re shifting the power from the few to the many, and building a future that works for everyone. The revolution begins now."<br><br> Think upcoming projects like dAmazon, dUber, dUberEats, and dAirBNB
 <br><br><br>
 
 # Cloud Atlas OS
