@@ -44,15 +44,33 @@
     <h3><strong>Small changes that change everything. One at a time.</strong></h3>
     <img src="butterfly.gif" width="200" height="200"/>
 
-    <br><h3><strong>We've developed Crowd Engineering into a Social Network application...</strong></h3>
-    <h4><strong>Cloud Atlas OS is a Community-Owned real-world platform 🔥 featuring a Community-Driven dApp Store 🔥 with Built-In Backend 🔥 Spatial Intelligence baked in 🔥 Run by the people, for the people.<br><br>But this is more than just a map...</strong><br><br>
-    <strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong><br><br>
-    </h4>
+    <h3>We’ve evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong>.</h3>
+
+    <h4><strong>Cloud Atlas OS</strong> is a <strong>community-owned</strong>, <strong>decentralized real-world platform</strong> — imagine <strong>Google Earth</strong>, <strong>Wikipedia</strong>, and an <strong>App Store</strong> fused into one.</h4>
+    
+    <h4>dApps built with the <strong>Community-Driven dApp Store</strong> come with <strong>Built-In Backend</strong> and <strong>Spatial Intelligence</strong> baked in, and run virtually everywhere <strong>without the need for server infrastructure</strong>.</h4>
+    
+    <h4><strong>Powered by a peer-to-peer network of user devices</strong>, it’s <strong>self-scaling</strong>, <strong>serverless</strong>, <strong>cost-free</strong>, and <strong>free from central authority</strong>.</h4>
+    
+    <h4><strong>Run by the people, for the people.</strong></h4>
+    
+    <h4><strong>But this is more than just a map...</strong></h4>
+    <br><br>
+
+    <h4>
+    <strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong>
+    </h4><br><br>
   
     
     <h4 style="text-align:justify;">
     <strong>What is Cloud Atlas?</strong><br>
-    Cloud Atlas is a decentralized, community-owned real-world platform - free from centralized servers and monopolistic control. Entirely owned by you and the public, it’s truly a Global Public Collective Computer!<br><br>
+    <strong>Cloud Atlas</strong> is a <strong>decentralized, community-owned real-world platform</strong> — free from centralized servers and monopolistic control.
+    Entirely owned by <strong>you and the public</strong>, it functions as a truly <strong>Global Public Collective Computer</strong> — where data, applications, and intelligence live across the globe, not in corporate silos.
+    The name <strong>Cloud Atlas</strong> reflects its vision: a global 'atlas' of everything happening on Earth — powered by a decentralized 'cloud' made up of people, devices, and places. It’s not just a platform — it’s the foundation of a new, open internet.
+    
+    <br><br>
+
+
     <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br>
     <strong>Where Your Vision Meets Collective Action...</strong><br>
     The <strong>Home Screen</strong> is a social network for crowdengineering good deeds where you can actively create and participate in missions addressing <strong>local and global</strong> issues. It offers a space to <strong>brainstorm (zoom.us)</strong> solutions,  with people from all walks of life, realize your solutions through collaborations or sheer manpower with <strong>in-person ActionEvents (Telegram's live location feature allows up to 200,000 users to coordinate seamlessly)</strong>, secure eventually necessary permissions to enhance public spaces via <strong>Petition (change.org)</strong>, and turn your visionary ideas into reality with the power of <strong>Crowdfunding (gofundme.com).</strong><br><br>
