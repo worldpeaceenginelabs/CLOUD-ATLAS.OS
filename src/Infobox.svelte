@@ -79,8 +79,20 @@
     <strong>Your creations will never be limited to just one environment again...</strong><br>
     The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map—where every coordinate tells a story: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>
     
-    <strong>In-Browser Development:</strong> The <strong>Stackblitz IDE</strong> is seamlessly integrated (settings icon top-right), enabling you to propose, create, and implement new applications, enhancements, and bug fixes directly - <strong>in Browser</strong> — all without the need for installing a coding environment. Contributions are easy via a simple pull request. (For developers and non-technicians: <a target="_blank" href="https://githubnext.com/projects/copilot-workspace">GitHub Copilot Workspace coming - "If you can describe it, you can code it"</a>)<br><br>
+    <strong>In-Browser Development:</strong> The <strong>Stackblitz IDE</strong> is seamlessly integrated (settings icon bottom-right), enabling you to propose, create, and implement new applications, enhancements, and bug fixes directly - <strong>in Browser</strong> — all without the need for installing a coding environment. Contributions are easy via a simple pull request. (For developers and non-technicians: <a target="_blank" href="https://githubnext.com/projects/copilot-workspace">GitHub Copilot Workspace coming - "If you can describe it, you can code it"</a>)<br><br>
     
+    <strong>Don’t get hung up on the tools:</strong><br>
+    Pick what suits your flow. Elevate your concepts using:
+<ul>
+  <li><strong>Unreal Engine 5</strong> (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.)</li>
+  <li><strong>Unity 3D</strong> (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.)</li>
+  <li><strong>HTML, CSS, JS, APIs (JAMstack)</strong></li>
+  <li><strong>WASM</strong> (C, C++, C#, and Rust, but for the Web)</li>
+  <li><strong>WebContainers</strong> (Node.js in the browser)</li>
+</ul>
+<p>Then continue with <strong>Stackblitz IDE Integration</strong> (Live Edit).</p>
+
+
     <strong>It’s free and scales 99% autonomously!</strong> More users mean more app storage and computational power.
     <strong>No need for back-end servers!</strong> Cloud Atlas syncs via public tracker networks using BitTorrent, with Nostr as a fallback coming soon. However, persistent storage and computational power (cloud/servers) can be simply added if needed.<br><br>
     </h4>
