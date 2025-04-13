@@ -48,7 +48,8 @@
 
     <h4><strong>Cloud Atlas OS</strong> is a <strong>community-owned</strong>, <strong>decentralized real-world platform</strong> — imagine <strong>Google Earth</strong>, <strong>Wikipedia</strong>, and an <strong>App Store</strong> fused into one.</h4>
     
-    <h4>dApps built with the <strong>Community-Driven dApp Store</strong> come with <strong>Built-In Backend</strong> and <strong>Spatial Intelligence</strong> baked in, and run virtually everywhere <strong>without the need for server infrastructure</strong>.</h4>
+    <h4><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It’s as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You’ll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.</h4>
+
     
     <h4><strong>Powered by a peer-to-peer network of user devices</strong>, it’s <strong>self-scaling</strong>, <strong>serverless</strong>, <strong>cost-free</strong>, and <strong>free from central authority</strong>.</h4>
     
