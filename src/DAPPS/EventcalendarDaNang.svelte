@@ -89,10 +89,8 @@
 			frequency: "weekly",
 			weekdays: []
 		},
-
 		
-
-{
+		{
 	eventDate: "2025-04-12",
 	eventTime: "11:30 AM",
 	title: "✨ Rebirthing Breathwork ✨",
@@ -103,6 +101,27 @@
 	weekdays: []
 },
 
+{
+	eventDate: "2025-04-15",
+	eventTime: "7:00 PM",
+	title: "🍹 Weekly Digital Nomad Meetup (Hostless) 🎉",
+	details: "Calling all digital nomads, remote workers, and business builders!\n\nMy Casa will be hosting our Digital Nomad Meetup this Friday! Come to connect with other like-minded people living in or passing through Da Nang City.\n\nWhether you’re working as a freelancer, running your own business, or just curious to learn what others are up to — come join us.\n\nSee you all next week!",
+	location: { name: "Section 30", link: "https://maps.app.goo.gl/Afr8u8zvZJKhDKGf7" },
+	category: "Meetup",
+	frequency: "weekly",
+	weekdays: []
+},
+
+{
+	eventDate: "2025-04-19",
+	eventTime: "9:30 AM",
+	title: "🌿 Kambo Healing Session 🌿",
+	details: "Kambo is a holistic detoxification medicine which allows you to embrace healing, release stuck emotions, regenerate cells, overcome anxiety, boost your energy and immune system, and detox the body. 🌱",
+	location: { name: "Feel called? Connect with the host.", link: "https://wa.me/79186502014" },
+	category: "Plant Medicine",
+	frequency: "weekly",
+	weekdays: []
+},
 
 	];
 
