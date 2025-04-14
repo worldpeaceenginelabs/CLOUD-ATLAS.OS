@@ -90,6 +90,20 @@
 			weekdays: []
 		},
 
+		
+
+{
+	eventDate: "2025-04-12",
+	eventTime: "11:30 AM",
+	title: "✨ Rebirthing Breathwork ✨",
+	details: "✨ Rebirthing Breathwork workshop Sundays in Hoi An @11.30 am.\n✨\nIf you’ve been feeling stuck in your head, holding tension in your chest, or just low on energy lately — come breathe with me.\n\nThis is a space to reset your nervous system, release what’s been quietly building inside, and reconnect to that calm, clear version of yourself that’s always been there underneath.\n\nIt’s not about pushing or performing. It’s about softening back into your body and letting the breath do what it knows how to do.\n\nWe use conscious connected breathing to move stress hormones, regulate the vagus nerve, and open space inside for presence, creativity, and deeper rest.\n\nNo experience needed — just bring water, an eye mask if you want, and a willingness to feel.",
+	location: { name: "Epic Rejuvenation Spa", link: "https://maps.app.goo.gl/HpNeTtb7fBpQ2Pet6" },
+	category: "Breathwork",
+	frequency: "weekly",
+	weekdays: []
+},
+
+
 	];
 
 	let openIndex: number | null = null;
