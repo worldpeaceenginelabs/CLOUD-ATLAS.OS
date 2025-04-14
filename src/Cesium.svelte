@@ -460,41 +460,37 @@ function debounce(func, wait) {
 // Combined event handler for picking entities and coordinates
 viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
   const pickedObject = viewer.scene.pick(click.position);
-  if (!Cesium.defined(pickedObject) || !pickedObject.id) return;
 
-  // Check if the picked object is daNangBillboard
-  if (pickedObject.id.id === 'daNangBillboard') {
-    isDaNangModalVisible = true;  // Open Da Nang modal
-    click.cancelBubble = true;    // Prevent other click handlers from being triggered
-    return;
-  }
+  // If an object is picked, handle entity picking
+  if (Cesium.defined(pickedObject) && pickedObject.id) {
+    // Check if the picked object is daNangBillboard
+    if (pickedObject.id.id === 'daNangBillboard') {
+      isDaNangModalVisible = true;  // Open Da Nang modal
+      click.cancelBubble = true;    // Prevent other click handlers from being triggered
+      return;
+    }
 
-  // Check if the picked object is PaiBillboard
-  if (pickedObject.id.id === 'PaiBillboard') {
-    isPaiModalVisible = true;    // Open Pai modal
-    click.cancelBubble = true;   // Prevent other click handlers from being triggered
-    return;
-  }
+    // Check if the picked object is PaiBillboard
+    if (pickedObject.id.id === 'PaiBillboard') {
+      isPaiModalVisible = true;    // Open Pai modal
+      click.cancelBubble = true;   // Prevent other click handlers from being triggered
+      return;
+    }
 
-  if (pickedObject.id.id === "pickedPoint") {
-    // Do nothing or handle pickedPoint specific logic here if needed
+    if (pickedObject.id.id === "pickedPoint") {
+      // Do nothing or handle pickedPoint specific logic here if needed
+    } else {
+      await handleEntityPick(pickedObject);
+    }
   } else {
-    await handleEntityPick(pickedObject);
-  }
-}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-// Event handler for picking coordinates
-let handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
-handler.setInputAction(debounce(function(result) {
-  if (isDaNangModalVisible || isPaiModalVisible) return; // Prevent zoom message if any modal is visible
-
-  const height = viewer.camera.positionCartographic.height;
-  if (height > 6000000) {
-    // Show the zoom modal
-    isZoomModalVisible = true;
-  } else {
-    handleCoordinatePick(result);
+    // If no object is picked, handle coordinate picking
+    const height = viewer.camera.positionCartographic.height;
+    if (height > 6000000) {
+      // Show the zoom modal
+      isZoomModalVisible = true;
+    } else {
+      handleCoordinatePick(click);
+    }
   }
 }, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
