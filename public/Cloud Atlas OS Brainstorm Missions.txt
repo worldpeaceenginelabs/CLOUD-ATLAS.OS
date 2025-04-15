@@ -1,0 +1,322 @@
+[
+  {
+    "id": "mission-1",
+    "title": "How Can We Shield Families From Tariff Hikes?",
+    "prompt": "What can neighbors do to keep life affordable?",
+    "suggestions": [
+      "Host swap meets to trade clothes and tools.",
+      "Crowdfund group buys for bulk essentials.",
+      "Petition stores to cap prices on basics."
+    ],
+    "location": {
+      "longitude": -74.0060,
+      "latitude": 40.7128,
+      "height": 0,
+      "place": "New York, USA"
+    }
+  },
+  {
+    "id": "mission-2",
+    "title": "How Do We Welcome Ukraine’s Displaced?",
+    "prompt": "What can locals do to help newcomers belong?",
+    "suggestions": [
+      "Organize language exchange meetups.",
+      "Create a job board for refugee skills.",
+      "Rally for faster housing support."
+    ],
+    "location": {
+      "longitude": 34.7987,
+      "latitude": 50.9077,
+      "height": 0,
+      "place": "Sumy, Ukraine"
+    }
+  },
+  {
+    "id": "mission-3",
+    "title": "How Can We Bolster Gaza’s Hospitals?",
+    "prompt": "What can people do to aid medical care?",
+    "suggestions": [
+      "Crowdfund medical kits for clinics.",
+      "Host vigils to spotlight healthcare needs.",
+      "Share training videos for first aid."
+    ],
+    "location": {
+      "longitude": 34.4419,
+      "latitude": 31.5017,
+      "height": 0,
+      "place": "Gaza City, Palestine"
+    }
+  },
+  {
+    "id": "mission-4",
+    "title": "How Do We Keep Campus Speech Free?",
+    "prompt": "What can students do to protect open debate?",
+    "suggestions": [
+      "Start podcast clubs for diverse views.",
+      "Petition for clear free-speech rules.",
+      "Hold public speak-outs on campus."
+    ],
+    "location": {
+      "longitude": -0.1278,
+      "latitude": 51.5074,
+      "height": 0,
+      "place": "London, UK"
+    }
+  },
+  {
+    "id": "mission-5",
+    "title": "How Can We Protect Immigrants From Deportation?",
+    "prompt": "What can locals do to stand with neighbors?",
+    "suggestions": [
+      "Form legal aid info networks.",
+      "Crowdfund emergency family funds.",
+      "March for humane immigration laws."
+    ],
+    "location": {
+      "longitude": -118.2437,
+      "latitude": 34.0522,
+      "height": 0,
+      "place": "Los Angeles, USA"
+    }
+  },
+  {
+    "id": "mission-6",
+    "title": "How Do We Make Our Homes Fire-Safe?",
+    "prompt": "What can communities do to prevent disasters?",
+    "suggestions": [
+      "Run neighborhood safety workshops.",
+      "Petition for free smoke detectors.",
+      "Share fireproofing tips online."
+    ],
+    "location": {
+      "longitude": -76.8867,
+      "latitude": 40.2732,
+      "height": 0,
+      "place": "Harrisburg, USA"
+    }
+  },
+  {
+    "id": "mission-7",
+    "title": "How Can Name Changes Be Hassle-Free?",
+    "prompt": "What would simplify legal transitions?",
+    "suggestions": [
+      "Push for one-stop filing apps.",
+      "Host clinics to guide paperwork.",
+      "Create peer support chat groups."
+    ],
+    "location": {
+      "longitude": 151.2093,
+      "latitude": -33.8688,
+      "height": 0,
+      "place": "Sydney, Australia"
+    }
+  },
+  {
+    "id": "mission-8",
+    "title": "How Do We Boost Indigenous Voting Power?",
+    "prompt": "What can spark turnout in tribal areas?",
+    "suggestions": [
+      "Organize voter pride festivals.",
+      "Crowdfund rides to polling stations.",
+      "Share elders’ voting stories."
+    ],
+    "location": {
+      "longitude": -109.0526,
+      "latitude": 35.6804,
+      "height": 0,
+      "place": "Window Rock, USA"
+    }
+  },
+  {
+    "id": "mission-9",
+    "title": "How Can Lawyers Help Everyday People?",
+    "prompt": "What can inspire more free legal aid?",
+    "suggestions": [
+      "Pair lawyers with local causes.",
+      "Petition firms to reward pro bono hours.",
+      "Host legal fairs for advice."
+    ],
+    "location": {
+      "longitude": 18.4241,
+      "latitude": -33.9249,
+      "height": 0,
+      "place": "Cape Town, South Africa"
+    }
+  },
+  {
+    "id": "mission-10",
+    "title": "How Do We Blunt Trade War Pain?",
+    "prompt": "What can locals do to ease the squeeze?",
+    "suggestions": [
+      "Launch buy-local campaigns.",
+      "Crowdfund grants for small shops.",
+      "Share DIY home goods tutorials."
+    ],
+    "location": {
+      "longitude": 116.4074,
+      "latitude": 39.9042,
+      "height": 0,
+      "place": "Beijing, China"
+    }
+  },
+  {
+    "id": "mission-11",
+    "title": "How Can We Save Social Media Freedom?",
+    "prompt": "What can users do to stay connected?",
+    "suggestions": [
+      "Build local chat apps.",
+      "Petition for user data rights.",
+      "Host tech workshops for alternatives."
+    ],
+    "location": {
+      "longitude": -122.4194,
+      "latitude": 37.7749,
+      "height": 0,
+      "place": "San Francisco, USA"
+    }
+  },
+  {
+    "id": "mission-12",
+    "title": "How Do We Advocate for Palestinian Prisoners?",
+    "prompt": "What can people do to support detainees?",
+    "suggestions": [
+      "Write letters to lift spirits.",
+      "Crowdfund reentry programs.",
+      "Hold art exhibits for awareness."
+    ],
+    "location": {
+      "longitude": 35.2042,
+      "latitude": 31.9044,
+      "height": 0,
+      "place": "Ramallah, Palestine"
+    }
+  },
+  {
+    "id": "mission-13",
+    "title": "How Can We Demand Ethical Airlines?",
+    "prompt": "What can travelers do to push fairness?",
+    "suggestions": [
+      "Pledge to fly with ethical carriers.",
+      "Petition for transparency in contracts.",
+      "Share boycott stories online."
+    ],
+    "location": {
+      "longitude": -99.1332,
+      "latitude": 19.4326,
+      "height": 0,
+      "place": "Mexico City, Mexico"
+    }
+  },
+  {
+    "id": "mission-14",
+    "title": "How Do We Fight Lung Cancer Together?",
+    "prompt": "What can communities do to save lives?",
+    "suggestions": [
+      "Fund free community screenings.",
+      "Host fitness challenges for awareness.",
+      "Share patient support tips."
+    ],
+    "location": {
+      "longitude": -95.3698,
+      "latitude": 29.7604,
+      "height": 0,
+      "place": "Houston, USA"
+    }
+  },
+  {
+    "id": "mission-15",
+    "title": "How Can We Strengthen Local Markets?",
+    "prompt": "What can people do to help shops thrive?",
+    "suggestions": [
+      "Create neighborhood gift cards.",
+      "Crowdfund pop-up market spaces.",
+      "Promote local wares on social media."
+    ],
+    "location": {
+      "longitude": -46.6333,
+      "latitude": -23.5505,
+      "height": 0,
+      "place": "São Paulo, Brazil"
+    }
+  },
+  {
+    "id": "mission-16",
+    "title": "How Can Festivals Unite Our Towns?",
+    "prompt": "What events can bring neighbors together?",
+    "suggestions": [
+      "Blend cultures in street fairs.",
+      "Crowdfund youth art showcases.",
+      "Petition for public festival funds."
+    ],
+    "location": {
+      "longitude": 100.5018,
+      "latitude": 13.7563,
+      "height": 0,
+      "place": "Bangkok, Thailand"
+    }
+  },
+  {
+    "id": "mission-17",
+    "title": "How Do We Green Up Global Trade?",
+    "prompt": "What can communities do for sustainability?",
+    "suggestions": [
+      "Share bikes for local deliveries.",
+      "Push for green tax breaks.",
+      "Crowdfund urban garden kits."
+    ],
+    "location": {
+      "longitude": 13.4050,
+      "latitude": 52.5200,
+      "height": 0,
+      "place": "Berlin, Germany"
+    }
+  },
+  {
+    "id": "mission-18",
+    "title": "How Can We Support Our Veterans?",
+    "prompt": "What can locals do to ease their load?",
+    "suggestions": [
+      "Start peer chat groups.",
+      "Fund therapy access drives.",
+      "Host job fairs for veterans."
+    ],
+    "location": {
+      "longitude": 149.1300,
+      "latitude": -35.2809,
+      "height": 0,
+      "place": "Canberra, Australia"
+    }
+  },
+  {
+    "id": "mission-19",
+    "title": "How Do We Connect Rural Communities?",
+    "prompt": "What can bring everyone online?",
+    "suggestions": [
+      "Crowdfund shared Wi-Fi hubs.",
+      "Teach seniors tech basics.",
+      "Petition for broadband grants."
+    ],
+    "location": {
+      "longitude": 36.8219,
+      "latitude": -1.2921,
+      "height": 0,
+      "place": "Nairobi, Kenya"
+    }
+  },
+  {
+    "id": "mission-20",
+    "title": "How Can Youth Redefine Civic Life?",
+    "prompt": "What can teens do to reshape power?",
+    "suggestions": [
+      "Run youth policy contests.",
+      "Crowdfund civic apps by kids.",
+      "Stage mock election debates."
+    ],
+    "location": {
+      "longitude": 139.6503,
+      "latitude": 35.6762,
+      "height": 0,
+      "place": "Tokyo, Japan"
+    }
+  }
+]
