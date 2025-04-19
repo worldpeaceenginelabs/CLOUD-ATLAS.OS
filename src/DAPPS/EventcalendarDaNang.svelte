@@ -14,7 +14,7 @@
 
 		// WEEKLY
 		{
-			eventDate: "2025-04-13",
+			eventDate: "2025-04-23",
 			eventTime: "6:00 PM",
 			title: "🤤 EAT LIKE A LOCAL 🍲🍴",
 			details: "Tired of touristy restaurants? Join us a few times per week for an authentic local food experience! We’re hitting up a hidden gem where a local grandma cooks the best, freshest, realest food you can get. No menus, just a spread of delicious home-cooked dishes – buffet style! Check out the pics below – this is the kind of food we’ll be enjoying! 🍛 🛑 No menus ✅ Depending on the location, we will either enjoy a buffet-style feast or order together and share, just like the locals do 🔥 Grandma’s cooking at its finest 💸 30,000 - 50.000 VND max! 📍 Where? Secret local spots (shared before we go) ⏰ When? a few times per week Come hungry, leave happy. Who’s in? 👇",
@@ -39,7 +39,7 @@
 			eventDate: "2025-04-08",
 			eventTime: "7:00 PM",
 			title: "💻 The Weekly HACKATHON 🚀",
-			details: "Every Tuesday, we’re kicking off Da Nang’s ultimate hack night—code, create, and collaborate in a chill, beer-fueled atmosphere. Whether you’re a coding wizard or just curious, this is the place to be. 💥 The challenge? Build an app—useful, fun, weird… whatever! You can: ✅ Hack along with Bo, who’ll be sharing Cloud Atlas OS, a community-owned Google Maps that runs without servers. Whatever you imagine, we can bring it to a worldwide audience at zero cost. ✅ Work on your own genius idea ✅ Team up and jam on something crazy ✅ Or just hang out, have a drink, and absorb the vibes ⚡ Got a wild AI, Web3, or hacker project in mind? Drop it in the chat—we might make it happen! Bring your laptop, grab a drink, and let’s build some next-level sh*t. 🚀🔥 Who’s in? 👇",
+			details: "We’re (life)hacking our way onto this overpriced yacht—with their cheap beers. 🥷 🏴‍☠️ Every Tuesday, we’re kicking off Da Nang’s ultimate hack night—code, create, and collaborate in a chill, beer-fueled atmosphere. Whether you’re a coding wizard or just curious, this is the place to be. 💥 The challenge? Build an app—useful, fun, weird… whatever! You can: ✅ Hack along with Bo, who’ll be sharing Cloud Atlas OS, a community-owned Google Maps that runs without servers. Whatever you imagine, we can bring it to a worldwide audience at zero cost. ✅ Work on your own genius idea ✅ Team up and jam on something crazy ✅ Or just hang out, have a drink, and absorb the vibes ⚡ Got a wild AI, Web3, or hacker project in mind? Drop it in the chat—we might make it happen! Bring your laptop, grab a drink, and let’s build some next-level sh*t. 🚀🔥 Who’s in? 👇",
 			location: { name: " Icon Rooftop Restaurant - Danang Riverside", link: "https://maps.app.goo.gl/eQh7ge1hreRR7cMc7" },
 			category: "Meetup",
 			frequency: "weekly",
