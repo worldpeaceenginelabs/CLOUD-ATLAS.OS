@@ -123,6 +123,18 @@
 	weekdays: []
 },
 
+{
+	eventDate: "2025-04-20",
+	eventTime: "8:00 AM",
+	title: "💪 Calisthenics Group Sessions on the Beach",
+	details: "Hi everyone! My name is Andoni, I'm a personal trainer with experience in calisthenics (I'm also a life coach).\n\nEvery Monday, Wednesday and Friday, I organize a calisthenics group workout session. The workout is based on technique and resistance/reps.\n\n💪 Level: All levels are welcome! I will adapt the workout taking into account the members and their abilities.\n⏳ Duration: 1 hour sessions\n📍 Where: workout beach area\nhttps://maps.app.goo.gl/ZowXX7qhm6yN4NW99?g_st=ic\n😃 What to bring: open mind and smile!\n\n🏷️ Price:\n1 session: 350.000 VND\n2 sessions: 600.000 VND\n3 sessions: 800.000 VND\n\n🤝 1 to 1 SESSIONS AVAILABLE for people that want to go to the next level in their fitness journey.\n\nPlease send me a short message if you are in or have any questions.\n\nHave a great week!",
+	location: { name: "Training spot on the beach", link: "https://maps.app.goo.gl/QS96f16sT4G1ZsUZ6?g_st=iw" },
+	category: "Calisthenics",
+	frequency: "daily",
+	weekdays: ["Monday", "Wednesday", "Friday"]
+},
+
+
 	];
 
 	let openIndex: number | null = null;
