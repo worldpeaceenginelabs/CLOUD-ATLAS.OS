@@ -1,15 +1,18 @@
 <script lang="ts">
 	let events = [
 		{
-			eventDate: "2025-04-09",
-			eventTime: "4:00 PM",
-			title: "🌍 THE NETWORK 🌱🔗",
-			details: "🌟 Welcome to The Network – A Global Networking Community with Hostless Local Meetings! 🌟 No matter what question, problem, or issue you have, there is a 99% chance that someone had already been through it and figured it out. That willingness to help each other is the best part of The Network. This beautiful and authentic event, born in Lisbon - Europe’s digital nomad haven - is now connecting solo travelers, digital nomads, and entrepreneurs across cities worldwide! ❤️🎉🙏 🌍 Goal: Empowering Connections & Cultivating Opportunities 🚀 🔗 Expand your professional and social network 💡 Exchange ideas, skills & opportunities 📚 Learn from each other's experiences 🔎 Explore new places with like-minded people 🤝 Networking Opportunities: ✅ Collaborate and share insights ✅ Forge valuable connections ✅ Grow Your Network What to Expect: Casual and Hostless: No formal hosts or schedules - just show up, meet fellow solo travelers, and decide as a group where the adventure takes you! Open to Everyone: Whether you’re a local or just passing through, all are welcome to join. How It Works: Arrive at the meeting spot at the scheduled time. Look for fellow The Network participants (🥷) - friendly faces and curious adventurers! Jump in—introduce yourself, ask for help, or offer your expertise! 🚀 Decide as a group where to host yourself. (for instance we tried every week another location, sometimes bars, sometimes restaurants, sometimes a nice place in a park or on a beach, having BBQ. The possibilities are endless) ✨ Let’s make solo travel social, one city at a time. ✨ 🔗 Connect with us and let's grow together! 🌱",
-			location: { name: "Mainstreet 711 (the one at Atlas Central)", link: "https://maps.app.goo.gl/UVepDfrWniHj3m9dA" },
-			category: "Meetup",
-			frequency: "weekly",
-			weekdays: []
-		},
+	eventDate: "2025-04-09",
+	eventTime: "4:00 PM",
+	title: "🌍 ENTREPRENEUR CATALYST - Nomads Helping Nomads 🌱🔗",
+	details: "🌟 *Welcome to The Entrepreneur Catalyst – A Global Networking Community with Hostless Local Meetings!* 🌟\n\nNo matter what question, problem, or issue you have, there is a 99% chance that someone had already been through it and figured it out.\n\nThat willingness to help each other is the best part of *The Entrepreneur Catalyst*.\n\n*This beautiful and authentic event, born in Lisbon - Europe’s digital nomad haven - is now connecting solo travelers, digital nomads, and entrepreneurs across cities worldwide!* ❤️🎉🙏\n\n🌍 *Goal*: Empowering Connections & Cultivating Opportunities 🚀\n* 💡 Exchange ideas, skills & opportunities\n* 📚 Learn from each other's experiences\n* 💸 Cut out the middleman—outsource gigs to fellow nomads instead of paying platforms you don’t trust to find strangers you don’t know.\n\n*What to Expect:*\n* *Casual and Hostless: No formal hosts or schedules - just show up, meet fellow solo travelers, and decide as a group where the adventure takes you!*\n* *Open to Everyone: Whether you’re a local or just passing through, all are welcome to join.*\n\n*How It Works:*\n* *Arrive at the meeting spot at the scheduled time.*\n* *Look for fellow The Network participants (🥷) - friendly faces and curious adventurers!*\n* *Jump in—introduce yourself, ask for help, or offer your expertise!* 🚀 \n* *Decide as a group where to host yourself. (for instance we tried every week another location, sometimes bars, sometimes restaurants, sometimes a nice place in a park or on a beach, having BBQ. The possibilities are endless)*\n\n✨ *Let’s make solo travel social, one city at a time.* ✨\n\n🔗 *Connect with us and let's grow together!* 🌱",
+	location: {
+		name: "Join the Entrepreneur Catalyst group to enter the Event and stay up to date!",
+		link: "https://chat.whatsapp.com/GvjwQM0zNM18DEbHLPloUV"
+	},
+	category: "Meetup",
+	frequency: "weekly",
+	weekdays: []
+},
 	];
 
 	let openIndex: number | null = null;
