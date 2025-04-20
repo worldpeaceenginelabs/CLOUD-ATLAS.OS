@@ -92,26 +92,28 @@
     </h4>
     </div>
 
-    <div class="center"><h4><strong>What's stopping you from creating right now? Your imagination is the only limit.</strong></h4></div>
+    <div class="center"><h4><strong>What's stopping you from creating right now? Your imagination is the only limit.</strong></h4>
     
-    <div class="center">
-      <a class="neumorphic" target="_blank" href="https://github.com/worldpeaceenginelabs/METAVERSE-SEED">Check out our GitHub and Collaboration Hub</a><br>
-    </div>
-    
-  
+    <a class="neumorphic" target="_blank" href="https://github.com/worldpeaceenginelabs/METAVERSE-SEED">Check out our GitHub and Collaboration Hub</a><br>
     
     <h4><strong>🔥 Want more apps? Reach out to me and our community anytime on GitHub, Element.io (DEVChat), or during our upcoming weekly Zoom brainstorming sessions on YouTube.</strong></h4><br>
 
     <strong>Cloud Atlas, my passion project, intentionally remains non-profit and free forever. Why I Need Your Support? While Cloud Atlas is my passion, I also have to meet my day-to-day living expenses. Instead of requesting large sums of money to hire developers or to cover substantial project costs, I’ve decided to take a more sustainable and humble approach. I am seeking support to continue my journey as a digital nomad, which allows me to live and work full-time on Cloud Atlas with minimal expenses. With just €6,000 a year, I can live comfortably in Southeast Asia, dedicating all my time and energy to developing and growing Cloud Atlas. This amount covers my living costs and allows me to focus on what truly matters—building this platform for the benefit of all. Please consider supporting me by contributing to my Bitcoin address <a target="_blank" href="https://bitcoinblockexplorers.com/address/bc1q5z07snhwpdw7s3tdf8mxjlq3nk5qwm4qsgwyh8">bc1q5z07snhwpdw7s3tdf8mxjlq3nk5qwm4qsgwyh8</a> or via <a target="_blank" href="https://paypal.me/worldpeaceengine">PayPal Me</a>. Everything above €6,000 a year will flow directly into enhancing Cloud Atlas OS.</strong>
+    </div>
+
     <br><br>
+    
     <div class="center"><h4><strong>⚠️ Please note our one essential guideline:⚠️</strong></h4></div>
-    <h4 style="text-align:justify;">
+    
+    <div style="text-align:justify;">
+    <h4>
       1. In our unique gathering, let’s embrace our unique backgrounds and perspectives. We strive for a space where everyone feels comfortable, so please leave discussions of politics, religion, nationality, gender, age, and profession at the door.<br><br>
       2. Our meeting thrives on collective participation, no one person orchestrates our time together. If someone becomes too prominent, we trust in our collective wisdom to guide the conversation back to balance. Remember, those who help to moderate or remind others of our guidelines are not assuming leadership; they are simply helping to preserve our shared space. Stepping in to guide or moderate does not make one the leader; there are no leaders here.<br><br>
       3. If a member seeks help, we champion a culture where everyone pitches in to assist.<br><br>
       4. Together, we’ll create a space that’s collaborative, respectful, and leaderless. Thank you for contributing to our collective journey.<br><br>
       5. This introduction reinforces the idea that even those who help ensure the meeting runs smoothly are not taking on a leadership role, but rather contributing to the group’s collective operation.
     </h4>
+    </div>
   </div>
 
 
