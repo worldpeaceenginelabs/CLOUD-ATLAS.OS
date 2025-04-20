@@ -36,7 +36,8 @@
   </div>
   </div>
 
-  <div class="textbox" style="text-align:center;">
+  <div class="textbox">
+    <div style="text-align:center;">
     <h2><strong>What if the world was run by You and Me?</strong></h2>
     <h3>We’ve evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></h3>
     <h3>A bold reimagining of governance—where brainstorming, group action, petitioning, and crowdfunding merge into an action-driven system. From local challenges to global movements, anyone can create or join missions. It’s governance made accessible, participatory, and even fun—like a game where everyone plays to make the world better.</h3>
@@ -44,13 +45,13 @@
     <h3><strong>Turning ideas into action just got easier.</strong></h3>
     <h3><strong>Small changes that change everything. One at a time.</strong></h3>
     <img src="butterfly.gif" width="200" height="200"/>
+    <h4><strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong></h4>
+    </div>
     
-    <h4>
-    <strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong>
-    </h4><br><br>
+    <br><br>
   
-    
-    <h4 style="text-align:justify;">
+    <div style="text-align:justify;">
+    <h4>
     <strong>What is Cloud Atlas?</strong><br>
     <strong>Cloud Atlas</strong> is a <strong>community-owned real-world platform</strong> — imagine <strong>Google Earth</strong>, <strong>Wikipedia (coming soon)</strong>, and an <strong>App Store (coming soon)</strong> fused into one — free from centralized servers and monopolistic control.
     <strong>Powered by a peer-to-peer network of user devices</strong>, it’s <strong>self-scaling</strong>, <strong>serverless</strong>, <strong>and cost-free</strong>. It is entirely owned by <strong>you and the public</strong>, it functions as a truly <strong>Global Public Collective Computer</strong> — where data, applications, and intelligence live across the globe, not in corporate silos.
@@ -62,10 +63,13 @@
     <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br>
     <strong>Where Your Vision Meets Collective Action...</strong><br>
     The <strong>Home Screen</strong> is a social network for crowdengineering good deeds where you can actively create and participate in missions addressing <strong>local and global</strong> issues. It offers a space to <strong>brainstorm (zoom.us)</strong> solutions,  with people from all walks of life, realize your solutions through collaborations or sheer manpower with <strong>in-person ActionEvents (Telegram’s live location lets up to 200,000 users coordinate in real time on a single map)</strong>, secure eventually necessary permissions to enhance public spaces via <strong>Petition (change.org)</strong>, and turn your visionary ideas into reality with the power of <strong>Crowdfunding (gofundme.com).</strong><br><br><br>
-    
+    </h4>
+    </div>
+
     <div style="text-align: center;"><strong>FOR DEVELOPERS</strong></div><br>
 
-    <h4 style="text-align:justify;"><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It’s as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You’ll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.</h4>
+    <div style="text-align:justify;">
+    <h4><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It’s as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You’ll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.
     <strong>Your creations will never be limited to just one environment again...</strong><br>
     The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map—where every coordinate tells a story: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>
     
@@ -86,7 +90,7 @@
     <strong>It’s free and scales 99% autonomously!</strong> More users mean more app storage and computational power.
     <strong>No need for back-end servers!</strong> Cloud Atlas syncs via public tracker networks using BitTorrent, with Nostr as a fallback coming soon. However, persistent storage and computational power (cloud/servers) can be simply added if needed.<br><br>
     </h4>
-
+    </div>
 
     <div class="center"><h4><strong>What's stopping you from creating right now? Your imagination is the only limit.</strong></h4></div>
     
