@@ -1,7 +1,7 @@
 <script lang="ts">
   import Cesium from "./Cesium.svelte";
   import AddMapmarker from "./DAPPS/HomeScreen/Brainstorming.svelte";
-  import Appsearch from "./Dappstore/Appsearch.svelte";
+  // import Appsearch from "./Dappstore/Appsearch.svelte";
   import LiveEdit from "./LiveEdit.svelte";
   import Infobox from "./Infobox.svelte";
   import Grid from "./Grid.svelte"; 
@@ -26,7 +26,7 @@
   {:else}
     <div class="gridcontainer"><Grid /></div>
     <div class="cesiumcontainer"><Cesium /></div>
-    <div class="searchcontainer"><Appsearch /></div>
+    <!--- <div class="searchcontainer"><Appsearch /></div> -->
     <div class="liveeditcontainer"><LiveEdit/></div>
     <div class="infoboxcontainer"><Infobox {isVisible} /></div>
   {/if}

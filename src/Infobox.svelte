@@ -14,7 +14,7 @@
 
   <div style="position: fixed; left: 0px; top: 5px; width: 100%; display: flex; justify-content: center; align-items: center;">
     <div class="animated-gradient" style="width: 100%; height: 30px; position: relative; display: flex; align-items: center;">
-      <h4 style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); width: 100%;">⚠️ Decentralized Government coming 2025 ⚠️</h4>
+      <h4 style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); width: 100%;">⚠️ Decentralized Governance and Entrepreneurship ⚠️</h4>
       
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -38,26 +38,13 @@
 
   <div class="textbox" style="text-align:center;">
     <h2><strong>What if the world was run by You and Me?</strong></h2>
+    <h3>We’ve evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></h3>
     <h3>A bold reimagining of governance—where brainstorming, group action, petitioning, and crowdfunding merge into an action-driven system. From local challenges to global movements, anyone can create or join missions. It’s governance made accessible, participatory, and even fun—like a game where everyone plays to make the world better.</h3>
     <h3>"I used to complain about things in my city but never knew where to start. Cloud Atlas OS gave me a platform to turn frustration into collaboration. I launched a local cleanup mission, got support from people I never met before, and now we’re organizing monthly events. My friends saw the impact and created their own missions too—this platform made me believe change is possible again." — Daniel R., Community Starter, Cloud Atlas OS</h3>
     <h3><strong>Turning ideas into action just got easier.</strong></h3>
     <h3><strong>Small changes that change everything. One at a time.</strong></h3>
     <img src="butterfly.gif" width="200" height="200"/>
-
-    <h3>We’ve evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></h3>
-
-    <h4><strong>Cloud Atlas OS</strong> is a <strong>community-owned</strong>, <strong>decentralized real-world platform</strong> — imagine <strong>Google Earth</strong>, <strong>Wikipedia</strong>, and an <strong>App Store</strong> fused into one.</h4>
     
-    <h4><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It’s as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You’ll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.</h4>
-
-    
-    <h4><strong>Powered by a peer-to-peer network of user devices</strong>, it’s <strong>self-scaling</strong>, <strong>serverless</strong>, <strong>cost-free</strong>, and <strong>free from central authority</strong>.</h4>
-    
-    <h4><strong>Run by the people, for the people</strong></h4>
-    
-    <h4><strong>But this is more than just a map...</strong></h4>
-    <br><br>
-
     <h4>
     <strong>“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong>
     </h4><br><br>
@@ -65,17 +52,19 @@
     
     <h4 style="text-align:justify;">
     <strong>What is Cloud Atlas?</strong><br>
-    <strong>Cloud Atlas</strong> is a <strong>decentralized, community-owned real-world platform</strong> — free from centralized servers and monopolistic control.
-    Entirely owned by <strong>you and the public</strong>, it functions as a truly <strong>Global Public Collective Computer</strong> — where data, applications, and intelligence live across the globe, not in corporate silos.
-    The name <strong>Cloud Atlas</strong> reflects its vision: a living, global 'atlas' of everything happening on Earth — powered by a decentralized, human-powered 'cloud' of people, devices, and places. It’s not just a platform — it’s the foundation of a new, open internet.
+    <strong>Cloud Atlas</strong> is a <strong>community-owned real-world platform</strong> — imagine <strong>Google Earth</strong>, <strong>Wikipedia (coming soon)</strong>, and an <strong>App Store (coming soon)</strong> fused into one — free from centralized servers and monopolistic control.
+    <strong>Powered by a peer-to-peer network of user devices</strong>, it’s <strong>self-scaling</strong>, <strong>serverless</strong>, <strong>and cost-free</strong>. It is entirely owned by <strong>you and the public</strong>, it functions as a truly <strong>Global Public Collective Computer</strong> — where data, applications, and intelligence live across the globe, not in corporate silos.
+    <br><br>The name <strong>Cloud Atlas</strong> reflects its vision: a living, global 'atlas' of everything happening on Earth — powered by a decentralized, human-powered 'cloud' of people, devices, and places. It’s not just a platform — it’s the foundation of a new, open internet.
     
     <br><br>
 
 
     <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br>
     <strong>Where Your Vision Meets Collective Action...</strong><br>
-    The <strong>Home Screen</strong> is a social network for crowdengineering good deeds where you can actively create and participate in missions addressing <strong>local and global</strong> issues. It offers a space to <strong>brainstorm (zoom.us)</strong> solutions,  with people from all walks of life, realize your solutions through collaborations or sheer manpower with <strong>in-person ActionEvents (Telegram's live location feature allows up to 200,000 users to coordinate seamlessly)</strong>, secure eventually necessary permissions to enhance public spaces via <strong>Petition (change.org)</strong>, and turn your visionary ideas into reality with the power of <strong>Crowdfunding (gofundme.com).</strong><br><br>
+    The <strong>Home Screen</strong> is a social network for crowdengineering good deeds where you can actively create and participate in missions addressing <strong>local and global</strong> issues. It offers a space to <strong>brainstorm (zoom.us)</strong> solutions,  with people from all walks of life, realize your solutions through collaborations or sheer manpower with <strong>in-person ActionEvents (Telegram’s live location lets up to 200,000 users coordinate in real time on a single map)</strong>, secure eventually necessary permissions to enhance public spaces via <strong>Petition (change.org)</strong>, and turn your visionary ideas into reality with the power of <strong>Crowdfunding (gofundme.com).</strong><br><br><br>
     
+    <div style="text-align: center;"><strong>FOR DEVELOPERS</strong></div><br>
+    <h4><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It’s as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You’ll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.</h4>
     <strong>Your creations will never be limited to just one environment again...</strong><br>
     The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map—where every coordinate tells a story: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>
     
