@@ -564,10 +564,10 @@ onMount(async () => {
 {:else}
   <form>
     <label><div style="text-align:left">Title</div></label>
-    <input type="text" placeholder="The issue in one sentence - max 100 chars" maxlength="100" bind:value={record.title} required><br>
+    <textarea placeholder="Enter a short, powerful mission name here - max 100 chars" maxlength="100" bind:value={record.title} required></textarea><br>
 
     <label><div style="text-align:left">Text</div></label>
-    <textarea placeholder="Describe positive outcome in 10 #hashtags - max 150 chars" maxlength="150" bind:value={record.text} required></textarea><br>
+    <textarea placeholder="What’s the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
 
     <label><div style="text-align:left">Zoom.us Link</div></label>
     <input type="text" placeholder="https://us05web.zoom.us/j/ID?pwd=12345 or https://zoom.us/j/ID?pwd=12345" maxlength="100" bind:value={record.link} required><br>
