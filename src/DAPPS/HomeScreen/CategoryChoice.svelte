@@ -132,7 +132,6 @@
     top: 0;
     width: 100%;
     height: 100%;
-    overflow: auto;
     background-color: rgba(0, 0, 0, 0.5);
   }
 
@@ -255,7 +254,7 @@
 /* Responsive styles for smaller screens */
 @media screen and (max-width: 400px) {
     .title, .description {
-      font-size: 0.8em; /* Reduce text size */
+      font-size: 0.7em; /* Reduce text size */
     }
 
     .modal-content {
