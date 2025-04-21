@@ -485,7 +485,7 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
   } else {
     // If no object is picked, handle coordinate picking
     const height = viewer.camera.positionCartographic.height;
-    if (height > 6000000) {
+    if (height > 250000) {
       // Show the zoom modal
       isZoomModalVisible = true;
     } else {
@@ -649,7 +649,7 @@ function handleKeyDown(event) {
         <span></span>
       </div>
       <div>
-        <p class="zoom-message">Zoom in further to place a pin.</p>
+        <p class="zoom-message">Zoom in until the city comes into view — then you can drop a pin.</p>
       </div>
     </div>
   </div>

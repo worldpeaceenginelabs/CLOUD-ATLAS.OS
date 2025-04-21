@@ -251,6 +251,17 @@
 .close:hover span {
   width: calc(var(--size) / 4);
 }
+
+/* Responsive styles for smaller screens */
+@media screen and (max-width: 400px) {
+    .title, .description {
+      font-size: 0.8em; /* Reduce text size */
+    }
+
+    .modal-content {
+      max-height: 80vh; /* Adjust height for very small devices */
+    }
+  }
 </style>
 
 
