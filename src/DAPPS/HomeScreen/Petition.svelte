@@ -578,7 +578,6 @@ onMount(async () => {
     
     <button on:click|preventDefault={send}>Drop Pin</button>
   </form>
-  <button on:click={openChatGPT}>Improve Text Using ChatGPT</button>
   {/if}
 
 </main>
