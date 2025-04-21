@@ -22,7 +22,9 @@ I’m inviting people to join Cloud Atlas OS right now. We can team up on your a
 
 We’ve evolved **Crowd Engineering** into a revolutionary **Social Network application**.
 
-**Cloud Atlas OS** is a **community-owned, decentralized real-world platform**——think Google Earth/Maps, Wikipedia, and an App Store fused into one. Powered by a **P2P network of user devices**, it’s **self-scaling**, runs **without server farms, costs, or central authority**, and empowers users globally. Here is how it works:
+<strong>Cloud Atlas OS</strong> is a <strong>real-world platform owned by the community</strong> — like a mix of <strong>Google Earth</strong>, <strong>Wikipedia (coming soon)</strong>, and an <strong>App Store (coming soon)</strong> — but without big companies or central servers in control.<br>
+      It runs on a <strong>network of people's devices</strong>, so it's <strong>scalable</strong>, <strong>doesn’t need servers</strong>, and is <strong>free to use</strong>.<br>
+      It’s fully owned by <strong>you and everyone</strong>, working as a <strong>Global Public Collective Computer</strong> — a worldwide system owned by everyone, powered by everyone, where data, apps, and smart tools are spread around the world instead of being locked in company systems. Here is how it works:
 <br><br><br>
 
 # Technical Summary
@@ -106,7 +108,9 @@ We’ve evolved **Crowd Engineering** into a revolutionary **Social Network appl
 
 We’ve evolved **Crowd Engineering** into a revolutionary **Social Network application**.
 
-**Cloud Atlas OS** is a **community-owned, decentralized real-world platform**——think Google Earth/Maps, Wikipedia, and an App Store fused into one. Powered by a **P2P network of user devices**, it’s **self-scaling**, runs **without server farms, costs, or central authority**, and empowers users globally.
+<strong>Cloud Atlas OS</strong> is a <strong>real-world platform owned by the community</strong> — like a mix of <strong>Google Earth</strong>, <strong>Wikipedia (coming soon)</strong>, and an <strong>App Store (coming soon)</strong> — but without big companies or central servers in control.<br>
+      It runs on a <strong>network of people's devices</strong>, so it's <strong>scalable</strong>, <strong>doesn’t need servers</strong>, and is <strong>free to use</strong>.<br>
+      It’s fully owned by <strong>you and everyone</strong>, working as a <strong>Global Public Collective Computer</strong> — a worldwide system owned by everyone, powered by everyone, where data, apps, and smart tools are spread around the world instead of being locked in company systems.
 
 <br><br><br>
 ![image](https://github.com/user-attachments/assets/27fd64c9-28b7-492c-a5d9-6f180fb5817c)
