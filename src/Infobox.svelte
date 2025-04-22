@@ -128,11 +128,11 @@
 
   <div style="position: fixed; bottom: 5px; left: 0; height: 30px; width: 100%; display: flex; justify-content: center; align-items: center;">
     
-    <a href="https://github.com/worldpeaceenginelabs/METAVERSE-SEED#readme" target="_blank">
+    <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS#readme" target="_blank">
       <img class="bottomicons" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
   </a>
 
-    <a href="https://linktr.ee/worldpeaceenginelabs" target="_blank">
+    <a href="https://linktr.ee/worldpeacegame" target="_blank">
         <img class="bottomicons" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
     </a>
    
