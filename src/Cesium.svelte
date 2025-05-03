@@ -593,54 +593,6 @@ function handleKeyDown(event) {
   </div>
 {/if}
 
-{#if isDaNangModalVisible}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-content">
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closeDaNangModal}>
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <EventcalendarDaNang />
-    </div>
-  </div>
-{/if}
-
-{#if isPaiModalVisible}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-content">
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closePaiModal}>
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <EventcalendarPai />
-    </div>
-  </div>
-{/if}
-
 <style>
 	main {
 	  width: 100%;
