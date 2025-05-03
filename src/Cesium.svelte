@@ -18,8 +18,6 @@
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
 	import CategoryChoice from "./DAPPS/HomeScreen/CategoryChoice.svelte";
-	import EventcalendarDaNang from './DAPPS/EventcalendarDaNang.svelte';
-	import EventcalendarPai from './DAPPS/EventcalendarPai.svelte'; 
 	import { coordinates } from './store.js';
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
@@ -247,66 +245,6 @@
 	
 	// Render the Cesium Container background transparent
 	  viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
-
-	  const daNangPosition = Cartesian3.fromDegrees(108.210138, 16.047660);
-
-const daNangBillboard = new Entity({
-    id: 'daNangBillboard',
-    position: daNangPosition,
-    billboard: {
-        image: new Cesium.ConstantProperty('data:image/svg+xml;base64,' + btoa(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
-                <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#ee7752;stop-opacity:1" />
-                        <stop offset="25%" style="stop-color:#e73c7e;stop-opacity:1" />
-                        <stop offset="50%" style="stop-color:#23a6d5;stop-opacity:1" />
-                        <stop offset="75%" style="stop-color:#23d5ab;stop-opacity:1" />
-                    </linearGradient>
-                </defs>
-                <rect x="50" y="30" width="200" height="40" fill="white" opacity="0.01"/>
-                <text x="150" y="50" font-size="40" font-family="sans-serif" font-weight="bold" fill="url(#gradient)" text-anchor="middle" alignment-baseline="middle">DA NANG</text>
-            </svg>
-        `)),
-        eyeOffset: new Cartesian3(0.0, 0.0, -5000.0),
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-    }
-});
-
-viewer.entities.add(daNangBillboard);
-
-const PaiPosition = Cartesian3.fromDegrees(98.441512, 19.360014);
-
-const PaiBillboard = new Entity({
-    id: 'PaiBillboard',
-    position: PaiPosition,
-    billboard: {
-        image: new Cesium.ConstantProperty('data:image/svg+xml;base64,' + btoa(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
-                <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#ee7752;stop-opacity:1" />
-                        <stop offset="25%" style="stop-color:#e73c7e;stop-opacity:1" />
-                        <stop offset="50%" style="stop-color:#23a6d5;stop-opacity:1" />
-                        <stop offset="75%" style="stop-color:#23d5ab;stop-opacity:1" />
-                    </linearGradient>
-                </defs>
-                <rect x="50" y="30" width="200" height="40" fill="white" opacity="0.01"/>
-                <text x="150" y="50" font-size="40" font-family="sans-serif" font-weight="bold" fill="url(#gradient)" text-anchor="middle" alignment-baseline="middle">PAI</text>
-            </svg>
-        `)),
-        eyeOffset: new Cartesian3(0.0, 0.0, -5000.0),
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-    }
-});
-
-viewer.entities.add(PaiBillboard);
 
 	// Remove the doubleclick event handler
 	  viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
