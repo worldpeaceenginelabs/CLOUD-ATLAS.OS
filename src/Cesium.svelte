@@ -508,8 +508,8 @@ function handleKeyDown(event) {
 
 
 {#if isCategoryModalVisible}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-category">
+  <div class="modal-category" transition:fade={{ duration: 500 }}>
+    <div class="modal-category-content">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div class="close float-right" on:click={closeCategoryModal}>
@@ -665,20 +665,31 @@ function handleKeyDown(event) {
       background-color: #abd6ff;
     }
 
-	.modal { 
+	.modal {
 	display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-	}
+	justify-content: center;
+	align-items: center;
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
 
-	.modal-category {
-	width: 95%;
-	max-width: 800px; 
+.modal-category {
+	position: fixed;
+	left: 50%;
+	bottom: 0;
+	transform: translateX(-50%);
+	max-width: 800px;
+	width: 100%;
+	height: 33%;
+	overflow: auto;
+}
+
+
+	.modal-category-content {
+	width: 100%; 
     border-radius: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	background-color: rgba(0, 0, 0, 0.5);
@@ -693,21 +704,6 @@ function handleKeyDown(event) {
 	  padding: 20px;
 	}
 
-	.modal-content {
-	width: 90%;
-	max-width: 800px;
-	max-height: 80vh; /* Ensure there's some distance from the top and bottom of the screen */
-	overflow-y: auto; /* Make the modal scrollable */
-	border-radius: 15px;
-	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-	background-color: rgba(0, 0, 0, 0.5);
-	padding: 20px;
-	position: fixed;
-	top: 10%;
-	left: 50%;
-	transform: translate(-50%, 0);
-	}
-
 	.float-right {
         float: right;
     }
@@ -715,13 +711,11 @@ function handleKeyDown(event) {
 	.glassmorphism{
 	/* Apply glassmorphism style for the modal content */
 	background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-	
+	backdrop-filter: blur(10px);
+	border-radius: 10px;
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	}
 
 	.close {
   --size: 22px;
@@ -842,5 +836,53 @@ function handleKeyDown(event) {
 .close:hover span {
   width: calc(var(--size) / 4);
 }
+
+/* WebKit Scrollbar Styles */
+ ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Firefox Scrollbar Styles */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+    }
+
+    *::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
 </style>
   
