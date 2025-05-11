@@ -678,9 +678,11 @@ function handleKeyDown(event) {
 
 .modal-category {
 	position: fixed;
-	left: 50%;
 	bottom: 0;
-	transform: translateX(-50%);
+	left: 0;
+	right: 0;
+	margin-left: auto;
+	margin-right: auto;
 	max-width: 800px;
 	width: 100%;
 	height: 33%;
