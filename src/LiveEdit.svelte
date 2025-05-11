@@ -2,7 +2,7 @@
     function openSettingsLink() {
         // Open the URL in a new window/tab with screen dimensions
         const newWindow = window.open(
-            'https://stackblitz.com/github/worldpeaceenginelabs/METAVERSE-SEED/tree/main?file=src/DAPPS/HomeScreen.svelte:L294',
+            'https://stackblitz.com/github/worldpeaceenginelabs/CLOUD-ATLAS-OS/tree/main?file=src/DAPPS/HomeScreen.svelte:L294',
             '_blank',
             `width=${window.screen.width},height=${window.screen.height}`
         );
