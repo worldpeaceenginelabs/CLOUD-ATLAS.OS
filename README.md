@@ -1,8 +1,11 @@
-# My Vision 2023 till today:
-![image](https://github.com/user-attachments/assets/2baa0485-f338-4b92-b76c-7e8d84032b52)
-
 # My Vision in 2018:
 ![227715941-6cb5180d-89f5-464e-a07f-9852726e7dc9](https://github.com/user-attachments/assets/2af6fbd9-7588-4d72-844e-0c4365fef669)
+
+# My Vision refined 2023:
+![image](https://github.com/user-attachments/assets/2baa0485-f338-4b92-b76c-7e8d84032b52)
+
+# Cloud Atlas OS 2025:
+![image](https://github.com/user-attachments/assets/17f88926-e83e-423e-bde8-f3396a287d39)
 
 # Announcements
 
@@ -128,8 +131,12 @@ A bold reimagining of governance—where **brainstorming, group action, petition
 ![image](https://github.com/user-attachments/assets/ef465199-8a65-465f-8c84-720b2f166ce3)
 <br><br>
 
-### **2. Virtual Encyclopedia**
-Picture a **3D animated Wikipedia where articles visually roam the globe**, representing their content dynamically. Imagine spotting a green giraffe sipping coffee at Starbucks – an anomaly that flags a correction request to the Wikipedia community. This feature merges information with interactivity, creating an engaging and immersive way to explore and maintain knowledge.<br>
+### 2. Virtual Encyclopedia  
+Picture a **3D animated Wikipedia** where articles come to life as **interactive objects or scenes roaming the globe**, based on the content of each article. Imagine spotting a **green giraffe sipping coffee at Starbucks**—an anomaly that hints at a **factual error or absurdity** in the source Wikipedia article, and automatically **flags a correction request** to the Wikipedia community.  
+When we transfer all **6 million+ Wikipedia articles** into 3D objects and scenes for the first iteration, the **interaction between articles will reveal inconsistencies and contradictions**, helping to **flag wrong information** throughout the entire Wikipedia.  
+This feature transforms information into a **living, visual experience**—blending **learning, truth detection, and storytelling** in a gamified, immersive world.  
+You don’t need to be an expert to help correct the complete knowledge of mankind—you just need **eyes and a brain**.
+
 
 ![image](https://github.com/user-attachments/assets/aea1940a-663f-4421-93fe-797b887b82bb)
 <br><br>
