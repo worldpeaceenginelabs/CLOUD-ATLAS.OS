@@ -7,6 +7,14 @@
 # Cloud Atlas OS 2025:
 ![image](https://github.com/user-attachments/assets/17f88926-e83e-423e-bde8-f3396a287d39)
 
+# From the Cloud Atlas OS Pitchdeck
+![Screenshot 2025-05-28 214418](https://github.com/user-attachments/assets/a9612ac0-428e-4d67-868e-252526aa0c70)
+![Screenshot 2025-05-28 214412](https://github.com/user-attachments/assets/bcec0e05-8165-413b-8177-f92a3fcca1a9)
+![Screenshot 2025-05-28 214827](https://github.com/user-attachments/assets/769c584b-3581-4570-b9ae-39f179ea36c5)
+![Screenshot 2025-05-28 214358](https://github.com/user-attachments/assets/a986dc52-b506-4798-a9b6-b3e8e98be4fd)
+![Screenshot 2025-05-28 214343](https://github.com/user-attachments/assets/028b484d-33a3-4a7b-8d92-558069039a92)
+<br><br><br>
+
 # Announcements
 
 ## 🚨Call to Apple, Android, Web Devs, and Entrepreneurs🚨
