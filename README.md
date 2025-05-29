@@ -11,7 +11,7 @@
 ![Screenshot 2025-05-28 214418](https://github.com/user-attachments/assets/a9612ac0-428e-4d67-868e-252526aa0c70)
 ![Screenshot 2025-05-28 214412](https://github.com/user-attachments/assets/bcec0e05-8165-413b-8177-f92a3fcca1a9)
 ![Screenshot 2025-05-28 214827](https://github.com/user-attachments/assets/769c584b-3581-4570-b9ae-39f179ea36c5)
-![image](https://github.com/user-attachments/assets/8fcb9e93-19e4-409e-86bd-e242f8c5dafa)
+![image](https://github.com/user-attachments/assets/031e2350-6041-483f-a652-83b642591b0c)
 ![Screenshot 2025-05-28 214343](https://github.com/user-attachments/assets/028b484d-33a3-4a7b-8d92-558069039a92)
 <br><br><br>
 
@@ -134,7 +134,8 @@ We’ve evolved **Crowd Engineering** into a revolutionary **Social Network appl
 ## **Core Components**
 
 ### **1. Decentralized Government**
-A bold reimagining of governance—where **brainstorming, group action, petitioning,** and **crowdfunding** merge into an action-driven system. Whether it’s addressing local challenges or tackling global issues, anyone can create or join missions. It’s governance made accessible, participatory, and even fun—like a game where everyone plays to make the world better.<br>
+A bold reimagining of governance—where **brainstorming, group action, petitioning,** and **crowdfunding** merge into an action-driven system. Whether it’s addressing local challenges or tackling global issues, anyone can create or join missions. It’s governance made accessible, participatory, and even fun—like a game where everyone plays to make the world better.<br><br>
+It’s government by doing, not by voting.<br><br>
 
 ![image](https://github.com/user-attachments/assets/ef465199-8a65-465f-8c84-720b2f166ce3)
 <br><br>
@@ -142,13 +143,16 @@ A bold reimagining of governance—where **brainstorming, group action, petition
 ### 2. Virtual Encyclopedia
 6 Million Wikipedia articles transformed into immersive, animated 3D scenes and objects—geolocated on a global map and powered by BitTorrent. The more people use it, the more scalable, faster and rich the content becomes.<br>
 
-Picture a **3D animated Wikipedia** where articles come to life as **interactive objects or scenes roaming the globe**, based on the content of each article. Imagine spotting a **green giraffe sipping coffee at Starbucks**—an anomaly that hints at a **factual error or absurdity** in the source Wikipedia article, and automatically **flags a correction request** to the Wikipedia community.<br>
+Picture a **3D animated Wikipedia** where articles come to life as **interactive objects or scenes roaming the globe**, based on the content of each article.<br>
+
+Truth-checking happens by exploration: users naturally flag anomalies while navigating the world.
+Imagine spotting a **green giraffe sipping coffee at Starbucks**—an anomaly that hints at a **factual error or absurdity** in the source Wikipedia article, and automatically **flags a correction request** to the Wikipedia community.<br>
 
 When we transfer all **6 million+ Wikipedia articles** into 3D objects and scenes for the first iteration, the **interaction between articles will reveal inconsistencies and contradictions**, helping to **flag wrong information** throughout the entire Wikipedia.<br>
 
-This feature transforms information into a **living, visual experience**—blending **learning, truth detection, and storytelling** in a gamified, immersive world.  
-You don’t need to be an expert to help correct the complete knowledge of mankind—you just need **eyes and a brain**.
+This feature transforms information into a **living, visual experience**—blending **learning, truth detection, and storytelling** in a gamified, immersive world.<br>
 
+You don’t need to be an expert to help correct the complete knowledge of mankind—you just need **eyes and a brain**.<br><br>
 
 ![image](https://github.com/user-attachments/assets/aea1940a-663f-4421-93fe-797b887b82bb)
 <br><br>
@@ -165,19 +169,19 @@ Create directly in your browser with ease.
 **Self-Scaling Apps**  
 By leveraging WebRTC and public BitTorrent tracker networks for signaling, dApps scale automatically — eliminating the need for centralized servers.
 
-**Modular, Composable Architecture**  
-Compatible with any programming language, framework, or tech stack.  
+**Modular, Composable Architecture**
+Compatible with any programming language, framework, or tech stack.
 This empowers developers to seamlessly build and integrate apps, games, and experiences on our decentralized backend — with backend services already integrated, batteries included.
 
-**🎮 App/Game/Openworld Layer**  
-Create drag-and-drop, coded, or AI-prompted apps, games, and experiences directly integrated with our decentralized backend, while also supporting traditional backends.  
-Leverage the 6 million Wikipedia 3D objects to build real-world, location-based apps, games, and experiences — e.g., say **“New York, Cyberpunk style, First Person Shooter,”** and instantly generate a monetizable, real-world game.
+**🎮 App/Game/Openworld Layer** — Like Figma meets Roblox, but for the real world.<br>
+Anyone  can build and remix apps, games, and experiences with drag-and-drop tools, code, or AI prompts - Plug into our decentralized backend or bring your own.
+Leverage the 6 million Wikipedia 3D objects to build real-world, location-based apps, games and experiences. — e.g., say **“New York, Cyberpunk style, First Person Shooter,”** and instantly generate a monetizable, real-world game in seconds.<br><br>
 
 **Rephrased Disney Quote:**  
-*“If you can describe it, you can code it.”*
+*“If you can describe it, you can code it.”*<br><br>
 
 ### Cutting out the middlemen
-The first privately developed dApp, **Couchsurfing Free**, sets the stage for what’s possible. Upcoming projects like **dAmazon**, **dUber**, **dUber Eats**, and **dAirBNB** showcase the limitless potential for innovation, cutting out the middlemen. By the (p)eople, for the (p)eople – P2P at its finest.
+The first privately developed dApp, **Couchsurfing Free**, sets the stage for what’s possible. Upcoming projects like **dAmazon**, **dUber**, **dUber Eats**, and **dAirBNB** showcase the limitless potential for innovation, cutting out the middlemen. By the (p)eople, for the (p)eople – P2P at its finest.<br><br>
 
 ![image](https://github.com/user-attachments/assets/094a5a7d-9cd4-440c-b469-67257752a645)
 ![image](https://github.com/user-attachments/assets/e630a5a4-9309-45ea-a64f-168a049d3e81)
@@ -185,7 +189,8 @@ The first privately developed dApp, **Couchsurfing Free**, sets the stage for wh
 <br><br>
 
 ### 4. MissionTV
-A decentralized video platform where users showcase their real-world impact, livestream progress on community missions, and receive direct support through donations and tips. A purpose-driven Twitch meets TikTok, fully integrated into the OS.
+A decentralized video platform like Twitch — but for real-world impact. Users stream their mission progress, earn tips, and inspire others to act. It’s social change as entertainment, with viewers funding and joining in, live. Fueling social change through engaging video content.
+<br><br>
 
 ![image](https://github.com/user-attachments/assets/e1cfd825-32bc-4580-ae41-09511b0664a9)
 <br><br>
