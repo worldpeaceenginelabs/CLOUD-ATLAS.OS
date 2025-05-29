@@ -11,7 +11,7 @@
 ![Screenshot 2025-05-28 214418](https://github.com/user-attachments/assets/a9612ac0-428e-4d67-868e-252526aa0c70)
 ![Screenshot 2025-05-28 214412](https://github.com/user-attachments/assets/bcec0e05-8165-413b-8177-f92a3fcca1a9)
 ![Screenshot 2025-05-28 214827](https://github.com/user-attachments/assets/769c584b-3581-4570-b9ae-39f179ea36c5)
-![Screenshot 2025-05-28 214358](https://github.com/user-attachments/assets/a986dc52-b506-4798-a9b6-b3e8e98be4fd)
+![image](https://github.com/user-attachments/assets/8fcb9e93-19e4-409e-86bd-e242f8c5dafa)
 ![Screenshot 2025-05-28 214343](https://github.com/user-attachments/assets/028b484d-33a3-4a7b-8d92-558069039a92)
 <br><br><br>
 
@@ -176,20 +176,26 @@ Leverage the 6 million Wikipedia 3D objects to build real-world, location-based 
 **Rephrased Disney Quote:**  
 *“If you can describe it, you can code it.”*
 
+### Cutting out the middlemen
+The first privately developed dApp, **Couchsurfing Free**, sets the stage for what’s possible. Upcoming projects like **dAmazon**, **dUber**, **dUber Eats**, and **dAirBNB** showcase the limitless potential for innovation, cutting out the middlemen. By the (p)eople, for the (p)eople – P2P at its finest.
 
 ![image](https://github.com/user-attachments/assets/094a5a7d-9cd4-440c-b469-67257752a645)
 ![image](https://github.com/user-attachments/assets/e630a5a4-9309-45ea-a64f-168a049d3e81)
 ![image](https://github.com/user-attachments/assets/69342182-2418-498b-8f48-0b978d95eed5)
 <br><br>
 
-### Cutting out the middlemen
-The first privately developed dApp, **Couchsurfing Free**, sets the stage for what’s possible. Upcoming projects like **dAmazon**, **dUber**, **dUber Eats**, and **dAirBNB** showcase the limitless potential for innovation, cutting out the middlemen. By the (p)eople, for the (p)eople – P2P at its finest.<br>
+### 4. MissionTV
+A decentralized video platform where users showcase their real-world impact, livestream progress on community missions, and receive direct support through donations and tips. A purpose-driven Twitch meets TikTok, fully integrated into the OS.
+
+![image](https://github.com/user-attachments/assets/e1cfd825-32bc-4580-ae41-09511b0664a9)
+<br><br>
 
 ---
 
 **Let’s build a future without limits, together**
 
 ---
+<br>
 
 # Support Cloud Atlas
 
