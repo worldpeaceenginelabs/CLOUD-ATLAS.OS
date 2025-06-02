@@ -8,11 +8,12 @@
 ![image](https://github.com/user-attachments/assets/17f88926-e83e-423e-bde8-f3396a287d39)
 
 # From the Cloud Atlas OS Pitchdeck
-![Screenshot 2025-05-28 214418](https://github.com/user-attachments/assets/a9612ac0-428e-4d67-868e-252526aa0c70)
+![image](https://github.com/user-attachments/assets/80c9d540-007a-495c-9eec-afddcbbe5f33)
+![image](https://github.com/user-attachments/assets/6335a97e-ffd1-4258-b24a-a112efed2107)
 ![Screenshot 2025-05-28 214412](https://github.com/user-attachments/assets/bcec0e05-8165-413b-8177-f92a3fcca1a9)
-![Screenshot 2025-05-28 214827](https://github.com/user-attachments/assets/769c584b-3581-4570-b9ae-39f179ea36c5)
-![image](https://github.com/user-attachments/assets/031e2350-6041-483f-a652-83b642591b0c)
-![Screenshot 2025-05-28 214343](https://github.com/user-attachments/assets/028b484d-33a3-4a7b-8d92-558069039a92)
+![image](https://github.com/user-attachments/assets/62248a11-2324-4a75-bab9-ba5784b165a8)
+![image](https://github.com/user-attachments/assets/64775cf5-dccd-42f2-85c2-7809af76b476)
+![image](https://github.com/user-attachments/assets/faf603b0-f3fc-406b-9016-3009db874da7)
 <br><br><br>
 
 # Announcements
