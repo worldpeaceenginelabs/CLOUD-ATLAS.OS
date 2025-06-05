@@ -144,7 +144,7 @@
     <a href="https://twitter.com/peace_engine" target="_blank">
         <img class="bottomicons" src="x-icon.svg" alt="" title="X" height="30" width="30">
     </a>
-    <a href="https://www.youtube.com/@worldpeaceenginelabs3955/videos" target="_blank">
+    <a href="https://www.youtube.com/@worldpeacegame/videos" target="_blank">
         <img class="bottomicons" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
     </a>
     <a href="https://bitcoinblockexplorers.com/address/bc1q5z07snhwpdw7s3tdf8mxjlq3nk5qwm4qsgwyh8" target="_blank">
