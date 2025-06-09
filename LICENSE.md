@@ -33,7 +33,7 @@ Permission is hereby granted, free of charge, to **individuals, educators, resea
 
 To use this software commercially, please contact:  
 **inquiries@cloudatlas.club**  
-Licensing fees are set at **1% of gross revenue** generated directly or indirectly from the use of Cloud Atlas OS and all its components (dApps, tools, services, modules, snippets, gists, etc.).
+Licensing fees are set at **10% of gross revenue** generated directly or indirectly from the use of Cloud Atlas OS and all its components (dApps, tools, services, modules, snippets, gists, etc.).
 
 ---
 
