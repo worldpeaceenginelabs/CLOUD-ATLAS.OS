@@ -1,4 +1,4 @@
-# 🌍 Cloud Atlas Community License (v1.0)
+# 🌍 Cloud Atlas Community License (v1.2)
 
 **Applies to:** Cloud Atlas OS, all Cloud Atlas modules, dApps, tools, services, components, and any derivative works.  
 **Author:** Boris Kowalczuk  
@@ -74,8 +74,8 @@ Unauthorized commercial use may result in takedown notices or legal action.
 
 ## 📌 Version
 
-This is **version 1.1** of the Cloud Atlas Community License.  
-Future versions may be released. Software distributed under v1.1 remains under this license unless explicitly re-licensed.
+This is **version 1.2** of the Cloud Atlas Community License.  
+Future versions may be released. Software distributed under earlier licenses remain under 1.2 license unless explicitly re-licensed.
 
 ---
 
