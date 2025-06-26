@@ -243,6 +243,13 @@
 		},
 	  });
 	
+
+
+
+
+
+
+
 	// Render the Cesium Container background transparent
 	  viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
 
@@ -385,6 +392,37 @@ function handleCoordinatePick(result) {
   });
   isCategoryModalVisible = true;
 }
+
+// Load city data from local JSON
+const response = await fetch('/cities.json');
+const cities = await response.json();
+
+// Add label collection to scene
+const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
+
+// Limit to first 100 cities for testing (optional)
+const sample = cities.slice(0, 500);
+
+sample.forEach(city => {
+  const lat = parseFloat(city.lat);
+  const lon = parseFloat(city.lng);
+
+  if (isNaN(lat) || isNaN(lon)) return;
+
+  labels.add({
+    position: Cesium.Cartesian3.fromDegrees(lon, lat),
+    text: city.name, // This is what you want to show
+    font: "24px sans-serif",
+    fillColor: Cesium.Color.WHITE,
+    outlineColor: Cesium.Color.BLACK,
+    outlineWidth: 2,
+    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+    scaleByDistance: new Cesium.NearFarScalar(1.0, 1.0, 2.0e7, 0.0),
+	eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -10000),
+  });
+});
+
+
 
 // Debounce function to prevent multiple rapid touches
 function debounce(func, wait) {
