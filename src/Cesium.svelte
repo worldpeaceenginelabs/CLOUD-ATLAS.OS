@@ -401,7 +401,7 @@ const cities = await response.json();
 const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
 
 // Limit to first 100 cities for testing (optional)
-const sample = cities.slice(0, 500);
+const sample = cities.slice(0, 1200);
 
 sample.forEach(city => {
   const lat = parseFloat(city.lat);
@@ -418,7 +418,7 @@ sample.forEach(city => {
     outlineWidth: 2,
     style: Cesium.LabelStyle.FILL_AND_OUTLINE,
     scaleByDistance: new Cesium.NearFarScalar(1.0, 1.0, 2.0e7, 0.0),
-	eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -10000),
+	eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -12500),
   });
 });
 
