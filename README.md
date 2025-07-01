@@ -95,6 +95,9 @@ When we transfer all **6 million+ Wikipedia articles** into 3D objects and scene
 This feature transforms information into a **living, visual experience**—blending **learning, truth detection, and storytelling** in a gamified, immersive world.<br>
 
 You don’t need to be an expert to help correct the complete knowledge of mankind—you just need **eyes and a brain**.<br><br>
+
+![bafkreifo7tcabxfqzqcfyoiuml75mxfxli5cc6xgg4oaku74kicqrq3yre](https://github.com/user-attachments/assets/7c61a76c-041f-490a-9861-706fafe966f8)
+![image](https://github.com/user-attachments/assets/5e86fc2a-09e1-4bba-9b34-0c86164dbb0f)
 ![image](https://github.com/user-attachments/assets/aea1940a-663f-4421-93fe-797b887b82bb)
 <br><br>
 
