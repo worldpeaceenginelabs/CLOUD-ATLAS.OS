@@ -1,14 +1,46 @@
-# Welcome to Cloud Atlas!
+## 🌍 Cloud Atlas OS
+#### Let's build what comes next...
 
-**Live Domain:** [cloudatlas.club](https://cloudatlas.club)  
-**Live Edit on Stackblitz:** [CLOUD ATLAS OS (MAIN)](https://stackblitz.com/github/worldpeaceenginelabs/CLOUD-ATLAS-OS)  
-**Live Preview:** [Preview](https://preview.metaverse-seed.pages.dev/)
-<br><br>
+The world’s first truly decentralized ecosystem — a new operating system for Earth.
 
-## **Cloud Atlas OS - An independent, community-owned Google Earth, free from centralized servers and overpowered entities, owned solely by you and the public! A Collective Computer...**<br>
-### No need for back-end servers! Cloud Atlas syncs via public tracker networks using BitTorrent, with Nostr as a fallback coming soon. However, persistent storage and computational power (cloud/servers) can be simply added if needed.<br>
-### A serverfarm-less, decentralized Google Earth running as a 4MB standalone package, capable of working offline (coming) in your browser. It’s free and scales 99% autonomously! More users mean more app storage and computational power. You are the server farm.<br><br>
+Infrastructureless. Unstoppable.
+Run by the people, for the people.
 
+Not just a platform.
+Not just an app.
+
+A new spatial interface merging the digital and physical worlds.
+
+One shared ecosystem where civic action, learning, entertainment, and real-world impact converge on a fully decentralized infrastructure—serving as both the foundation and a seamless part of the experience.
+
+Here, apps, games, knowledge, and civic tools live directly on a 3D globe, replacing traditional feeds, menus, and app stores with a geography-driven discovery experience:
+
+🌐 Zoom in to act locally,
+
+🌎 Zoom out to think globally.
+
+Discover by geography, not keywords.
+Instantly create and collaborate through:
+
+🧠 Prompt-to-app
+
+🎮 Prompt-to-game
+
+💡 Prompt-to-idea
+
+🛠️ Prompt-to-solution
+
+🌐 Swarm Governance
+
+🌍 Live brainstormings
+
+🤝 Collective missions
+
+📺 Mission TV 
+
+📚 Virtual Encyclopedia (Wikipedia 2D/AR/VR)
+
+—all within one intuitive interface, and without any infrastructure costs.<br><br>
 
 ![image](https://github.com/user-attachments/assets/5175f1c7-95a1-4f11-9857-c48e40f70a58)
 
@@ -21,6 +53,7 @@
 We’ve evolved **Crowd Engineering** into a revolutionary **Social Network application**.
 
 <strong>Cloud Atlas OS</strong> is a <strong>real-world platform owned by the community</strong> — like a mix of <strong>Google Earth</strong>, <strong>Wikipedia (coming soon)</strong>, and an <strong>App Store (coming soon)</strong> — but without big companies or central servers in control.<br>
+
 It runs on a <strong>network of people's devices</strong>, so it's <strong>scalable</strong>, <strong>doesn’t need servers</strong>, and is <strong>free to use</strong>.<br>
 It’s fully owned by <strong>you and everyone</strong>, working as a <strong>Global Public Collective Computer</strong> — a worldwide system owned by everyone, powered by everyone, where data, apps, and smart tools are spread around the world instead of being locked in company systems.
 <br><br>
@@ -141,8 +174,8 @@ A decentralized video platform like Twitch — but for real-world impact. Users 
 ### Real-time WebRTC Signaling 🌐 (✅ working) 
 - **Peer-to-peer connections** happen via decentralized protocols:
   - **BitTorrent 🌀**: Used for signaling and establishing connections between peers.
-  - **IPFS 📡**: For data sharing and syncing without central servers.
-  - **NOSTR 🔑**: A decentralized protocol for real-time messaging, used to help establish peer connections.
+  - **IPFS 📡**: Used for signaling and establishing connections between peers.
+  - **NOSTR 🔑**: A decentralized protocol for real-time messaging, used for signaling and establishing connections between peers.
 - **No central server**: All signaling happens through these decentralized networks, ensuring seamless and secure connections.
 
 ### Local Data Storage 💾 (✅ working) 
