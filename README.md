@@ -306,14 +306,27 @@ Cloud Atlas uses the BitTorrent strategy: peer-to-peer real-time data transfers 
 What's more on GitHub and the internet to aim for the moon of a post-scarcity, post-government society? Imagine dragons...!<br><br>
 
 # Announcements
-## 🚨Call to Apple, Android, Web Devs, and Entrepreneurs🚨
-I’ve built a decentralized Google Earth/Maps—no servers, pure edge tech 🔥—and it’s called Cloud Atlas OS. Right now, it’s a blank slate, like an empty Maps app begging for life 🌱. Think of me as Google in 2000, hunting badass flagship apps and ideas—yours! Code it once for Cloud Atlas 💻, and it’s instantly on every device, every platform—no extra grind, no limits. iOS devs, port your Swift with WebAssembly or Rust; Android crew, same deal; web devs, it’s JAMStack native—JS, HTML, CSS, stupid-lightweight.
+## 🚨Call to Apple, Android, Web Devs, Entrepreneurs, and all Dreamers🚨
+
+We've built a decentralized Google Earth/Maps—no servers, pure edge tech 🔥—and it’s called Cloud Atlas OS.
+
+Right now, it’s a blank slate, like an empty Maps app begging for life 🌱. Think of us as Google in 2000, hunting badass flagship apps and ideas—yours!
+
+Code it once for Cloud Atlas 💻, and it’s instantly on every device, every platform—no extra grind, no limits.
+
+iOS devs, port your Swift with WebAssembly or Rust;
+Android crew, same deal with Kotlin, Java or C++;
+web devs, it’s JAMStack native—JS, HTML, CSS, stupid-lightweight.
+
+Nothing speaks to you yet? Then use Unreal Engine, Unity 3D, Blender instead, or whatever your preferred stack is...
 
 Entrepreneurs, bring your vision, this scales to billions for free 💸.
 
-Dreamers with big ideas, come join too! Your app could grow to help billions of people for free 💸. When you win, we all win, your app makes Cloud Atlas OS famous ✨, and as more friends join, we make it even better together. Want to start building and make it giant? 🚀
+Dreamers with big ideas, come join too! Your app could grow to help billions of people for free 💸. 
 
-I’m inviting people to join Cloud Atlas OS right now. We can team up on your app idea, and I’ve got helpers ready to jump in and learn while they help. What’s your project about? Oh, and good news: you’re never stuck with me, grab the project from GitHub anytime, build it your way, and still use Cloud Atlas OS to make it big. Cool, right?
+When you win, we all win, your app makes Cloud Atlas OS famous ✨, and as more friends join, we make it even better together. Want to start building and make it giant? 🚀
+
+We're inviting people to join Cloud Atlas OS right now. We can team up on your app idea, and we've got helpers ready to jump in and learn while they help. What’s your project about? Oh, and good news: you’re never stuck with us, grab the project from GitHub anytime, build it your way, and still use the Cloud Atlas OS advantages to make it big. Cool, right?
 <br><br>
 
 ## UI Update Coming: Corporate Control Ends Now!
