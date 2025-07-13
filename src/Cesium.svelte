@@ -723,7 +723,7 @@ function handleKeyDown(event) {
 	margin-right: auto;
 	max-width: 800px;
 	width: 100%;
-	height: 33%;
+	height: 50%;
 	overflow: auto;
 }
 
