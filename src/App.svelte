@@ -7,7 +7,6 @@
   import { writable } from 'svelte/store';
 
   let showPicture = true;
-  let pictureUrl = "./cloudatlas8kzip.jpg";
   let quote = "“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.” Buckminster Fuller";
 
   const isVisible = writable(false);
@@ -16,7 +15,17 @@
 <div>
   {#if showPicture}
     <div class="picture-container" on:click={() => showPicture = false}>
-      <img class="picture" src={pictureUrl} alt="Inspiring" />
+      <video
+  autoplay
+  loop
+  muted
+  playsinline
+  poster="./cloudatlas8kzip.jpg"
+  class="picture"
+>
+  <source src="./cloudatlas8kzip.mp4" type="video/mp4" />
+</video>
+
       <div class="overlay"></div>
       <div class="quote">{quote}</div>
       <div class="enter-text animated-gradient">ENTER</div>
@@ -32,7 +41,7 @@
 
 <!-- Hidden component off-screen -->
 <div style="position: absolute; left: -9999px; top: -9999px;">
-  <AddMapmarker />
+  <!-- <AddMapmarker /> -->
 </div>
 
 <style>
