@@ -116,7 +116,7 @@ It’s government by doing, not by voting.<br><br>
 <br><br>
 
 ### 2. Virtual Encyclopedia
-6 Million Wikipedia articles transformed into immersive, animated 3D scenes and objects—geolocated on a global map and powered by BitTorrent. The more people use it, the more scalable, faster and rich the content becomes.<br>
+6 Million Wikipedia articles sourced into immersive, animated 3D scenes and objects—geolocated on a global map and powered by BitTorrent. The more people use it, the more scalable, faster and rich the content becomes.<br>
 
 Picture a **3D animated Wikipedia** where articles come to life as **interactive objects or scenes roaming the globe**, based on the content of each article.<br>
 
