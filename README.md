@@ -166,7 +166,7 @@ The first privately developed dApp, **Couchsurfing Free**, sets the stage for wh
 ### 4. MissionTV
 A decentralized video platform like Twitch — but for real-world impact. Users stream their mission progress, earn tips, and inspire others to act. It’s social change as entertainment, with viewers funding and joining in, live. Fueling social change through engaging video content.
 <br><br>
-![image](https://github.com/user-attachments/assets/e1cfd825-32bc-4580-ae41-09511b0664a9)
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/1afe4d25-1a87-456c-95fd-e92bb1b2f67c" />
 <br><br>
 
 # Technical Summary
