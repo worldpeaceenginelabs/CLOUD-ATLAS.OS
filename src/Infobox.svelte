@@ -129,14 +129,14 @@
 
   <div style="position: fixed; bottom: 5px; left: 0; height: 30px; width: 100%; display: flex; justify-content: center; align-items: center;">
     
+    <a href="https://worldpeaceenginelabs.org/" target="_blank">
+      <img class="bottomicons" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
+  </a>
+
     <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS#readme" target="_blank">
       <img class="bottomicons" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
   </a>
-
-    <a href="https://linktr.ee/worldpeacegame" target="_blank">
-        <img class="bottomicons" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
-    </a>
-   
+ 
     <a href="https://app.element.io/#/room/#METAVERSE-DAO_CLOUD-ATLAS_community:gitter.im" target="_blank">
         <img class="bottomicons" src="chat-icon.svg" alt="" title="Developer Chat" height="30" width="30">
     </a>
