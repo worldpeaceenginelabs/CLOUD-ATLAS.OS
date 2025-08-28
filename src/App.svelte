@@ -41,7 +41,7 @@
 
 <!-- Hidden component off-screen -->
 <div style="position: absolute; left: -9999px; top: -9999px;">
-  <!-- <AddMapmarker /> -->
+<AddMapmarker />
 </div>
 
 <style>
