@@ -520,44 +520,7 @@ onMount(async () => {
 </script>
 
 <main transition:fade={{ duration: 500 }}>
-  <h4>
-        <div class="container">
-          <div class="emoji">🌎</div>
-          <div class="text">
-            Create and participate in Brainstormings addressing <strong>local and global</strong> issues. Find solutions together with people from all walks of life.
-          </div>
-      </div>
-      <div class="container">
-        <div class="emoji">🔥</div>
-        <div class="text">
-          Stream your Zoom Meetings to YouTube for permanent storage.
-        </div>
-      </div>
-    <div class="container">
-      <div class="emoji">🔥</div>
-      <div class="text">
-        No central authority!!!
-      </div>
-  </div>
-  <div class="container">
-    <div class="emoji">⚠️</div>
-    <div class="text">
-      Posts cannot be edited or deleted, and they will automatically disappear after 14 days.
-    </div>
-</div>
-<div class="container">
-  <div class="emoji">⚠️</div>
-  <div class="text">
-    You can have a maximum of 5 posts across all 4 dapps. Choose wisely!
-  </div>
-</div>
-<div class="container">
-  <div class="emoji">🔥</div>
-  <div class="text">
-    Other mechanisms for edit and delete are coming...
-  </div>
-</div>
-</h4>
+  
   
   {#if $isFormDisabled}
   <p style="color: red;">The form is not available due to the record limit.</p>

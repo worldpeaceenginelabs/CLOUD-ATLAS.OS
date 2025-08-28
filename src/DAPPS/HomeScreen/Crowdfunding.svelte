@@ -520,38 +520,7 @@ onMount(async () => {
 </script>
 
 <main transition:fade={{ duration: 500 }}>
-  <h4>
-        <div class="container">
-          <div class="emoji">🌎</div>
-          <div class="text">
-          Turn your visionary ideas into reality with the power of Crowdfunding. Use parts of your recorded Brainstorming Sessions as Campaign Video. What could me more authentic? Cloud Atlas leverages GoFundMe.com’s reach, giving you access to their extensive network and visibility.
-          </div>
-      </div>
-    <div class="container">
-      <div class="emoji">🔥</div>
-      <div class="text">
-        No central authority!!!
-      </div>
-  </div>
-  <div class="container">
-    <div class="emoji">⚠️</div>
-    <div class="text">
-      Posts cannot be edited or deleted, and they will automatically disappear after 14 days.
-    </div>
-</div>
-<div class="container">
-  <div class="emoji">⚠️</div>
-  <div class="text">
-    You can have a maximum of 5 posts across all 4 dapps. Choose wisely!
-  </div>
-</div>
-<div class="container">
-  <div class="emoji">🔥</div>
-  <div class="text">
-    Other mechanisms for edit and delete are coming...
-  </div>
-</div>
-</h4>
+  
   
   {#if $isFormDisabled}
   <p style="color: red;">The form is not available due to the record limit.</p>
