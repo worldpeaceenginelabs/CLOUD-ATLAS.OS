@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { joinRoom } from 'trystero';
+  import { joinRoom } from 'trystero/torrent';
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
