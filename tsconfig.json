@@ -6,7 +6,7 @@
     "module": "ESNext",
     "resolveJsonModule": true,
     
-    "strict": false,               // Disable all strict type-checking options
+    "strict": true,               // Disable all strict type-checking options
     /**
      * Typecheck JS in `.svelte` and `.js` files by default.
      * Disable checkJs if you'd like to use dynamic types in JS.

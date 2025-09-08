@@ -22,17 +22,17 @@
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
   
-	// Global variables and states
-	let isRecordModalVisible = false;
-	let isCategoryModalVisible = false;
-	let selectedRecord = null;
-	let viewer: Viewer;
-	let db: IDBDatabase;
-	let customDataSource = new CustomDataSource('locationpins');
-	let recordButtonText = '';
-	let isZoomModalVisible = false;
-	let isDaNangModalVisible = false;
-	let isPaiModalVisible = false;
+// Global variables and states
+let isRecordModalVisible = false;
+let isCategoryModalVisible = false;
+let selectedRecord: { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string } | null = null;
+let viewer: Viewer;
+let db: IDBDatabase;
+let customDataSource = new CustomDataSource('locationpins');
+let recordButtonText = '';
+let isZoomModalVisible = false;
+let isDaNangModalVisible = false;
+let isPaiModalVisible = false;
   
 	// Open connection to IndexedDB
 	const openDB = (): Promise<IDBDatabase> => {
@@ -161,7 +161,7 @@
 		const position = Cartesian3.fromDegrees(longitude, latitude, 100);
 
 		// Determine the image URL based on the category
-		let imageURL: string;
+		let imageURL: string = "./mapicons/brainstorming.png"; // Default value
 		switch (record.category) {
 			case 'brainstorming':
 				imageURL = "./mapicons/brainstorming.png";
@@ -201,7 +201,7 @@
 	// Reactive statement to update recordButtonText based on modalRecord
 	$: {
 	if (selectedRecord) {
-		const categoryMap = {
+		const categoryMap: { [key: string]: string } = {
 		brainstorming: "Join Brainstorming",
 		actionevent: "Take Action Now",
 		petition: "Sign Now",
@@ -328,7 +328,7 @@
 	  viewer.dataSources.add(customDataSource);
 
 // Function to fetch record from IndexedDB
-async function fetchRecord(mapid) {
+async function fetchRecord(mapid: string) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('locationpins', 'readonly');
     const objectStore = transaction.objectStore('locationpins');
@@ -347,7 +347,7 @@ async function fetchRecord(mapid) {
 // This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
 
 // Function to handle entity picking
-async function handleEntityPick(pickedFeature) {
+async function handleEntityPick(pickedFeature: any) {
   if (!pickedFeature || !pickedFeature.id) return;
 
   const entityId = pickedFeature.id.id;
@@ -357,7 +357,7 @@ async function handleEntityPick(pickedFeature) {
     const record = await fetchRecord(mapid);
     if (record) {
       isRecordModalVisible = true;
-      selectedRecord = record;
+      selectedRecord = record as { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string };
     }
   } catch (error) {
     console.error('Error fetching record:', error);
@@ -365,8 +365,8 @@ async function handleEntityPick(pickedFeature) {
 }
 
 // Function to handle coordinate picking
-let pointEntity;
-function handleCoordinatePick(result) {
+let pointEntity: Entity | null = null;
+function handleCoordinatePick(result: any) {
   const cartesian = viewer.scene.pickPosition(result.position);
   if (!cartesian) return;
 
@@ -403,7 +403,7 @@ const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
 // Limit to first 100 cities for testing (optional)
 const sample = cities.slice(0, 1200);
 
-sample.forEach(city => {
+sample.forEach((city: any) => {
   const lat = parseFloat(city.lat);
   const lon = parseFloat(city.lng);
 
@@ -425,16 +425,16 @@ sample.forEach(city => {
 
 
 // Debounce function to prevent multiple rapid touches
-function debounce(func, wait) {
-  let timeout;
-  return function(...args) {
-    clearTimeout(timeout);
+function debounce(func: Function, wait: number) {
+  let timeout: NodeJS.Timeout | null = null;
+  return function(this: any, ...args: any[]) {
+    clearTimeout(timeout!);
     timeout = setTimeout(() => func.apply(this, args), wait);
   };
 }
 
 // Combined event handler for picking entities and coordinates
-viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click) {
+viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
   const pickedObject = viewer.scene.pick(click.position);
 
   // If an object is picked, handle entity picking
@@ -502,7 +502,7 @@ function closePaiModal() {
 
 
 	// Event listener for closing modals on Escape key press
-function handleKeyDown(event) {
+function handleKeyDown(event: KeyboardEvent) {
   if (event.key === "Escape") {
     closeCategoryModal();
     closeRecordModal();
@@ -519,7 +519,7 @@ function handleKeyDown(event) {
 
 	
 	// Function to format the timestamp on the posts
-	function formatTimestamp(timestamp) {
+	function formatTimestamp(timestamp: string) {
     const date = new Date(timestamp);
 
     // extract parts of the timestamp
