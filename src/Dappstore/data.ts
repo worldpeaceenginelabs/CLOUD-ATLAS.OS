@@ -1,5 +1,4 @@
 /*
-
 # Method to determine the browser language and eventually change the title to a more fitting local variant
 # In the bottom array you insert the variable key2name instead of the fixed string "Report Deceptive Packaging", just like this:
 { key: `2`, title: key2name, content: 'blablabla'} 
@@ -26,11 +25,22 @@ key2name = "Report Deceptive Packaging";
 
 */
 
-export default
-  [
-    { key: `1`,
+interface DappItem {
+  key: string;
+  title: string;
+  content: string;
+  href: string;
+  target: string;
+  avatar: string;
+  color?: string;
+  categorytext?: string;
+  categorypic?: string;
+}
+
+const dappData: DappItem[] = [
+  { key: `1`,
     title: 'DAPP/Iris.to - Social Networking Freedom',
-    content: 'Here comes Iris. Iris is a social networking application that stores and indexes everything on the devices of its users and connects directly with peers who run the application - no corporate gatekeepers needed. Interface-wise, Iris is not too different from some existing social media. You can post texts, photos, videos, audio or other types of files into your feed. Funfact: This app is made by Martti Malmi. Without Martti Malmi, Bitcoin and cryptocurrencies may never have been developed. Malmi was the second developer behind Bitcoin after Satoshi Nakamoto, putting him at the forefront of the cryptocurrency movement.',
+    content: 'Here comes Iris. Iris is a social networking application that stores and indexes everything on the devices of its users and connects directly with peers who run the application - no corporate gatekeepers needed. Interface-wise, Iris is not too different from some existing social media. You can post texts, photos, videos, audio or other types of files into your feed. Funfact: This app is made by Martti Malmi. Without Martti Malmi, Bitcoin and cryptocurrencies may never have been developed. Malmi was the second developer behind Bitcoin after Satoshi Nakamoto, putting him at the forefront of the cryptocurrency movement.',
     href: 'https://iris.to',
     target: '_blank',
     avatar: 'fuzzy-avatar/key1.png?auto=compress',
@@ -49,7 +59,7 @@ export default
     
     { key: `3`,
     title: 'Attention All Innovators',
-    content: 'Whether you’re a creator, developer, activist, or for-profit or non-profit entrepreneur from any sector!<br><br>Don’t get hung up on the tools; pick what suits your flow. Elevate your concepts using <strong>Unreal Engine 5</strong> (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.), <strong>Unity 3D</strong> (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.), and/or <strong>HTML, CSS, JS, APIs</strong> (JAMstack), <strong>WASM</strong> (C, C++, C#, and Rust, but for the Web), or <strong>WebContainers</strong> (Node.js in the browser). Then continue with the settings icon in the top-right and do a pull-request.<br><br>Launch your creations to a global audience across various platforms—be it <strong>browsers, mobile devices, desktops, VR, or WebVR, right out of the box.</strong> Enjoy the liberty of creation, supported by a <strong>backend that scales automatically by 99%, free from any restrictive ties.</strong><br><br><strong>Lacking coding skills? No worries!</strong> Craft complete games and apps with ease using Blueprints in UE5, Bolt in Unity 3D, or you can use ChatGPT for applications based on the already existing components in the code on GitHub.<br><br>What’s stopping you from unleashing your creativity today? Liberate yourself from the constraints of your surroundings and navigate through diverse projects as if they were realms within an expansive, unified digital universe.<br><br>Take the plunge and start creating now!',
+    content: 'Whether you\'re a creator, developer, activist, or for-profit or non-profit entrepreneur from any sector!<br><br>Don\'t get hung up on the tools; pick what suits your flow. Elevate your concepts using <strong>Unreal Engine 5</strong> (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.), <strong>Unity 3D</strong> (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.), and/or <strong>HTML, CSS, JS, APIs</strong> (JAMstack), <strong>WASM</strong> (C, C++, C#, and Rust, but for the Web), or <strong>WebContainers</strong> (Node.js in the browser). Then continue with the settings icon in the top-right and do a pull-request.<br><br>Launch your creations to a global audience across various platforms—be it <strong>browsers, mobile devices, desktops, VR, or WebVR, right out of the box.</strong> Enjoy the liberty of creation, supported by a <strong>backend that scales automatically by 99%, free from any restrictive ties.</strong><br><br><strong>Lacking coding skills? No worries!</strong> Craft complete games and apps with ease using Blueprints in UE5, Bolt in Unity 3D, or you can use ChatGPT for applications based on the already existing components in the code on GitHub.<br><br>What\'s stopping you from unleashing your creativity today? Liberate yourself from the constraints of your surroundings and navigate through diverse projects as if they were realms within an expansive, unified digital universe.<br><br>Take the plunge and start creating now!',
     href: 'https://youtube.com/shorts/G0jctnM3HGA?feature=share',
     target: '_blank',
     avatar: 'fuzzy-avatar/developer.jpg?auto=compress',
@@ -78,7 +88,7 @@ export default
 
     { key: `6`,
     title: 'DAPP/D-NEWS (geolocated) - News made by the people, for the people... (coming soon / help wanted)',
-    content: '“We carry devices that know a lot about us and know exactly where we are all the time, so why not deliver news, information and content based on who we are, what we like and where we are?” “Just by geolocating the fires and the events in the Amazon, many people felt closer” Credits: Eduardo Acquarone',
+    content: '"We carry devices that know a lot about us and know exactly where we are all the time, so why not deliver news, information and content based on who we are, what we like and where we are?" "Just by geolocating the fires and the events in the Amazon, many people felt closer" Credits: Eduardo Acquarone',
     href: 'https://github.com/worldpeaceenginelabs/METAVERSE-SEED',
     target: '_blank',
     avatar: 'fuzzy-avatar/key6.jpg?auto=compress',
@@ -89,7 +99,7 @@ export default
 
   { key: `11`,
     title: 'An Open-Source Connectome you can navigate like a Virtual Library: Unleashing the Potential of Multitasking and Polymathy for All - regardless of their innate abilities or current proficiency levels.',
-    content: 'Welcome to Cloud Atlas, a visionary project that transforms the way we interact with information and each other. At its heart lies a planetary collective-computer, a web application that mirrors our world through a digital lens. This virtual realm, a cartographic echo of reality, is ripe for exploration and enrichment.<br><br>The Home Screen provides digital governance through <strong>Crowd Engineering Missions:</strong> a sequence of <strong>brainstorming, petitioning, crowdfunding,</strong> and <strong>action events.</strong> This accelerates the transition from problem identification to solution implementation and realization, significantly <strong>reducing the time compared to traditional government processes.</strong><br><br>The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map. A coordinate can represent everything: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>As a contributor, your mission is to capture, refine, and narrate the essence of places, combating the fog of distortion with clarity and precision. By <strong>tethering playful Wikipedia narratives</strong> to their physical and temporal anchors, you <strong>become a guardian of truth,</strong> ensuring the digital and the real harmoniously align.<br><br>The Virtual Encyclopedia stands as a <strong>beacon of accountability,</strong> juxtaposing the actions of authorities against the pillars of human rights, legal frameworks, and global objectives. It scrutinizes the alignment of governance with the immutable standards of truth across diverse domains, from STEM to HASS, and beyond.<br><br>Joining Cloud Atlas means more than contributing to a database; it’s about becoming a neuron in a collective consciousness that spans both AI and humanity. Traverse this open-source connectome, where decentralized computing and collaboration elevate our collective intellect.<br><br>Embrace the revolution. Decentralize. Connect. Enrich the Cloud Atlas.',
+    content: 'Welcome to Cloud Atlas, a visionary project that transforms the way we interact with information and each other. At its heart lies a planetary collective-computer, a web application that mirrors our world through a digital lens. This virtual realm, a cartographic echo of reality, is ripe for exploration and enrichment.<br><br>The Home Screen provides digital governance through <strong>Crowd Engineering Missions:</strong> a sequence of <strong>brainstorming, petitioning, crowdfunding,</strong> and <strong>action events.</strong> This accelerates the transition from problem identification to solution implementation and realization, significantly <strong>reducing the time compared to traditional government processes.</strong><br><br>The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map. A coordinate can represent everything: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>As a contributor, your mission is to capture, refine, and narrate the essence of places, combating the fog of distortion with clarity and precision. By <strong>tethering playful Wikipedia narratives</strong> to their physical and temporal anchors, you <strong>become a guardian of truth,</strong> ensuring the digital and the real harmoniously align.<br><br>The Virtual Encyclopedia stands as a <strong>beacon of accountability,</strong> juxtaposing the actions of authorities against the pillars of human rights, legal frameworks, and global objectives. It scrutinizes the alignment of governance with the immutable standards of truth across diverse domains, from STEM to HASS, and beyond.<br><br>Joining Cloud Atlas means more than contributing to a database; it\'s about becoming a neuron in a collective consciousness that spans both AI and humanity. Traverse this open-source connectome, where decentralized computing and collaboration elevate our collective intellect.<br><br>Embrace the revolution. Decentralize. Connect. Enrich the Cloud Atlas.',
     href: 'https://youtu.be/r1y6uOEzkYI?si=sGhv3Q51tNmHPcBx',
     target: '_blank',
     avatar: 'fuzzy-avatar/key20.jpg?auto=compress',
@@ -123,7 +133,7 @@ export default
 
   { key: `14`,
   title: 'DAPP/D-HELPOUTS - Help when you need it over live video (coming soon / help wanted)',
-  content: 'What if getting help for a computer glitch, a leaky pipe, or a homework problem was as easy as clicking a button? What if you could connect via real-time video to a music teacher or a yoga instructor from the comfort of your home? What if you could get someone knowledgeable to get you “unstuck” when you really need it? And why did Google not continue this project? Ours is pushing for the free sessions many individuals offered back then, but you are allowed to add a price tag too.',
+  content: 'What if getting help for a computer glitch, a leaky pipe, or a homework problem was as easy as clicking a button? What if you could connect via real-time video to a music teacher or a yoga instructor from the comfort of your home? What if you could get someone knowledgeable to get you "unstuck" when you really need it? And why did Google not continue this project? Ours is pushing for the free sessions many individuals offered back then, but you are allowed to add a price tag too.',
   href: 'https://blog.google/products/google-plus/introducing-helpouts-help-when-you-need/',
   target: '_blank',
   avatar: 'fuzzy-avatar/key14.jpg?auto=compress',
@@ -184,3 +194,5 @@ export default
     categorypic:'./fuzzy-category/globe.jpg'},
 
   ];
+
+export default dappData;

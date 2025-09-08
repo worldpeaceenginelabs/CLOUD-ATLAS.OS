@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
-  import { coordinates } from '../../store.js';
+  import { coordinates } from '../../store.ts';
 
   // Define for rate limiting
   let isFormDisabled = writable(false);

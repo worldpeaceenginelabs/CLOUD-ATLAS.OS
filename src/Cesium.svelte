@@ -18,7 +18,7 @@
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
 	import CategoryChoice from "./DAPPS/HomeScreen/CategoryChoice.svelte";
-	import { coordinates } from './store.js';
+	import { coordinates } from './store';
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
   

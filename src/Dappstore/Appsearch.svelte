@@ -2,8 +2,8 @@
     import { fade } from 'svelte/transition';
     import VirtualList from './VirtualList.svelte';
     import ListItem from './ListItem.svelte';
-    import items from './data.js';
-    import { clickOutside } from "./click_outside.js";
+    import items from './data.ts';
+    import { clickOutside } from "./click_outside.ts";
 
     let searchTerm = "";
 
