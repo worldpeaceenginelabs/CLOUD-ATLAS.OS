@@ -3,8 +3,8 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
-  import { coordinates } from '../../store';
-  import { idb } from '../../idb';
+  import { coordinates } from './store';
+  import { idb } from './idb';
 
 
   // Initialize IndexedDB using shared module
@@ -73,7 +73,7 @@
 
 
 
-  // Function to initialize the app in the right sequence
+// Function to initialize the app in the right sequence
  async function initializeApp(): Promise<void> {
   try {
     await initializeIndexedDB();
@@ -129,7 +129,7 @@ const trysteroroomname = import.meta.env.VITE_TRYSTERO_ROOM_NAME;
     return `${hours}:${minutes}:${seconds}`;
 }
 
-function startRoom() {
+function startRoom(): void {
     room.onPeerJoin(peerId => {
         // Send record cache to the new peer, but only the records the peer doesn't have yet
         sendCache(recordCache);
@@ -237,17 +237,19 @@ function startRoom() {
   
 
 
+
   // Function to check if a record is valid
   function recordIsValid(rec: Record): boolean {
     const isTitleValid = rec.title.trim() !== '';
-    // Define the regex pattern for Telegram Group URLs
-    const linkPattern = /^(?:https?:\/\/)?(?:t\.me|telegram\.me|t\.dog|telegram\.dog)\/(?:joinchat\/|\+)?([\w-]+)$/i;
+    // Define the regex pattern for Change.org URLs
+    const linkPattern = /^https:\/\/(www\.)?change\.org\/p\/[a-zA-Z0-9-]+\/?$/;
     const isLinkValid = linkPattern.test(rec.link.trim());
     
     return isTitleValid && isLinkValid;
   }
 
-  
+  // Function to validate latitude and longitude with max 6 decimal places
+
 
 
   // Record interface
@@ -274,7 +276,7 @@ function startRoom() {
       link: '',
       longitude: '',
       latitude: '',
-      category: 'actionevent',
+      category: 'petition',
       height: 0,
     };
   }
@@ -290,15 +292,14 @@ onMount(async () => {
   
   
   <form>
-
     <label><div style="text-align:left">Title</div></label>
     <textarea placeholder="Enter a short, powerful mission name here - max 100 chars" maxlength="100" bind:value={record.title} required></textarea><br>
 
     <label><div style="text-align:left">Text</div></label>
-    <textarea placeholder="What’s the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
+    <textarea placeholder="What's the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
 
-    <label><div style="text-align:left">Telegram Group Link</div></label>
-    <input type="text" placeholder="https://t.me/+rtygFbFZrJE5NjIy" maxlength="100" bind:value={record.link} required><br>
+    <label><div style="text-align:left">Change.org Link</div></label>
+    <input type="text" placeholder="https://www.change.org/p/your-campaign-name" maxlength="200" bind:value={record.link} required><br>
 
     <input type="hidden" bind:value={record.latitude} required>
     <input type="hidden" bind:value={record.longitude} required>

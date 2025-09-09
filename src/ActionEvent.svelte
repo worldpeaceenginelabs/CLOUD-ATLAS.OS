@@ -3,8 +3,8 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
-  import { coordinates } from '../../store';
-  import { idb } from '../../idb';
+  import { coordinates } from './store';
+  import { idb } from './idb';
 
 
   // Initialize IndexedDB using shared module
@@ -73,7 +73,7 @@
 
 
 
-// Function to initialize the app in the right sequence
+  // Function to initialize the app in the right sequence
  async function initializeApp(): Promise<void> {
   try {
     await initializeIndexedDB();
@@ -237,17 +237,18 @@ function startRoom() {
   
 
 
+
   // Function to check if a record is valid
   function recordIsValid(rec: Record): boolean {
     const isTitleValid = rec.title.trim() !== '';
-    // Regular expression to check if the link starts with the specified patterns
-    const linkPattern = /^https:\/\/(us05web\.)?zoom\.us\/j\/\d+/;
+    // Define the regex pattern for Telegram Group URLs
+    const linkPattern = /^(?:https?:\/\/)?(?:t\.me|telegram\.me|t\.dog|telegram\.dog)\/(?:joinchat\/|\+)?([\w-]+)$/i;
     const isLinkValid = linkPattern.test(rec.link.trim());
     
     return isTitleValid && isLinkValid;
   }
 
-
+  
 
 
   // Record interface
@@ -274,7 +275,7 @@ function startRoom() {
       link: '',
       longitude: '',
       latitude: '',
-      category: 'brainstorming',
+      category: 'actionevent',
       height: 0,
     };
   }
@@ -290,14 +291,15 @@ onMount(async () => {
   
   
   <form>
+
     <label><div style="text-align:left">Title</div></label>
     <textarea placeholder="Enter a short, powerful mission name here - max 100 chars" maxlength="100" bind:value={record.title} required></textarea><br>
 
     <label><div style="text-align:left">Text</div></label>
-    <textarea placeholder="What’s the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
+    <textarea placeholder="What's the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
 
-    <label><div style="text-align:left">Zoom.us Link</div></label>
-    <input type="text" placeholder="https://us05web.zoom.us/j/ID?pwd=12345 or https://zoom.us/j/ID?pwd=12345" maxlength="100" bind:value={record.link} required><br>
+    <label><div style="text-align:left">Telegram Group Link</div></label>
+    <input type="text" placeholder="https://t.me/+rtygFbFZrJE5NjIy" maxlength="100" bind:value={record.link} required><br>
 
     <input type="hidden" bind:value={record.latitude} required>
     <input type="hidden" bind:value={record.longitude} required>

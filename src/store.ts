@@ -51,3 +51,36 @@ export const models: Writable<ModelData[]> = writable([]);
 export const selectedModel: Writable<ModelData | null> = writable(null);
 
 export const pins: Writable<PinData[]> = writable([]);
+
+// Store cleanup functions
+export function resetAllStores() {
+  coordinates.set({
+    latitude: '',
+    longitude: '',
+    height: 0
+  });
+  models.set([]);
+  selectedModel.set(null);
+  pins.set([]);
+}
+
+// Individual store cleanup functions
+export function resetCoordinates() {
+  coordinates.set({
+    latitude: '',
+    longitude: '',
+    height: 0
+  });
+}
+
+export function resetModels() {
+  models.set([]);
+}
+
+export function resetSelectedModel() {
+  selectedModel.set(null);
+}
+
+export function resetPins() {
+  pins.set([]);
+}

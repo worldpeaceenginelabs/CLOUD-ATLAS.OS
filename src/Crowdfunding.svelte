@@ -3,8 +3,8 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
-  import { coordinates } from '../../store';
-  import { idb } from '../../idb';
+  import { coordinates } from './store';
+  import { idb } from './idb';
 
 
   // Initialize IndexedDB using shared module
@@ -129,7 +129,7 @@ const trysteroroomname = import.meta.env.VITE_TRYSTERO_ROOM_NAME;
     return `${hours}:${minutes}:${seconds}`;
 }
 
-function startRoom(): void {
+function startRoom() {
     room.onPeerJoin(peerId => {
         // Send record cache to the new peer, but only the records the peer doesn't have yet
         sendCache(recordCache);
@@ -237,18 +237,18 @@ function startRoom(): void {
   
 
 
+
   // Function to check if a record is valid
   function recordIsValid(rec: Record): boolean {
     const isTitleValid = rec.title.trim() !== '';
-    // Define the regex pattern for Change.org URLs
-    const linkPattern = /^https:\/\/(www\.)?change\.org\/p\/[a-zA-Z0-9-]+\/?$/;
+    // Define the regex pattern for GoFundMe URLs
+    const linkPattern = /^https:\/\/(www\.)?gofundme\.com\/f\/[a-zA-Z0-9-]+\/?$/;
     const isLinkValid = linkPattern.test(rec.link.trim());
     
     return isTitleValid && isLinkValid;
   }
 
-  // Function to validate latitude and longitude with max 6 decimal places
-
+ 
 
 
   // Record interface
@@ -275,7 +275,7 @@ function startRoom(): void {
       link: '',
       longitude: '',
       latitude: '',
-      category: 'petition',
+      category: 'crowdfunding',
       height: 0,
     };
   }
@@ -295,10 +295,10 @@ onMount(async () => {
     <textarea placeholder="Enter a short, powerful mission name here - max 100 chars" maxlength="100" bind:value={record.title} required></textarea><br>
 
     <label><div style="text-align:left">Text</div></label>
-    <textarea placeholder="What’s the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
+    <textarea placeholder="What's the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
 
-    <label><div style="text-align:left">Change.org Link</div></label>
-    <input type="text" placeholder="https://www.change.org/p/your-campaign-name" maxlength="200" bind:value={record.link} required><br>
+    <label><div style="text-align:left">GoFundMe.org Link</div></label>
+    <input type="text" placeholder="https://www.gofundme.com/f/your-campaign-name" maxlength="200" bind:value={record.link} required><br>
 
     <input type="hidden" bind:value={record.latitude} required>
     <input type="hidden" bind:value={record.longitude} required>

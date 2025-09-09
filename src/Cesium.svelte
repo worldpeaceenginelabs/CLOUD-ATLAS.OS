@@ -21,24 +21,23 @@
 	} from 'cesium';
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
-	import CategoryChoice from "./DAPPS/HomeScreen/CategoryChoice.svelte";
-	import { coordinates, models, selectedModel, pins, type ModelData, type PinData } from './store';
+	import { coordinates, models, selectedModel, pins, resetAllStores, type ModelData, type PinData } from './store';
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
 	import { idb } from './idb';
   
 // Global variables and states
 let isRecordModalVisible = false;
-let isCategoryModalVisible = false;
 let selectedRecord: { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string } | null = null;
-let viewer: Viewer;
-let customDataSource = new CustomDataSource('locationpins');
-let modelDataSource = new CustomDataSource('models');
+let viewer: Viewer | null = null;
+let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
+let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
 let recordButtonText = '';
 let isZoomModalVisible = false;
 let isModelModalVisible = false;
 let is3DTilesetActive = false; // Track if 3D tileset is currently active
 let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tileset
+let pointEntity: Entity | null = null; // For coordinate picking
   
 	// Initialize IndexedDB using shared module
 	const initializeIndexedDB = async (): Promise<void> => {
@@ -47,7 +46,9 @@ let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tile
   
 	// Load all records from IndexedDB (initial load)
 	const loadRecordsFromIndexedDB = async () => {
-		customDataSource.entities.removeAll();
+		if (customDataSource) {
+			customDataSource.entities.removeAll();
+		}
   
 		try {
 			const loadedPins = await idb.loadPins();
@@ -106,7 +107,9 @@ let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tile
 				}
 			});
 
-			customDataSource.entities.add(imageEntity);
+			if (customDataSource) {
+				customDataSource.entities.add(imageEntity);
+			}
 		} else {
 			console.error('Invalid latitude or longitude for record:', record);
 		}
@@ -114,14 +117,18 @@ let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tile
 
 	// Remove a single record from the map
 	const removeRecordFromMap = (mapid: string) => {
-		const entity = customDataSource.entities.getById(`${mapid}_image`);
-		if (entity) {
-			customDataSource.entities.remove(entity);
+		if (customDataSource) {
+			const entity = customDataSource.entities.getById(`${mapid}_image`);
+			if (entity) {
+				customDataSource.entities.remove(entity);
+			}
 		}
 	};
   
 	// Create a pulsating point entity
 	const createPulsatingPoint = (pointId: string, userDestination: Cartesian3, color: Color): Entity => {
+	  if (!viewer) return new Entity();
+	  
 	  const start = JulianDate.now();
 	  const mid = JulianDate.addSeconds(start, 0.5, new JulianDate());
 	  const stop = JulianDate.addSeconds(start, 2, new JulianDate());
@@ -169,7 +176,7 @@ let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tile
 	const addUserLocation = async () => {
 	  try {
 		const userLocation = await getLocationFromNavigator();
-		if (userLocation) {
+		if (userLocation && viewer) {
 		  const { longitude, latitude } = userLocation.coords;
 		  const userPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
   
@@ -177,9 +184,11 @@ let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tile
 		  viewer.entities.add(userLocationEntity);
   
 		  setTimeout(() => {
-			viewer.camera.flyTo({
-			  destination: Cartesian3.fromDegrees(longitude, latitude, 20000000.0),
-			});
+			if (viewer) {
+			  viewer.camera.flyTo({
+				destination: Cartesian3.fromDegrees(longitude, latitude, 20000000.0),
+			  });
+			}
 		  }, 3000);
 		}
 	  } catch (error) {
@@ -213,6 +222,8 @@ function addModelToScene(modelData: ModelData) {
 		}
 
 		// Create the model entity
+		if (!modelDataSource) return;
+		
 		const entity = modelDataSource.entities.add({
 			id: modelData.id,
 			name: modelData.name,
@@ -239,18 +250,22 @@ function addModelToScene(modelData: ModelData) {
 
 // Load all models from store
 function loadModelsFromStore() {
-	modelDataSource.entities.removeAll();
-	
-	$models.forEach(modelData => {
-		addModelToScene(modelData);
-	});
+	if (modelDataSource) {
+		modelDataSource.entities.removeAll();
+		
+		$models.forEach(modelData => {
+			addModelToScene(modelData);
+		});
+	}
 }
 
 // Remove model from scene
 function removeModelFromScene(modelId: string) {
-	const entity = modelDataSource.entities.getById(modelId);
-	if (entity) {
-		modelDataSource.entities.remove(entity);
+	if (modelDataSource) {
+		const entity = modelDataSource.entities.getById(modelId);
+		if (entity) {
+			modelDataSource.entities.remove(entity);
+		}
 	}
 }
 
@@ -426,6 +441,8 @@ async function deletePinFromIndexedDB(mapid: string) {
 		tileset.show = true;
   
 		viewer.camera.moveEnd.addEventListener(async () => {
+		  if (!viewer) return;
+		  
 		  const height = viewer.camera.positionCartographic.height;
 		  if (height > 6000000) {
 			// Show the base layer and hide the 3D tileset
@@ -433,16 +450,16 @@ async function deletePinFromIndexedDB(mapid: string) {
 			tileset.show = false;
 			is3DTilesetActive = false;
 			// Hide location pins and 3D models when using base layer
-			customDataSource.show = false;
-			modelDataSource.show = false;
+			if (customDataSource) customDataSource.show = false;
+			if (modelDataSource) modelDataSource.show = false;
 		  } else {
 			// Hide the base layer and show the 3D tileset
 			viewer.scene.globe.show = false;
 			tileset.show = true;
 			is3DTilesetActive = true;
 			// Show location pins and 3D models when using 3D tileset
-			customDataSource.show = true;
-			modelDataSource.show = true;
+			if (customDataSource) customDataSource.show = true;
+			if (modelDataSource) modelDataSource.show = true;
 			// Load data only once when switching to 3D tileset for the first time
 			if (!dataLoadedFor3DTileset) {
 			  await loadRecordsFromIndexedDB();
@@ -496,12 +513,14 @@ async function deletePinFromIndexedDB(mapid: string) {
 	  
   
 	  // Set up clustering for the custom data source
-	  customDataSource.clustering.enabled = true;
-	  customDataSource.clustering.pixelRange = 10;
-	  customDataSource.clustering.minimumClusterSize = 2;
+	  if (customDataSource) {
+		  customDataSource.clustering.enabled = true;
+		  customDataSource.clustering.pixelRange = 10;
+		  customDataSource.clustering.minimumClusterSize = 2;
+	  }
   
-	  viewer.dataSources.add(customDataSource);
-	  viewer.dataSources.add(modelDataSource);
+	  if (customDataSource) viewer.dataSources.add(customDataSource);
+	  if (modelDataSource) viewer.dataSources.add(modelDataSource);
 
 // Function to fetch record from IndexedDB
 async function fetchRecord(mapid: string) {
@@ -535,9 +554,10 @@ async function handleEntityPick(pickedFeature: any) {
 }
 
 // Function to handle coordinate picking
-let pointEntity: Entity | null = null;
 
 function handleCoordinatePick(result: any) {
+  if (!viewer) return;
+  
   const cartesian = viewer.scene.pickPosition(result.position);
   if (!cartesian) return;
 
@@ -554,11 +574,12 @@ function handleCoordinatePick(result: any) {
     height: cartographic.height
   });
 
-  if (pointEntity) {
+  if (pointEntity && viewer) {
     viewer.entities.remove(pointEntity);
   }
 
-  pointEntity = viewer.entities.add({
+  if (viewer) {
+    pointEntity = viewer.entities.add({
     id: "pickedPoint",
     position: cartesian,
     billboard: {
@@ -567,8 +588,8 @@ function handleCoordinatePick(result: any) {
       height: 32, // Adjust the height as needed
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
-  });
-  isCategoryModalVisible = true;
+    });
+  }
 }
 
 // Load city data from local JSON
@@ -612,8 +633,11 @@ function debounce(func: Function, wait: number) {
 }
 
 // Combined event handler for picking entities and coordinates
-viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
-  const pickedObject = viewer.scene.pick(click.position);
+if (viewer) {
+  viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
+    if (!viewer) return;
+    
+    const pickedObject = viewer.scene.pick(click.position);
 
   // If an object is picked, handle entity picking
   if (Cesium.defined(pickedObject) && pickedObject.id) {
@@ -633,29 +657,30 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any
     }
   } else {
     // If no object is picked, handle coordinate picking
-    const height = viewer.camera.positionCartographic.height;
-    if (height > 250000) {
-      // Show the zoom modal
-      isZoomModalVisible = true;
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        isZoomModalVisible = false;
-      }, 3000);
-    } else {
-      handleCoordinatePick(click);
+    if (viewer) {
+      const height = viewer.camera.positionCartographic.height;
+      if (height > 250000) {
+        // Show the zoom modal
+        isZoomModalVisible = true;
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+          isZoomModalVisible = false;
+        }, 3000);
+      } else {
+        handleCoordinatePick(click);
+      }
     }
   }
 }, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
 
 
 
 
 	});
+
+	window.addEventListener("keydown", handleKeyDown);
   
-	// Function to close modal
-	function closeCategoryModal() {
-	  isCategoryModalVisible = false;
-	}
 
 	// Function to close modal
 	function closeRecordModal() {
@@ -674,20 +699,65 @@ function closeModelModal() {
 	// Event listener for closing modals on Escape key press
 function handleKeyDown(event: KeyboardEvent) {
   if (event.key === "Escape") {
-    closeCategoryModal();
     closeRecordModal();
     closeModelModal();
   }
 }
 
-	window.addEventListener("keydown", handleKeyDown);
-
 	onDestroy(() => {
-  	window.removeEventListener("keydown", handleKeyDown);
-	});
+		// Remove event listeners
+		window.removeEventListener("keydown", handleKeyDown);
+		
+		// Clean up Cesium viewer and resources
+		if (viewer) {
+			// Remove all data sources
+			viewer.dataSources.removeAll();
+			
+			// Remove all entities
+			viewer.entities.removeAll();
+			
+			// Remove all primitives
+			viewer.scene.primitives.removeAll();
+			
+			// Remove event handlers
+			if (viewer.screenSpaceEventHandler) {
+				viewer.screenSpaceEventHandler.destroy();
+			}
+			
+			// Destroy the viewer
+			viewer.destroy();
+			viewer = null;
+		}
+		
+		// Clean up data sources
+		if (customDataSource) {
+			customDataSource.entities.removeAll();
+			customDataSource = null;
+		}
+		
+		if (modelDataSource) {
+			modelDataSource.entities.removeAll();
+			modelDataSource = null;
+		}
+		
+		// Clean up object URLs to prevent memory leaks
+		$models.forEach(model => {
+			if (model.source === 'file' && model.file) {
+				URL.revokeObjectURL(URL.createObjectURL(model.file));
+			}
+		});
   
+		// Clear stores using the cleanup function
+		resetAllStores();
+		
+		// Reset state variables
+		isRecordModalVisible = false;
+		isZoomModalVisible = false;
+		isModelModalVisible = false;
+		selectedRecord = null;
+		pointEntity = null;
+	});
 
-	
 	// Function to format the timestamp on the posts
 	function formatTimestamp(timestamp: string) {
     const date = new Date(timestamp);
@@ -715,29 +785,6 @@ function handleKeyDown(event: KeyboardEvent) {
 
 
 
-{#if isCategoryModalVisible}
-  <div class="modal-category" transition:fade={{ duration: 500 }}>
-    <div class="modal-category-content">
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closeCategoryModal}>
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div><CategoryChoice /></div>
-    </div>
-  </div>
-{/if}
 
 {#if isRecordModalVisible && selectedRecord}
   <div class="modal" transition:fade={{ duration: 500 }}>
@@ -757,6 +804,9 @@ function handleKeyDown(event: KeyboardEvent) {
         <span></span>
         <span></span>
         <span></span>
+      </div>
+      <div class="modal-header">
+        <h2>Record Details</h2>
       </div>
       <div>
         <p class="title">{selectedRecord.title}</p>
@@ -803,6 +853,9 @@ function handleKeyDown(event: KeyboardEvent) {
         <span></span>
         <span></span>
         <span></span>
+      </div>
+      <div class="modal-header">
+        <h2>3D Model Details</h2>
       </div>
       <div>
         <p class="title">{$selectedModel.name}</p>
@@ -916,26 +969,6 @@ function handleKeyDown(event: KeyboardEvent) {
 	height: 100%;
 }
 
-.modal-category {
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	margin-left: auto;
-	margin-right: auto;
-	max-width: 800px;
-	width: 100%;
-	height: 50%;
-	overflow: auto;
-}
-
-
-	.modal-category-content {
-	width: 100%; 
-    border-radius: 15px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-	background-color: rgba(0, 0, 0, 0.5);
-	}
 
 	.modal-record {
 	  width: 90%;
@@ -944,6 +977,20 @@ function handleKeyDown(event: KeyboardEvent) {
    	  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	  background-color: rgba(0, 0, 0, 0.5);
 	  padding: 20px;
+	}
+
+	.modal-header {
+	  text-align: center;
+	  margin-bottom: 20px;
+	  padding-bottom: 15px;
+	  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.modal-header h2 {
+	  color: white;
+	  margin: 0;
+	  font-size: 1.5em;
+	  font-weight: 600;
 	}
 
 	.modal-zoom-overlay {

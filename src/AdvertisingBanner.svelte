@@ -1,14 +1,57 @@
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  
   // Component for the advertising banner
+  let isVisible = false;
+  let isFadingOut = false;
+  let showCount = 0;
+  const MAX_SHOWS = 3;
+  const SHOW_DURATION = 5000; // 5 seconds
+  const FADE_DURATION = 500; // 0.5 seconds fade out
+  
+  let timeoutId: number | null = null;
+  
+  onMount(() => {
+    // Load show count from localStorage
+    const savedCount = localStorage.getItem('advertisingBannerShowCount');
+    showCount = savedCount ? parseInt(savedCount, 10) : 0;
+    
+    // Show banner if we haven't reached the limit
+    if (showCount < MAX_SHOWS) {
+      isVisible = true;
+      showCount++;
+      
+      // Save updated count to localStorage
+      localStorage.setItem('advertisingBannerShowCount', showCount.toString());
+      
+      // Set timer to start fade out after 5 seconds
+      timeoutId = window.setTimeout(() => {
+        isFadingOut = true;
+        // Hide banner completely after fade animation
+        setTimeout(() => {
+          isVisible = false;
+        }, FADE_DURATION);
+      }, SHOW_DURATION);
+    }
+  });
+  
+  onDestroy(() => {
+    // Clean up timeout if component is destroyed
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
 </script>
 
-<a href="https://cloud-atlas-peerset.pages.dev/" target="_blank" rel="noopener noreferrer" class="advertising-banner">
-  <div class="banner-content">
-    <span class="banner-text">Try peerset.DB now</span>
-    <br>
-    <span class="banner-subtext">Cloud Atlas OS's new engine coming...</span>
-  </div>
-</a>
+{#if isVisible}
+  <a href="https://cloud-atlas-peerset.pages.dev/" target="_blank" rel="noopener noreferrer" class="advertising-banner" class:fade-out={isFadingOut}>
+    <div class="banner-content">
+      <span class="banner-text">Try peerset.DB now</span>
+      <br>
+      <span class="banner-subtext">Cloud Atlas OS's new engine coming...</span>
+    </div>
+  </a>
+{/if}
 
 <style>
   .advertising-banner {
@@ -25,11 +68,17 @@
     box-shadow: 
       0 8px 32px rgba(0, 0, 0, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease;
+    transition: all 0.3s ease, opacity 0.5s ease;
     max-width: 280px;
     cursor: pointer;
     text-decoration: none;
     display: block;
+    opacity: 1;
+  }
+
+  .advertising-banner.fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
   }
 
   .advertising-banner:hover {

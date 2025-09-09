@@ -1,15 +1,17 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
 
-  let light;
-  let messageElement;
+  let light: HTMLElement | null = null;
+  let messageElement: HTMLElement | null = null;
+  let moveLightInterval: NodeJS.Timeout | null = null;
+  let showMessageTimeout: NodeJS.Timeout | null = null;
   const messages = [
     "An independent, community-owned Google Earth, free from centralized servers and overpowered entities, owned solely by you and the public!",
     "IT'S FREE! More users mean more app storage and computational power. No back-end needed! Syncs via public tracker networks. Now using BitTorrent, with Nostr as a fallback coming soon...",
-    "Decentralization places the globe within your grasp, ensuring your voice resonates daily, not merely at the ballot box every few years. It’s about making your voice count every day, not just delegating it during elections.",
+    "Decentralization places the globe within your grasp, ensuring your voice resonates daily, not merely at the ballot box every few years. It's about making your voice count every day, not just delegating it during elections.",
     "Pick what suits your flow: Unreal Engine 5, Unity 3D, HTML, CSS, JS, APIs (JAMstack), WASM or WebContainers.",
     "Reach out to me and our community anytime on GitHub, Gitter.im, or during our upcoming weekly Zoom brainstorming sessions on YouTube.",
-    "They always said it’s impossible and then one came who didn’t know that and just did<br> - Multiple Authors",
+    "They always said it's impossible and then one came who didn't know that and just did<br> - Multiple Authors",
     "A function of civil society is to organize ourselves to collectively stand up to those who add to the suffering of others.<br> - Ira Chaleff",
     "Get paid for the subject you love!<br> - Cloud Atlas",
     "Create and participate in missions addressing <strong>local and global</strong> issues. <strong>Brainstorm (Zoom.us)</strong> solutions, realize them with <strong>ActionEvents (Telegram)</strong>, enhance public spaces via <strong>Petition (change.org)</strong>, and turn your ideas into reality with <strong>Crowdfunding (gofundme.com).</strong>",
@@ -24,7 +26,7 @@
     const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
 
     const edge = Math.floor(Math.random() * 4);
-    let startX, startY, endX, endY;
+    let startX: number, startY: number, endX: number, endY: number;
 
     switch (edge) {
       case 0: // top
@@ -51,22 +53,28 @@
         endX = vw;
         endY = Math.random() * vh;
         break;
+      default:
+        startX = 0;
+        startY = 0;
+        endX = vw;
+        endY = vh;
+        break;
     }
 
     if (light) {
       light.style.left = `${startX}px`;
       light.style.top = `${startY}px`;
+
+      const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+      light.style.transition = `all ${distance / 100}s linear`;
+
+      setTimeout(() => {
+        if (light) {
+          light.style.left = `${endX}px`;
+          light.style.top = `${endY}px`;
+        }
+      }, 100);
     }
-
-    const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-    light.style.transition = `all ${distance / 100}s linear`;
-
-    setTimeout(() => {
-      if (light) {
-        light.style.left = `${endX}px`;
-        light.style.top = `${endY}px`;
-      }
-    }, 100);
   }
 
   function showMessage() {
@@ -93,17 +101,36 @@
       messageElement.style.transition = `opacity ${fadeDuration}s ease-in-out`;
       messageElement.style.opacity = '1';
 
-      setTimeout(() => {
-        messageElement.style.opacity = '0';
-        setTimeout(showMessage, 5000); // wait for a short time before showing the next message
+      showMessageTimeout = setTimeout(() => {
+        if (messageElement) {
+          messageElement.style.opacity = '0';
+        }
+        showMessageTimeout = setTimeout(showMessage, 5000); // wait for a short time before showing the next message
       }, 10000); // show each message for x seconds
     }
   }
 
 
   onMount(() => {
-    setInterval(moveLight, 6000);
+    moveLightInterval = setInterval(moveLight, 6000);
     showMessage();
+  });
+
+  onDestroy(() => {
+    // Clear intervals and timeouts
+    if (moveLightInterval) {
+      clearInterval(moveLightInterval);
+      moveLightInterval = null;
+    }
+    
+    if (showMessageTimeout) {
+      clearTimeout(showMessageTimeout);
+      showMessageTimeout = null;
+    }
+    
+    // Reset element references
+    light = null;
+    messageElement = null;
   });
 </script>
 
