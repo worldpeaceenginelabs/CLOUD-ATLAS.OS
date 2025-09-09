@@ -85,16 +85,36 @@
     .advertising-banner {
       top: 10px;
       left: 10px;
-      padding: 10px 14px;
-      max-width: 200px;
+      padding: 8px 12px;
+      max-width: 180px;
     }
 
     .banner-text {
-      font-size: 13px;
+      font-size: 12px;
     }
 
     .banner-subtext {
+      font-size: 10px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .advertising-banner {
+      top: 8px;
+      left: 8px;
+      padding: 6px 10px;
+      max-width: 160px;
+      border-radius: 12px;
+    }
+
+    .banner-text {
       font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .banner-subtext {
+      font-size: 9px;
+      line-height: 1.2;
     }
   }
 </style>
