@@ -6,6 +6,7 @@
   import UI from "./UI.svelte";
   import { writable } from 'svelte/store';
   import ActionEvent from "./DAPPS/HomeScreen/ActionEvent.svelte";
+  import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
 
   let showPicture = false;
   let quote = "“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.” Buckminster Fuller";
@@ -38,6 +39,7 @@
     <div class="cesiumcontainer"><Cesium /></div>
     <!--- <div class="searchcontainer"><Appsearch /></div> -->
     <div class="infoboxcontainer"><Infobox {isVisible} /></div>
+    <AdvertisingBanner />
     <button class="add-model-btn" on:click={() => uiComponent?.toggle()} title="Add 3D Model">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
