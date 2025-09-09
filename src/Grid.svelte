@@ -100,6 +100,7 @@
     }
   }
 
+
   onMount(() => {
     setInterval(moveLight, 6000);
     showMessage();
@@ -177,4 +178,5 @@
     text-decoration: none;
     box-sizing: border-box;
   }
+
 </style>

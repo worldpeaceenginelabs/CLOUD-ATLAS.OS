@@ -14,76 +14,110 @@
 	  HermitePolynomialApproximation,
 	  Cesium3DTileset,
 	  CustomDataSource,
+	  ModelGraphics,
+	  HeadingPitchRoll,
+	  Transforms,
+	  Math as CesiumMath,
 	} from 'cesium';
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
 	import CategoryChoice from "./DAPPS/HomeScreen/CategoryChoice.svelte";
-	import { coordinates } from './store';
+	import { coordinates, models, selectedModel, pins, type ModelData, type PinData } from './store';
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
+	import { idb } from './idb';
   
 // Global variables and states
 let isRecordModalVisible = false;
 let isCategoryModalVisible = false;
 let selectedRecord: { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string } | null = null;
 let viewer: Viewer;
-let db: IDBDatabase;
 let customDataSource = new CustomDataSource('locationpins');
+let modelDataSource = new CustomDataSource('models');
 let recordButtonText = '';
 let isZoomModalVisible = false;
-let isDaNangModalVisible = false;
-let isPaiModalVisible = false;
+let isModelModalVisible = false;
+let is3DTilesetActive = false; // Track if 3D tileset is currently active
+let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tileset
   
-	// Open connection to IndexedDB
-	const openDB = (): Promise<IDBDatabase> => {
-	  return new Promise((resolve, reject) => {
-		const request = indexedDB.open('indexeddbstore', 1);
-  
-		request.onupgradeneeded = function(event: IDBVersionChangeEvent) {
-		  db = request.result;
-		  if (!db.objectStoreNames.contains('locationpins')) {
-			db.createObjectStore('locationpins', { keyPath: 'mapid' });
-		  }
-		  if (!db.objectStoreNames.contains('client')) {
-			db.createObjectStore('client', { keyPath: 'appid' });
-		  }
-		};
-  
-		request.onsuccess = function(event: Event) {
-		  db = request.result;
-		  resolve(db);
-		};
-  
-		request.onerror = function(event: Event) {
-		  console.error('Error opening IndexedDB:', request.error);
-		  reject(request.error);
-		};
-	  });
+	// Initialize IndexedDB using shared module
+	const initializeIndexedDB = async (): Promise<void> => {
+		await idb.openDB();
 	};
   
-	// Fetch and process records from IndexedDB
-	const fetchRecordsFromIndexedDB = () => {
-	  customDataSource.entities.removeAll();
+	// Load all records from IndexedDB (initial load)
+	const loadRecordsFromIndexedDB = async () => {
+		customDataSource.entities.removeAll();
   
-	  const transaction = db.transaction('locationpins', 'readonly');
-	  const objectStore = transaction.objectStore('locationpins');
-	  const cursorRequest = objectStore.openCursor();
-  
-	  cursorRequest.onsuccess = function(event: Event) {
-		const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-		if (cursor) {
-		  addRecordToMap(cursor.value);
-		  cursor.continue();
+		try {
+			const loadedPins = await idb.loadPins();
+			// Load pins directly to scene
+			loadedPins.forEach((pinData: PinData) => {
+				addRecordToMap(pinData);
+			});
+			// Update store silently to avoid triggering reactive statement
+			pins.set(loadedPins);
+			// Mark that initial loading is complete
+			pinsLoadedFromIndexedDB = true;
+			// Initialize the pin count for tracking changes
+			previousPinCount = loadedPins.length;
+		} catch (error) {
+			console.error('Error loading pins from IndexedDB:', error);
 		}
-	  };
-  
-	  cursorRequest.onerror = function(event: Event) {
-		console.error('Error in cursor request:', cursorRequest.error);
-	  };
-  
-	  transaction.onerror = function(event: Event) {
-		console.error('Error in transaction:', transaction.error);
-	  };
+	};
+
+	// Add a single record to the map
+	const addRecordToMap = (record: { mapid: string, latitude: string, longitude: string, category: string, height: number }) => {
+		const latitude = parseFloat(record.latitude);
+		const longitude = parseFloat(record.longitude);
+
+		if (!isNaN(latitude) && !isNaN(longitude) && record.height !== undefined) {
+			// Use the stored height from the record - no fallback, height is required
+			const height = record.height;
+			const position = Cartesian3.fromDegrees(longitude, latitude, height);
+
+			// Determine the image URL based on the category
+			let imageURL: string = "./mapicons/brainstorming.png"; // Default value
+			switch (record.category) {
+				case 'brainstorming':
+					imageURL = "./mapicons/brainstorming.png";
+					break;
+				case 'actionevent':
+					imageURL = "./mapicons/actionevent.png";
+					break;
+				case 'petition':
+					imageURL = "./mapicons/petition.png";
+					break;
+				case 'crowdfunding':
+					imageURL = "./mapicons/crowdfunding.png";
+					break;
+				}
+
+			// Create an image entity for the record
+			const imageEntity = new Entity({
+				id: `${record.mapid}_image`,
+				position: position,
+				billboard: {
+					image: imageURL,  // The URL of the PNG file
+					width: 50,        // Width of the image in pixels
+					height: 50,       // Height of the image in pixels
+					pixelOffset: new Cartesian2(0, -16),  // Adjust if needed
+					disableDepthTestDistance: Number.POSITIVE_INFINITY,
+				}
+			});
+
+			customDataSource.entities.add(imageEntity);
+		} else {
+			console.error('Invalid latitude or longitude for record:', record);
+		}
+	};
+
+	// Remove a single record from the map
+	const removeRecordFromMap = (mapid: string) => {
+		const entity = customDataSource.entities.getById(`${mapid}_image`);
+		if (entity) {
+			customDataSource.entities.remove(entity);
+		}
 	};
   
 	// Create a pulsating point entity
@@ -153,48 +187,127 @@ let isPaiModalVisible = false;
 	  }
 	};
   
-	const addRecordToMap = (record: { mapid: string, latitude: string, longitude: string, category: string }) => {
-	const latitude = parseFloat(record.latitude);
-	const longitude = parseFloat(record.longitude);
 
-	if (!isNaN(latitude) && !isNaN(longitude)) {
-		const position = Cartesian3.fromDegrees(longitude, latitude, 100);
+// Add 3D model to the scene
+function addModelToScene(modelData: ModelData) {
+	try {
+		const position = Cartesian3.fromDegrees(
+			modelData.coordinates.longitude,
+			modelData.coordinates.latitude,
+			modelData.transform.height
+		);
 
-		// Determine the image URL based on the category
-		let imageURL: string = "./mapicons/brainstorming.png"; // Default value
-		switch (record.category) {
-			case 'brainstorming':
-				imageURL = "./mapicons/brainstorming.png";
-				break;
-			case 'actionevent':
-				imageURL = "./mapicons/actionevent.png";
-				break;
-			case 'petition':
-				imageURL = "./mapicons/petition.png";
-				break;
-			case 'crowdfunding':
-				imageURL = "./mapicons/crowdfunding.png";
-				break;
-			}
+		const heading = CesiumMath.toRadians(modelData.transform.heading);
+		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
+		const roll = CesiumMath.toRadians(modelData.transform.roll);
 
-		// Create an image entity for the record
-		const imageEntity = new Entity({
-			id: `${record.mapid}_image`,
+		// Create object URL for file uploads
+		let modelUri: string;
+		if (modelData.source === 'file' && modelData.file) {
+			modelUri = URL.createObjectURL(modelData.file);
+		} else if (modelData.source === 'url' && modelData.url) {
+			modelUri = modelData.url;
+		} else {
+			console.error('Invalid model source or missing URL/file');
+			return;
+		}
+
+		// Create the model entity
+		const entity = modelDataSource.entities.add({
+			id: modelData.id,
+			name: modelData.name,
 			position: position,
-			billboard: {
-				image: imageURL,  // The URL of the PNG file
-				width: 50,        // Width of the image in pixels
-				height: 50,       // Height of the image in pixels
-				pixelOffset: new Cartesian2(0, -16),  // Adjust if needed
-				disableDepthTestDistance: Number.POSITIVE_INFINITY,
-			}
+			model: {
+				uri: modelUri,
+				scale: modelData.transform.scale,
+				minimumPixelSize: 64,
+				maximumScale: 20000,
+				show: true,
+			},
+			orientation: Transforms.headingPitchRollQuaternion(
+				position,
+				new HeadingPitchRoll(heading, pitch, roll)
+			),
+			description: modelData.description || '3D Model'
 		});
 
-		customDataSource.entities.add(imageEntity);
-	} else {
-		console.error('Invalid latitude or longitude for record:', record);
+		console.log('Model added to scene:', modelData.name);
+	} catch (error) {
+		console.error('Error adding model to scene:', error);
 	}
-};
+}
+
+// Load all models from store
+function loadModelsFromStore() {
+	modelDataSource.entities.removeAll();
+	
+	$models.forEach(modelData => {
+		addModelToScene(modelData);
+	});
+}
+
+// Remove model from scene
+function removeModelFromScene(modelId: string) {
+	const entity = modelDataSource.entities.getById(modelId);
+	if (entity) {
+		modelDataSource.entities.remove(entity);
+	}
+}
+
+// Save model to IndexedDB
+async function saveModelToIndexedDB(modelData: ModelData) {
+	try {
+		await idb.saveModel(modelData);
+	} catch (error) {
+		console.error('Error saving model to IndexedDB:', error);
+	}
+}
+
+// Load models from IndexedDB (without triggering reactive updates)
+async function loadModelsFromIndexedDB() {
+	try {
+		const loadedModels = await idb.loadModels();
+		// Load models directly to scene without updating store
+		loadedModels.forEach((modelData: ModelData) => {
+			addModelToScene(modelData);
+		});
+		// Update store silently to avoid triggering reactive statement
+		models.set(loadedModels);
+		// Mark that initial loading is complete
+		modelsLoadedFromIndexedDB = true;
+		// Initialize the model count for tracking changes
+		previousModelCount = loadedModels.length;
+	} catch (error) {
+		console.error('Error loading models from IndexedDB:', error);
+	}
+}
+
+// Delete model from IndexedDB
+async function deleteModelFromIndexedDB(modelId: string) {
+	try {
+		await idb.deleteModel(modelId);
+	} catch (error) {
+		console.error('Error deleting model from IndexedDB:', error);
+	}
+}
+
+// Save pin to IndexedDB
+async function savePinToIndexedDB(pinData: PinData) {
+	try {
+		await idb.savePin(pinData);
+	} catch (error) {
+		console.error('Error saving pin to IndexedDB:', error);
+	}
+}
+
+// Delete pin from IndexedDB
+async function deletePinFromIndexedDB(mapid: string) {
+	try {
+		await idb.deletePin(mapid);
+	} catch (error) {
+		console.error('Error deleting pin from IndexedDB:', error);
+	}
+}
 
 
   
@@ -211,6 +324,54 @@ let isPaiModalVisible = false;
 	} else {
 		recordButtonText = "Go";
 	}
+	}
+
+	// Track if models have been initially loaded from IndexedDB
+	let modelsLoadedFromIndexedDB = false;
+	let previousModelCount = 0;
+
+	// Track if pins have been initially loaded from IndexedDB
+	let pinsLoadedFromIndexedDB = false;
+	let previousPinCount = 0;
+
+	// Reactive statement to handle new models added to store (only when 3D tileset is active)
+	$: if (viewer && $models && is3DTilesetActive && modelsLoadedFromIndexedDB) {
+		const currentModelCount = $models.length;
+		
+		// Only add new models when count increases
+		if (currentModelCount > previousModelCount) {
+			// New models were added, only add the new ones
+			const newModels = $models.slice(previousModelCount);
+			newModels.forEach(modelData => {
+				addModelToScene(modelData);
+				// Save new model to IndexedDB
+				saveModelToIndexedDB(modelData);
+			});
+		}
+		// Note: Model removal is handled individually by removeModelFromScene()
+		// so we don't need to reload all models when count decreases
+		
+		previousModelCount = currentModelCount;
+	}
+
+	// Reactive statement to handle new pins added to store (only when 3D tileset is active)
+	$: if (viewer && $pins && is3DTilesetActive && pinsLoadedFromIndexedDB) {
+		const currentPinCount = $pins.length;
+		
+		// Only add new pins when count increases
+		if (currentPinCount > previousPinCount) {
+			// New pins were added, only add the new ones
+			const newPins = $pins.slice(previousPinCount);
+			newPins.forEach(pinData => {
+				addRecordToMap(pinData);
+				// Save new pin to IndexedDB
+				savePinToIndexedDB(pinData);
+			});
+		}
+		// Note: Pin removal is handled individually by removeRecordFromMap()
+		// so we don't need to reload all pins when count decreases
+		
+		previousPinCount = currentPinCount;
 	}
 
 
@@ -264,16 +425,30 @@ let isPaiModalVisible = false;
 		// Initially hide the 3D tileset
 		tileset.show = true;
   
-		viewer.camera.moveEnd.addEventListener(() => {
+		viewer.camera.moveEnd.addEventListener(async () => {
 		  const height = viewer.camera.positionCartographic.height;
 		  if (height > 6000000) {
 			// Show the base layer and hide the 3D tileset
-			globe.show = true;
+			viewer.scene.globe.show = true;
 			tileset.show = false;
+			is3DTilesetActive = false;
+			// Hide location pins and 3D models when using base layer
+			customDataSource.show = false;
+			modelDataSource.show = false;
 		  } else {
 			// Hide the base layer and show the 3D tileset
-			globe.show = false;
+			viewer.scene.globe.show = false;
 			tileset.show = true;
+			is3DTilesetActive = true;
+			// Show location pins and 3D models when using 3D tileset
+			customDataSource.show = true;
+			modelDataSource.show = true;
+			// Load data only once when switching to 3D tileset for the first time
+			if (!dataLoadedFor3DTileset) {
+			  await loadRecordsFromIndexedDB();
+			  await loadModelsFromIndexedDB();
+			  dataLoadedFor3DTileset = true;
+			}
 		  }
 		});
 	  } catch (error) {
@@ -308,17 +483,17 @@ let isPaiModalVisible = false;
 	  globe.atmosphereLightIntensity = 20.0;
 	  scene.highDynamicRange = true;
   
-	  // Initialize IndexedDB and fetch initial records
+	  // Initialize IndexedDB (but don't load data yet - wait for 3D tileset to be active)
 	  try {
-		db = await openDB();
-		fetchRecordsFromIndexedDB();
+		await initializeIndexedDB();
+		// Data will be loaded when 3D tileset becomes active
 	  } catch (error) {
 		console.error('Failed to open IndexedDB:', error);
 	  }
   
-	  // Add user location and fetch records periodically
+	  // Add user location
 	  addUserLocation();
-	  setInterval(fetchRecordsFromIndexedDB, 5000);
+	  
   
 	  // Set up clustering for the custom data source
 	  customDataSource.clustering.enabled = true;
@@ -326,22 +501,17 @@ let isPaiModalVisible = false;
 	  customDataSource.clustering.minimumClusterSize = 2;
   
 	  viewer.dataSources.add(customDataSource);
+	  viewer.dataSources.add(modelDataSource);
 
 // Function to fetch record from IndexedDB
 async function fetchRecord(mapid: string) {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction('locationpins', 'readonly');
-    const objectStore = transaction.objectStore('locationpins');
-    const request = objectStore.get(mapid);
-
-    request.onsuccess = function(event) {
-      resolve(request.result);
-    };
-
-    request.onerror = function(event) {
-      reject(request.error);
-    };
-  });
+  try {
+    const pins = await idb.loadPins();
+    return pins.find(pin => pin.mapid === mapid) || null;
+  } catch (error) {
+    console.error('Error fetching record from IndexedDB:', error);
+    return null;
+  }
 }
 
 // This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
@@ -366,15 +536,23 @@ async function handleEntityPick(pickedFeature: any) {
 
 // Function to handle coordinate picking
 let pointEntity: Entity | null = null;
+
 function handleCoordinatePick(result: any) {
   const cartesian = viewer.scene.pickPosition(result.position);
   if (!cartesian) return;
 
   const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-  const longitudeString = Cesium.Math.toDegrees(cartographic.longitude).toFixed(7);
-  const latitudeString = Cesium.Math.toDegrees(cartographic.latitude).toFixed(7);
+  const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+  const latitude = Cesium.Math.toDegrees(cartographic.latitude);
+  
+  // Height is captured and stored in coordinates store
 
-  coordinates.set({ latitude: latitudeString, longitude: longitudeString });
+  // Store coordinates with full precision using toFixed with more decimal places
+  coordinates.set({ 
+    latitude: latitude.toFixed(10), 
+    longitude: longitude.toFixed(10),
+    height: cartographic.height
+  });
 
   if (pointEntity) {
     viewer.entities.remove(pointEntity);
@@ -439,22 +617,17 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any
 
   // If an object is picked, handle entity picking
   if (Cesium.defined(pickedObject) && pickedObject.id) {
-    // Check if the picked object is daNangBillboard
-    if (pickedObject.id.id === 'daNangBillboard') {
-      isDaNangModalVisible = true;  // Open Da Nang modal
-      click.cancelBubble = true;    // Prevent other click handlers from being triggered
-      return;
-    }
-
-    // Check if the picked object is PaiBillboard
-    if (pickedObject.id.id === 'PaiBillboard') {
-      isPaiModalVisible = true;    // Open Pai modal
-      click.cancelBubble = true;   // Prevent other click handlers from being triggered
-      return;
-    }
 
     if (pickedObject.id.id === "pickedPoint") {
       // Do nothing or handle pickedPoint specific logic here if needed
+    } else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
+      // Handle 3D model click
+      const modelId = pickedObject.id.id;
+      const modelData = $models.find(model => model.id === modelId);
+      if (modelData) {
+        selectedModel.set(modelData);
+        isModelModalVisible = true;
+      }
     } else {
       await handleEntityPick(pickedObject);
     }
@@ -464,6 +637,10 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any
     if (height > 250000) {
       // Show the zoom modal
       isZoomModalVisible = true;
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        isZoomModalVisible = false;
+      }, 3000);
     } else {
       handleCoordinatePick(click);
     }
@@ -485,19 +662,12 @@ viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any
 	  isRecordModalVisible = false;
 	}
 
-	// Function to close zoom modal
-function closeZoomModal() {
-  isZoomModalVisible = false;
-}
 
-// Function to close Da Nang modal
-function closeDaNangModal() {
-  isDaNangModalVisible = false;
-}
 
-// Function to close Pai modal
-function closePaiModal() {
-  isPaiModalVisible = false;
+// Function to close model modal
+function closeModelModal() {
+  isModelModalVisible = false;
+  selectedModel.set(null);
 }
 
 
@@ -506,7 +676,7 @@ function handleKeyDown(event: KeyboardEvent) {
   if (event.key === "Escape") {
     closeCategoryModal();
     closeRecordModal();
-    closeZoomModal();
+    closeModelModal();
   }
 }
 
@@ -606,11 +776,21 @@ function handleKeyDown(event: KeyboardEvent) {
 {/if}
 
 {#if isZoomModalVisible}
-  <div class="modal" transition:fade={{ duration: 500 }}>
+  <div class="modal-zoom-overlay" transition:fade={{ duration: 500 }}>
     <div class="modal-zoom">
+      <div>
+        <p class="zoom-message">Zoom in until the city level comes into view — then you can drop a pin.</p>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if isModelModalVisible && $selectedModel}
+  <div class="modal" transition:fade={{ duration: 500 }}>
+    <div class="modal-record">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closeZoomModal}>
+      <div class="close float-right" on:click={closeModelModal}>
         <svg viewBox="0 0 36 36" class="circle">
           <path
             stroke-dasharray="100, 100"
@@ -625,7 +805,22 @@ function handleKeyDown(event: KeyboardEvent) {
         <span></span>
       </div>
       <div>
-        <p class="zoom-message">Zoom in until the city comes into view — then you can drop a pin.</p>
+        <p class="title">{$selectedModel.name}</p>
+        <p class="text">{$selectedModel.description || '3D Model'}</p>
+        <p class="model-info">
+          Scale: {$selectedModel.transform.scale}x | 
+          Height: {$selectedModel.transform.height}m | 
+          Source: {$selectedModel.source}
+        </p>
+      </div>
+      <div>
+        <p class="created">ADDED {formatTimestamp($selectedModel.timestamp)}</p>
+        <button class="glassmorphism" on:click={() => {
+          removeModelFromScene($selectedModel.id);
+          deleteModelFromIndexedDB($selectedModel.id);
+          models.update(currentModels => currentModels.filter(m => m.id !== $selectedModel.id));
+          closeModelModal();
+        }}>Remove Model</button>
       </div>
     </div>
   </div>
@@ -657,6 +852,13 @@ function handleKeyDown(event: KeyboardEvent) {
 	.created{
 		text-align: center;
 		font-size: 1.0em;
+	}
+
+	.model-info {
+		text-align: center;
+		font-size: 0.9em;
+		color: rgba(255, 255, 255, 0.8);
+		margin: 10px 0;
 	}
 
 	:global(.cesium-button.cesium-vrButton) {
@@ -742,6 +944,32 @@ function handleKeyDown(event: KeyboardEvent) {
    	  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	  background-color: rgba(0, 0, 0, 0.5);
 	  padding: 20px;
+	}
+
+	.modal-zoom-overlay {
+	  position: fixed;
+	  top: 50%;
+	  left: 50%;
+	  transform: translate(-50%, -50%);
+	  z-index: 1000;
+	  pointer-events: none;
+	}
+
+	.modal-zoom {
+	  background-color: rgba(0, 0, 0, 0.8);
+	  border-radius: 15px;
+	  padding: 20px;
+	  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+	  backdrop-filter: blur(10px);
+	  border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.zoom-message {
+	  color: white;
+	  text-align: center;
+	  font-size: 1.1em;
+	  margin: 0;
+	  font-weight: 500;
 	}
 
 	.float-right {

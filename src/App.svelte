@@ -1,20 +1,22 @@
 <script lang="ts">
   import Cesium from "./Cesium.svelte";
-  import AddMapmarker from "./DAPPS/HomeScreen/Brainstorming.svelte";
   // import Appsearch from "./Dappstore/Appsearch.svelte";
   import Infobox from "./Infobox.svelte";
-  import Grid from "./Grid.svelte"; 
+  import Grid from "./Grid.svelte";
+  import UI from "./UI.svelte";
   import { writable } from 'svelte/store';
+  import ActionEvent from "./DAPPS/HomeScreen/ActionEvent.svelte";
 
-  let showPicture = true;
+  let showPicture = false;
   let quote = "“You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.” Buckminster Fuller";
 
   const isVisible = writable(false);
+  let uiComponent: UI;
 </script>
 
 <div>
   {#if showPicture}
-    <div class="picture-container" on:click={() => showPicture = false}>
+    <div class="picture-container" on:click={() => showPicture = false} on:keydown={(e) => e.key === 'Enter' && (showPicture = false)} role="button" tabindex="0">
       <video
   autoplay
   loop
@@ -36,13 +38,23 @@
     <div class="cesiumcontainer"><Cesium /></div>
     <!--- <div class="searchcontainer"><Appsearch /></div> -->
     <div class="infoboxcontainer"><Infobox {isVisible} /></div>
+    <button class="add-model-btn" on:click={() => uiComponent?.toggle()} title="Add 3D Model">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+      Add Model
+    </button>
+    <UI bind:this={uiComponent} />
   {/if}
 </div>
 
 <!-- Hidden component off-screen -->
 <div style="position: absolute; left: -9999px; top: -9999px;">
-<AddMapmarker />
+<ActionEvent />
 </div>
+
 
 <style>
   :global(body) {
@@ -67,7 +79,7 @@
     position: relative;
   }
 
-  .searchcontainer {
+  /*.searchcontainer {
     position: absolute;
     top: 1em;
     left: 50%;
@@ -76,10 +88,42 @@
     width: 99%;
     max-width: 800px;
   }
-
+*/
   .infoboxcontainer {
     z-index: 30;
     position: absolute;
+  }
+
+  .add-model-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .add-model-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .add-model-btn svg {
+    width: 20px;
+    height: 20px;
   }
 
   .picture-container {
@@ -157,6 +201,7 @@
     background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
     background-size: 400% 400%;
     animation: gradientBG 5s ease infinite, pulse 10s infinite;
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }

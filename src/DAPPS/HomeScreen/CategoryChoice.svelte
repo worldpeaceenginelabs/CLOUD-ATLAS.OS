@@ -1,18 +1,17 @@
 <script>
-  import Brainstorming from "./Brainstorming.svelte";
-  import ActionEvent from "./ActionEvent.svelte";
+  // import Brainstorming from "./Brainstorming.svelte";
+  // import ActionEvent from "./ActionEvent.svelte";
   import Petition from "./Petition.svelte";
-  import Crowdfunding from "./Crowdfunding.svelte";
-  import { onDestroy } from 'svelte';
+  // import Crowdfunding from "./Crowdfunding.svelte";
 
   let showModal = false;
   let currentComponent = null;
 
   const components = {
-    Brainstorming,
-    ActionEvent,
+    // Brainstorming,
+    // ActionEvent,
     Petition,
-    Crowdfunding,
+    // Crowdfunding,
   };
 
   function openModal(componentName) {
@@ -31,7 +30,7 @@
 
 
   <div style="padding: 20px;">
-    <div class="box glassmorphism" on:click={() => openModal("Brainstorming")}>
+    <!-- <div class="box glassmorphism" on:click={() => openModal("Brainstorming")}>
       <div class="title">Start a Brainstorming (Zoom.us)</div>
       <div class="description">Flip the script on every bad news! Take every flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure—or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to brainstorm their own challenges and co-create innovative products, services, and solutions. Collaborate with people from all walks of life to address both real-world problems and business opportunities, locally and globally.</div>
     </div>
@@ -39,17 +38,17 @@
     <div class="box glassmorphism" on:click={() => openModal("ActionEvent")}>
       <div class="title">Start an ActionEvent (Telegram)</div>
       <div class="description">From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.</div>
-    </div>
+    </div> -->
 
     <div class="box glassmorphism" on:click={() => openModal("Petition")}>
       <div class="title">Start a Petition (Change.org)</div>
       <div class="description">Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.</div>
     </div>
 
-    <div class="box glassmorphism" on:click={() => openModal("Crowdfunding")}>
+    <!-- <div class="box glassmorphism" on:click={() => openModal("Crowdfunding")}>
       <div class="title">Start a Crowdfunding (GoFundMe.com)</div>
       <div class="description">Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.</div>
-    </div>
+    </div> -->
   </div>
 
 

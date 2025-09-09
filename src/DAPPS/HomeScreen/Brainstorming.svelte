@@ -3,234 +3,68 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
-  import { coordinates } from '../../store.ts';
-
-  // Define for rate limiting
-  let isFormDisabled = writable(false);
-
-  // Define the IndexedDB database
-let indexeddb: IDBDatabase;
-
-// Function to initialize the IndexedDB database
-async function initializeIndexedDB() {
-  return new Promise<void>((resolve, reject) => {
-    const request = indexedDB.open('indexeddbstore', 1);
-
-    // Create object stores if they don't exist
-    request.onupgradeneeded = function(event) {
-      const db = request.result;
-      console.log('onupgradeneeded called');
-      if (!db.objectStoreNames.contains('locationpins')) {
-        db.createObjectStore('locationpins', { keyPath: 'mapid' });
-        console.log('Created object store locationpins');
-      }
-      if (!db.objectStoreNames.contains('client')) {
-        db.createObjectStore('client', { keyPath: 'id' });
-        console.log('Created object store client');
-      }
-      if (!db.objectStoreNames.contains('localpins')) {
-        db.createObjectStore('localpins', { keyPath: 'mapid' });
-        console.log('Created object store localpins');
-      }
-    };
-
-    // On success, assign the result to the indexeddb variable
-    request.onsuccess = function(event) {
-      indexeddb = request.result;
-      console.log('Database opened successfully');
-      resolve();
-    };
-
-    // On error, reject the promise
-    request.onerror = function(event) {
-      console.error('Error opening database', request.error);
-      reject(request.error);
-    };
-  });
-}
-
-let appidfromindexeddb = null;
-let usernamefromindexeddb = null;
-
-// Ensure username and appid
-
-// BLOCK 001
-// Function to fetch 'username' and 'appid' from the object store 'client', with id 1
-async function fetchClientData() {
-  let username = writable('');
-  let appid = writable('');
-
-  return new Promise<void>((resolve, reject) => {
-    const transaction = indexeddb.transaction(['client'], 'readonly');
-    const objectStore = transaction.objectStore('client');
-    const request = objectStore.get(1);
-
-    request.onsuccess = function(event) {
-      if (request.result) {
-        console.log('Data fetched successfully', request.result);
-        username.set(request.result.username);
-        appid.set(request.result.appid);
-
-        // Update the variables outside of the function
-        username.subscribe(value => { usernamefromindexeddb = value; });
-        checkAndUpdate(); // New callback function to handle updates
-        appid.subscribe(value => { appidfromindexeddb = value; });
-        checkAndUpdate(); // New callback function to handle updates
-
-        resolve();
-      } else {
-        console.error('Data not found');
-        reject('Data not found');
-      }
-    };
-
-    request.onerror = function(event) {
-      console.error('Error fetching data', request.error);
-      reject(request.error);
-    };
-  });
-}
-
-// Callback function to check if both values are updated
-function checkAndUpdate() {
-  if (usernamefromindexeddb !== null && appidfromindexeddb !== null) {
-    console.log('Global AppID:', appidfromindexeddb);
-    console.log('Global Username:', usernamefromindexeddb);
-    
-    // Perform any actions that depend on these values here
-  }
-}
-
-// BLOCK 002
-// Function to create new 'username' and 'appid' and store in the object store 'client', with id 1
-async function putResultPairCreation() {
-  const usernameRandom = crypto.randomUUID();
-  const salt = 'salt1234';
-  const resultAppid = await hashData(usernameRandom + salt);
-  let resultPairCreation = { id: 1, username: usernameRandom, appid: resultAppid };
-
-  return new Promise<void>((resolve, reject) => {
-    const transaction = indexeddb.transaction(['client'], 'readwrite');
-    const objectStore = transaction.objectStore('client');
-    const request = objectStore.put(resultPairCreation);
-
-    request.onsuccess = function(event) {
-      console.log('Data has been written successfully:', resultPairCreation);
-      resolve();
-    };
-
-    request.onerror = function(event) {
-      console.error('Error writing data', request.error);
-      reject(request.error);
-    };
-  });
-}
+  import { coordinates } from '../../store';
+  import { idb } from '../../idb';
 
 
+  // Initialize IndexedDB using shared module
+  const initializeIndexedDB = async (): Promise<void> => {
+    await idb.openDB();
+  };
 
-// eventually adapt the markup
-// {#await promise}
-//   <p>Loading...</p>
-// {:then data}
-//   <p>Data: {JSON.stringify(data)}</p>
-// {:catch error}
-//   <p>Error: {error.message}</p>
-// {/await}
 
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
   // Function to delete old records from the locationpins object store
-  function deleteOldRecords() {
-    const transaction = indexeddb.transaction(['locationpins'], 'readwrite');
-    const store = transaction.objectStore('locationpins');
-    const recordsAge = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-
-    // Open a cursor to iterate over the records
-    const request = store.openCursor();
-
-    request.onsuccess = function(event) {
-      const cursor = event.target.result;
-      if (cursor) {
-        // If the record is older than 30 days, delete it
-        const recordTimestamp = new Date(cursor.value.timestamp);
-        if (recordTimestamp < recordsAge) {
-          store.delete(cursor.primaryKey);
-          console.log(`Deleted record with primaryKey ${cursor.primaryKey}`);
-        }
-        cursor.continue();
-      }
-    };
+  async function deleteOldRecords() {
+    try {
+      const deletedCount = await idb.deleteOldRecords(30); // Delete records older than 30 days
+      console.log(`Deleted ${deletedCount} old records from locationpins`);
+    } catch (error) {
+      console.error('Error deleting old records from locationpins:', error);
+    }
   }
 
-  // Function to delete old records from the locationpins object store
-  function deleteOldRecordsLocal() {
-    const transaction = indexeddb.transaction(['localpins'], 'readwrite');
-    const store = transaction.objectStore('localpins');
-    const recordsAge = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-
-    // Open a cursor to iterate over the records
-    const request = store.openCursor();
-
-    request.onsuccess = function(event) {
-      const cursor = event.target.result;
-      if (cursor) {
-        // If the record is older than 30 days, delete it
-        const recordTimestamp = new Date(cursor.value.timestamp);
-        if (recordTimestamp < recordsAge) {
-          store.delete(cursor.primaryKey);
-          console.log(`Deleted record with primaryKey ${cursor.primaryKey}`);
-        }
-        cursor.continue();
-      }
-    };
+  // Function to delete old records from the localpins object store
+  async function deleteOldRecordsLocal() {
+    try {
+      const deletedCount = await idb.deleteOldLocalRecords(30); // Delete records older than 30 days
+      console.log(`Deleted ${deletedCount} old local records from localpins`);
+    } catch (error) {
+      console.error('Error deleting old local records from localpins:', error);
+    }
   }
 
   // Function to store a record in the locationpins object store
   async function storeRecord(record: Record) {
-    const transaction = indexeddb.transaction(['locationpins'], 'readwrite');
-    const store = transaction.objectStore('locationpins');
-    store.add(record).onsuccess = function() {
+    try {
+      await idb.savePin(record);
       console.log('Stored record in IndexedDB');
-    };
+    } catch (error) {
+      console.error('Error storing record in IndexedDB:', error);
+    }
   }
 
   // Function to store a record in the 'localpins' object store
   async function storeRecordInLocalPins(record: Record) {
-    const transaction = indexeddb.transaction(['localpins'], 'readwrite');
-    const store = transaction.objectStore('localpins');
-    store.add(record).onsuccess = function() {
+    try {
+      await idb.saveLocalPin(record);
       console.log('Stored record in localpins IndexedDB');
-    };
+    } catch (error) {
+      console.error('Error storing record in localpins IndexedDB:', error);
+    }
   }
 
   // Function to load records from the locationpins object store
   async function loadRecordsFromIndexedDB() {
-    const transaction = indexeddb.transaction(['locationpins'], 'readonly');
-    const store = transaction.objectStore('locationpins');
-    const records: Record[] = [];
-
-    // Open a cursor to iterate over the records
-    const request = store.openCursor();
-
-    return new Promise<Record[]>((resolve, reject) => {
-      request.onsuccess = function(event) {
-        const cursor = event.target.result;
-        if (cursor) {
-          // Add the record to the records array
-          records.push(cursor.value);
-          cursor.continue();
-        } else {
-          // When there are no more records, resolve the promise
-          resolve(records);
-        }
-      };
-
-      request.onerror = function(event) {
-        reject(request.error);
-      };
-    });
+    try {
+      return await idb.loadPins();
+    } catch (error) {
+      console.error('Error loading records from IndexedDB:', error);
+      return [];
+    }
   }
 
 
@@ -240,31 +74,13 @@ async function putResultPairCreation() {
 
 
 // Function to initialize the app in the right sequence
- async function initializeApp(): Promise<string> {
+ async function initializeApp(): Promise<void> {
   try {
     await initializeIndexedDB();
     await deleteOldRecords();
     await deleteOldRecordsLocal();
-    
-    try {
-      await fetchClientData(); // Block 001
-      console.log('Fetched client data successfully');
-    } catch (error) {
-      console.warn('Fetching client data failed, attempting to create new data:', error);
-      // If Block 001 fails, then execute Block 002
-
-      try {
-        await putResultPairCreation(); // Block 002
-        console.log('Created new client data successfully');
-        // If Block 002 succeeds, then execute Block 001 again
-        await fetchClientData(); // Block 001
-        console.log('Fetched client data successfully after creation');
-      } catch (error) {
-        console.error('Block 002 failed:', error);
-      }
-    }
   } catch (error) {
-    console.error('An error occurred in the outer block:', error);
+    console.error('An error occurred during initialization:', error);
   }
   const storedRecords = await loadRecordsFromIndexedDB();
   records.set(storedRecords);
@@ -342,8 +158,8 @@ function startRoom() {
   const MAX_CACHE_SIZE = 10000;
 
   // Receive records from other peers
-  getRecord(async (data: Record, peerId: string) => {
-    if (!recordCache.some(rec => rec.mapid === data.mapid)) {
+  getRecord(async (data: any, peerId: string) => {
+    if (data && typeof data === 'object' && data.mapid && !recordCache.some(rec => rec.mapid === data.mapid)) {
       records.update(recs => [...recs, data]);
       recordCache.push(data); // Add record to cache
 
@@ -392,54 +208,33 @@ function startRoom() {
   coordinates.subscribe(value => {
     record.latitude = value.latitude;
     record.longitude = value.longitude;
+    record.height = value.height;
   });
 
   // New peers receive all previous records
   const [sendCache, getCache] = room.makeAction('cache');
 
-  getCache(async (data: Record[]) => {
-    const receivedRecords = data.filter(rec => !recordCache.some(rc => rc.mapid === rec.mapid));
-    records.update(recs => [...recs, ...receivedRecords]);
-    recordCache.push(...receivedRecords); // Add records to cache
+  getCache(async (data: any) => {
+    if (Array.isArray(data)) {
+      const receivedRecords = data.filter(rec => rec && typeof rec === 'object' && rec.mapid && !recordCache.some(rc => rc.mapid === rec.mapid));
+      records.update(recs => [...recs, ...receivedRecords]);
+      recordCache.push(...receivedRecords); // Add records to cache
 
-    // Maintain cache size limit
-    if (recordCache.length > MAX_CACHE_SIZE) {
-      recordCache.splice(0, recordCache.length - MAX_CACHE_SIZE); // Keep only the latest records
-    }
+      // Maintain cache size limit
+      if (recordCache.length > MAX_CACHE_SIZE) {
+        recordCache.splice(0, recordCache.length - MAX_CACHE_SIZE); // Keep only the latest records
+      }
 
-    // Store received records in IndexedDB "locationpins" object store
-    for (const record of receivedRecords) {
-      await storeRecord(record);
-      console.log('Stored received record in IndexedDB');
+      // Store received records in IndexedDB "locationpins" object store
+      for (const record of receivedRecords) {
+        await storeRecord(record);
+        console.log('Stored received record in IndexedDB');
+      }
     }
   });
 
 
   
-  // Implement a rate-limiting function to verify if there are more than 5 records in 'locationpins' indexedDB with the same appid suffix as in 'clients' indexedDB.
-  // Function to check the record count in 'localpins' and disable the form if necessary
-  async function checkRecordCount() {
-    const transaction = indexeddb.transaction(['localpins'], 'readonly');
-    const store = transaction.objectStore('localpins');
-    const countRequest = store.count();
-
-    return new Promise<boolean>((resolve, reject) => {
-      countRequest.onsuccess = function() {
-        const count = countRequest.result;
-        resolve(count > 5);
-      };
-
-      countRequest.onerror = function() {
-        reject(countRequest.error);
-      };
-    });
-  }
-
-  // Define an async function to fetch and set form disabled status
-  async function updateFormDisabledStatus() {
-    const result = await checkRecordCount();
-    isFormDisabled.set(result);
-    }
 
 
   // Function to check if a record is valid
@@ -452,31 +247,8 @@ function startRoom() {
     return isTitleValid && isLinkValid;
   }
 
-  // Function to validate latitude and longitude with max 6 decimal places
-  function isValidCoordinate(coord) {
-    const coordPattern = /^[-+]?([1-8]?\d(\.\d{1,6})?|90(\.0{1,6})?)$/;
-    return coordPattern.test(coord);
-  }
 
-  function openChatGPT() {
-        const chatGPTBaseURL = "https://chat.openai.com/chat";
-        const query = encodeURIComponent(`optimize my call to action for clarity: Title: "${record.title}", Text: "${record.text}". Title max length: 100chars, Text max length: 150chars`);
-        const fullURL = `${chatGPTBaseURL}?q=${query}`;
-        window.open(fullURL, '_blank');
-    }
 
-  // Function to hash data using SHA-256
-  async function hashData(data: string): Promise<string> {
-    // Convert the string data to an array buffer
-    const encoder = new TextEncoder();
-    const buffer = encoder.encode(data);
-    // Calculate the SHA-256 hash of the array buffer
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    // Convert the hash buffer to a hexadecimal string
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
-  }
 
   // Record interface
   interface Record {
@@ -488,6 +260,8 @@ function startRoom() {
     longitude: string;
     latitude: string;
     category: string;
+    height: number;
+    [key: string]: any; // Add index signature for Trystero compatibility
   }
   
   // Function to create an empty record with appid as a suffix to the mapid
@@ -501,20 +275,13 @@ function startRoom() {
       longitude: '',
       latitude: '',
       category: 'brainstorming',
+      height: 0,
     };
   }
 
 onMount(async () => { 
     await initializeApp();
-    startRoom(config);
-
-    // Rate limiting
-    updateFormDisabledStatus();
-    // Set interval to continuously update form disabled status
-    const intervalId = setInterval(async () => {
-    updateFormDisabledStatus();
-    }, 5000); // Update every 5 seconds (adjust interval as needed)
-  
+    startRoom();
   });
 
 </script>
@@ -522,9 +289,6 @@ onMount(async () => {
 <main transition:fade={{ duration: 500 }}>
   
   
-  {#if $isFormDisabled}
-  <p style="color: red;">The form is not available due to the record limit.</p>
-{:else}
   <form>
     <label><div style="text-align:left">Title</div></label>
     <textarea placeholder="Enter a short, powerful mission name here - max 100 chars" maxlength="100" bind:value={record.title} required></textarea><br>
@@ -541,13 +305,13 @@ onMount(async () => {
 
     {#if $coordinates.latitude && $coordinates.longitude}
     <p class="coordgreen animated-gradient">Coordinates: {$coordinates.latitude}, {$coordinates.longitude}</p>
+    <p class="coordgreen animated-gradient">Height: {$coordinates.height.toFixed(1)}m</p>
     {:else}
     <p class="coordgreen animated-gradient">Pin dropped...</p>
     {/if}
     
     <button on:click|preventDefault={send}>Drop Pin</button>
   </form>
-  {/if}
 
 </main>
 
@@ -600,24 +364,6 @@ onMount(async () => {
       background-color: #abd6ff;
     }
 
-  h4 {
-    color: white;
-    text-align: left;
-    font-size: medium;
-    height: 100px;  /* Set the height to make the content scrollable */
-    overflow: auto; /* Enable scrolling when content overflows */
-  }
-
-  .container {
-            display: flex;
-            align-items: flex-start;
-        }
-        .emoji {
-            margin-right: 5px; /* Adjust this value to add space between emoji and text */
-        }
-        .text {
-            flex: 1;
-        }
 
 
 
