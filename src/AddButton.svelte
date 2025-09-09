@@ -15,6 +15,7 @@
   let showInfoPanel = false;
   let infoPanelContent = '';
   let uiComponent: UI | null = null;
+  let touchStartTime = 0;
 
   // Modal states
   let showBrainstormingModal = false;
@@ -35,8 +36,19 @@
     }
   }
 
-  // Handle item hover
-  function handleItemHover(item: string) {
+  // Handle info icon click
+  function handleInfoClick(item: string, event: Event) {
+    event.stopPropagation();
+    
+    // If clicking the same item that's already showing, toggle off
+    if (showInfoPanel && hoveredItem === item) {
+      showInfoPanel = false;
+      hoveredItem = '';
+      hoveredSubmenuItem = '';
+      return;
+    }
+    
+    // Otherwise, show the info panel for this item
     hoveredItem = item;
     hoveredSubmenuItem = '';
     showInfoPanel = true;
@@ -50,7 +62,7 @@
         infoPanelContent = 'Flip the script on every bad news! Take every flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure—or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to brainstorm their own challenges and co-create innovative products, services, and solutions. Collaborate with people from all walks of life to address both real-world problems and business opportunities, locally and globally.';
         break;
       case 'simulation':
-        infoPanelContent = 'Run simulations and scenarios on the map. Test different parameters and see how they affect the virtual environment.';
+        infoPanelContent = 'Run simulations and scenarios on the map. Visualize what does not fit into words.';
         break;
       case 'action':
         infoPanelContent = 'Organize real-world actions and events. Create meetups, petitions, and crowdfunding campaigns to make a difference.';
@@ -58,8 +70,19 @@
     }
   }
 
-  // Handle submenu item hover
-  function handleSubmenuItemHover(item: string) {
+  // Handle submenu info icon click
+  function handleSubmenuInfoClick(item: string, event: Event) {
+    event.stopPropagation();
+    
+    // If clicking the same submenu item that's already showing, toggle off
+    if (showInfoPanel && hoveredSubmenuItem === item) {
+      showInfoPanel = false;
+      hoveredItem = '';
+      hoveredSubmenuItem = '';
+      return;
+    }
+    
+    // Otherwise, show the info panel for this submenu item
     hoveredSubmenuItem = item;
     hoveredItem = '';
     showInfoPanel = true;
@@ -67,33 +90,26 @@
     // Set info panel content based on submenu item
     switch (item) {
       case 'actionevent':
-        infoPanelContent = 'MeetandDo - Organize real-world meetups and action events. Coordinate with people in your area to take collective action on local and global issues. Use Telegram\'s live location feature to coordinate up to 200,000 users in real-time on a single map.';
+        infoPanelContent = 'MeetandDo - From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.';
         break;
       case 'petition':
-        infoPanelContent = 'Petition - Create and sign petitions to influence decision-makers and bring about change. Gather support for causes you care about and make your voice heard through collective action.';
+        infoPanelContent = 'Petition - Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.';
         break;
       case 'crowdfunding':
-        infoPanelContent = 'Crowdfunding - Turn your ideas into reality by raising funds from the community. Launch crowdfunding campaigns for projects, causes, or initiatives that matter to you and others.';
+        infoPanelContent = 'Crowdfunding - Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.';
         break;
     }
   }
 
-  // Handle item leave
-  function handleItemLeave() {
-    hoveredItem = '';
-    hoveredSubmenuItem = '';
-    showInfoPanel = false;
-  }
-
-  // Handle submenu item leave
-  function handleSubmenuItemLeave() {
-    hoveredSubmenuItem = '';
-    showInfoPanel = false;
-  }
 
   // Handle item click
   function handleItemClick(item: string) {
     console.log('Clicked item:', item);
+    // Close info panel when clicking on touch devices
+    showInfoPanel = false;
+    hoveredItem = '';
+    hoveredSubmenuItem = '';
+    
     switch (item) {
       case 'model':
         uiComponent?.toggle();
@@ -129,6 +145,11 @@
 
   // Handle action submenu clicks
   function handleActionClick(actionType: string) {
+    // Close info panel when clicking on touch devices
+    showInfoPanel = false;
+    hoveredItem = '';
+    hoveredSubmenuItem = '';
+    
     switch (actionType) {
       case 'actionevent':
         showActionEventModal = true;
@@ -227,62 +248,92 @@
           class="dropdown-item" 
           role="button"
           tabindex="0"
-          on:mouseenter={() => handleItemHover('model')}
-          on:mouseleave={handleItemLeave}
           on:click={() => handleItemClick('model')}
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('model')}
-          class:hovered={hoveredItem === 'model'}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
-          Add Model
+          <span class="item-text">Add Model</span>
+          <button 
+            class="info-icon" 
+            class:active={showInfoPanel && hoveredItem === 'model'}
+            on:click={(e) => handleInfoClick('model', e)}
+            on:keydown={(e) => e.key === 'Enter' && handleInfoClick('model', e)}
+            tabindex="0"
+            aria-label="Show info for Add Model"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
 
         <div 
           class="dropdown-item" 
           role="button"
           tabindex="0"
-          on:mouseenter={() => handleItemHover('brainstorming')}
-          on:mouseleave={handleItemLeave}
           on:click={() => handleItemClick('brainstorming')}
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('brainstorming')}
-          class:hovered={hoveredItem === 'brainstorming'}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
           </svg>
-          Add Brainstorming
+          <span class="item-text">Add Brainstorming</span>
+          <button 
+            class="info-icon" 
+            class:active={showInfoPanel && hoveredItem === 'brainstorming'}
+            on:click={(e) => handleInfoClick('brainstorming', e)}
+            on:keydown={(e) => e.key === 'Enter' && handleInfoClick('brainstorming', e)}
+            tabindex="0"
+            aria-label="Show info for Add Brainstorming"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
 
         <div 
           class="dropdown-item" 
           role="button"
           tabindex="0"
-          on:mouseenter={() => handleItemHover('simulation')}
-          on:mouseleave={handleItemLeave}
           on:click={() => handleItemClick('simulation')}
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('simulation')}
-          class:hovered={hoveredItem === 'simulation'}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          Add Simulation
+          <span class="item-text">Add Simulation</span>
+          <button 
+            class="info-icon" 
+            class:active={showInfoPanel && hoveredItem === 'simulation'}
+            on:click={(e) => handleInfoClick('simulation', e)}
+            on:keydown={(e) => e.key === 'Enter' && handleInfoClick('simulation', e)}
+            tabindex="0"
+            aria-label="Show info for Add Simulation"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
 
         <div 
           class="dropdown-item action-item-container" 
           role="button"
           tabindex="0"
-          on:mouseenter={() => handleItemHover('action')}
-          on:mouseleave={handleItemLeave}
           on:click={() => handleItemClick('action')}
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('action')}
-          class:hovered={hoveredItem === 'action'}
         >
           <div 
             class="action-item-content"
@@ -293,8 +344,22 @@
               <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89317 18.7122 8.75608 18.1676 9.45768C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            Add Action
+            <span class="item-text">Add Action</span>
           </div>
+          <button 
+            class="info-icon" 
+            class:active={showInfoPanel && hoveredItem === 'action'}
+            on:click={(e) => handleInfoClick('action', e)}
+            on:keydown={(e) => e.key === 'Enter' && handleInfoClick('action', e)}
+            tabindex="0"
+            aria-label="Show info for Add Action"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -305,11 +370,8 @@
             class="dropdown-item" 
             role="button"
             tabindex="0"
-            on:mouseenter={() => handleSubmenuItemHover('actionevent')}
-            on:mouseleave={handleSubmenuItemLeave}
             on:click={() => handleActionClick('actionevent')}
             on:keydown={(e) => e.key === 'Enter' && handleActionClick('actionevent')}
-            class:hovered={hoveredSubmenuItem === 'actionevent'}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -317,40 +379,76 @@
               <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89317 18.7122 8.75608 18.1676 9.45768C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            MeetandDo
+            <span class="item-text">MeetandDo</span>
+            <button 
+              class="info-icon" 
+              class:active={showInfoPanel && hoveredSubmenuItem === 'actionevent'}
+              on:click={(e) => handleSubmenuInfoClick('actionevent', e)}
+              on:keydown={(e) => e.key === 'Enter' && handleSubmenuInfoClick('actionevent', e)}
+              tabindex="0"
+              aria-label="Show info for MeetandDo"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
 
           <div 
             class="dropdown-item" 
             role="button"
             tabindex="0"
-            on:mouseenter={() => handleSubmenuItemHover('petition')}
-            on:mouseleave={handleSubmenuItemLeave}
             on:click={() => handleActionClick('petition')}
             on:keydown={(e) => e.key === 'Enter' && handleActionClick('petition')}
-            class:hovered={hoveredSubmenuItem === 'petition'}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
             </svg>
-            Petition
+            <span class="item-text">Petition</span>
+            <button 
+              class="info-icon" 
+              class:active={showInfoPanel && hoveredSubmenuItem === 'petition'}
+              on:click={(e) => handleSubmenuInfoClick('petition', e)}
+              on:keydown={(e) => e.key === 'Enter' && handleSubmenuInfoClick('petition', e)}
+              tabindex="0"
+              aria-label="Show info for Petition"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
 
           <div 
             class="dropdown-item" 
             role="button"
             tabindex="0"
-            on:mouseenter={() => handleSubmenuItemHover('crowdfunding')}
-            on:mouseleave={handleSubmenuItemLeave}
             on:click={() => handleActionClick('crowdfunding')}
             on:keydown={(e) => e.key === 'Enter' && handleActionClick('crowdfunding')}
-            class:hovered={hoveredSubmenuItem === 'crowdfunding'}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            Crowdfunding
+            <span class="item-text">Crowdfunding</span>
+            <button 
+              class="info-icon" 
+              class:active={showInfoPanel && hoveredSubmenuItem === 'crowdfunding'}
+              on:click={(e) => handleSubmenuInfoClick('crowdfunding', e)}
+              on:keydown={(e) => e.key === 'Enter' && handleSubmenuInfoClick('crowdfunding', e)}
+              tabindex="0"
+              aria-label="Show info for Crowdfunding"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
       {/if}
@@ -557,7 +655,7 @@
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    min-width: 200px;
+    min-width: 250px;
   }
 
   .dropdown-item {
@@ -569,14 +667,14 @@
     cursor: pointer;
     transition: all 0.2s ease;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
   }
 
   .dropdown-item:last-child {
     border-bottom: none;
   }
 
-  .dropdown-item:hover,
-  .dropdown-item.hovered {
+  .dropdown-item:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: translateX(-4px);
   }
@@ -585,6 +683,47 @@
     width: 18px;
     height: 18px;
     flex-shrink: 0;
+  }
+
+  .item-text {
+    flex: 1;
+    text-align: left;
+  }
+
+  .info-icon {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .info-icon:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+  }
+
+  .info-icon.active {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+  }
+
+  .info-icon:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+  }
+
+  .info-icon svg {
+    width: 16px;
+    height: 16px;
   }
 
   .action-item-container {
@@ -597,6 +736,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    flex: 1;
   }
 
   .action-dropdown {
@@ -606,7 +746,7 @@
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    min-width: 200px;
+    min-width: 250px;
   }
 
   .info-panel {
@@ -795,7 +935,7 @@
     }
 
     .dropdown-menu {
-      min-width: 180px;
+      min-width: 220px;
     }
 
     .dropdown-item {
