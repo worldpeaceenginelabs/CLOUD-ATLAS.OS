@@ -76,7 +76,7 @@ My journey has been filled with challenges and learning experiences, but each st
 ![image](https://github.com/user-attachments/assets/2baa0485-f338-4b92-b76c-7e8d84032b52)
 
 # Cloud Atlas OS 2025:
-![image](https://github.com/user-attachments/assets/17f88926-e83e-423e-bde8-f3396a287d39)
+<img width="1919" height="910" alt="image" src="https://github.com/user-attachments/assets/19495bd7-a01e-47e2-89a5-ea8dfe0c4af9" />
 
 # From the Cloud Atlas OS Pitchdeck
 ![image](https://github.com/user-attachments/assets/80c9d540-007a-495c-9eec-afddcbbe5f33)
