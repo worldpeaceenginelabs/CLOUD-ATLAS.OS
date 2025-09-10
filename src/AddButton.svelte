@@ -142,15 +142,15 @@
     switch (item) {
       case 'model':
         uiComponent?.toggle();
-        isDropdownVisible = false;
+        // Don't close menu - let user decide when to close it
         break;
       case 'brainstorming':
         showBrainstormingModal = true;
-        isDropdownVisible = false;
+        // Don't close menu - let user decide when to close it
         break;
       case 'simulation':
         showSimulationModal = true;
-        isDropdownVisible = false;
+        // Don't close menu - let user decide when to close it
         break;
       case 'action':
         console.log('Toggling action dropdown:', showActionDropdown);
@@ -188,15 +188,15 @@
     switch (actionType) {
       case 'actionevent':
         showActionEventModal = true;
-        showActionDropdown = false;
+        // Don't close submenu - let user decide when to close it
         break;
       case 'petition':
         showPetitionModal = true;
-        showActionDropdown = false;
+        // Don't close submenu - let user decide when to close it
         break;
       case 'crowdfunding':
         showCrowdfundingModal = true;
-        showActionDropdown = false;
+        // Don't close submenu - let user decide when to close it
         break;
     }
   }
