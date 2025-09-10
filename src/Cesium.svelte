@@ -18,10 +18,11 @@
 	  HeadingPitchRoll,
 	  Transforms,
 	  Math as CesiumMath,
+	  Cartographic,
 	} from 'cesium';
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
-	import { coordinates, models, selectedModel, pins, resetAllStores, type ModelData, type PinData } from './store';
+	import { coordinates, models, selectedModel, pins, isZoomModalVisible, lastTriggeredModal, resetAllStores, type ModelData, type PinData } from './store';
 	import ShareButton from './Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
 	import { idb } from './idb';
@@ -33,11 +34,26 @@ let viewer: Viewer | null = null;
 let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
 let recordButtonText = '';
-let isZoomModalVisible = false;
 let isModelModalVisible = false;
 let is3DTilesetActive = false; // Track if 3D tileset is currently active
 let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tileset
 let pointEntity: Entity | null = null; // For coordinate picking
+let userLocationEntity: Entity | null = null; // For preloaded user location
+let userLocationPreloaded = false; // Track if user location has been preloaded
+let isMonitoringCamera = false; // Track if camera monitoring is active
+let animationFrameId: number | null = null; // For requestAnimationFrame
+
+// Progress tracking for new UX - exported for parent component
+let basemapProgress = 0;
+let tilesetProgress = 0;
+let isBasemapLoaded = false;
+let isTilesetLoaded = false;
+let isInitialLoadComplete = false;
+let currentHeight = 0; // Track current camera height for display
+let tileset: Cesium3DTileset | null = null; // Global tileset reference
+
+// Export progress data for parent component
+export { basemapProgress, tilesetProgress, isInitialLoadComplete };
   
 	// Initialize IndexedDB using shared module
 	const initializeIndexedDB = async (): Promise<void> => {
@@ -173,27 +189,95 @@ let pointEntity: Entity | null = null; // For coordinate picking
 	};
   
 	// Add user's location as a pulsating point on the map
-	const addUserLocation = async () => {
+	const addUserLocation = async (silent = false) => {
 	  try {
 		const userLocation = await getLocationFromNavigator();
 		if (userLocation && viewer) {
 		  const { longitude, latitude } = userLocation.coords;
 		  const userPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
-  
-		  const userLocationEntity = createPulsatingPoint('Your Location!', userPosition, Cesium.Color.BLUE);
-		  viewer.entities.add(userLocationEntity);
-  
-		  setTimeout(() => {
-			if (viewer) {
-			  viewer.camera.flyTo({
-				destination: Cartesian3.fromDegrees(longitude, latitude, 20000000.0),
-			  });
-			}
-		  }, 3000);
+
+		  userLocationEntity = createPulsatingPoint('Your Location!', userPosition, Cesium.Color.BLUE);
+		  
+		  if (silent) {
+			// Silent preload - add entity but don't show it yet
+			userLocationEntity.show = false;
+			viewer.entities.add(userLocationEntity);
+			userLocationPreloaded = true;
+		  } else {
+			// Normal behavior - show entity and fly to it
+			viewer.entities.add(userLocationEntity);
+			
+			setTimeout(() => {
+			  if (viewer) {
+				viewer.camera.flyTo({
+				  destination: Cartesian3.fromDegrees(longitude, latitude, 20000000.0),
+				});
+			  }
+			}, 3000);
+		  }
 		}
 	  } catch (error) {
 		console.error(error);
 	  }
+	};
+
+	// Update height display
+	const updateHeightDisplay = () => {
+		if (viewer) {
+			currentHeight = viewer.camera.positionCartographic.height;
+		}
+	};
+
+	// Real-time camera monitoring function
+	const monitorCameraHeight = () => {
+		if (!viewer || !isMonitoringCamera) return;
+		
+		const height = viewer.camera.positionCartographic.height;
+		currentHeight = height; // Update height display
+		
+		// Check if we need to switch between globe and 3D tileset
+		if (height > 6000000) {
+			// Show the base layer and hide the 3D tileset
+			if (is3DTilesetActive) {
+				viewer.scene.globe.show = true;
+				if (tileset) tileset.show = false;
+				is3DTilesetActive = false;
+				// Hide location pins and 3D models when using base layer
+				if (customDataSource) customDataSource.show = false;
+				if (modelDataSource) modelDataSource.show = false;
+			}
+		} else {
+			// Hide the base layer and show the 3D tileset
+			if (!is3DTilesetActive) {
+				viewer.scene.globe.show = false;
+				if (tileset) tileset.show = true;
+				is3DTilesetActive = true;
+				// Show location pins and 3D models when using 3D tileset
+				if (customDataSource) customDataSource.show = true;
+				if (modelDataSource) modelDataSource.show = true;
+				// Data is already preloaded during initialization
+			}
+		}
+		
+		// Continue monitoring
+		animationFrameId = requestAnimationFrame(monitorCameraHeight);
+	};
+
+	// Start real-time camera monitoring
+	const startCameraMonitoring = () => {
+		if (!isMonitoringCamera) {
+			isMonitoringCamera = true;
+			monitorCameraHeight();
+		}
+	};
+
+	// Stop real-time camera monitoring
+	const stopCameraMonitoring = () => {
+		isMonitoringCamera = false;
+		if (animationFrameId) {
+			cancelAnimationFrame(animationFrameId);
+			animationFrameId = null;
+		}
 	};
   
 
@@ -349,6 +433,175 @@ async function deletePinFromIndexedDB(mapid: string) {
 	let pinsLoadedFromIndexedDB = false;
 	let previousPinCount = 0;
 
+
+	// Function to load assets with progress tracking
+	async function loadAssetsWithProgress() {
+		// Load basemap (globe) with progress
+		loadBasemapWithProgress();
+		
+		// Load 3D tileset with progress
+		loadTilesetWithProgress();
+	}
+
+	// Function to load basemap with progress
+	async function loadBasemapWithProgress() {
+		if (!viewer) return;
+		
+		// Simulate basemap loading progress
+		const progressInterval = setInterval(() => {
+			if (basemapProgress < 100) {
+				basemapProgress += Math.random() * 10;
+				if (basemapProgress > 100) basemapProgress = 100;
+			} else {
+				clearInterval(progressInterval);
+				isBasemapLoaded = true;
+				checkIfBothLoaded();
+			}
+		}, 100);
+	}
+
+	// Function to load 3D tileset with progress
+	async function loadTilesetWithProgress() {
+		if (!viewer) return;
+		
+		try {
+			tileset = await Cesium3DTileset.fromIonAssetId(2275207);
+			viewer.scene.primitives.add(tileset);
+			
+			// Initially hide the tileset (will be shown when zooming in)
+			tileset.show = false;
+			
+			// Optimize tileset for better performance
+			tileset.maximumScreenSpaceError = 16; // Lower error for better quality
+			tileset.preloadWhenHidden = true; // Preload tiles when hidden
+			tileset.preloadFlightDestinations = true; // Preload for camera movements
+			tileset.skipLevelOfDetail = true; // Skip LOD for better performance
+			tileset.baseScreenSpaceError = 1024; // Base screen space error
+			tileset.skipScreenSpaceErrorFactor = 16; // Skip factor
+			tileset.skipLevels = 1; // Skip levels
+			tileset.immediatelyLoadDesiredLevelOfDetail = true; // Load desired LOD immediately
+			tileset.loadSiblings = false; // Don't load sibling tiles
+			tileset.foveatedTimeDelay = 0.0; // Load tiles immediately during zoom
+			
+			// Mark tileset as loaded (simplified approach)
+			tilesetProgress = 100;
+			isTilesetLoaded = true;
+			checkIfBothLoaded();
+			
+			// Simulate tileset loading progress
+			const progressInterval = setInterval(() => {
+				if (tilesetProgress < 100) {
+					tilesetProgress += Math.random() * 15;
+					if (tilesetProgress > 100) tilesetProgress = 100;
+				} else {
+					clearInterval(progressInterval);
+				}
+			}, 150);
+		} catch (error) {
+			console.log('Error loading tileset:', error);
+			tilesetProgress = 100;
+			isTilesetLoaded = true;
+			checkIfBothLoaded();
+		}
+	}
+
+	// Function to check if both assets are loaded and zoom in
+	function checkIfBothLoaded() {
+		if (isBasemapLoaded && isTilesetLoaded && !isInitialLoadComplete && viewer) {
+			isInitialLoadComplete = true;
+			// Zoom to 20 million meters
+			viewer.camera.flyTo({
+				destination: Cartesian3.fromDegrees(0, 0, 20000000),
+				duration: 3.0
+			});
+			
+			// Show preloaded user location after zoom animation completes
+			setTimeout(() => {
+				if (userLocationPreloaded && userLocationEntity && viewer) {
+					// Show the preloaded user location
+					userLocationEntity.show = true;
+					// Fly to the user location
+					const position = userLocationEntity.position?.getValue(JulianDate.now());
+					if (position) {
+						viewer.camera.flyTo({
+							destination: Cartesian3.fromDegrees(
+								CesiumMath.toDegrees(Cartographic.fromCartesian(position).longitude),
+								CesiumMath.toDegrees(Cartographic.fromCartesian(position).latitude),
+								20000000.0
+							)
+						});
+					}
+				} else {
+					// Fallback to normal behavior if preloading failed
+					addUserLocation();
+				}
+			}, 3000); // 3.0 seconds to allow for 3-second zoom duration
+		}
+	}
+
+	// Function to fetch record from IndexedDB
+	async function fetchRecord(mapid: string) {
+		try {
+			const pins = await idb.loadPins();
+			return pins.find(pin => pin.mapid === mapid) || null;
+		} catch (error) {
+			console.error('Error fetching record from IndexedDB:', error);
+			return null;
+		}
+	}
+
+	// Function to set up event handlers
+	function setupEventHandlers() {
+		if (!viewer) return;
+
+		// Debounce function to prevent multiple rapid touches
+		function debounce(func: Function, wait: number) {
+			let timeout: NodeJS.Timeout | null = null;
+			return function(this: any, ...args: any[]) {
+				clearTimeout(timeout!);
+				timeout = setTimeout(() => func.apply(this, args), wait);
+			};
+		}
+
+		// Combined event handler for picking entities and coordinates
+		viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
+			if (!viewer) return;
+			
+			const pickedObject = viewer.scene.pick(click.position);
+
+			// If an object is picked, handle entity picking
+			if (Cesium.defined(pickedObject) && pickedObject.id) {
+				if (pickedObject.id.id === "pickedPoint") {
+					// Do nothing or handle pickedPoint specific logic here if needed
+				} else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
+					// Handle 3D model click
+					const modelId = pickedObject.id.id;
+					const modelData = $models.find(model => model.id === modelId);
+					if (modelData) {
+						selectedModel.set(modelData);
+						isModelModalVisible = true;
+					}
+				} else {
+					await handleEntityPick(pickedObject);
+				}
+			} else {
+				// If no object is picked, handle coordinate picking
+				const height = viewer.camera.positionCartographic.height;
+				if (height > 250000) {
+					// Show the zoom modal
+					isZoomModalVisible.set(true);
+					lastTriggeredModal.set('zoom');
+					// Auto-hide after 3 seconds
+					setTimeout(() => {
+						isZoomModalVisible.set(false);
+					}, 3000);
+				} else {
+					handleCoordinatePick(click);
+				}
+			}
+		}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
+	}
+
 	// Reactive statement to handle new models added to store (only when 3D tileset is active)
 	$: if (viewer && $models && is3DTilesetActive && modelsLoadedFromIndexedDB) {
 		const currentModelCount = $models.length;
@@ -432,57 +685,36 @@ async function deletePinFromIndexedDB(mapid: string) {
 	// Remove the doubleclick event handler
 	  viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   
-	  // Load Cesium 3D Tileset
-	  try {
-		const tileset = await Cesium3DTileset.fromIonAssetId(2275207);
-		viewer.scene.primitives.add(tileset);
-	
-		// Initially hide the 3D tileset
-		tileset.show = true;
-  
-		viewer.camera.moveEnd.addEventListener(async () => {
-		  if (!viewer) return;
-		  
-		  const height = viewer.camera.positionCartographic.height;
-		  if (height > 6000000) {
-			// Show the base layer and hide the 3D tileset
-			viewer.scene.globe.show = true;
-			tileset.show = false;
-			is3DTilesetActive = false;
-			// Hide location pins and 3D models when using base layer
-			if (customDataSource) customDataSource.show = false;
-			if (modelDataSource) modelDataSource.show = false;
-		  } else {
-			// Hide the base layer and show the 3D tileset
-			viewer.scene.globe.show = false;
-			tileset.show = true;
-			is3DTilesetActive = true;
-			// Show location pins and 3D models when using 3D tileset
-			if (customDataSource) customDataSource.show = true;
-			if (modelDataSource) modelDataSource.show = true;
-			// Load data only once when switching to 3D tileset for the first time
-			if (!dataLoadedFor3DTileset) {
-			  await loadRecordsFromIndexedDB();
-			  await loadModelsFromIndexedDB();
-			  dataLoadedFor3DTileset = true;
-			}
-		  }
+	  // Set up real-time camera monitoring
+		viewer.camera.moveStart.addEventListener(() => {
+		  // Start monitoring when camera starts moving
+		  startCameraMonitoring();
 		});
-	  } catch (error) {
-		console.log(error);
-	  }
+
+		viewer.camera.moveEnd.addEventListener(() => {
+		  // Stop monitoring when camera stops moving
+		  stopCameraMonitoring();
+		});
   
-	  // Set initial camera position
-	  const cameraPosition = viewer.scene.camera.positionCartographic;
+	  // Set initial camera position to 10 billion meters (unseen distance)
 	  viewer.scene.camera.setView({
-		destination: Cartesian3.fromRadians(cameraPosition.longitude, cameraPosition.latitude, 20000000),
+		destination: Cartesian3.fromDegrees(0, 0, 10000000000), // 10 billion meters
 		orientation: {
-		  heading: viewer.scene.camera.heading,
-		  pitch: viewer.scene.camera.pitch,
-		  roll: viewer.scene.camera.roll,
+		  heading: 0,
+		  pitch: -CesiumMath.PI_OVER_TWO,
+		  roll: 0,
 		},
 	  });
+
+	  // Silently preload user location at 10 billion meters
+	  addUserLocation(true);
+
+	  // Initialize height display
+	  updateHeightDisplay();
 	  
+	  // Start loading assets in the background
+	  loadAssetsWithProgress();
+
 	// Function to get the current time in ISO 8601 format
 	function getCurrentTimeIso8601() {
 	const now = new Date();
@@ -500,16 +732,16 @@ async function deletePinFromIndexedDB(mapid: string) {
 	  globe.atmosphereLightIntensity = 20.0;
 	  scene.highDynamicRange = true;
   
-	  // Initialize IndexedDB (but don't load data yet - wait for 3D tileset to be active)
+	  // Initialize IndexedDB and preload data
 	  try {
 		await initializeIndexedDB();
-		// Data will be loaded when 3D tileset becomes active
+		// Preload data in the background for faster switching
+		loadRecordsFromIndexedDB();
+		loadModelsFromIndexedDB();
+		dataLoadedFor3DTileset = true;
 	  } catch (error) {
 		console.error('Failed to open IndexedDB:', error);
 	  }
-  
-	  // Add user location
-	  addUserLocation();
 	  
   
 	  // Set up clustering for the custom data source
@@ -522,18 +754,40 @@ async function deletePinFromIndexedDB(mapid: string) {
 	  if (customDataSource) viewer.dataSources.add(customDataSource);
 	  if (modelDataSource) viewer.dataSources.add(modelDataSource);
 
-// Function to fetch record from IndexedDB
-async function fetchRecord(mapid: string) {
-  try {
-    const pins = await idb.loadPins();
-    return pins.find(pin => pin.mapid === mapid) || null;
-  } catch (error) {
-    console.error('Error fetching record from IndexedDB:', error);
-    return null;
-  }
-}
+	  // Set up event handlers for user interactions
+	  setupEventHandlers();
 
-// This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
+	  // Load city data from local JSON
+	  const response = await fetch('/cities.json');
+	  const cities = await response.json();
+
+	  // Add label collection to scene
+	  const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
+
+	  // Limit to first 100 cities for testing (optional)
+	  const sample = cities.slice(0, 1200);
+
+	  sample.forEach((city: any) => {
+		const lat = parseFloat(city.lat);
+		const lon = parseFloat(city.lng);
+
+		if (isNaN(lat) || isNaN(lon)) return;
+
+		labels.add({
+		  position: Cesium.Cartesian3.fromDegrees(lon, lat),
+		  text: city.name, // This is what you want to show
+		  font: "24px sans-serif",
+		  fillColor: Cesium.Color.WHITE,
+		  outlineColor: Cesium.Color.BLACK,
+		  outlineWidth: 2,
+		  style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+		  scaleByDistance: new Cesium.NearFarScalar(1.0, 1.0, 2.0e7, 0.0),
+		  eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -12500),
+		});
+	  });
+	});
+
+	// This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
 
 // Function to handle entity picking
 async function handleEntityPick(pickedFeature: any) {
@@ -592,92 +846,12 @@ function handleCoordinatePick(result: any) {
   }
 }
 
-// Load city data from local JSON
-const response = await fetch('/cities.json');
-const cities = await response.json();
-
-// Add label collection to scene
-const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
-
-// Limit to first 100 cities for testing (optional)
-const sample = cities.slice(0, 1200);
-
-sample.forEach((city: any) => {
-  const lat = parseFloat(city.lat);
-  const lon = parseFloat(city.lng);
-
-  if (isNaN(lat) || isNaN(lon)) return;
-
-  labels.add({
-    position: Cesium.Cartesian3.fromDegrees(lon, lat),
-    text: city.name, // This is what you want to show
-    font: "24px sans-serif",
-    fillColor: Cesium.Color.WHITE,
-    outlineColor: Cesium.Color.BLACK,
-    outlineWidth: 2,
-    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-    scaleByDistance: new Cesium.NearFarScalar(1.0, 1.0, 2.0e7, 0.0),
-	eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -12500),
-  });
-});
-
-
-
-// Debounce function to prevent multiple rapid touches
-function debounce(func: Function, wait: number) {
-  let timeout: NodeJS.Timeout | null = null;
-  return function(this: any, ...args: any[]) {
-    clearTimeout(timeout!);
-    timeout = setTimeout(() => func.apply(this, args), wait);
-  };
-}
-
-// Combined event handler for picking entities and coordinates
-if (viewer) {
-  viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
-    if (!viewer) return;
-    
-    const pickedObject = viewer.scene.pick(click.position);
-
-  // If an object is picked, handle entity picking
-  if (Cesium.defined(pickedObject) && pickedObject.id) {
-
-    if (pickedObject.id.id === "pickedPoint") {
-      // Do nothing or handle pickedPoint specific logic here if needed
-    } else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
-      // Handle 3D model click
-      const modelId = pickedObject.id.id;
-      const modelData = $models.find(model => model.id === modelId);
-      if (modelData) {
-        selectedModel.set(modelData);
-        isModelModalVisible = true;
-      }
-    } else {
-      await handleEntityPick(pickedObject);
-    }
-  } else {
-    // If no object is picked, handle coordinate picking
-    if (viewer) {
-      const height = viewer.camera.positionCartographic.height;
-      if (height > 250000) {
-        // Show the zoom modal
-        isZoomModalVisible = true;
-        // Auto-hide after 3 seconds
-        setTimeout(() => {
-          isZoomModalVisible = false;
-        }, 3000);
-      } else {
-        handleCoordinatePick(click);
-      }
-    }
-  }
-}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
-}
 
 
 
 
-	});
+
+
 
 	window.addEventListener("keydown", handleKeyDown);
   
@@ -705,6 +879,9 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 	onDestroy(() => {
+		// Stop camera monitoring
+		stopCameraMonitoring();
+		
 		// Remove event listeners
 		window.removeEventListener("keydown", handleKeyDown);
 		
@@ -752,10 +929,15 @@ function handleKeyDown(event: KeyboardEvent) {
 		
 		// Reset state variables
 		isRecordModalVisible = false;
-		isZoomModalVisible = false;
 		isModelModalVisible = false;
+		isZoomModalVisible.set(false);
+		lastTriggeredModal.set(null);
 		selectedRecord = null;
 		pointEntity = null;
+		userLocationEntity = null;
+		userLocationPreloaded = false;
+		isMonitoringCamera = false;
+		animationFrameId = null;
 	});
 
 	// Function to format the timestamp on the posts
@@ -778,8 +960,15 @@ function handleKeyDown(event: KeyboardEvent) {
   
 
   
-<div style="width: 100%; display: flex; justify-content: center; align-items: center;">
+<div style="width: 100%; display: flex; justify-content: center; align-items: center; position: relative;">
   <main id="cesiumContainer"></main>
+  
+  
+  <!-- Height Display (bottom left) -->
+  <div class="height-display">
+    <div class="height-label">Height:</div>
+    <div class="height-value">{Math.round(currentHeight / 1000)}km</div>
+  </div>
 </div>  
 
 
@@ -825,15 +1014,6 @@ function handleKeyDown(event: KeyboardEvent) {
   </div>
 {/if}
 
-{#if isZoomModalVisible}
-  <div class="modal-zoom-overlay" transition:fade={{ duration: 500 }}>
-    <div class="modal-zoom">
-      <div>
-        <p class="zoom-message">Zoom in until the city level comes into view — then you can drop a pin.</p>
-      </div>
-    </div>
-  </div>
-{/if}
 
 {#if isModelModalVisible && $selectedModel}
   <div class="modal" transition:fade={{ duration: 500 }}>
@@ -885,9 +1065,51 @@ function handleKeyDown(event: KeyboardEvent) {
 	  height: 100vh;
 	  margin: 0;
 	  padding: 0;
-	opacity: 0; /* Initial state */
-	animation: fade-in-scale-up 3s ease-in-out forwards; /* Apply the fade-in animation */
-	animation-delay: 1s;
+	}
+
+
+	/* Height display (bottom left) */
+	.height-display {
+	  position: absolute;
+	  bottom: 20px;
+	  left: 20px;
+	  z-index: 1000;
+	  background: rgba(0, 0, 0, 0.7);
+	  padding: 10px 15px;
+	  border-radius: 8px;
+	  backdrop-filter: blur(10px);
+	  border: 1px solid rgba(255, 255, 255, 0.2);
+	  display: flex;
+	  align-items: center;
+	  gap: 8px;
+	}
+
+	.height-label {
+	  color: rgba(255, 255, 255, 0.8);
+	  font-size: 14px;
+	  font-weight: 500;
+	}
+
+	.height-value {
+	  color: white;
+	  font-size: 16px;
+	  font-weight: 600;
+	}
+
+	.height-label {
+	  color: rgba(255, 255, 255, 0.8);
+	  font-size: 12px;
+	  font-weight: 500;
+	  margin-bottom: 5px;
+	  text-transform: uppercase;
+	  letter-spacing: 0.5px;
+	}
+
+	.height-value {
+	  color: #ffffff;
+	  font-size: 18px;
+	  font-weight: bold;
+	  text-align: center;
 	}
 
 	.title{
@@ -993,90 +1215,13 @@ function handleKeyDown(event: KeyboardEvent) {
 	  font-weight: 600;
 	}
 
-	.modal-zoom-overlay {
-	  position: fixed;
-	  top: 50%;
-	  left: 50%;
-	  transform: translate(-50%, -50%);
-	  z-index: 1000;
-	  pointer-events: none;
-	}
 
-	.modal-zoom {
-	  background-color: rgba(0, 0, 0, 0.8);
-	  border-radius: 15px;
-	  padding: 20px;
-	  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-	  backdrop-filter: blur(10px);
-	  border: 1px solid rgba(255, 255, 255, 0.2);
-	}
 
-	.zoom-message {
-	  color: white;
-	  text-align: center;
-	  font-size: 1.0em;
-	  margin: 0;
-	  font-weight: 500;
-	}
 
-	/* Mobile responsiveness */
-	@media (max-width: 1120px) {
-    
 
-    .zoom-message {
-      font-size: 0.9em;
-    }
-  }
 
-  /* Mobile responsiveness */
-	@media (max-width: 1020px) {
-    
 
-    .zoom-message {
-      font-size: 0.8em;
-    }
-  }
 
-  /* Mobile responsiveness */
-	@media (max-width: 910px) {
-    
-
-    .zoom-message {
-      font-size: 0.7em;
-    }
-  }
-
-	/* Mobile responsiveness */
-	@media (max-width: 768px) {
-    
-
-    .zoom-message {
-      font-size: 0.7em;
-    }
-  }
-
-  @media (max-width: 480px) {
-    
-
-    .zoom-message {
-      font-size: 0.5em;
-    }
-  }
-
-  @media (max-width: 400px) {
-    
-
-    .zoom-message {
-      font-size: 0.5em;
-    }
-  }
-
-  @media (max-width: 360px) {
-    
-    .zoom-message {
-      font-size: 0.5em;
-    }
-  }
 
 	.float-right {
         float: right;

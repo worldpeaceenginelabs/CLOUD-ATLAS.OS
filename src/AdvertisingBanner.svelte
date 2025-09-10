@@ -56,8 +56,9 @@
 <style>
   .advertising-banner {
     position: fixed;
-    top: 20px;
+    top: 50%;
     left: 20px;
+    transform: translateY(-50%);
     z-index: 100;
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px);
@@ -115,8 +116,9 @@
   /* Mobile responsiveness */
   @media (max-width: 768px) {
     .advertising-banner {
-      top: 15px;
+      top: 50%;
       left: 15px;
+      transform: translateY(-50%);
       padding: 12px 16px;
       max-width: 240px;
     }
@@ -132,8 +134,9 @@
 
   @media (max-width: 480px) {
     .advertising-banner {
-      top: 10px;
+      top: 50%;
       left: 10px;
+      transform: translateY(-50%);
       padding: 8px 12px;
       max-width: 180px;
     }
@@ -149,8 +152,9 @@
 
   @media (max-width: 400px) {
     .advertising-banner {
-      top: 8px;
+      top: 50%;
       left: 8px;
+      transform: translateY(-50%);
       padding: 6px 10px;
       max-width: 160px;
       border-radius: 12px;

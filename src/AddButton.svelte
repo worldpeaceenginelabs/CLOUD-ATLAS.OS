@@ -7,7 +7,7 @@
   import ActionEvent from './ActionEvent.svelte';
   import Petition from './Petition.svelte';
   import Crowdfunding from './Crowdfunding.svelte';
-  import { coordinates } from './store';
+  import { coordinates, isZoomModalVisible, lastTriggeredModal } from './store';
 
   // Component state
   let isDropdownVisible = false;
@@ -114,6 +114,7 @@
   // Show coordinate picker modal
   function showCoordinatePickerMessage() {
     showCoordinatePickerModal = true;
+    lastTriggeredModal.set('pick');
     // Auto-hide after 5 seconds
     setTimeout(() => {
       showCoordinatePickerModal = false;
@@ -648,10 +649,20 @@
 {/if}
 
 {#if showCoordinatePickerModal}
-  <div class="modal-pickcoordinates-overlay" transition:fade={{ duration: 500 }}>
+  <div class="modal-pickcoordinates-overlay" style="z-index: {$lastTriggeredModal === 'pick' ? 1001 : 1000};" transition:fade={{ duration: 500 }}>
     <div class="modal-pickcoordinates">
       <div>
         <p class="pickcoordinates-message">Please pick coordinates on the map first — then you can add application pins.</p>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if $isZoomModalVisible}
+  <div class="modal-zoom-overlay" style="z-index: {$lastTriggeredModal === 'zoom' ? 1001 : 1000};" transition:fade={{ duration: 500 }}>
+    <div class="modal-zoom">
+      <div>
+        <p class="zoom-message">Zoom in until the city level comes into view — then you can drop a pin.</p>
       </div>
     </div>
   </div>
@@ -1022,7 +1033,6 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 1000;
     pointer-events: none;
   }
 
@@ -1043,10 +1053,39 @@
     font-weight: 500;
   }
 
+  /* Zoom modal styles */
+  .modal-zoom-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .modal-zoom {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .zoom-message {
+    color: white;
+    text-align: center;
+    font-size: 1.0em;
+    margin: 0;
+    font-weight: 500;
+  }
+
   /* Mobile responsiveness*/
   @media (max-width: 1120px) {
     .pickcoordinates-message {
       font-size: 0.8em;
+    }
+    .zoom-message {
+      font-size: 0.9em;
     }
   }
 
@@ -1054,11 +1093,17 @@
     .pickcoordinates-message {
       font-size: 0.7em;
     }
+    .zoom-message {
+      font-size: 0.8em;
+    }
   }
 
   @media (max-width: 910px) {
     .pickcoordinates-message {
       font-size: 0.65em;
+    }
+    .zoom-message {
+      font-size: 0.7em;
     }
   }
 
@@ -1066,10 +1111,16 @@
     .pickcoordinates-message {
       font-size: 0.65em;
     }
+    .zoom-message {
+      font-size: 0.7em;
+    }
   }
 
   @media (max-width: 480px) {
     .pickcoordinates-message {
+      font-size: 0.5em;
+    }
+    .zoom-message {
       font-size: 0.5em;
     }
   }
@@ -1078,11 +1129,17 @@
     .pickcoordinates-message {
       font-size: 0.45em;
     }
+    .zoom-message {
+      font-size: 0.5em;
+    }
   }
 
   @media (max-width: 360px) {
     .pickcoordinates-message {
       font-size: 0.4em;
+    }
+    .zoom-message {
+      font-size: 0.5em;
     }
   }
 

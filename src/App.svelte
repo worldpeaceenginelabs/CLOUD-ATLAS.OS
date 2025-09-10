@@ -8,6 +8,7 @@
   import { writable } from 'svelte/store';
   import ActionEvent from "./ActionEvent.svelte";
   import AdvertisingBanner from "./AdvertisingBanner.svelte";
+  import ProgressBar from "./ProgressBar.svelte";
 
   let showPicture = true;
   let quote = "\"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.\" Buckminster Fuller";
@@ -21,6 +22,12 @@
   let addButtonComponent: AddButton | null = null;
   let actionEventComponent: ActionEvent | null = null;
   let advertisingBannerComponent: AdvertisingBanner | null = null;
+  let progressBarComponent: ProgressBar | null = null;
+
+  // Progress data from Cesium component
+  let basemapProgress = 0;
+  let tilesetProgress = 0;
+  let isInitialLoadComplete = false;
 
   onDestroy(() => {
     // Reset state
@@ -36,6 +43,7 @@
     addButtonComponent = null;
     actionEventComponent = null;
     advertisingBannerComponent = null;
+    progressBarComponent = null;
   });
 </script>
 
@@ -60,10 +68,11 @@
     </div>
   {:else}
     <div class="gridcontainer"><Grid bind:this={gridComponent} /></div>
-    <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} /></div>
+    <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:basemapProgress bind:tilesetProgress bind:isInitialLoadComplete /></div>
     <!--- <div class="searchcontainer"><Appsearch /></div> -->
     <div class="infoboxcontainer"><Infobox bind:this={infoboxComponent} {isVisible} /></div>
     <AdvertisingBanner bind:this={advertisingBannerComponent} />
+    <ProgressBar bind:this={progressBarComponent} {basemapProgress} {tilesetProgress} {isInitialLoadComplete} />
     <AddButton bind:this={addButtonComponent} />
   {/if}
 </div>

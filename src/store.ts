@@ -52,6 +52,10 @@ export const selectedModel: Writable<ModelData | null> = writable(null);
 
 export const pins: Writable<PinData[]> = writable([]);
 
+export const isZoomModalVisible: Writable<boolean> = writable(false);
+
+export const lastTriggeredModal: Writable<'zoom' | 'pick' | null> = writable(null);
+
 // Store cleanup functions
 export function resetAllStores() {
   coordinates.set({
@@ -62,6 +66,8 @@ export function resetAllStores() {
   models.set([]);
   selectedModel.set(null);
   pins.set([]);
+  isZoomModalVisible.set(false);
+  lastTriggeredModal.set(null);
 }
 
 // Individual store cleanup functions
@@ -83,4 +89,12 @@ export function resetSelectedModel() {
 
 export function resetPins() {
   pins.set([]);
+}
+
+export function resetZoomModal() {
+  isZoomModalVisible.set(false);
+}
+
+export function resetLastTriggeredModal() {
+  lastTriggeredModal.set(null);
 }
