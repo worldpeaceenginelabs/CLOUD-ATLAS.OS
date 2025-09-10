@@ -1014,10 +1014,69 @@ function handleKeyDown(event: KeyboardEvent) {
 	.zoom-message {
 	  color: white;
 	  text-align: center;
-	  font-size: 1.1em;
+	  font-size: 1.0em;
 	  margin: 0;
 	  font-weight: 500;
 	}
+
+	/* Mobile responsiveness */
+	@media (max-width: 1120px) {
+    
+
+    .zoom-message {
+      font-size: 0.9em;
+    }
+  }
+
+  /* Mobile responsiveness */
+	@media (max-width: 1020px) {
+    
+
+    .zoom-message {
+      font-size: 0.8em;
+    }
+  }
+
+  /* Mobile responsiveness */
+	@media (max-width: 910px) {
+    
+
+    .zoom-message {
+      font-size: 0.7em;
+    }
+  }
+
+	/* Mobile responsiveness */
+	@media (max-width: 768px) {
+    
+
+    .zoom-message {
+      font-size: 0.7em;
+    }
+  }
+
+  @media (max-width: 480px) {
+    
+
+    .zoom-message {
+      font-size: 0.5em;
+    }
+  }
+
+  @media (max-width: 400px) {
+    
+
+    .zoom-message {
+      font-size: 0.5em;
+    }
+  }
+
+  @media (max-width: 360px) {
+    
+    .zoom-message {
+      font-size: 0.5em;
+    }
+  }
 
 	.float-right {
         float: right;

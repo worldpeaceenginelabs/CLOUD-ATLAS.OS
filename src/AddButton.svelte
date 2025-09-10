@@ -7,6 +7,7 @@
   import ActionEvent from './ActionEvent.svelte';
   import Petition from './Petition.svelte';
   import Crowdfunding from './Crowdfunding.svelte';
+  import { coordinates } from './store';
 
   // Component state
   let isDropdownVisible = false;
@@ -17,6 +18,14 @@
   let uiComponent: UI | null = null;
   let touchStartTime = 0;
 
+  // Coordinate state
+  let hasCoordinates = false;
+
+  // Reactive statement to check if coordinates are available
+  $: {
+    hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
+  }
+
   // Modal states
   let showBrainstormingModal = false;
   let showSimulationModal = false;
@@ -24,6 +33,7 @@
   let showActionEventModal = false;
   let showPetitionModal = false;
   let showCrowdfundingModal = false;
+  let showCoordinatePickerModal = false;
 
   // Toggle dropdown
   function toggleDropdown() {
@@ -101,6 +111,19 @@
     }
   }
 
+  // Show coordinate picker modal
+  function showCoordinatePickerMessage() {
+    showCoordinatePickerModal = true;
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      showCoordinatePickerModal = false;
+    }, 3000);
+  }
+
+  // Close coordinate picker modal
+  function closeCoordinatePickerModal() {
+    showCoordinatePickerModal = false;
+  }
 
   // Handle item click
   function handleItemClick(item: string) {
@@ -109,6 +132,12 @@
     showInfoPanel = false;
     hoveredItem = '';
     hoveredSubmenuItem = '';
+    
+    // Check if coordinates are available for main menu items (not submenu)
+    if (!hasCoordinates && item !== 'action') {
+      showCoordinatePickerMessage();
+      return;
+    }
     
     switch (item) {
       case 'model':
@@ -150,6 +179,12 @@
     hoveredItem = '';
     hoveredSubmenuItem = '';
     
+    // Check if coordinates are available for submenu items
+    if (!hasCoordinates) {
+      showCoordinatePickerMessage();
+      return;
+    }
+    
     switch (actionType) {
       case 'actionevent':
         showActionEventModal = true;
@@ -189,6 +224,7 @@
       showActionEventModal = false;
       showPetitionModal = false;
       showCrowdfundingModal = false;
+      showCoordinatePickerModal = false;
       hoveredItem = '';
       hoveredSubmenuItem = '';
       showInfoPanel = false;
@@ -221,6 +257,7 @@
     showActionEventModal = false;
     showPetitionModal = false;
     showCrowdfundingModal = false;
+    showCoordinatePickerModal = false;
   });
 </script>
 
@@ -230,6 +267,7 @@
     class="add-button" 
     on:click={toggleDropdown}
     class:active={isDropdownVisible}
+    class:has-coordinates={hasCoordinates}
   >
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -237,11 +275,19 @@
       <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
     </svg>
     Add
+    {#if hasCoordinates}
+      <div class="coordinate-indicator">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.3639 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    {/if}
   </button>
 
   <!-- Blue Container -->
   {#if isDropdownVisible}
-    <div class="blue-container" transition:slide={{ duration: 300, axis: 'y' }}>
+    <div class="blue-container" transition:slide={{ duration: 500, axis: 'y' }}>
       <!-- Red Container (Main Dropdown Menu) -->
       <div class="dropdown-menu">
         <div 
@@ -372,7 +418,7 @@
 
       <!-- Yellow Container (Action Dropdown) -->
       {#if showActionDropdown}
-        <div class="action-dropdown" transition:slide={{ duration: 300, axis: 'y' }}>
+        <div class="action-dropdown" transition:slide={{ duration: 500, axis: 'y' }}>
           <div 
             class="dropdown-item" 
             role="button"
@@ -477,7 +523,7 @@
 <UI bind:this={uiComponent} />
 
 {#if showBrainstormingModal}
-  <div class="modal" transition:fade={{ duration: 300 }}>
+  <div class="modal" transition:fade={{ duration: 500 }}>
     <div class="modal-content">
       <div class="close" on:click={closeBrainstormingModal} on:keydown={(e) => e.key === 'Enter' && closeBrainstormingModal()} role="button" tabindex="0">
         <svg viewBox="0 0 36 36" class="circle">
@@ -502,7 +548,7 @@
 {/if}
 
 {#if showSimulationModal}
-  <div class="modal" transition:fade={{ duration: 300 }}>
+  <div class="modal" transition:fade={{ duration: 500 }}>
     <div class="modal-content">
       <div class="close" on:click={closeSimulationModal} on:keydown={(e) => e.key === 'Enter' && closeSimulationModal()} role="button" tabindex="0">
         <svg viewBox="0 0 36 36" class="circle">
@@ -527,7 +573,7 @@
 {/if}
 
 {#if showActionEventModal}
-  <div class="modal" transition:fade={{ duration: 300 }}>
+  <div class="modal" transition:fade={{ duration: 500 }}>
     <div class="modal-content">
       <div class="close" on:click={closeActionEventModal} on:keydown={(e) => e.key === 'Enter' && closeActionEventModal()} role="button" tabindex="0">
         <svg viewBox="0 0 36 36" class="circle">
@@ -552,7 +598,7 @@
 {/if}
 
 {#if showPetitionModal}
-  <div class="modal" transition:fade={{ duration: 300 }}>
+  <div class="modal" transition:fade={{ duration: 500 }}>
     <div class="modal-content">
       <div class="close" on:click={closePetitionModal} on:keydown={(e) => e.key === 'Enter' && closePetitionModal()} role="button" tabindex="0">
         <svg viewBox="0 0 36 36" class="circle">
@@ -577,7 +623,7 @@
 {/if}
 
 {#if showCrowdfundingModal}
-  <div class="modal" transition:fade={{ duration: 300 }}>
+  <div class="modal" transition:fade={{ duration: 500 }}>
     <div class="modal-content">
       <div class="close" on:click={closeCrowdfundingModal} on:keydown={(e) => e.key === 'Enter' && closeCrowdfundingModal()} role="button" tabindex="0">
         <svg viewBox="0 0 36 36" class="circle">
@@ -597,6 +643,16 @@
         <h2>Add Crowdfunding</h2>
       </div>
       <Crowdfunding />
+    </div>
+  </div>
+{/if}
+
+{#if showCoordinatePickerModal}
+  <div class="modal-pickcoordinates-overlay" transition:fade={{ duration: 500 }}>
+    <div class="modal-pickcoordinates">
+      <div>
+        <p class="pickcoordinates-message">Please pick coordinates on the map first — then you can add application pins.</p>
+      </div>
     </div>
   </div>
 {/if}
@@ -640,9 +696,39 @@
     transform: translateY(-2px);
   }
 
+  .add-button.has-coordinates {
+    background: rgba(74, 222, 128, 0.2);
+    border-color: rgba(74, 222, 128, 0.4);
+  }
+
+  .add-button.has-coordinates:hover {
+    background: rgba(74, 222, 128, 0.3);
+    border-color: rgba(74, 222, 128, 0.5);
+  }
+
   .add-button svg {
     width: 20px;
     height: 20px;
+  }
+
+  .coordinate-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    color: #4ade80;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.1);
+    }
   }
 
   .blue-container {
@@ -928,6 +1014,76 @@
 
   .close:hover span {
     width: calc(var(--size) / 4);
+  }
+
+  /* Coordinate picker modal styles*/
+  .modal-pickcoordinates-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  .modal-pickcoordinates {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .pickcoordinates-message {
+    color: white;
+    text-align: center;
+    font-size: 0.9em;
+    margin: 0;
+    font-weight: 500;
+  }
+
+  /* Mobile responsiveness*/
+  @media (max-width: 1120px) {
+    .pickcoordinates-message {
+      font-size: 0.8em;
+    }
+  }
+
+  @media (max-width: 1020px) {
+    .pickcoordinates-message {
+      font-size: 0.7em;
+    }
+  }
+
+  @media (max-width: 910px) {
+    .pickcoordinates-message {
+      font-size: 0.65em;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .pickcoordinates-message {
+      font-size: 0.65em;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .pickcoordinates-message {
+      font-size: 0.5em;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .pickcoordinates-message {
+      font-size: 0.45em;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .pickcoordinates-message {
+      font-size: 0.4em;
+    }
   }
 
   /* Responsive design */
