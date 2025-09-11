@@ -3,8 +3,10 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
-  import { coordinates } from './store';
-  import { idb } from './idb';
+  import { coordinates } from '../store';
+  import { idb } from '../idb';
+  import FormInput from '../components/FormInput.svelte';
+  import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
 
 
   // Initialize IndexedDB using shared module
@@ -73,7 +75,7 @@
 
 
 
-// Function to initialize the app in the right sequence
+  // Function to initialize the app in the right sequence
  async function initializeApp(): Promise<void> {
   try {
     await initializeIndexedDB();
@@ -241,14 +243,14 @@ function startRoom() {
   // Function to check if a record is valid
   function recordIsValid(rec: Record): boolean {
     const isTitleValid = rec.title.trim() !== '';
-    // Regular expression to check if the link starts with the specified patterns
-    const linkPattern = /^https:\/\/(us05web\.)?zoom\.us\/j\/\d+/;
+    // Define the regex pattern for Telegram Group URLs
+    const linkPattern = /^(?:https?:\/\/)?(?:t\.me|telegram\.me|t\.dog|telegram\.dog)\/(?:joinchat\/|\+)?([\w-]+)$/i;
     const isLinkValid = linkPattern.test(rec.link.trim());
     
     return isTitleValid && isLinkValid;
   }
 
-
+  
 
 
   // Record interface
@@ -275,7 +277,7 @@ function startRoom() {
       link: '',
       longitude: '',
       latitude: '',
-      category: 'brainstorming',
+      category: 'actionevent',
       height: 0,
     };
   }
@@ -291,14 +293,32 @@ onMount(async () => {
   
   
   <form>
-    <label><div style="text-align:left">Title</div></label>
-    <textarea placeholder="Enter a short, powerful mission name here - max 100 chars" maxlength="100" bind:value={record.title} required></textarea><br>
+    <FormInput 
+      type="textarea"
+      label="Title"
+      placeholder="Enter a short, powerful mission name here - max 100 chars"
+      bind:value={record.title}
+      maxlength={100}
+      required={true}
+    />
 
-    <label><div style="text-align:left">Text</div></label>
-    <textarea placeholder="What's the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
+    <FormInput 
+      type="textarea"
+      label="Text"
+      placeholder="What's the mission in a nutshell? - max 250 chars"
+      bind:value={record.text}
+      maxlength={250}
+      required={true}
+    />
 
-    <label><div style="text-align:left">Zoom.us Link</div></label>
-    <input type="text" placeholder="https://us05web.zoom.us/j/ID?pwd=12345 or https://zoom.us/j/ID?pwd=12345" maxlength="100" bind:value={record.link} required><br>
+    <FormInput 
+      type="url"
+      label="Telegram Group Link"
+      placeholder="https://t.me/+rtygFbFZrJE5NjIy"
+      bind:value={record.link}
+      maxlength={100}
+      required={true}
+    />
 
     <input type="hidden" bind:value={record.latitude} required>
     <input type="hidden" bind:value={record.longitude} required>
@@ -311,7 +331,9 @@ onMount(async () => {
     <p class="coordgreen animated-gradient">Pin dropped...</p>
     {/if}
     
-    <button on:click|preventDefault={send}>Drop Pin</button>
+    <GlassmorphismButton variant="primary" onClick={send} fullWidth={true}>
+      Drop Pin
+    </GlassmorphismButton>
   </form>
 
 </main>
@@ -334,36 +356,6 @@ onMount(async () => {
     padding-bottom: 1rem;
     margin: 0;
   }
-
-  label {
-    font-weight: bold;
-  }
-
-  input, textarea {
-    width: 100%;
-    padding: 0rem;
-    margin-bottom: 0rem;
-  }
-
-  button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      width: 100%;
-      /* Apply glassmorphism style for the modal content */
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-  button:hover {
-      background-color: #abd6ff;
-    }
 
 
 

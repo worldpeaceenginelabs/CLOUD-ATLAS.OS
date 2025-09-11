@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
 
   let light: HTMLElement | null = null;
   let messageElement: HTMLElement | null = null;
   let moveLightInterval: NodeJS.Timeout | null = null;
   let showMessageTimeout: NodeJS.Timeout | null = null;
+  let isGridReady = false;
   const messages = [
     "An independent, community-owned Google Earth, free from centralized servers and overpowered entities, owned solely by you and the public!",
     "IT'S FREE! More users mean more app storage and computational power. No back-end needed! Syncs via public tracker networks. Now using BitTorrent, with Nostr as a fallback coming soon...",
@@ -66,14 +69,18 @@
       light.style.top = `${startY}px`;
 
       const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-      light.style.transition = `all ${distance / 100}s linear`;
+      // Use transform instead of left/top for better performance
+      light.style.transition = `transform ${distance / 150}s ease-out`; // Slower, smoother transition
+      light.style.transform = `translate(${endX - startX}px, ${endY - startY}px)`;
 
+      // Reset transform after animation
       setTimeout(() => {
         if (light) {
           light.style.left = `${endX}px`;
           light.style.top = `${endY}px`;
+          light.style.transform = 'translate(0, 0)';
         }
-      }, 100);
+      }, (distance / 150) * 1000 + 100);
     }
   }
 
@@ -112,7 +119,32 @@
 
 
   onMount(() => {
-    moveLightInterval = setInterval(moveLight, 6000);
+    // Load grid background immediately and signal when ready
+    const gridElement = document.querySelector('#hex-grid .grid') as HTMLElement;
+    if (gridElement) {
+      // Create an image to preload the background
+      const img = new Image();
+      img.onload = () => {
+        // Background is loaded, apply it and signal ready
+        gridElement.style.background = 'url(/grid.svg) repeat';
+        gridElement.style.backgroundSize = '500px';
+        isGridReady = true;
+        dispatch('gridReady');
+      };
+      img.onerror = () => {
+        // Even if image fails to load, signal ready to not block Cesium
+        console.warn('Grid background image failed to load');
+        isGridReady = true;
+        dispatch('gridReady');
+      };
+      img.src = '/grid.svg';
+    } else {
+      // Fallback: signal ready immediately
+      isGridReady = true;
+      dispatch('gridReady');
+    }
+    
+    moveLightInterval = setInterval(moveLight, 8000); // Increased interval from 6s to 8s
     showMessage();
   });
 
@@ -134,7 +166,7 @@
   });
 </script>
 
-<div class="container">
+<div class="container" class:ready={isGridReady}>
   <div id="hex-grid">
     <div bind:this={light} class="light"></div>
     <div bind:this={messageElement} class="message"></div>
@@ -151,6 +183,12 @@
     min-height: 100vh;
     position: relative;
     z-index: 0;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+  }
+
+  .container.ready {
+    opacity: 1;
   }
 
   #hex-grid {
@@ -163,11 +201,9 @@
     position: absolute;
     top: 0;
     left: 0;
-    background: url(/grid.svg) repeat;
     width: 100%;
     height: 100%;
     z-index: 3;
-    background-size: 500px;
   }
 
   #hex-grid .light {
@@ -180,6 +216,8 @@
     filter: blur(15px);
     background: linear-gradient(90deg, #335bf4 0%, #2ae9c9 100%);
     z-index: 2;
+    will-change: transform; /* Optimize for animations */
+    backface-visibility: hidden; /* Prevent flickering */
   }
 
   #hex-grid .message {

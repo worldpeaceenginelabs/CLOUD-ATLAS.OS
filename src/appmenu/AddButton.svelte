@@ -1,13 +1,21 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
-  import UI from './UI.svelte';
   import Brainstorming from './Brainstorming.svelte';
   import Simulation from './Simulation.svelte';
   import ActionEvent from './ActionEvent.svelte';
   import Petition from './Petition.svelte';
   import Crowdfunding from './Crowdfunding.svelte';
-  import { coordinates, isZoomModalVisible, lastTriggeredModal } from './store';
+  import Modal from '../components/Modal.svelte';
+  
+  import { coordinates, isZoomModalVisible, lastTriggeredModal, models, selectedModel, type ModelData } from '../store';
+  import { dataManager } from '../dataManager';
+
+  // Props - removed toggleModelUI as it's handled internally now
+  export let addPreviewModelToScene: ((modelData: any) => void) | undefined = undefined;
+  export let removePreviewModelFromScene: (() => void) | undefined = undefined;
+  export let updatePreviewModelInScene: ((modelData: any) => void) | undefined = undefined;
+  export let onAddModel: (() => void) | undefined = undefined;
 
   // Component state
   let isDropdownVisible = false;
@@ -15,7 +23,6 @@
   let hoveredSubmenuItem = '';
   let showInfoPanel = false;
   let infoPanelContent = '';
-  let uiComponent: UI | null = null;
   let touchStartTime = 0;
 
   // Coordinate state
@@ -44,6 +51,15 @@
       showInfoPanel = false;
       showActionDropdown = false;
     }
+  }
+
+  // Close menu (exported for external use)
+  export function closeMenu() {
+    isDropdownVisible = false;
+    hoveredItem = '';
+    hoveredSubmenuItem = '';
+    showInfoPanel = false;
+    showActionDropdown = false;
   }
 
   // Handle info icon click
@@ -142,8 +158,9 @@
     
     switch (item) {
       case 'model':
-        uiComponent?.toggle();
-        // Don't close menu - let user decide when to close it
+        if (onAddModel) {
+          onAddModel();
+        }
         break;
       case 'brainstorming':
         showBrainstormingModal = true;
@@ -215,6 +232,34 @@
     showCrowdfundingModal = false;
   }
 
+
+  // Data manager functions for models
+  async function addModel(modelData: ModelData) {
+    try {
+      await dataManager.addModel(modelData);
+      // Update store after successful IDB + scene operation
+      models.update(currentModels => [...currentModels, modelData]);
+    } catch (error) {
+      console.error('Error adding model:', error);
+      throw error;
+    }
+  }
+
+  async function updateModel(modelData: ModelData) {
+    try {
+      await dataManager.updateModel(modelData);
+      // Update store after successful IDB + scene operation
+      models.update(currentModels => 
+        currentModels.map(model => 
+          model.id === modelData.id ? modelData : model
+        )
+      );
+    } catch (error) {
+      console.error('Error updating model:', error);
+      throw error;
+    }
+  }
+
   // Handle escape key
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
@@ -232,8 +277,10 @@
     }
   }
 
+
   onMount(() => {
     window.addEventListener('keydown', handleKeyDown);
+    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -249,7 +296,6 @@
     hoveredSubmenuItem = '';
     showInfoPanel = false;
     infoPanelContent = '';
-    uiComponent = null;
     
     // Reset modal states
     showBrainstormingModal = false;
@@ -521,158 +567,88 @@
 </div>
 
 <!-- Modals -->
-<UI bind:this={uiComponent} />
+<!-- UI component moved to Cesium.svelte where data manager functions are available -->
 
-{#if showBrainstormingModal}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-content">
-      <div class="close" on:click={closeBrainstormingModal} on:keydown={(e) => e.key === 'Enter' && closeBrainstormingModal()} role="button" tabindex="0">
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div class="modal-header">
-        <h2>Add Brainstorming</h2>
-      </div>
-      <Brainstorming />
-    </div>
-  </div>
-{/if}
+<Modal 
+  isVisible={showBrainstormingModal} 
+  onClose={closeBrainstormingModal}
+  title="Add Brainstorming"
+  maxWidth="600px"
+  transitionDuration={500}
+>
+  <Brainstorming />
+</Modal>
 
-{#if showSimulationModal}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-content">
-      <div class="close" on:click={closeSimulationModal} on:keydown={(e) => e.key === 'Enter' && closeSimulationModal()} role="button" tabindex="0">
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div class="modal-header">
-        <h2>Add Simulation</h2>
-      </div>
-      <Simulation />
-    </div>
-  </div>
-{/if}
+<Modal 
+  isVisible={showSimulationModal} 
+  onClose={closeSimulationModal}
+  title="Add Simulation"
+  maxWidth="600px"
+  transitionDuration={500}
+>
+  <Simulation />
+</Modal>
 
-{#if showActionEventModal}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-content">
-      <div class="close" on:click={closeActionEventModal} on:keydown={(e) => e.key === 'Enter' && closeActionEventModal()} role="button" tabindex="0">
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div class="modal-header">
-        <h2>Add Action Event</h2>
-      </div>
-      <ActionEvent />
-    </div>
-  </div>
-{/if}
+<Modal 
+  isVisible={showActionEventModal} 
+  onClose={closeActionEventModal}
+  title="Add Action Event"
+  maxWidth="600px"
+  transitionDuration={500}
+>
+  <ActionEvent />
+</Modal>
 
-{#if showPetitionModal}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-content">
-      <div class="close" on:click={closePetitionModal} on:keydown={(e) => e.key === 'Enter' && closePetitionModal()} role="button" tabindex="0">
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div class="modal-header">
-        <h2>Add Petition</h2>
-      </div>
-      <Petition />
-    </div>
-  </div>
-{/if}
+<Modal 
+  isVisible={showPetitionModal} 
+  onClose={closePetitionModal}
+  title="Add Petition"
+  maxWidth="600px"
+  transitionDuration={500}
+>
+  <Petition />
+</Modal>
 
-{#if showCrowdfundingModal}
-  <div class="modal" transition:fade={{ duration: 500 }}>
-    <div class="modal-content">
-      <div class="close" on:click={closeCrowdfundingModal} on:keydown={(e) => e.key === 'Enter' && closeCrowdfundingModal()} role="button" tabindex="0">
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div class="modal-header">
-        <h2>Add Crowdfunding</h2>
-      </div>
-      <Crowdfunding />
-    </div>
-  </div>
-{/if}
+<Modal 
+  isVisible={showCrowdfundingModal} 
+  onClose={closeCrowdfundingModal}
+  title="Add Crowdfunding"
+  maxWidth="600px"
+  transitionDuration={500}
+>
+  <Crowdfunding />
+</Modal>
 
-{#if showCoordinatePickerModal}
-  <div class="modal-pickcoordinates-overlay" style="z-index: {$lastTriggeredModal === 'pick' ? 1001 : 1000};" transition:fade={{ duration: 500 }}>
-    <div class="modal-pickcoordinates">
-      <div>
-        <p class="pickcoordinates-message">Please pick coordinates on the map first — then you can add application pins.</p>
-      </div>
-    </div>
-  </div>
-{/if}
+<Modal 
+  isVisible={showCoordinatePickerModal} 
+  onClose={closeCoordinatePickerModal}
+  modalType="notification"
+  zIndex={$lastTriggeredModal === 'pick' ? 1001 : 1000}
+  showCloseButton={false}
+  closeOnBackdropClick={false}
+  transitionDuration={500}
+>
+  <p>Please pick coordinates on the map first — then you can add application pins.</p>
+</Modal>
 
-{#if $isZoomModalVisible}
-  <div class="modal-zoom-overlay" style="z-index: {$lastTriggeredModal === 'zoom' ? 1001 : 1000};" transition:fade={{ duration: 500 }}>
-    <div class="modal-zoom">
-      <div>
-        <p class="zoom-message">Zoom in until the city level comes into view — then you can drop a pin.</p>
-      </div>
-    </div>
-  </div>
-{/if}
+<Modal 
+  isVisible={$isZoomModalVisible} 
+  onClose={() => isZoomModalVisible.set(false)}
+  modalType="notification"
+  zIndex={$lastTriggeredModal === 'zoom' ? 1001 : 1000}
+  showCloseButton={false}
+  closeOnBackdropClick={false}
+  transitionDuration={500}
+>
+  <p>Zoom in until the city level comes into view — then you can drop a pin.</p>
+</Modal>
+
 
 <style>
   .add-button-container {
     position: fixed;
     top: 20px;
-    right: 20px;
+    right: 10px;
     z-index: 50;
     display: inline-block;
   }
@@ -882,265 +858,6 @@
     font-size: 14px;
     font-weight: 500;
     line-height: 1.5;
-  }
-
-  /* Modal styles */
-  .modal {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(5px);
-    z-index: 1000;
-  }
-
-  .modal-content {
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-    border-radius: 15px;
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 30px;
-    position: relative;
-  }
-
-  .modal-header {
-    text-align: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .modal-header h2 {
-    color: white;
-    margin: 0;
-    font-size: 1.5em;
-    font-weight: 600;
-  }
-
-  /* Close button styles */
-  .close {
-    --size: 22px;
-    --borderSize: 2px;
-    --borderColor: rgba(255, 255, 255, 1);
-    --speed: 0.5s;
-
-    width: var(--size);
-    height: var(--size);
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: #455A64;
-    border-radius: 50%;
-    box-shadow: 0 0 20px -5px rgba(255, 255, 255, 0.5);
-    transition: 0.25s ease-in-out;
-    cursor: pointer;
-    animation: fade-in-scale-down var(--speed) ease-out 0.25s both;
-  }
-
-  @keyframes fade-in-scale-down {
-    from {
-      opacity: 0;
-      transform: scale(1.1);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  .close .circle path {
-    stroke: var(--borderColor);
-    fill: none;
-    stroke-width: calc(var(--borderSize) / 2);
-    stroke-linecap: round;
-    animation: progress var(--speed) ease-out 0.25s both;
-  }
-
-  @keyframes progress {
-    from {
-      stroke-dasharray: 0 100;
-    }
-  }
-
-  .close span {
-    display: block;
-    width: calc(var(--size) / 4 - 2px);
-    height: var(--borderSize);
-    background: var(--borderColor);
-    box-shadow: 0 0 20px -5px rgba(255, 255, 255, 0.5);
-    border-radius: 20px;
-    position: absolute;
-    --padding: calc(var(--size) / 3);
-    transition: 0.25s ease-in-out;
-    animation: slide-in var(--speed) ease-in-out 0.25s both;
-  }
-
-  @keyframes slide-in {
-    from {
-      width: 0;
-    }
-  }
-
-  .close span:nth-child(2) {
-    top: calc(var(--padding) - var(--borderSize) / 2);
-    left: var(--padding);
-    transform: rotate(45deg);
-    transform-origin: top left;
-  }
-
-  .close span:nth-child(3) {
-    top: calc(var(--padding) - var(--borderSize) / 2);
-    right: var(--padding);
-    transform: rotate(-45deg);
-    transform-origin: top right;
-  }
-
-  .close span:nth-child(4) {
-    bottom: calc(var(--padding) - var(--borderSize) / 2);
-    left: var(--padding);
-    transform: rotate(-45deg);
-    transform-origin: bottom left;
-  }
-
-  .close span:nth-child(5) {
-    bottom: calc(var(--padding) - var(--borderSize) / 2);
-    right: var(--padding);
-    transform: rotate(45deg);
-    transform-origin: bottom right;
-  }
-
-  .close:hover {
-    background: #37474F;
-  }
-
-  .close:hover span {
-    width: calc(var(--size) / 4);
-  }
-
-  /* Coordinate picker modal styles*/
-  .modal-pickcoordinates-overlay {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-
-  .modal-pickcoordinates {
-    background-color: rgba(0, 0, 0, 0.8);
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .pickcoordinates-message {
-    color: white;
-    text-align: center;
-    font-size: 0.9em;
-    margin: 0;
-    font-weight: 500;
-  }
-
-  /* Zoom modal styles */
-  .modal-zoom-overlay {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-
-  .modal-zoom {
-    background-color: rgba(0, 0, 0, 0.8);
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .zoom-message {
-    color: white;
-    text-align: center;
-    font-size: 1.0em;
-    margin: 0;
-    font-weight: 500;
-  }
-
-  /* Mobile responsiveness*/
-  @media (max-width: 1120px) {
-    .pickcoordinates-message {
-      font-size: 0.8em;
-    }
-    .zoom-message {
-      font-size: 0.9em;
-    }
-  }
-
-  @media (max-width: 1020px) {
-    .pickcoordinates-message {
-      font-size: 0.7em;
-    }
-    .zoom-message {
-      font-size: 0.8em;
-    }
-  }
-
-  @media (max-width: 910px) {
-    .pickcoordinates-message {
-      font-size: 0.65em;
-    }
-    .zoom-message {
-      font-size: 0.7em;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .pickcoordinates-message {
-      font-size: 0.65em;
-    }
-    .zoom-message {
-      font-size: 0.7em;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .pickcoordinates-message {
-      font-size: 0.5em;
-    }
-    .zoom-message {
-      font-size: 0.5em;
-    }
-  }
-
-  @media (max-width: 400px) {
-    .pickcoordinates-message {
-      font-size: 0.45em;
-    }
-    .zoom-message {
-      font-size: 0.5em;
-    }
-  }
-
-  @media (max-width: 360px) {
-    .pickcoordinates-message {
-      font-size: 0.4em;
-    }
-    .zoom-message {
-      font-size: 0.5em;
-    }
   }
 
   /* Responsive design */

@@ -53,7 +53,7 @@ export interface LocalPinData {
 export class IndexedDBManager {
   private db: IDBDatabase | null = null;
   private dbName = 'indexeddbstore';
-  private version = 3; // Incremented to ensure localpins store is created
+  private version = 4; // Incremented to ensure localpins store is created
 
   /**
    * Initialize IndexedDB connection

@@ -23,9 +23,11 @@
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
 	import { coordinates, models, selectedModel, pins, isZoomModalVisible, lastTriggeredModal, resetAllStores, type ModelData, type PinData } from './store';
-	import ShareButton from './Sharebutton.svelte';
+	import ShareButton from './components/Sharebutton.svelte';
 	import { fade } from 'svelte/transition';
-	import { idb } from './idb';
+	import { dataManager } from './dataManager';
+	import Modal from './components/Modal.svelte';
+	import GlassmorphismButton from './components/GlassmorphismButton.svelte';
   
 // Global variables and states
 let isRecordModalVisible = false;
@@ -54,32 +56,54 @@ let tileset: Cesium3DTileset | null = null; // Global tileset reference
 
 // Export progress data for parent component
 export { basemapProgress, tilesetProgress, isInitialLoadComplete };
+
+// Export preview model functions
+export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene };
+
+// Export function to toggle model UI (deprecated - handled by AddButton.svelte)
+export function toggleModelUI() {
+  // This function is deprecated - model functionality removed
+  console.log('toggleModelUI called - model functionality removed');
+}
   
-	// Initialize IndexedDB using shared module
-	const initializeIndexedDB = async (): Promise<void> => {
-		await idb.openDB();
+	// Initialize data manager
+	const initializeDataManager = async (): Promise<void> => {
+		// Set up callbacks for the data manager
+		dataManager.callbacks = {
+			addModelToScene: addModelToScene,
+			removeModelFromScene: removeModelFromScene,
+			addPinToScene: addRecordToMap,
+			removePinFromScene: removeRecordFromMap
+		};
+  
+		await dataManager.initialize();
 	};
   
-	// Load all records from IndexedDB (initial load)
-	const loadRecordsFromIndexedDB = async () => {
+	// Load all data using streamlined data manager
+	const loadAllData = async () => {
 		if (customDataSource) {
 			customDataSource.entities.removeAll();
 		}
+		if (modelDataSource) {
+			modelDataSource.entities.removeAll();
+		}
   
 		try {
-			const loadedPins = await idb.loadPins();
-			// Load pins directly to scene
-			loadedPins.forEach((pinData: PinData) => {
-				addRecordToMap(pinData);
-			});
-			// Update store silently to avoid triggering reactive statement
+			const { models: loadedModels, pins: loadedPins } = await dataManager.loadAllData();
+			
+			// Update stores with loaded data
+			models.set(loadedModels);
 			pins.set(loadedPins);
+			
 			// Mark that initial loading is complete
+			modelsLoadedFromIndexedDB = true;
 			pinsLoadedFromIndexedDB = true;
-			// Initialize the pin count for tracking changes
+			previousModelCount = loadedModels.length;
 			previousPinCount = loadedPins.length;
+			
+			console.log(`Loaded ${loadedModels.length} models and ${loadedPins.length} pins`);
 		} catch (error) {
-			console.error('Error loading pins from IndexedDB:', error);
+			console.error('Error loading data:', error);
 		}
 	};
 
@@ -228,10 +252,21 @@ export { basemapProgress, tilesetProgress, isInitialLoadComplete };
 		}
 	};
 
-	// Real-time camera monitoring function
+	// Optimized camera monitoring function with throttling
+	let lastHeightCheck = 0;
+	const HEIGHT_CHECK_INTERVAL = 100; // Check every 100ms instead of every frame
+	
 	const monitorCameraHeight = () => {
 		if (!viewer || !isMonitoringCamera) return;
 		
+		const now = performance.now();
+		if (now - lastHeightCheck < HEIGHT_CHECK_INTERVAL) {
+			// Skip this frame, continue monitoring
+			animationFrameId = requestAnimationFrame(monitorCameraHeight);
+			return;
+		}
+		
+		lastHeightCheck = now;
 		const height = viewer.camera.positionCartographic.height;
 		currentHeight = height; // Update height display
 		
@@ -353,58 +388,148 @@ function removeModelFromScene(modelId: string) {
 	}
 }
 
-// Save model to IndexedDB
-async function saveModelToIndexedDB(modelData: ModelData) {
-	try {
-		await idb.saveModel(modelData);
-	} catch (error) {
-		console.error('Error saving model to IndexedDB:', error);
-	}
-}
+// Preview model management
+let previewModelDataSource: CustomDataSource | null = null;
+let currentPreviewModelId: string | null = null;
 
-// Load models from IndexedDB (without triggering reactive updates)
-async function loadModelsFromIndexedDB() {
+// Add preview model to the scene (temporary, not saved to store)
+function addPreviewModelToScene(modelData: ModelData) {
 	try {
-		const loadedModels = await idb.loadModels();
-		// Load models directly to scene without updating store
-		loadedModels.forEach((modelData: ModelData) => {
-			addModelToScene(modelData);
+		// Remove existing preview model if any
+		removePreviewModelFromScene();
+		
+		// Create preview data source if it doesn't exist
+		if (!previewModelDataSource) {
+			previewModelDataSource = new CustomDataSource('previewModels');
+			if (viewer) {
+				viewer.dataSources.add(previewModelDataSource);
+			}
+		}
+
+		const position = Cartesian3.fromDegrees(
+			modelData.coordinates.longitude,
+			modelData.coordinates.latitude,
+			modelData.transform.height
+		);
+
+		const heading = CesiumMath.toRadians(modelData.transform.heading);
+		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
+		const roll = CesiumMath.toRadians(modelData.transform.roll);
+
+		// Create object URL for file uploads
+		let modelUri: string;
+		if (modelData.source === 'file' && modelData.file) {
+			modelUri = URL.createObjectURL(modelData.file);
+		} else if (modelData.source === 'url' && modelData.url) {
+			modelUri = modelData.url;
+		} else {
+			console.error('Invalid model source or missing URL/file for preview');
+			return;
+		}
+
+		// Create the preview model entity
+		if (!previewModelDataSource) return;
+		
+		const entity = previewModelDataSource.entities.add({
+			id: modelData.id,
+			name: modelData.name + ' (Preview)',
+			position: position,
+			model: {
+				uri: modelUri,
+				scale: modelData.transform.scale,
+				minimumPixelSize: 64,
+				maximumScale: 20000,
+				show: true,
+			},
+			orientation: Transforms.headingPitchRollQuaternion(
+				position,
+				new HeadingPitchRoll(heading, pitch, roll)
+			),
+			description: modelData.description || '3D Model Preview'
 		});
-		// Update store silently to avoid triggering reactive statement
-		models.set(loadedModels);
-		// Mark that initial loading is complete
-		modelsLoadedFromIndexedDB = true;
-		// Initialize the model count for tracking changes
-		previousModelCount = loadedModels.length;
+
+		currentPreviewModelId = modelData.id;
+		console.log('Preview model added to scene:', modelData.name);
 	} catch (error) {
-		console.error('Error loading models from IndexedDB:', error);
+		console.error('Error adding preview model to scene:', error);
 	}
 }
 
-// Delete model from IndexedDB
-async function deleteModelFromIndexedDB(modelId: string) {
-	try {
-		await idb.deleteModel(modelId);
-	} catch (error) {
-		console.error('Error deleting model from IndexedDB:', error);
+// Remove preview model from scene
+function removePreviewModelFromScene() {
+	if (previewModelDataSource && currentPreviewModelId) {
+		const entity = previewModelDataSource.entities.getById(currentPreviewModelId);
+		if (entity) {
+			previewModelDataSource.entities.remove(entity);
+		}
+		currentPreviewModelId = null;
+		console.log('Preview model removed from scene');
 	}
 }
 
-// Save pin to IndexedDB
-async function savePinToIndexedDB(pinData: PinData) {
+// Update preview model in scene
+function updatePreviewModelInScene(modelData: ModelData) {
+	removePreviewModelFromScene();
+	addPreviewModelToScene(modelData);
+}
+
+// Streamlined data operations using data manager
+async function addModel(modelData: ModelData) {
 	try {
-		await idb.savePin(pinData);
+		await dataManager.addModel(modelData);
+		// Update store after successful IDB + scene operation
+		models.update(currentModels => [...currentModels, modelData]);
 	} catch (error) {
-		console.error('Error saving pin to IndexedDB:', error);
+		console.error('Error adding model:', error);
+		throw error;
 	}
 }
 
-// Delete pin from IndexedDB
-async function deletePinFromIndexedDB(mapid: string) {
+async function updateModel(modelData: ModelData) {
 	try {
-		await idb.deletePin(mapid);
+		await dataManager.updateModel(modelData);
+		// Update store after successful IDB + scene operation
+		models.update(currentModels => 
+			currentModels.map(model => 
+				model.id === modelData.id ? modelData : model
+			)
+		);
 	} catch (error) {
-		console.error('Error deleting pin from IndexedDB:', error);
+		console.error('Error updating model:', error);
+		throw error;
+	}
+}
+
+async function removeModel(modelId: string) {
+	try {
+		await dataManager.removeModel(modelId);
+		// Update store after successful IDB + scene operation
+		models.update(currentModels => currentModels.filter(m => m.id !== modelId));
+	} catch (error) {
+		console.error('Error removing model:', error);
+		throw error;
+	}
+}
+
+async function addPin(pinData: PinData) {
+	try {
+		await dataManager.addPin(pinData);
+		// Update store after successful IDB + scene operation
+		pins.update(currentPins => [...currentPins, pinData]);
+	} catch (error) {
+		console.error('Error adding pin:', error);
+		throw error;
+	}
+}
+
+async function removePin(mapid: string) {
+	try {
+		await dataManager.removePin(mapid);
+		// Update store after successful IDB + scene operation
+		pins.update(currentPins => currentPins.filter(p => p.mapid !== mapid));
+	} catch (error) {
+		console.error('Error removing pin:', error);
+		throw error;
 	}
 }
 
@@ -447,17 +572,17 @@ async function deletePinFromIndexedDB(mapid: string) {
 	async function loadBasemapWithProgress() {
 		if (!viewer) return;
 		
-		// Simulate basemap loading progress
+		// Simulate basemap loading progress with less frequent updates
 		const progressInterval = setInterval(() => {
 			if (basemapProgress < 100) {
-				basemapProgress += Math.random() * 10;
+				basemapProgress += Math.random() * 15; // Larger increments
 				if (basemapProgress > 100) basemapProgress = 100;
 			} else {
 				clearInterval(progressInterval);
 				isBasemapLoaded = true;
 				checkIfBothLoaded();
 			}
-		}, 100);
+		}, 200); // Reduced frequency from 100ms to 200ms
 	}
 
 	// Function to load 3D tileset with progress
@@ -488,15 +613,15 @@ async function deletePinFromIndexedDB(mapid: string) {
 			isTilesetLoaded = true;
 			checkIfBothLoaded();
 			
-			// Simulate tileset loading progress
+			// Simulate tileset loading progress with less frequent updates
 			const progressInterval = setInterval(() => {
 				if (tilesetProgress < 100) {
-					tilesetProgress += Math.random() * 15;
+					tilesetProgress += Math.random() * 20; // Larger increments
 					if (tilesetProgress > 100) tilesetProgress = 100;
 				} else {
 					clearInterval(progressInterval);
 				}
-			}, 150);
+			}, 250); // Reduced frequency from 150ms to 250ms
 		} catch (error) {
 			console.log('Error loading tileset:', error);
 			tilesetProgress = 100;
@@ -539,13 +664,13 @@ async function deletePinFromIndexedDB(mapid: string) {
 		}
 	}
 
-	// Function to fetch record from IndexedDB
+	// Function to fetch record from data manager
 	async function fetchRecord(mapid: string) {
 		try {
-			const pins = await idb.loadPins();
-			return pins.find(pin => pin.mapid === mapid) || null;
+			const pins = await dataManager.getPins();
+			return pins.find((pin: PinData) => pin.mapid === mapid) || null;
 		} catch (error) {
-			console.error('Error fetching record from IndexedDB:', error);
+			console.error('Error fetching record:', error);
 			return null;
 		}
 	}
@@ -602,45 +727,8 @@ async function deletePinFromIndexedDB(mapid: string) {
 		}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
 	}
 
-	// Reactive statement to handle new models added to store (only when 3D tileset is active)
-	$: if (viewer && $models && is3DTilesetActive && modelsLoadedFromIndexedDB) {
-		const currentModelCount = $models.length;
-		
-		// Only add new models when count increases
-		if (currentModelCount > previousModelCount) {
-			// New models were added, only add the new ones
-			const newModels = $models.slice(previousModelCount);
-			newModels.forEach(modelData => {
-				addModelToScene(modelData);
-				// Save new model to IndexedDB
-				saveModelToIndexedDB(modelData);
-			});
-		}
-		// Note: Model removal is handled individually by removeModelFromScene()
-		// so we don't need to reload all models when count decreases
-		
-		previousModelCount = currentModelCount;
-	}
-
-	// Reactive statement to handle new pins added to store (only when 3D tileset is active)
-	$: if (viewer && $pins && is3DTilesetActive && pinsLoadedFromIndexedDB) {
-		const currentPinCount = $pins.length;
-		
-		// Only add new pins when count increases
-		if (currentPinCount > previousPinCount) {
-			// New pins were added, only add the new ones
-			const newPins = $pins.slice(previousPinCount);
-			newPins.forEach(pinData => {
-				addRecordToMap(pinData);
-				// Save new pin to IndexedDB
-				savePinToIndexedDB(pinData);
-			});
-		}
-		// Note: Pin removal is handled individually by removeRecordFromMap()
-		// so we don't need to reload all pins when count decreases
-		
-		previousPinCount = currentPinCount;
-	}
+	// Note: Reactive statements removed - data flow is now handled by explicit function calls
+	// Data flow: UI → Store → IDB → Scene (via dataManager functions)t
 
 
   
@@ -732,16 +820,20 @@ async function deletePinFromIndexedDB(mapid: string) {
 	  globe.atmosphereLightIntensity = 20.0;
 	  scene.highDynamicRange = true;
   
-	  // Initialize IndexedDB and preload data
-	  try {
-		await initializeIndexedDB();
-		// Preload data in the background for faster switching
-		loadRecordsFromIndexedDB();
-		loadModelsFromIndexedDB();
-		dataLoadedFor3DTileset = true;
-	  } catch (error) {
-		console.error('Failed to open IndexedDB:', error);
-	  }
+	  // Initialize data manager and preload data asynchronously
+	  // Don't block the main thread with data loading
+	  initializeDataManager()
+		.then(() => {
+		  // Load data in the background after initialization
+		  return loadAllData();
+		})
+		.then(() => {
+		  dataLoadedFor3DTileset = true;
+		  console.log('Data loaded successfully in background');
+		})
+		.catch((error) => {
+		  console.error('Failed to initialize data manager:', error);
+		});
 	  
   
 	  // Set up clustering for the custom data source
@@ -757,34 +849,46 @@ async function deletePinFromIndexedDB(mapid: string) {
 	  // Set up event handlers for user interactions
 	  setupEventHandlers();
 
-	  // Load city data from local JSON
-	  const response = await fetch('/cities.json');
-	  const cities = await response.json();
+	  // Load city data from local JSON with optimized performance for all 1200 cities
+	  try {
+		const response = await fetch('/cities.json');
+		if (!response.ok) {
+		  throw new Error(`Failed to fetch cities: ${response.status}`);
+		}
+		const cities = await response.json();
 
-	  // Add label collection to scene
-	  const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
+		// Add label collection to scene with proper cleanup reference
+		const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
+		
+		// Store labels reference for cleanup
+		(window as any).cityLabels = labels;
 
-	  // Limit to first 100 cities for testing (optional)
-	  const sample = cities.slice(0, 1200);
+		// Load all 1200 cities as requested
+		const sample = cities.slice(0, 1200);
 
-	  sample.forEach((city: any) => {
-		const lat = parseFloat(city.lat);
-		const lon = parseFloat(city.lng);
+		// Simple, clean city loading
+		sample.forEach((city: any) => {
+		  const lat = parseFloat(city.lat);
+		  const lon = parseFloat(city.lng);
 
-		if (isNaN(lat) || isNaN(lon)) return;
+		  if (isNaN(lat) || isNaN(lon)) return;
 
-		labels.add({
-		  position: Cesium.Cartesian3.fromDegrees(lon, lat),
-		  text: city.name, // This is what you want to show
-		  font: "24px sans-serif",
-		  fillColor: Cesium.Color.WHITE,
-		  outlineColor: Cesium.Color.BLACK,
-		  outlineWidth: 2,
-		  style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-		  scaleByDistance: new Cesium.NearFarScalar(1.0, 1.0, 2.0e7, 0.0),
-		  eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -12500),
+		  labels.add({
+			position: Cesium.Cartesian3.fromDegrees(lon, lat),
+			text: city.name,
+			font: "24px sans-serif",
+			fillColor: Cesium.Color.WHITE,
+			outlineColor: Cesium.Color.BLACK,
+			outlineWidth: 2,
+			style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+			scaleByDistance: new Cesium.NearFarScalar(1.0, 1.0, 2.0e7, 0.0),
+			eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -12500),
+		  });
 		});
-	  });
+	  } catch (error) {
+		console.error('Failed to load cities:', error);
+		// Continue without cities if loading fails
+	  }
 	});
 
 	// This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
@@ -869,6 +973,12 @@ function closeModelModal() {
   selectedModel.set(null);
 }
 
+// Function to close model modal without clearing selected model (for edit mode)
+function closeModelModalForEdit() {
+  isModelModalVisible = false;
+  // Don't clear selectedModel here - we need it for editing
+}
+
 
 	// Event listener for closing modals on Escape key press
 function handleKeyDown(event: KeyboardEvent) {
@@ -893,7 +1003,7 @@ function handleKeyDown(event: KeyboardEvent) {
 			// Remove all entities
 			viewer.entities.removeAll();
 			
-			// Remove all primitives
+			// Remove all primitives (including city labels)
 			viewer.scene.primitives.removeAll();
 			
 			// Remove event handlers
@@ -915,6 +1025,11 @@ function handleKeyDown(event: KeyboardEvent) {
 		if (modelDataSource) {
 			modelDataSource.entities.removeAll();
 			modelDataSource = null;
+		}
+		
+		// Clean up city labels reference
+		if ((window as any).cityLabels) {
+			(window as any).cityLabels = null;
 		}
 		
 		// Clean up object URLs to prevent memory leaks
@@ -976,67 +1091,45 @@ function handleKeyDown(event: KeyboardEvent) {
 
 
 {#if isRecordModalVisible && selectedRecord}
-  <div class="modal" transition:fade={{ duration: 500 }}>
+  <Modal 
+    isVisible={isRecordModalVisible} 
+    onClose={closeRecordModal}
+    title="Record Details"
+    maxWidth="500px"
+  >
     <div class="modal-record">
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closeRecordModal}>
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div class="modal-header">
-        <h2>Record Details</h2>
-      </div>
       <div>
         <p class="title">{selectedRecord.title}</p>
         <p class="text">{selectedRecord.text}</p>
       </div>
       <div>
         <p class="created">CREATED {formatTimestamp(selectedRecord.timestamp)}</p>
-        <p><button class="glassmorphism"><a target="_blank" href={selectedRecord.link}>{recordButtonText}</a></button></p>
+        <p>
+          <GlassmorphismButton variant="primary" onClick={() => selectedRecord && window.open(selectedRecord.link, '_blank')}>
+            {recordButtonText}
+          </GlassmorphismButton>
+        </p>
       </div>
-      <div><ShareButton 
+      <div>
+        <ShareButton 
           title={selectedRecord.title} 
           text={selectedRecord.text} 
           link={selectedRecord.link} 
-        /></div>
+        />
+      </div>
     </div>
-  </div>
+  </Modal>
 {/if}
 
 
 {#if isModelModalVisible && $selectedModel}
-  <div class="modal" transition:fade={{ duration: 500 }}>
+  <Modal 
+    isVisible={isModelModalVisible} 
+    onClose={closeModelModal}
+    title="3D Model Details"
+    maxWidth="500px"
+  >
     <div class="modal-record">
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="close float-right" on:click={closeModelModal}>
-        <svg viewBox="0 0 36 36" class="circle">
-          <path
-            stroke-dasharray="100, 100"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <span></span>
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <div class="modal-header">
-        <h2>3D Model Details</h2>
-      </div>
       <div>
         <p class="title">{$selectedModel.name}</p>
         <p class="text">{$selectedModel.description || '3D Model'}</p>
@@ -1048,16 +1141,42 @@ function handleKeyDown(event: KeyboardEvent) {
       </div>
       <div>
         <p class="created">ADDED {formatTimestamp($selectedModel.timestamp)}</p>
-        <button class="glassmorphism" on:click={() => {
-          removeModelFromScene($selectedModel.id);
-          deleteModelFromIndexedDB($selectedModel.id);
-          models.update(currentModels => currentModels.filter(m => m.id !== $selectedModel.id));
-          closeModelModal();
-        }}>Remove Model</button>
+        <div class="button-group">
+          <GlassmorphismButton 
+            variant="primary" 
+            onClick={() => {
+              // Store the model data before closing the modal
+              const modelToEdit = $selectedModel;
+              closeModelModalForEdit();
+              // Dispatch edit model event to App.svelte
+              if (modelToEdit) {
+                window.dispatchEvent(new CustomEvent('editModel', { 
+                  detail: { modelData: modelToEdit } 
+                }));
+              }
+            }}
+          >
+            Edit Model
+          </GlassmorphismButton>
+          <GlassmorphismButton 
+            variant="danger" 
+            onClick={async () => {
+              try {
+                await removeModel($selectedModel.id);
+                closeModelModal();
+              } catch (error) {
+                console.error('Failed to remove model:', error);
+              }
+            }}
+          >
+            Remove Model
+          </GlassmorphismButton>
+        </div>
       </div>
     </div>
-  </div>
+  </Modal>
 {/if}
+
 
 <style>
 	main {
@@ -1072,7 +1191,7 @@ function handleKeyDown(event: KeyboardEvent) {
 	.height-display {
 	  position: absolute;
 	  bottom: 20px;
-	  left: 20px;
+	  left: 10px;
 	  z-index: 1000;
 	  background: rgba(0, 0, 0, 0.7);
 	  padding: 10px 15px;
@@ -1136,6 +1255,13 @@ function handleKeyDown(event: KeyboardEvent) {
 		margin: 10px 0;
 	}
 
+	.button-group {
+		display: flex;
+		gap: 10px;
+		margin-top: 15px;
+	}
+
+
 	:global(.cesium-button.cesium-vrButton) {
 	display: block;
 	width: 100%;
@@ -1154,42 +1280,6 @@ function handleKeyDown(event: KeyboardEvent) {
 	animation-delay: 4s;
 	}
 
-	a {
-    color: inherit;
-    text-decoration: none;
-	}
-
-	a:hover,
-	a:visited,
-	a:active {
-		color: inherit;
-		text-decoration: none;
-	}
-
-	button {
-      padding: 10px 20px;
-      
-      cursor: pointer;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      width: 100%;
-    }
-  
-    button:hover {
-      background-color: #abd6ff;
-    }
-
-	.modal {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	position: fixed;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
-}
 
 
 	.modal-record {
@@ -1201,19 +1291,6 @@ function handleKeyDown(event: KeyboardEvent) {
 	  padding: 20px;
 	}
 
-	.modal-header {
-	  text-align: center;
-	  margin-bottom: 20px;
-	  padding-bottom: 15px;
-	  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-	}
-
-	.modal-header h2 {
-	  color: white;
-	  margin: 0;
-	  font-size: 1.5em;
-	  font-weight: 600;
-	}
 
 
 
@@ -1223,35 +1300,7 @@ function handleKeyDown(event: KeyboardEvent) {
 
 
 
-	.float-right {
-        float: right;
-    }
 
-	.glassmorphism{
-	/* Apply glassmorphism style for the modal content */
-	background: rgba(255, 255, 255, 0.1);
-	backdrop-filter: blur(10px);
-	border-radius: 10px;
-	border: 1px solid rgba(255, 255, 255, 0.3);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-	}
-
-	.close {
-  --size: 22px;
-  --borderSize: 2px;
-  --borderColor: rgba(255, 255, 255, 1);
-  --speed: 0.5s;
-
-  width: var(--size);
-  height: var(--size);
-  position: relative;
-  background: #455A64;
-  border-radius: 50%;
-  box-shadow: 0 0 20px -5px rgba(255, 255, 255, 0.5);
-  transition: 0.25s ease-in-out;
-  cursor: pointer;
-  animation: fade-in-scale-down var(--speed) ease-out 0.25s both;
-}
 
 /* Keyframes for fade-in-scale down effect */
 @keyframes fade-in-scale-down {
@@ -1287,74 +1336,6 @@ function handleKeyDown(event: KeyboardEvent) {
         }
 }
 
-.close .circle path {
-  stroke: var(--borderColor);
-  fill: none;
-  stroke-width: calc(var(--borderSize) / 2);
-  stroke-linecap: round;
-  animation: progress var(--speed) ease-out 0.25s both;
-}
-
-@keyframes progress {
-  from {
-    stroke-dasharray: 0 100;
-  }
-}
-
-.close span {
-  display: block;
-  width: calc(var(--size) / 4 - 2px);
-  height: var(--borderSize);
-  background: var(--borderColor);
-  box-shadow: 0 0 20px -5px rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
-  position: absolute;
-  --padding: calc(var(--size) / 3);
-  transition: 0.25s ease-in-out;
-  animation: slide-in var(--speed) ease-in-out 0.25s both;
-}
-
-@keyframes slide-in {
-  from {
-    width: 0;
-  }
-}
-
-.close span:nth-child(2) {
-  top: calc(var(--padding) - var(--borderSize) / 2);
-  left: var(--padding);
-  transform: rotate(45deg);
-  transform-origin: top left;
-}
-
-.close span:nth-child(3) {
-  top: calc(var(--padding) - var(--borderSize) / 2);
-  right: var(--padding);
-  transform: rotate(-45deg);
-  transform-origin: top right;
-}
-
-.close span:nth-child(4) {
-  bottom: calc(var(--padding) - var(--borderSize) / 2);
-  left: var(--padding);
-  transform: rotate(-45deg);
-  transform-origin: bottom left;
-}
-
-.close span:nth-child(5) {
-  bottom: calc(var(--padding) - var(--borderSize) / 2);
-  right: var(--padding);
-  transform: rotate(45deg);
-  transform-origin: bottom right;
-}
-
-.close:hover {
-  background: #37474F;
-}
-
-.close:hover span {
-  width: calc(var(--size) / 4);
-}
 
 /* WebKit Scrollbar Styles */
  ::-webkit-scrollbar {

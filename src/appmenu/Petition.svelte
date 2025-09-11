@@ -3,8 +3,10 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
-  import { coordinates } from './store';
-  import { idb } from './idb';
+  import { coordinates } from '../store';
+  import { idb } from '../idb';
+  import FormInput from '../components/FormInput.svelte';
+  import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
 
 
   // Initialize IndexedDB using shared module
@@ -129,7 +131,7 @@ const trysteroroomname = import.meta.env.VITE_TRYSTERO_ROOM_NAME;
     return `${hours}:${minutes}:${seconds}`;
 }
 
-function startRoom() {
+function startRoom(): void {
     room.onPeerJoin(peerId => {
         // Send record cache to the new peer, but only the records the peer doesn't have yet
         sendCache(recordCache);
@@ -241,14 +243,15 @@ function startRoom() {
   // Function to check if a record is valid
   function recordIsValid(rec: Record): boolean {
     const isTitleValid = rec.title.trim() !== '';
-    // Define the regex pattern for GoFundMe URLs
-    const linkPattern = /^https:\/\/(www\.)?gofundme\.com\/f\/[a-zA-Z0-9-]+\/?$/;
+    // Define the regex pattern for Change.org URLs
+    const linkPattern = /^https:\/\/(www\.)?change\.org\/p\/[a-zA-Z0-9-]+\/?$/;
     const isLinkValid = linkPattern.test(rec.link.trim());
     
     return isTitleValid && isLinkValid;
   }
 
- 
+  // Function to validate latitude and longitude with max 6 decimal places
+
 
 
   // Record interface
@@ -275,7 +278,7 @@ function startRoom() {
       link: '',
       longitude: '',
       latitude: '',
-      category: 'crowdfunding',
+      category: 'petition',
       height: 0,
     };
   }
@@ -291,14 +294,32 @@ onMount(async () => {
   
   
   <form>
-    <label><div style="text-align:left">Title</div></label>
-    <textarea placeholder="Enter a short, powerful mission name here - max 100 chars" maxlength="100" bind:value={record.title} required></textarea><br>
+    <FormInput 
+      type="textarea"
+      label="Title"
+      placeholder="Enter a short, powerful mission name here - max 100 chars"
+      bind:value={record.title}
+      maxlength={100}
+      required={true}
+    />
 
-    <label><div style="text-align:left">Text</div></label>
-    <textarea placeholder="What's the mission in a nutshell? - max 250 chars" maxlength="250" bind:value={record.text} required></textarea><br>
+    <FormInput 
+      type="textarea"
+      label="Text"
+      placeholder="What's the mission in a nutshell? - max 250 chars"
+      bind:value={record.text}
+      maxlength={250}
+      required={true}
+    />
 
-    <label><div style="text-align:left">GoFundMe.org Link</div></label>
-    <input type="text" placeholder="https://www.gofundme.com/f/your-campaign-name" maxlength="200" bind:value={record.link} required><br>
+    <FormInput 
+      type="url"
+      label="Change.org Link"
+      placeholder="https://www.change.org/p/your-campaign-name"
+      bind:value={record.link}
+      maxlength={200}
+      required={true}
+    />
 
     <input type="hidden" bind:value={record.latitude} required>
     <input type="hidden" bind:value={record.longitude} required>
@@ -311,7 +332,9 @@ onMount(async () => {
     <p class="coordgreen animated-gradient">Pin dropped...</p>
     {/if}
     
-    <button on:click|preventDefault={send}>Drop Pin</button>
+    <GlassmorphismButton variant="primary" onClick={send} fullWidth={true}>
+      Drop Pin
+    </GlassmorphismButton>
   </form>
 
 </main>
