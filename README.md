@@ -170,6 +170,146 @@ A decentralized video platform like Twitch — but for real-world impact. Users 
 <br><br>
 
 # Technical Summary
+
+## 🏗️ **COMPLETE ARCHITECTURE**
+
+---
+
+## 📱 **APP.SVELTE** (UI Controller + All Components)
+
+### 🎛️ **UI Components**
+- Grid.svelte  
+- Infobox.svelte  
+- ProgressBar.svelte  
+- AdvertisingBanner.svelte  
+- HeaderCard.svelte  
+- ModelSettings.svelte  
+- AnimatedGradient.svelte  
+- CloseButton.svelte  
+- FormInput.svelte  
+- InfoIcon.svelte  
+- LiveEdit.svelte  
+- ScrollbarStyles.svelte  
+
+### 🎭 **Modal Components**
+- Modal.svelte  
+- ShareButton.svelte  
+- GlassmorphismButton.svelte  
+
+### 🎮 **App Menu Components**
+- AddButton.svelte  
+- ActionEvent.svelte  
+- Brainstorming.svelte  
+- Crowdfunding.svelte  
+- Petition.svelte  
+- Simulation.svelte  
+
+### 🗃️ **Store Management**
+- **UI State**: `showPicture`, `gridReady`, `isVisible`  
+- **Modal State**: `isRecordModalVisible`, `isModelModalVisible`, `selectedRecord`, `selectedModel`  
+- **3D Scene State**: `cesiumReady`, `viewer`, `currentHeight`, `is3DTilesetActive`  
+- **Progress State**: `basemapProgress`, `tilesetProgress`, `isInitialLoadComplete`  
+- **Data State**: `models`, `pins`, `coordinates`, `currentCoords`  
+- **Cesium Actions**: `addModelToScene`, `removeModelFromScene`, `flyTo`, etc.  
+
+### 🎯 **Component Orchestration**
+- Imports all 20+ components  
+- Manages component interactions  
+- Handles user interactions  
+- Coordinates data flow  
+
+---
+
+## 🌍 **CESIUM.SVELTE** (Pure 3D Engine)
+
+### 🌐 **3D Scene Management**
+- Cesium Viewer initialization  
+- Camera controls and monitoring  
+- Entity management (models, pins, user location)  
+- 3D Tileset handling (basemap + globe)  
+- Atmosphere and lighting setup  
+- City labels and clustering  
+
+### 🔄 **Store Subscriptions**
+- Reactive updates from stores  
+- State synchronization  
+- Data flow from UI to 3D  
+- Progress tracking  
+
+### 🛠️ **Pure Functions**
+- `addModelToScene()`  
+- `removeModelFromScene()`  
+- `updatePreviewModelInScene()`  
+- `addRecordToMap()`  
+- `removeRecordFromMap()`  
+- `flyTo()`  
+- `addUserLocation()`  
+- `handleEntityPick()`  
+- `handleCoordinatePick()`  
+- `createPulsatingPoint()`  
+
+---
+
+## 🗄️ **STORE.TS** (Centralized State)
+
+### 🎨 **UI State Stores**
+- `showPicture (writable<boolean>)`  
+- `gridReady (writable<boolean>)`  
+- `isVisible (writable<boolean>)`  
+
+### 🎭 **Modal State Stores**
+- `isRecordModalVisible (writable<boolean>)`  
+- `isModelModalVisible (writable<boolean>)`  
+- `selectedRecord (writable<PinData | null>)`  
+- `selectedModel (writable<ModelData | null>)`  
+- `recordButtonText (writable<string>)`  
+
+### 🌐 **3D Scene State Stores**
+- `cesiumReady (writable<boolean>)`  
+- `viewer (writable<any>)`  
+- `currentHeight (writable<number>)`  
+- `is3DTilesetActive (writable<boolean>)`  
+
+### 📊 **Progress State Stores**
+- `basemapProgress (writable<number>)`  
+- `tilesetProgress (writable<number>)`  
+- `isInitialLoadComplete (writable<boolean>)`  
+
+### 📦 **Data State Stores**
+- `models (writable<ModelData[]>)`  
+- `pins (writable<PinData[]>)`  
+- `coordinates (writable<Coordinates>)`  
+- `currentCoords (derived from coordinates)`  
+
+### 🎮 **Cesium Actions Store**
+- `addModelToScene (function)`  
+- `removeModelFromScene (function)`  
+- `updatePreviewModelInScene (function)`  
+- `addRecordToMap (function)`  
+- `removeRecordFromMap (function)`  
+- `flyTo (function)`  
+
+---
+
+## 📊 **DATA LAYER**
+
+### **dataManager.ts** (Orchestration)
+- Coordinates data management  
+- Model data management  
+- Pin data management  
+- Store synchronization  
+
+### **idb.ts** (IndexedDB persistence)
+- Models storage  
+- Pins storage  
+- Data persistence  
+
+### **External APIs**
+- Cesium Ion (3D tilesets)  
+- Geolocation API  
+- File system access
+<br><br>
+
 ## Decentralized Communication and Storage (Core)
 ### Real-time WebRTC Signaling 🌐 (✅ working) 
 - **Peer-to-peer connections** happen via decentralized protocols:
