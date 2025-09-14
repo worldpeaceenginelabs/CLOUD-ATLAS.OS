@@ -45,8 +45,28 @@
     // File input reference
     let fileInput: HTMLInputElement;
     
-    // Drag and drop state
-    let isDragOver = false;
+  // Drag and drop state
+  let isDragOver = false;
+  
+  // Copy functionality
+  let copyButtonText = 'Copy';
+  const exampleUrl = 'https://mixiplycontent.blob.core.windows.net/usefulstuff/51c392cb-1176-463a-a6f9-08d6bd51ab08/Duck.gltf';
+  
+  async function copyExampleUrl() {
+    try {
+      await navigator.clipboard.writeText(exampleUrl);
+      copyButtonText = 'Copied!';
+      setTimeout(() => {
+        copyButtonText = 'Copy';
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+      copyButtonText = 'Failed';
+      setTimeout(() => {
+        copyButtonText = 'Copy';
+      }, 2000);
+    }
+  }
   
   // Convert string values to numbers for FormInput (transform fields)
   let scaleValue = scale.toString();
@@ -265,7 +285,7 @@
           <!-- File upload -->
           {#if selectedSource === 'file'}
             <div class="form-group">
-              <label for="gltfFile">GLTF File</label>
+              <label for="gltfFile">GLTF/GLB File</label>
               <input
                 id="gltfFile"
                 type="file"
@@ -286,7 +306,7 @@
           <!-- URL input -->
           {#if selectedSource === 'url'}
             <div class="form-group">
-              <label for="gltfUrl">GLTF URL</label>
+              <label for="gltfUrl">GLTF/GLB URL</label>
               <input
                 id="gltfUrl"
                 type="url"
@@ -296,6 +316,20 @@
                 placeholder="https://example.com/model.glb"
                 class="text-input"
               />
+              <div class="example-link-container">
+                <div class="example-link">
+                  <span class="example-label">Example URL:</span>
+                  <span class="example-url">{exampleUrl}</span>
+                </div>
+                <button 
+                  type="button" 
+                  class="copy-button" 
+                  on:click={copyExampleUrl}
+                  title="Copy example URL to clipboard"
+                >
+                  {copyButtonText}
+                </button>
+              </div>
             </div>
           {/if}
   
@@ -596,6 +630,63 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 15px;
+    }
+    
+    .example-link-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+    }
+    
+    .example-link {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .example-label {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.8em;
+      font-weight: 500;
+    }
+    
+    .example-url {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.85em;
+      word-break: break-all;
+      font-family: monospace;
+    }
+    
+    .copy-button {
+      background: rgba(74, 222, 128, 0.2);
+      border: 1px solid rgba(74, 222, 128, 0.4);
+      color: #4ade80;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .copy-button:hover {
+      background: rgba(74, 222, 128, 0.3);
+      border-color: rgba(74, 222, 128, 0.6);
+      transform: translateY(-1px);
+    }
+    
+    .copy-button:active {
+      transform: translateY(0);
     }
   
   </style>

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import ModelSettings from './ModelSettings.svelte';
-  import { roamingAreaBounds, coordinates, editingModelId } from '../store';
+  import { roamingAreaBounds, coordinates, editingModelId, isEditorOpen } from '../store';
   
   // Props
   export let isEditMode = false;
@@ -10,7 +10,7 @@
   // Component state
   export let selectedEditor: 'threejs' | 'webglstudio' = 'threejs';
   
-  // Dropdown state for ModelSettings
+  // Dropdown state for ModelSettings - controlled by Editor visibility
   let showDropdown = false;
   
   // ModelSettings props
@@ -151,7 +151,10 @@
   }
   
   function handleToggleDropdown() {
-    showDropdown = !showDropdown;
+    // Only allow toggling if Editor is open
+    if ($isEditorOpen) {
+      showDropdown = !showDropdown;
+    }
   }
   
   // Emit form data changes for preview
@@ -163,7 +166,8 @@
       modelName,
       isRoamingEnabled
     });
-    dispatch('formDataChange', {
+    
+    const formData = {
       selectedSource,
       gltfFile,
       gltfUrl,
@@ -178,7 +182,12 @@
       isRoamingEnabled,
       roamingSpeed,
       roamingArea
-    });
+    };
+    
+    console.log('🎯 [EDITOR] Dispatching editorFormDataChange window event with data:', formData);
+    
+    // Dispatch window event for App.svelte to catch
+    window.dispatchEvent(new CustomEvent('editorFormDataChange', { detail: formData }));
   }
   
   // Watch for form data changes and emit events
@@ -197,6 +206,24 @@
     });
     emitFormDataChange();
   }
+
+  // Control dropdown state based on Editor visibility
+  $: if ($isEditorOpen) {
+    showDropdown = true; // Always open dropdown when Editor is visible
+  } else {
+    showDropdown = false; // Close dropdown when Editor is hidden
+  }
+
+  // Lifecycle functions to manage Editor state
+  onMount(() => {
+    console.log('🎯 [EDITOR] Editor mounted - setting isEditorOpen to true');
+    isEditorOpen.set(true);
+  });
+
+  onDestroy(() => {
+    console.log('🎯 [EDITOR] Editor destroyed - setting isEditorOpen to false');
+    isEditorOpen.set(false);
+  });
 </script>
 
 <div class="editor-container">

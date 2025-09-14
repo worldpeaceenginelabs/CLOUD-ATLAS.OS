@@ -89,14 +89,28 @@
   // Note: Preview model updates are now handled by the temporary model system in handleEditorFormDataChange
 
   // Reactive statement to update temporary model when coordinates change
-  $: if ($temporaryModelId && ($coordinates.latitude || $coordinates.longitude)) {
+  $: if ($temporaryModelId && $coordinates.latitude && $coordinates.longitude) {
     console.log('🎯 [DEBUG] Coordinates changed, updating temporary model position:', {
       tempModelId: $temporaryModelId,
       latitude: $coordinates.latitude,
       longitude: $coordinates.longitude,
-      height: $coordinates.height
+      height: $coordinates.height,
+      isEditMode: !!$editingModelId
     });
     updateTemporaryModelFromFormData();
+  }
+
+  // Additional reactive statement to track coordinate changes for debugging
+  $: {
+    if ($coordinates.latitude && $coordinates.longitude) {
+      console.log('🎯 [DEBUG] Coordinates store changed:', {
+        latitude: $coordinates.latitude,
+        longitude: $coordinates.longitude,
+        height: $coordinates.height,
+        hasTemporaryModel: !!$temporaryModelId,
+        isEditMode: !!$editingModelId
+      });
+    }
   }
 
   // Functions to show/hide all cards
@@ -250,6 +264,10 @@
         removeTemporaryModel($temporaryModelId);
         temporaryModelId.set(null);
       }
+      
+      // Create temporary model for edit mode immediately
+      console.log('🎯 [DEBUG] handleEditModel - Creating temporary model for edit mode');
+      addTemporaryModelFromFormData();
       
       console.log('🎯 [DEBUG] handleEditModel - Ready for edit mode with form data populated');
       
@@ -506,6 +524,7 @@
   
   // Handle form data changes from Editor modal
   function handleEditorFormDataChange(event: CustomEvent) {
+    console.log('🎯 [APP] handleEditorFormDataChange called with event:', event);
     const formData = event.detail;
     
     console.log('🎯 [APP] Editor form data change received:', {

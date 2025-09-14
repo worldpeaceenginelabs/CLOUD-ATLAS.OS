@@ -95,11 +95,6 @@
       <p>🎯 {activeModelsCount} model{activeModelsCount === 1 ? '' : 's'} configured for roaming</p>
       <p>💡 Enable roaming in model settings to see movement</p>
     </div>
-  {:else}
-    <div class="info">
-      <p>📝 No models have roaming enabled</p>
-      <p>💡 Configure roaming in model settings to start</p>
-    </div>
   {/if}
 </div>
 

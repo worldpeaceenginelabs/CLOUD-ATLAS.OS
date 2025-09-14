@@ -26,8 +26,6 @@
 		coordinates, 
 		models, 
 		pins, 
-		isZoomModalVisible, 
-		lastTriggeredModal, 
 		resetAllStores, 
 		cesiumActions,
 		cesiumReady,
@@ -1102,11 +1100,10 @@ async function removePin(mapid: string) {
 					const height = cesiumViewer.camera.positionCartographic.height;
 					if (height > 250000) {
 						// Show the zoom modal
-						isZoomModalVisible.set(true);
-						lastTriggeredModal.set('zoom');
+						modalService.showZoomRequired();
 						// Auto-hide after 3 seconds
 						setTimeout(() => {
-							isZoomModalVisible.set(false);
+							modalService.hideZoomRequired();
 						}, 3000);
 					} else {
 						handleCoordinatePick(click);
@@ -1408,6 +1405,18 @@ async function handleEntityPick(pickedFeature: any) {
 function handleCoordinatePick(result: any) {
   if (!cesiumViewer) return;
   
+  // Check camera height before allowing pin placement
+  const cameraHeight = cesiumViewer.camera.positionCartographic.height;
+  if (cameraHeight > 250000) {
+    // Show the zoom modal if trying to place pin from too high
+    modalService.showZoomRequired();
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      modalService.hideZoomRequired();
+    }, 3000);
+    return; // Prevent pin placement
+  }
+  
   const cartesian = cesiumViewer.scene.pickPosition(result.position);
   if (!cartesian) return;
 
@@ -1518,8 +1527,6 @@ function handleCoordinatePick(result: any) {
 		roamingAreaStart = null;
 		roamingAreaEntity = null;
 		roamingAreaRectangle = null;
-		isZoomModalVisible.set(false);
-		lastTriggeredModal.set(null);
 		pointEntity = null;
 		userLocationEntity = null;
 		userLocationPreloaded = false;

@@ -77,6 +77,17 @@
     stopPaintingArea();
   }
 
+  // Combined function for Paint Area button - toggles between start and confirm
+  function handlePaintAreaClick() {
+    if (isPaintingArea) {
+      // If currently painting, confirm the area
+      confirmArea();
+    } else {
+      // If not painting, start painting
+      startPaintingArea();
+    }
+  }
+
   // Listen for area bounds updates from the map
   function handleAreaBoundsUpdate(event: CustomEvent) {
     const bounds = event.detail;
@@ -116,7 +127,60 @@
   </div>
 
   {#if isEnabled}
-    <!-- Roaming Speed -->
+    <!-- 1. Paint Area Button -->
+    <div class="form-group">
+      <div class="form-label">Roaming Area</div>
+      <p class="area-description">
+        Paint a square on the map to define the roaming area. The model will move randomly within this area.
+      </p>
+      
+      <div class="area-controls">
+        <GlassmorphismButton 
+          variant="primary" 
+          onClick={handlePaintAreaClick}
+        >
+          {isPaintingArea ? 'Confirm Area' : 'Paint Area'}
+        </GlassmorphismButton>
+        
+        {#if isPaintingArea}
+          <GlassmorphismButton 
+            variant="secondary" 
+            onClick={cancelPainting}
+          >
+            Cancel
+          </GlassmorphismButton>
+        {/if}
+        
+        {#if areaBounds && !isPaintingArea}
+          <GlassmorphismButton 
+            variant="secondary" 
+            onClick={clearArea}
+          >
+            Clear Area
+          </GlassmorphismButton>
+        {/if}
+      </div>
+      
+      {#if areaBounds && !isPaintingArea}
+        <div class="area-info">
+          <div class="area-bounds">
+            <span>North: {areaBounds?.north?.toFixed(4) || 'N/A'}</span>
+            <span>South: {areaBounds?.south?.toFixed(4) || 'N/A'}</span>
+            <span>East: {areaBounds?.east?.toFixed(4) || 'N/A'}</span>
+            <span>West: {areaBounds?.west?.toFixed(4) || 'N/A'}</span>
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <!-- 2. Roaming Controls -->
+    {#if isPaintingArea}
+      <div class="painting-instructions">
+        <p>🎨 <strong>Painting Mode Active</strong> - Camera controls are disabled. Click two points on the map to paint the roaming area.</p>
+      </div>
+    {/if}
+
+    <!-- 3. Roaming Speed -->
     <FormInput
       type="number"
       bind:value={roamingSpeedValue}
@@ -126,79 +190,6 @@
       step="0.1"
       placeholder="1.0"
     />
-
-    <!-- Area Selection -->
-    <div class="form-group">
-      <div class="form-label">Roaming Area</div>
-      <p class="area-description">
-        Paint a square on the map to define the roaming area. The model will move randomly within this area.
-      </p>
-      
-      {#if !areaBounds}
-        <div class="area-controls">
-          <GlassmorphismButton 
-            variant="secondary" 
-            onClick={startPaintingArea}
-            disabled={isPaintingArea}
-          >
-            {isPaintingArea ? 'Painting...' : 'Paint Area'}
-          </GlassmorphismButton>
-          {#if isPaintingArea}
-            <GlassmorphismButton 
-              variant="secondary" 
-              onClick={cancelPainting}
-            >
-              Cancel
-            </GlassmorphismButton>
-          {/if}
-        </div>
-      {:else if areaBounds}
-        <div class="area-info">
-          <div class="area-bounds">
-            <span>North: {areaBounds?.north?.toFixed(4) || 'N/A'}</span>
-            <span>South: {areaBounds?.south?.toFixed(4) || 'N/A'}</span>
-            <span>East: {areaBounds?.east?.toFixed(4) || 'N/A'}</span>
-            <span>West: {areaBounds?.west?.toFixed(4) || 'N/A'}</span>
-          </div>
-          <div class="area-actions">
-            <GlassmorphismButton 
-              variant="secondary" 
-              onClick={startPaintingArea}
-              disabled={isPaintingArea}
-            >
-              {isPaintingArea ? 'Painting...' : 'Redraw Area'}
-            </GlassmorphismButton>
-            <GlassmorphismButton 
-              variant="secondary" 
-              onClick={clearArea}
-            >
-              Clear Area
-            </GlassmorphismButton>
-          </div>
-        </div>
-      {/if}
-    </div>
-
-    {#if isPaintingArea}
-      <div class="painting-instructions">
-        <p>🎨 <strong>Painting Mode Active</strong> - Camera controls are disabled. Click two points on the map to paint the roaming area.</p>
-        <div class="painting-actions">
-          <GlassmorphismButton 
-            variant="primary" 
-            onClick={confirmArea}
-            disabled={!areaBounds}
-          >
-            Confirm Area
-          </GlassmorphismButton>
-          <GlassmorphismButton 
-            variant="secondary" 
-            onClick={cancelPainting}
-          >
-            Cancel
-          </GlassmorphismButton>
-        </div>
-      </div>
-    {/if}
   {/if}
 </div>
 
@@ -258,6 +249,7 @@
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    justify-content: center;
   }
 
   .area-info {
@@ -278,12 +270,6 @@
     color: rgba(255, 255, 255, 0.9);
   }
 
-  .area-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
   .painting-instructions {
     background: rgba(74, 222, 128, 0.1);
     border: 1px solid rgba(74, 222, 128, 0.3);
@@ -294,13 +280,7 @@
 
   .painting-instructions p {
     color: rgba(255, 255, 255, 0.9);
-    margin: 0 0 15px 0;
+    margin: 0;
     font-size: 0.9em;
-  }
-
-  .painting-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
   }
 </style>

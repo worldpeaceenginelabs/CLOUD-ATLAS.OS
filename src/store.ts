@@ -7,6 +7,7 @@ export type { Coordinates, ModelData, PinData };
 export const showPicture = writable(true);
 export const gridReady = writable(false);
 export const isVisible = writable(false);
+export const isEditorOpen = writable(false);
 
 // Modal State Stores - now handled by modalManager
 
@@ -99,6 +100,7 @@ export function resetAllStores() {
   showPicture.set(true);
   gridReady.set(false);
   isVisible.set(false);
+  isEditorOpen.set(false);
   
   // Modal State - now handled by modalManager
   
