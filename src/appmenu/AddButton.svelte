@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
+  import { logger } from '../utils/logger';
   import Brainstorming from './Brainstorming.svelte';
   import Simulation from './Simulation.svelte';
   import ActionEvent from './ActionEvent.svelte';
@@ -8,13 +9,15 @@
   import Crowdfunding from './Crowdfunding.svelte';
   import Modal from '../components/Modal.svelte';
   
-  import { coordinates, isZoomModalVisible, lastTriggeredModal, models, selectedModel, type ModelData } from '../store';
+  import { coordinates, isZoomModalVisible, lastTriggeredModal, models, selectedModel } from '../store';
+  import type { ModelData } from '../types';
   import { dataManager } from '../dataManager';
+  import { addModel, updateModel } from '../utils/modelUtils';
 
   // Props - removed toggleModelUI as it's handled internally now
-  export let addPreviewModelToScene: ((modelData: any) => void) | undefined = undefined;
-  export let removePreviewModelFromScene: (() => void) | undefined = undefined;
-  export let updatePreviewModelInScene: ((modelData: any) => void) | undefined = undefined;
+  export const addPreviewModelToScene: ((modelData: any) => void) | undefined = undefined;
+  export const removePreviewModelFromScene: (() => void) | undefined = undefined;
+  export const updatePreviewModelInScene: ((modelData: any) => void) | undefined = undefined;
   export let onAddModel: (() => void) | undefined = undefined;
 
   // Component state
@@ -144,7 +147,7 @@
 
   // Handle item click
   function handleItemClick(item: string) {
-    console.log('Clicked item:', item);
+    logger.debug('Clicked item: ' + item, { component: 'AddButton', operation: 'handleItemClick' });
     // Close info panel when clicking on touch devices
     showInfoPanel = false;
     hoveredItem = '';
@@ -171,7 +174,7 @@
         // Don't close menu - let user decide when to close it
         break;
       case 'action':
-        console.log('Toggling action dropdown:', showActionDropdown);
+        logger.debug('Toggling action dropdown: ' + showActionDropdown, { component: 'AddButton', operation: 'toggleActionDropdown' });
         showActionDropdown = !showActionDropdown;
         break;
     }
@@ -233,32 +236,7 @@
   }
 
 
-  // Data manager functions for models
-  async function addModel(modelData: ModelData) {
-    try {
-      await dataManager.addModel(modelData);
-      // Update store after successful IDB + scene operation
-      models.update(currentModels => [...currentModels, modelData]);
-    } catch (error) {
-      console.error('Error adding model:', error);
-      throw error;
-    }
-  }
-
-  async function updateModel(modelData: ModelData) {
-    try {
-      await dataManager.updateModel(modelData);
-      // Update store after successful IDB + scene operation
-      models.update(currentModels => 
-        currentModels.map(model => 
-          model.id === modelData.id ? modelData : model
-        )
-      );
-    } catch (error) {
-      console.error('Error updating model:', error);
-      throw error;
-    }
-  }
+  // Model operations now use centralized utilities from modelUtils.ts
 
   // Handle escape key
   function handleKeyDown(event: KeyboardEvent) {
@@ -654,13 +632,14 @@
   }
 
   .add-button {
-    position: relative;
-    z-index: 50;
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    position: relative;
+    z-index: 50;
     color: white;
     font-size: 14px;
     font-weight: 500;
@@ -669,7 +648,6 @@
     align-items: center;
     gap: 8px;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
   .add-button:hover {
@@ -679,8 +657,9 @@
   }
 
   .add-button.active {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
   }
 
   .add-button.has-coordinates {
@@ -733,8 +712,8 @@
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     overflow: hidden;
     min-width: 250px;
   }
@@ -758,6 +737,7 @@
   .dropdown-item:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: translateX(-4px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
   }
 
   .dropdown-item svg {
@@ -786,14 +766,20 @@
   }
 
   .info-icon:hover {
-    color: white;
     background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: white;
     transform: scale(1.1);
   }
 
   .info-icon.active {
-    color: white;
     background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    color: white;
     transform: scale(1.05);
   }
 
@@ -824,22 +810,22 @@
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     overflow: hidden;
     min-width: 250px;
   }
 
   .info-panel {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 8px 32px rgba(0, 0, 0, 0.3);
     z-index: 70;
     max-width: 300px;
     min-width: 250px;

@@ -8,7 +8,8 @@
  * - Scene: Rendering layer
  */
 
-import { idb, type ModelData, type PinData } from './idb';
+import { idb } from './idb';
+import type { ModelData, PinData } from './types';
 
 export interface DataManagerCallbacks {
   addModelToScene: (modelData: ModelData) => void;
@@ -37,6 +38,25 @@ export class DataManager {
       console.error('Failed to initialize DataManager:', error);
       throw error;
     }
+  }
+
+  /**
+   * Create a serializable version of model data for IndexedDB storage
+   * Removes File objects which cannot be serialized
+   */
+  private createSerializableModelData(modelData: ModelData): Omit<ModelData, 'file'> & { file?: string } {
+    const { file, ...serializableData } = modelData;
+    
+    // Convert File to URL if it exists
+    if (file) {
+      const fileUrl = URL.createObjectURL(file);
+      return {
+        ...serializableData,
+        file: fileUrl
+      };
+    }
+    
+    return serializableData;
   }
 
   /**
@@ -69,19 +89,41 @@ export class DataManager {
    * Add a new model: Store → IDB → Scene
    */
   async addModel(modelData: ModelData): Promise<void> {
+    console.log('🔍 [DEBUG] DataManager.addModel called with:', {
+      name: modelData.name,
+      hasFile: !!modelData.file,
+      hasRoaming: !!modelData.roaming,
+      isInitialized: this.isInitialized
+    });
+
     if (!this.isInitialized) {
+      console.error('🔍 [DEBUG] DataManager not initialized');
       throw new Error('DataManager not initialized');
     }
 
     try {
-      // 1. Save to IDB (persistence layer)
-      await idb.saveModel(modelData);
+      // 1. Create serializable version for IDB (remove File objects)
+      console.log('🔍 [DEBUG] Creating serializable model data');
+      const serializableModelData = this.createSerializableModelData(modelData);
+      console.log('🔍 [DEBUG] Serializable model data created:', {
+        name: serializableModelData.name,
+        hasFile: !!serializableModelData.file,
+        hasRoaming: !!serializableModelData.roaming
+      });
       
-      // 2. Add to scene (rendering layer)
+      // 2. Save to IDB (persistence layer)
+      console.log('🔍 [DEBUG] Saving to IndexedDB');
+      await idb.saveModel(serializableModelData);
+      console.log('🔍 [DEBUG] Saved to IndexedDB successfully');
+      
+      // 3. Add to scene (rendering layer)
+      console.log('🔍 [DEBUG] Adding to scene');
       this.callbacks.addModelToScene(modelData);
+      console.log('🔍 [DEBUG] Added to scene successfully');
       
       console.log('Model added successfully:', modelData.name);
     } catch (error) {
+      console.error('🔍 [DEBUG] Error in DataManager.addModel:', error);
       console.error('Error adding model:', error);
       throw error;
     }
@@ -99,10 +141,13 @@ export class DataManager {
       // 1. Remove from scene
       this.callbacks.removeModelFromScene(modelData.id);
       
-      // 2. Update in IDB
-      await idb.saveModel(modelData);
+      // 2. Create serializable version for IDB (remove File objects)
+      const serializableModelData = this.createSerializableModelData(modelData);
       
-      // 3. Add updated model to scene
+      // 3. Update in IDB
+      await idb.saveModel(serializableModelData);
+      
+      // 4. Add updated model to scene
       this.callbacks.addModelToScene(modelData);
       
       console.log('Model updated successfully:', modelData.name);

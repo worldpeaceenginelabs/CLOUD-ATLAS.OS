@@ -22,49 +22,61 @@
 	} from 'cesium';
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
-	import { coordinates, models, selectedModel, pins, isZoomModalVisible, lastTriggeredModal, resetAllStores, type ModelData, type PinData } from './store';
-	import ShareButton from './components/Sharebutton.svelte';
-	import { fade } from 'svelte/transition';
+	import { 
+		coordinates, 
+		models, 
+		selectedModel, 
+		pins, 
+		isZoomModalVisible, 
+		lastTriggeredModal, 
+		resetAllStores, 
+		isRecordModalVisible,
+		isModelModalVisible,
+		selectedRecord,
+		recordButtonText,
+		cesiumActions,
+		cesiumReady,
+		viewer,
+		currentHeight,
+		is3DTilesetActive,
+		basemapProgress,
+		tilesetProgress,
+		isInitialLoadComplete,
+		isRoamingAreaMode,
+		roamingAreaBounds
+	} from './store';
+	import type { ModelData, PinData } from './types';
 	import { dataManager } from './dataManager';
-	import Modal from './components/Modal.svelte';
-	import GlassmorphismButton from './components/GlassmorphismButton.svelte';
+import { addModel, updateModel, removeModel } from './utils/modelUtils';
+import { getCurrentTimeIso8601 } from './utils/timeUtils';
+import { logger } from './utils/logger';
+import { roamingAnimationManager } from './utils/roamingAnimation';
   
 // Global variables and states
-let isRecordModalVisible = false;
-let selectedRecord: { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string } | null = null;
-let viewer: Viewer | null = null;
 let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
-let recordButtonText = '';
-let isModelModalVisible = false;
-let is3DTilesetActive = false; // Track if 3D tileset is currently active
 let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tileset
 let pointEntity: Entity | null = null; // For coordinate picking
 let userLocationEntity: Entity | null = null; // For preloaded user location
 let userLocationPreloaded = false; // Track if user location has been preloaded
 let isMonitoringCamera = false; // Track if camera monitoring is active
 let animationFrameId: number | null = null; // For requestAnimationFrame
-
-// Progress tracking for new UX - exported for parent component
-let basemapProgress = 0;
-let tilesetProgress = 0;
-let isBasemapLoaded = false;
-let isTilesetLoaded = false;
-let isInitialLoadComplete = false;
-let currentHeight = 0; // Track current camera height for display
 let tileset: Cesium3DTileset | null = null; // Global tileset reference
+let isBasemapLoaded = false; // Local variable for basemap loading state
+let isTilesetLoaded = false; // Local variable for tileset loading state
+let cesiumViewer: any = null; // Global viewer reference
 
-// Export progress data for parent component
-export { basemapProgress, tilesetProgress, isInitialLoadComplete };
+// Roaming area painting state
+let roamingAreaStart: { latitude: number; longitude: number } | null = null;
+let roamingAreaEntity: Entity | null = null;
+let roamingAreaRectangle: Entity | null = null;
 
-// Export preview model functions
-export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene };
+// Roaming animation state
+let roamingAnimationFrameId: number | null = null;
+let isRoamingAnimationActive = false;
 
-// Export function to toggle model UI (deprecated - handled by AddButton.svelte)
-export function toggleModelUI() {
-  // This function is deprecated - model functionality removed
-  console.log('toggleModelUI called - model functionality removed');
-}
+// Export preview model functions for parent component
+export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateRoamingModel };
   
 	// Initialize data manager
 	const initializeDataManager = async (): Promise<void> => {
@@ -101,7 +113,8 @@ export function toggleModelUI() {
 			previousModelCount = loadedModels.length;
 			previousPinCount = loadedPins.length;
 			
-			console.log(`Loaded ${loadedModels.length} models and ${loadedPins.length} pins`);
+			logger.dataLoaded('models', loadedModels.length);
+			logger.dataLoaded('pins', loadedPins.length);
 		} catch (error) {
 			console.error('Error loading data:', error);
 		}
@@ -167,16 +180,16 @@ export function toggleModelUI() {
   
 	// Create a pulsating point entity
 	const createPulsatingPoint = (pointId: string, userDestination: Cartesian3, color: Color): Entity => {
-	  if (!viewer) return new Entity();
+	  if (!cesiumViewer) return new Entity();
 	  
 	  const start = JulianDate.now();
 	  const mid = JulianDate.addSeconds(start, 0.5, new JulianDate());
 	  const stop = JulianDate.addSeconds(start, 2, new JulianDate());
   
-	  viewer.clock.startTime = start;
-	  viewer.clock.currentTime = start;
-	  viewer.clock.stopTime = stop;
-	  viewer.clock.clockRange = ClockRange.LOOP_STOP;
+	  cesiumViewer.clock.startTime = start;
+	  cesiumViewer.clock.currentTime = start;
+	  cesiumViewer.clock.stopTime = stop;
+	  cesiumViewer.clock.clockRange = ClockRange.LOOP_STOP;
   
 	  const pulseProperty = new SampledProperty(Number);
 	  pulseProperty.setInterpolationOptions({
@@ -216,7 +229,7 @@ export function toggleModelUI() {
 	const addUserLocation = async (silent = false) => {
 	  try {
 		const userLocation = await getLocationFromNavigator();
-		if (userLocation && viewer) {
+		if (userLocation && cesiumViewer) {
 		  const { longitude, latitude } = userLocation.coords;
 		  const userPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
 
@@ -225,15 +238,15 @@ export function toggleModelUI() {
 		  if (silent) {
 			// Silent preload - add entity but don't show it yet
 			userLocationEntity.show = false;
-			viewer.entities.add(userLocationEntity);
+			cesiumViewer.entities.add(userLocationEntity);
 			userLocationPreloaded = true;
 		  } else {
 			// Normal behavior - show entity and fly to it
-			viewer.entities.add(userLocationEntity);
+			cesiumViewer.entities.add(userLocationEntity);
 			
 			setTimeout(() => {
-			  if (viewer) {
-				viewer.camera.flyTo({
+			  if (cesiumViewer) {
+				cesiumViewer.camera.flyTo({
 				  destination: Cartesian3.fromDegrees(longitude, latitude, 20000000.0),
 				});
 			  }
@@ -247,8 +260,8 @@ export function toggleModelUI() {
 
 	// Update height display
 	const updateHeightDisplay = () => {
-		if (viewer) {
-			currentHeight = viewer.camera.positionCartographic.height;
+		if (cesiumViewer) {
+			currentHeight.set(cesiumViewer.camera.positionCartographic.height);
 		}
 	};
 
@@ -257,7 +270,7 @@ export function toggleModelUI() {
 	const HEIGHT_CHECK_INTERVAL = 100; // Check every 100ms instead of every frame
 	
 	const monitorCameraHeight = () => {
-		if (!viewer || !isMonitoringCamera) return;
+		if (!cesiumViewer || !isMonitoringCamera) return;
 		
 		const now = performance.now();
 		if (now - lastHeightCheck < HEIGHT_CHECK_INTERVAL) {
@@ -267,26 +280,26 @@ export function toggleModelUI() {
 		}
 		
 		lastHeightCheck = now;
-		const height = viewer.camera.positionCartographic.height;
-		currentHeight = height; // Update height display
+		const height = cesiumViewer.camera.positionCartographic.height;
+		currentHeight.set(height); // Update height display
 		
 		// Check if we need to switch between globe and 3D tileset
 		if (height > 6000000) {
 			// Show the base layer and hide the 3D tileset
-			if (is3DTilesetActive) {
-				viewer.scene.globe.show = true;
+			if ($is3DTilesetActive) {
+				cesiumViewer.scene.globe.show = true;
 				if (tileset) tileset.show = false;
-				is3DTilesetActive = false;
+				is3DTilesetActive.set(false);
 				// Hide location pins and 3D models when using base layer
 				if (customDataSource) customDataSource.show = false;
 				if (modelDataSource) modelDataSource.show = false;
 			}
 		} else {
 			// Hide the base layer and show the 3D tileset
-			if (!is3DTilesetActive) {
-				viewer.scene.globe.show = false;
+			if (!$is3DTilesetActive) {
+				cesiumViewer.scene.globe.show = false;
 				if (tileset) tileset.show = true;
-				is3DTilesetActive = true;
+				is3DTilesetActive.set(true);
 				// Show location pins and 3D models when using 3D tileset
 				if (customDataSource) customDataSource.show = true;
 				if (modelDataSource) modelDataSource.show = true;
@@ -361,7 +374,21 @@ function addModelToScene(modelData: ModelData) {
 			description: modelData.description || '3D Model'
 		});
 
-		console.log('Model added to scene:', modelData.name);
+		logger.modelAdded(modelData.name);
+		
+		// Add to roaming animation if enabled
+		if (modelData.roaming?.isEnabled) {
+			console.log('🎯 [ROAMING] Adding model to roaming system:', modelData.name, modelData.roaming);
+			roamingAnimationManager.addModel(modelData);
+			
+			// Start roaming animation if not already running
+			if (!isRoamingAnimationActive) {
+				console.log('🎯 [ROAMING] Starting roaming animation');
+				startRoamingAnimation();
+			}
+		} else {
+			console.log('🎯 [ROAMING] Model does not have roaming enabled:', modelData.name, modelData.roaming);
+		}
 	} catch (error) {
 		console.error('Error adding model to scene:', error);
 	}
@@ -372,9 +399,23 @@ function loadModelsFromStore() {
 	if (modelDataSource) {
 		modelDataSource.entities.removeAll();
 		
+		// Clear existing roaming models
+		roamingAnimationManager.clearAll();
+		
 		$models.forEach(modelData => {
 			addModelToScene(modelData);
+			
+			// Add to roaming animation if enabled
+			if (modelData.roaming?.isEnabled) {
+				roamingAnimationManager.addModel(modelData);
+			}
 		});
+		
+		// Start roaming animation if any models have roaming enabled
+		const hasRoamingModels = $models.some(model => model.roaming?.isEnabled);
+		if (hasRoamingModels && !isRoamingAnimationActive) {
+			startRoamingAnimation();
+		}
 	}
 }
 
@@ -385,6 +426,89 @@ function removeModelFromScene(modelId: string) {
 		if (entity) {
 			modelDataSource.entities.remove(entity);
 		}
+	}
+	
+	// Remove from roaming animation if active
+	roamingAnimationManager.removeModel(modelId);
+}
+
+// Roaming animation functions
+function startRoamingAnimation() {
+	if (isRoamingAnimationActive) return;
+	
+	isRoamingAnimationActive = true;
+	roamingAnimationManager.resumeAll();
+	
+	// Start the animation loop
+	animateRoamingModels();
+	
+	logger.info('Roaming animation started', { component: 'Cesium', operation: 'startRoaming' });
+}
+
+function stopRoamingAnimation() {
+	if (!isRoamingAnimationActive) return;
+	
+	isRoamingAnimationActive = false;
+	roamingAnimationManager.pauseAll();
+	
+	if (roamingAnimationFrameId) {
+		cancelAnimationFrame(roamingAnimationFrameId);
+		roamingAnimationFrameId = null;
+	}
+	
+	logger.info('Roaming animation stopped', { component: 'Cesium', operation: 'stopRoaming' });
+}
+
+function animateRoamingModels() {
+	if (!isRoamingAnimationActive || !cesiumViewer || !modelDataSource) return;
+	
+	// Update all roaming models
+	const roamingModels = roamingAnimationManager.getAllRoamingModels();
+	
+	// Only log occasionally to reduce console spam
+	if (roamingModels.length > 0 && Math.random() < 0.01) { // 1% chance to log
+		console.log('🎯 [CESIUM] Animating', roamingModels.length, 'roaming models');
+	}
+	
+	for (const roamingModel of roamingModels) {
+		const position = roamingAnimationManager.getModelPosition(roamingModel.id);
+		if (!position) continue;
+		
+		// Update the model entity position and orientation
+		const entity = modelDataSource.entities.getById(roamingModel.id);
+		if (entity) {
+			const newPosition = Cartesian3.fromDegrees(
+				position.longitude,
+				position.latitude,
+				position.height
+			);
+			
+			// Update position using Cesium's position property
+			entity.position = newPosition;
+			
+			// Update orientation using Cesium's orientation property
+			const heading = CesiumMath.toRadians(position.heading);
+			const pitch = CesiumMath.toRadians(roamingModel.modelData.transform.pitch);
+			const roll = CesiumMath.toRadians(roamingModel.modelData.transform.roll);
+			
+			entity.orientation = Transforms.headingPitchRollQuaternion(
+				newPosition,
+				new HeadingPitchRoll(heading, pitch, roll)
+			);
+		}
+	}
+	
+	// Continue animation loop
+	roamingAnimationFrameId = requestAnimationFrame(animateRoamingModels);
+}
+
+function updateRoamingModel(modelData: ModelData) {
+	// Update the roaming animation manager
+	roamingAnimationManager.updateModel(modelData);
+	
+	// If roaming is enabled and animation is not running, start it
+	if (modelData.roaming?.isEnabled && !isRoamingAnimationActive) {
+		startRoamingAnimation();
 	}
 }
 
@@ -401,8 +525,8 @@ function addPreviewModelToScene(modelData: ModelData) {
 		// Create preview data source if it doesn't exist
 		if (!previewModelDataSource) {
 			previewModelDataSource = new CustomDataSource('previewModels');
-			if (viewer) {
-				viewer.dataSources.add(previewModelDataSource);
+			if (cesiumViewer) {
+				cesiumViewer.dataSources.add(previewModelDataSource);
 			}
 		}
 
@@ -449,7 +573,7 @@ function addPreviewModelToScene(modelData: ModelData) {
 		});
 
 		currentPreviewModelId = modelData.id;
-		console.log('Preview model added to scene:', modelData.name);
+		logger.info('Preview model added to scene: ' + modelData.name, { component: 'Cesium', operation: 'addPreviewModel' });
 	} catch (error) {
 		console.error('Error adding preview model to scene:', error);
 	}
@@ -463,7 +587,7 @@ function removePreviewModelFromScene() {
 			previewModelDataSource.entities.remove(entity);
 		}
 		currentPreviewModelId = null;
-		console.log('Preview model removed from scene');
+		logger.info('Preview model removed from scene', { component: 'Cesium', operation: 'removePreviewModel' });
 	}
 }
 
@@ -473,43 +597,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	addPreviewModelToScene(modelData);
 }
 
-// Streamlined data operations using data manager
-async function addModel(modelData: ModelData) {
-	try {
-		await dataManager.addModel(modelData);
-		// Update store after successful IDB + scene operation
-		models.update(currentModels => [...currentModels, modelData]);
-	} catch (error) {
-		console.error('Error adding model:', error);
-		throw error;
-	}
-}
-
-async function updateModel(modelData: ModelData) {
-	try {
-		await dataManager.updateModel(modelData);
-		// Update store after successful IDB + scene operation
-		models.update(currentModels => 
-			currentModels.map(model => 
-				model.id === modelData.id ? modelData : model
-			)
-		);
-	} catch (error) {
-		console.error('Error updating model:', error);
-		throw error;
-	}
-}
-
-async function removeModel(modelId: string) {
-	try {
-		await dataManager.removeModel(modelId);
-		// Update store after successful IDB + scene operation
-		models.update(currentModels => currentModels.filter(m => m.id !== modelId));
-	} catch (error) {
-		console.error('Error removing model:', error);
-		throw error;
-	}
-}
+// Model operations now use centralized utilities from modelUtils.ts
 
 async function addPin(pinData: PinData) {
 	try {
@@ -537,16 +625,16 @@ async function removePin(mapid: string) {
   
 	// Reactive statement to update recordButtonText based on modalRecord
 	$: {
-	if (selectedRecord) {
+	if ($selectedRecord) {
 		const categoryMap: { [key: string]: string } = {
 		brainstorming: "Join Brainstorming",
 		actionevent: "Take Action Now",
 		petition: "Sign Now",
 		crowdfunding: "Back this Project",
 		};
-		recordButtonText = categoryMap[selectedRecord.category] || "Go";
+		recordButtonText.set(categoryMap[$selectedRecord.category] || "Go");
 	} else {
-		recordButtonText = "Go";
+		recordButtonText.set("Go");
 	}
 	}
 
@@ -570,13 +658,13 @@ async function removePin(mapid: string) {
 
 	// Function to load basemap with progress
 	async function loadBasemapWithProgress() {
-		if (!viewer) return;
+		if (!cesiumViewer) return;
 		
 		// Simulate basemap loading progress with less frequent updates
 		const progressInterval = setInterval(() => {
-			if (basemapProgress < 100) {
-				basemapProgress += Math.random() * 15; // Larger increments
-				if (basemapProgress > 100) basemapProgress = 100;
+			if ($basemapProgress < 100) {
+				basemapProgress.set($basemapProgress + Math.random() * 15); // Larger increments
+				if ($basemapProgress > 100) basemapProgress.set(100);
 			} else {
 				clearInterval(progressInterval);
 				isBasemapLoaded = true;
@@ -587,11 +675,11 @@ async function removePin(mapid: string) {
 
 	// Function to load 3D tileset with progress
 	async function loadTilesetWithProgress() {
-		if (!viewer) return;
+		if (!cesiumViewer) return;
 		
 		try {
 			tileset = await Cesium3DTileset.fromIonAssetId(2275207);
-			viewer.scene.primitives.add(tileset);
+			cesiumViewer.scene.primitives.add(tileset);
 			
 			// Initially hide the tileset (will be shown when zooming in)
 			tileset.show = false;
@@ -609,22 +697,22 @@ async function removePin(mapid: string) {
 			tileset.foveatedTimeDelay = 0.0; // Load tiles immediately during zoom
 			
 			// Mark tileset as loaded (simplified approach)
-			tilesetProgress = 100;
+			tilesetProgress.set(100);
 			isTilesetLoaded = true;
 			checkIfBothLoaded();
 			
 			// Simulate tileset loading progress with less frequent updates
 			const progressInterval = setInterval(() => {
-				if (tilesetProgress < 100) {
-					tilesetProgress += Math.random() * 20; // Larger increments
-					if (tilesetProgress > 100) tilesetProgress = 100;
+				if ($tilesetProgress < 100) {
+					tilesetProgress.set($tilesetProgress + Math.random() * 20); // Larger increments
+					if ($tilesetProgress > 100) tilesetProgress.set(100);
 				} else {
 					clearInterval(progressInterval);
 				}
 			}, 250); // Reduced frequency from 150ms to 250ms
 		} catch (error) {
 			console.log('Error loading tileset:', error);
-			tilesetProgress = 100;
+			tilesetProgress.set(100);
 			isTilesetLoaded = true;
 			checkIfBothLoaded();
 		}
@@ -632,10 +720,10 @@ async function removePin(mapid: string) {
 
 	// Function to check if both assets are loaded and zoom in
 	function checkIfBothLoaded() {
-		if (isBasemapLoaded && isTilesetLoaded && !isInitialLoadComplete && viewer) {
-			isInitialLoadComplete = true;
+		if (isBasemapLoaded && isTilesetLoaded && !$isInitialLoadComplete && cesiumViewer) {
+			isInitialLoadComplete.set(true);
 			// Zoom to 20 million meters
-			viewer.camera.flyTo({
+			cesiumViewer.camera.flyTo({
 				destination: Cartesian3.fromDegrees(0, 0, 20000000),
 				duration: 3.0
 			});
@@ -648,7 +736,7 @@ async function removePin(mapid: string) {
 					// Fly to the user location
 					const position = userLocationEntity.position?.getValue(JulianDate.now());
 					if (position) {
-						viewer.camera.flyTo({
+						cesiumViewer.camera.flyTo({
 							destination: Cartesian3.fromDegrees(
 								CesiumMath.toDegrees(Cartographic.fromCartesian(position).longitude),
 								CesiumMath.toDegrees(Cartographic.fromCartesian(position).latitude),
@@ -679,6 +767,21 @@ async function removePin(mapid: string) {
 	function setupEventHandlers() {
 		if (!viewer) return;
 
+		// Listen for cancel painting mode event
+		window.addEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
+		
+		// Listen for start painting mode event
+		window.addEventListener('startRoamingAreaPainting', () => {
+			disableCameraControls();
+		});
+		
+		// Listen for escape key to cancel painting
+		window.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && $isRoamingAreaMode) {
+				cancelPaintingMode();
+			}
+		});
+
 		// Debounce function to prevent multiple rapid touches
 		function debounce(func: Function, wait: number) {
 			let timeout: NodeJS.Timeout | null = null;
@@ -689,10 +792,16 @@ async function removePin(mapid: string) {
 		}
 
 		// Combined event handler for picking entities and coordinates
-		viewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
-			if (!viewer) return;
+		cesiumViewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
+			if (!cesiumViewer) return;
 			
-			const pickedObject = viewer.scene.pick(click.position);
+			// Check if we're in roaming area painting mode
+			if ($isRoamingAreaMode) {
+				handleRoamingAreaClick(click);
+				return;
+			}
+			
+			const pickedObject = cesiumViewer.scene.pick(click.position);
 
 			// If an object is picked, handle entity picking
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
@@ -704,27 +813,136 @@ async function removePin(mapid: string) {
 					const modelData = $models.find(model => model.id === modelId);
 					if (modelData) {
 						selectedModel.set(modelData);
-						isModelModalVisible = true;
+						isModelModalVisible.set(true);
 					}
 				} else {
 					await handleEntityPick(pickedObject);
 				}
 			} else {
 				// If no object is picked, handle coordinate picking
-				const height = viewer.camera.positionCartographic.height;
-				if (height > 250000) {
-					// Show the zoom modal
-					isZoomModalVisible.set(true);
-					lastTriggeredModal.set('zoom');
-					// Auto-hide after 3 seconds
-					setTimeout(() => {
-						isZoomModalVisible.set(false);
-					}, 3000);
-				} else {
-					handleCoordinatePick(click);
+				// Skip zoom modal during roaming area painting
+				if (!$isRoamingAreaMode) {
+					const height = cesiumViewer.camera.positionCartographic.height;
+					if (height > 250000) {
+						// Show the zoom modal
+						isZoomModalVisible.set(true);
+						lastTriggeredModal.set('zoom');
+						// Auto-hide after 3 seconds
+						setTimeout(() => {
+							isZoomModalVisible.set(false);
+						}, 3000);
+					} else {
+						handleCoordinatePick(click);
+					}
 				}
 			}
 		}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
+	}
+
+	// Function to handle roaming area painting clicks
+	function handleRoamingAreaClick(click: any) {
+		if (!cesiumViewer) return;
+		
+		const cartesian = cesiumViewer.scene.pickPosition(click.position);
+		if (!cartesian) return;
+
+		const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+		const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+		const latitude = Cesium.Math.toDegrees(cartographic.latitude);
+		
+		if (!roamingAreaStart) {
+			// First click - start the area
+			roamingAreaStart = { latitude, longitude };
+			
+			// Create a visual indicator for the starting point
+			roamingAreaEntity = cesiumViewer.entities.add({
+				position: cartesian,
+				point: {
+					pixelSize: 10,
+					color: Cesium.Color.YELLOW,
+					outlineColor: Cesium.Color.BLACK,
+					outlineWidth: 2,
+					heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+				}
+			});
+		} else {
+			// Second click - complete the area
+			const bounds = {
+				north: Math.max(roamingAreaStart.latitude, latitude),
+				south: Math.min(roamingAreaStart.latitude, latitude),
+				east: Math.max(roamingAreaStart.longitude, longitude),
+				west: Math.min(roamingAreaStart.longitude, longitude)
+			};
+			
+			// Update the store
+			roamingAreaBounds.set(bounds);
+			
+			// Remove the starting point entity
+			if (roamingAreaEntity) {
+				cesiumViewer.entities.remove(roamingAreaEntity);
+				roamingAreaEntity = null;
+			}
+			
+			// Create a rectangle entity to show the area
+			roamingAreaRectangle = cesiumViewer.entities.add({
+				rectangle: {
+					coordinates: Cesium.Rectangle.fromDegrees(
+						bounds.west, bounds.south, bounds.east, bounds.north
+					),
+					material: Cesium.Color.YELLOW.withAlpha(0.3),
+					outline: true,
+					outlineColor: Cesium.Color.YELLOW,
+					height: 0
+				}
+			});
+			
+			// Dispatch event to notify the Roaming component
+			window.dispatchEvent(new CustomEvent('roamingAreaBounds', { 
+				detail: bounds 
+			}));
+			
+			// Re-enable camera controls
+			enableCameraControls();
+			
+			// Reset for next area
+			roamingAreaStart = null;
+		}
+	}
+
+	// Function to disable camera controls
+	function disableCameraControls() {
+		if (cesiumViewer) {
+			cesiumViewer.scene.screenSpaceCameraController.enableRotate = false;
+			cesiumViewer.scene.screenSpaceCameraController.enableTranslate = false;
+			cesiumViewer.scene.screenSpaceCameraController.enableZoom = false;
+		}
+	}
+
+	// Function to re-enable camera controls
+	function enableCameraControls() {
+		if (cesiumViewer) {
+			cesiumViewer.scene.screenSpaceCameraController.enableRotate = true;
+			cesiumViewer.scene.screenSpaceCameraController.enableTranslate = true;
+			cesiumViewer.scene.screenSpaceCameraController.enableZoom = true;
+		}
+	}
+
+	// Function to cancel painting mode
+	function cancelPaintingMode() {
+		// Re-enable camera controls
+		enableCameraControls();
+		
+		// Clear painting state
+		roamingAreaStart = null;
+		
+		// Remove any existing entities
+		if (roamingAreaEntity && cesiumViewer) {
+			cesiumViewer.entities.remove(roamingAreaEntity);
+			roamingAreaEntity = null;
+		}
+		
+		// Exit painting mode
+		isRoamingAreaMode.set(false);
 	}
 
 	// Note: Reactive statements removed - data flow is now handled by explicit function calls
@@ -741,7 +959,7 @@ async function removePin(mapid: string) {
 
 	  
 	  // Initialize Cesium viewer with configuration
-	  viewer = new Viewer('cesiumContainer', {
+	  cesiumViewer = new Viewer('cesiumContainer', {
 		animation: false,
 		fullscreenButton: false,
 		vrButton: false,
@@ -759,8 +977,9 @@ async function removePin(mapid: string) {
 		  webgl: { alpha: true },
 		},
 	  });
-	
-
+	  
+	  // Set the viewer in the store
+	  viewer.set(cesiumViewer);
 
 
 
@@ -768,24 +987,24 @@ async function removePin(mapid: string) {
 
 
 	// Render the Cesium Container background transparent
-	  viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
+	  cesiumViewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
 
 	// Remove the doubleclick event handler
-	  viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+	  cesiumViewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   
 	  // Set up real-time camera monitoring
-		viewer.camera.moveStart.addEventListener(() => {
+		cesiumViewer.camera.moveStart.addEventListener(() => {
 		  // Start monitoring when camera starts moving
 		  startCameraMonitoring();
 		});
 
-		viewer.camera.moveEnd.addEventListener(() => {
+		cesiumViewer.camera.moveEnd.addEventListener(() => {
 		  // Stop monitoring when camera stops moving
 		  stopCameraMonitoring();
 		});
   
 	  // Set initial camera position to 10 billion meters (unseen distance)
-	  viewer.scene.camera.setView({
+	  cesiumViewer.scene.camera.setView({
 		destination: Cartesian3.fromDegrees(0, 0, 10000000000), // 10 billion meters
 		orientation: {
 		  heading: 0,
@@ -804,17 +1023,14 @@ async function removePin(mapid: string) {
 	  loadAssetsWithProgress();
 
 	// Function to get the current time in ISO 8601 format
-	function getCurrentTimeIso8601() {
-	const now = new Date();
-	return now.toISOString();
-	}
+	// Time formatting now uses centralized utility from timeUtils.ts
 
     // Get the current time in ISO 8601 format and update the viewer's clock
     const currentTime = getCurrentTimeIso8601();
-    viewer.clock.currentTime = JulianDate.fromIso8601(currentTime);
+    cesiumViewer.clock.currentTime = JulianDate.fromIso8601(currentTime);
 
 	  // Atmosphere settings
-	  const scene = viewer.scene;
+	  const scene = cesiumViewer.scene;
 	  const globe = scene.globe;
 	  globe.enableLighting = true;
 	  globe.atmosphereLightIntensity = 20.0;
@@ -843,8 +1059,8 @@ async function removePin(mapid: string) {
 		  customDataSource.clustering.minimumClusterSize = 2;
 	  }
   
-	  if (customDataSource) viewer.dataSources.add(customDataSource);
-	  if (modelDataSource) viewer.dataSources.add(modelDataSource);
+	  if (customDataSource) cesiumViewer.dataSources.add(customDataSource);
+	  if (modelDataSource) cesiumViewer.dataSources.add(modelDataSource);
 
 	  // Set up event handlers for user interactions
 	  setupEventHandlers();
@@ -858,7 +1074,7 @@ async function removePin(mapid: string) {
 		const cities = await response.json();
 
 		// Add label collection to scene with proper cleanup reference
-		const labels = viewer.scene.primitives.add(new Cesium.LabelCollection());
+		const labels = cesiumViewer.scene.primitives.add(new Cesium.LabelCollection());
 		
 		// Store labels reference for cleanup
 		(window as any).cityLabels = labels;
@@ -903,8 +1119,8 @@ async function handleEntityPick(pickedFeature: any) {
   try {
     const record = await fetchRecord(mapid);
     if (record) {
-      isRecordModalVisible = true;
-      selectedRecord = record as { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string };
+      isRecordModalVisible.set(true);
+      selectedRecord.set(record as { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string });
     }
   } catch (error) {
     console.error('Error fetching record:', error);
@@ -914,9 +1130,9 @@ async function handleEntityPick(pickedFeature: any) {
 // Function to handle coordinate picking
 
 function handleCoordinatePick(result: any) {
-  if (!viewer) return;
+  if (!cesiumViewer) return;
   
-  const cartesian = viewer.scene.pickPosition(result.position);
+  const cartesian = cesiumViewer.scene.pickPosition(result.position);
   if (!cartesian) return;
 
   const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
@@ -932,12 +1148,12 @@ function handleCoordinatePick(result: any) {
     height: cartographic.height
   });
 
-  if (pointEntity && viewer) {
-    viewer.entities.remove(pointEntity);
+  if (pointEntity && cesiumViewer) {
+    cesiumViewer.entities.remove(pointEntity);
   }
 
-  if (viewer) {
-    pointEntity = viewer.entities.add({
+  if (cesiumViewer) {
+    pointEntity = cesiumViewer.entities.add({
     id: "pickedPoint",
     position: cartesian,
     billboard: {
@@ -957,63 +1173,40 @@ function handleCoordinatePick(result: any) {
 
 
 
-	window.addEventListener("keydown", handleKeyDown);
   
 
-	// Function to close modal
-	function closeRecordModal() {
-	  isRecordModalVisible = false;
-	}
-
-
-
-// Function to close model modal
-function closeModelModal() {
-  isModelModalVisible = false;
-  selectedModel.set(null);
-}
-
-// Function to close model modal without clearing selected model (for edit mode)
-function closeModelModalForEdit() {
-  isModelModalVisible = false;
-  // Don't clear selectedModel here - we need it for editing
-}
-
-
-	// Event listener for closing modals on Escape key press
-function handleKeyDown(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    closeRecordModal();
-    closeModelModal();
-  }
-}
 
 	onDestroy(() => {
 		// Stop camera monitoring
 		stopCameraMonitoring();
 		
+		// Stop roaming animation
+		stopRoamingAnimation();
+		
 		// Remove event listeners
-		window.removeEventListener("keydown", handleKeyDown);
+		window.removeEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
+		window.removeEventListener('startRoamingAreaPainting', () => {});
+		// Note: handleKeyDown was removed as modals are now in App.svelte
 		
 		// Clean up Cesium viewer and resources
-		if (viewer) {
+		if (cesiumViewer) {
 			// Remove all data sources
-			viewer.dataSources.removeAll();
+			cesiumViewer.dataSources.removeAll();
 			
 			// Remove all entities
-			viewer.entities.removeAll();
+			cesiumViewer.entities.removeAll();
 			
 			// Remove all primitives (including city labels)
-			viewer.scene.primitives.removeAll();
+			cesiumViewer.scene.primitives.removeAll();
 			
 			// Remove event handlers
-			if (viewer.screenSpaceEventHandler) {
-				viewer.screenSpaceEventHandler.destroy();
+			if (cesiumViewer.screenSpaceEventHandler) {
+				cesiumViewer.screenSpaceEventHandler.destroy();
 			}
-			
+
 			// Destroy the viewer
-			viewer.destroy();
-			viewer = null;
+			cesiumViewer.destroy();
+			viewer.set(null);
 		}
 		
 		// Clean up data sources
@@ -1043,11 +1236,16 @@ function handleKeyDown(event: KeyboardEvent) {
 		resetAllStores();
 		
 		// Reset state variables
-		isRecordModalVisible = false;
-		isModelModalVisible = false;
+		isRecordModalVisible.set(false);
+		isModelModalVisible.set(false);
+		
+		// Clean up roaming area state
+		roamingAreaStart = null;
+		roamingAreaEntity = null;
+		roamingAreaRectangle = null;
 		isZoomModalVisible.set(false);
 		lastTriggeredModal.set(null);
-		selectedRecord = null;
+		selectedRecord.set(null);
 		pointEntity = null;
 		userLocationEntity = null;
 		userLocationPreloaded = false;
@@ -1055,21 +1253,6 @@ function handleKeyDown(event: KeyboardEvent) {
 		animationFrameId = null;
 	});
 
-	// Function to format the timestamp on the posts
-	function formatTimestamp(timestamp: string) {
-    const date = new Date(timestamp);
-
-    // extract parts of the timestamp
-    const day = date.getUTCDate().toString().padStart(2, '0');
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0'); // Monate sind 0-basiert
-    const year = date.getUTCFullYear();
-    const hours = date.getUTCHours().toString().padStart(2, '0');
-    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-    const seconds = date.getUTCSeconds().toString().padStart(2, '0');
-
-    // formating the timestamp output
-    return `${day}.${month}.${year} ${hours}:${minutes}:${seconds} UTC`;
-  	}
 
   </script>
   
@@ -1082,7 +1265,7 @@ function handleKeyDown(event: KeyboardEvent) {
   <!-- Height Display (bottom left) -->
   <div class="height-display">
     <div class="height-label">Height:</div>
-    <div class="height-value">{Math.round(currentHeight / 1000)}km</div>
+    <div class="height-value">{Math.round($currentHeight / 1000)}km</div>
   </div>
 </div>  
 
@@ -1090,92 +1273,6 @@ function handleKeyDown(event: KeyboardEvent) {
 
 
 
-{#if isRecordModalVisible && selectedRecord}
-  <Modal 
-    isVisible={isRecordModalVisible} 
-    onClose={closeRecordModal}
-    title="Record Details"
-    maxWidth="500px"
-  >
-    <div class="modal-record">
-      <div>
-        <p class="title">{selectedRecord.title}</p>
-        <p class="text">{selectedRecord.text}</p>
-      </div>
-      <div>
-        <p class="created">CREATED {formatTimestamp(selectedRecord.timestamp)}</p>
-        <p>
-          <GlassmorphismButton variant="primary" onClick={() => selectedRecord && window.open(selectedRecord.link, '_blank')}>
-            {recordButtonText}
-          </GlassmorphismButton>
-        </p>
-      </div>
-      <div>
-        <ShareButton 
-          title={selectedRecord.title} 
-          text={selectedRecord.text} 
-          link={selectedRecord.link} 
-        />
-      </div>
-    </div>
-  </Modal>
-{/if}
-
-
-{#if isModelModalVisible && $selectedModel}
-  <Modal 
-    isVisible={isModelModalVisible} 
-    onClose={closeModelModal}
-    title="3D Model Details"
-    maxWidth="500px"
-  >
-    <div class="modal-record">
-      <div>
-        <p class="title">{$selectedModel.name}</p>
-        <p class="text">{$selectedModel.description || '3D Model'}</p>
-        <p class="model-info">
-          Scale: {$selectedModel.transform.scale}x | 
-          Height: {$selectedModel.transform.height}m | 
-          Source: {$selectedModel.source}
-        </p>
-      </div>
-      <div>
-        <p class="created">ADDED {formatTimestamp($selectedModel.timestamp)}</p>
-        <div class="button-group">
-          <GlassmorphismButton 
-            variant="primary" 
-            onClick={() => {
-              // Store the model data before closing the modal
-              const modelToEdit = $selectedModel;
-              closeModelModalForEdit();
-              // Dispatch edit model event to App.svelte
-              if (modelToEdit) {
-                window.dispatchEvent(new CustomEvent('editModel', { 
-                  detail: { modelData: modelToEdit } 
-                }));
-              }
-            }}
-          >
-            Edit Model
-          </GlassmorphismButton>
-          <GlassmorphismButton 
-            variant="danger" 
-            onClick={async () => {
-              try {
-                await removeModel($selectedModel.id);
-                closeModelModal();
-              } catch (error) {
-                console.error('Failed to remove model:', error);
-              }
-            }}
-          >
-            Remove Model
-          </GlassmorphismButton>
-        </div>
-      </div>
-    </div>
-  </Modal>
-{/if}
 
 
 <style>
@@ -1184,6 +1281,7 @@ function handleKeyDown(event: KeyboardEvent) {
 	  height: 100vh;
 	  margin: 0;
 	  padding: 0;
+	  border: 3px solid #4ecdc4;
 	}
 
 
@@ -1231,35 +1329,6 @@ function handleKeyDown(event: KeyboardEvent) {
 	  text-align: center;
 	}
 
-	.title{
-		text-align: center;
-		font-size: 1.5em;
-		font-weight: bold;
-	}
-
-	.text{
-		text-align: center;
-		font-size: 1.0em;
-		font-weight: bold;
-	}
-
-	.created{
-		text-align: center;
-		font-size: 1.0em;
-	}
-
-	.model-info {
-		text-align: center;
-		font-size: 0.9em;
-		color: rgba(255, 255, 255, 0.8);
-		margin: 10px 0;
-	}
-
-	.button-group {
-		display: flex;
-		gap: 10px;
-		margin-top: 15px;
-	}
 
 
 	:global(.cesium-button.cesium-vrButton) {
@@ -1282,14 +1351,6 @@ function handleKeyDown(event: KeyboardEvent) {
 
 
 
-	.modal-record {
-	  width: 90%;
-	  max-width: 800px;
-	  border-radius: 15px;
-   	  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-	  background-color: rgba(0, 0, 0, 0.5);
-	  padding: 20px;
-	}
 
 
 
@@ -1344,19 +1405,11 @@ function handleKeyDown(event: KeyboardEvent) {
     }
 
     ::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      @apply scrollbar-track;
     }
 
     ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      backdrop-filter: blur(10px);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      @apply scrollbar-thumb;
     }
 
     ::-webkit-scrollbar-thumb:hover {
@@ -1370,15 +1423,11 @@ function handleKeyDown(event: KeyboardEvent) {
     }
 
     *::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      @apply scrollbar-track;
     }
 
     *::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.5);
+      @apply scrollbar-thumb;
     }
 
     *::-webkit-scrollbar-thumb:hover {

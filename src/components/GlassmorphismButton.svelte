@@ -44,7 +44,6 @@
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s ease;
-    border: none;
     font-family: inherit;
   }
 

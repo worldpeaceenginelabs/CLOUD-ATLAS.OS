@@ -3,52 +3,7 @@
  * Centralized IndexedDB initialization and management
  */
 
-
-export interface PinData {
-  mapid: string;
-  latitude: string;
-  longitude: string;
-  category: string;
-  title: string;
-  text: string;
-  link: string;
-  timestamp: string;
-  height: number;
-}
-
-export interface ModelData {
-  id: string;
-  name: string;
-  description: string;
-  coordinates: {
-    latitude: number;
-    longitude: number;
-  };
-  transform: {
-    scale: number;
-    height: number;
-    heading: number;
-    pitch: number;
-    roll: number;
-    heightOffset: number;
-  };
-  source: 'file' | 'url';
-  url?: string;
-  file?: File;
-  timestamp: string;
-}
-
-export interface LocalPinData {
-  mapid: string;
-  latitude: string;
-  longitude: string;
-  category: string;
-  title: string;
-  text: string;
-  link: string;
-  timestamp: string;
-  height: number;
-}
+import type { PinData, ModelData, LocalPinData } from './types';
 
 export class IndexedDBManager {
   private db: IDBDatabase | null = null;
@@ -208,19 +163,37 @@ export class IndexedDBManager {
    * Save model to IndexedDB
    */
   async saveModel(modelData: ModelData): Promise<void> {
+    console.log('🔍 [DEBUG] idb.saveModel called with:', {
+      name: modelData.name,
+      hasFile: !!modelData.file,
+      hasRoaming: !!modelData.roaming,
+      dbExists: !!this.db
+    });
+
     if (!this.db) {
+      console.error('🔍 [DEBUG] Database not initialized');
       throw new Error('Database not initialized');
     }
 
     if (!this.db.objectStoreNames.contains('models')) {
-      console.log('Models object store not found, skipping model save');
+      console.log('🔍 [DEBUG] Models object store not found, skipping model save');
       return;
     }
 
-    const transaction = this.db.transaction('models', 'readwrite');
-    const objectStore = transaction.objectStore('models');
-    await objectStore.put(modelData);
-    console.log('Model saved to IndexedDB:', modelData.name);
+    try {
+      console.log('🔍 [DEBUG] Creating transaction');
+      const transaction = this.db.transaction('models', 'readwrite');
+      const objectStore = transaction.objectStore('models');
+      
+      console.log('🔍 [DEBUG] Putting model data to IndexedDB');
+      await objectStore.put(modelData);
+      console.log('🔍 [DEBUG] Model data put to IndexedDB successfully');
+      
+      console.log('Model saved to IndexedDB:', modelData.name);
+    } catch (error) {
+      console.error('🔍 [DEBUG] Error in idb.saveModel:', error);
+      throw error;
+    }
   }
 
   /**

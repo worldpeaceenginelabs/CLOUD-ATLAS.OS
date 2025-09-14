@@ -5,20 +5,38 @@
   import Infobox from "./components/Infobox.svelte";
   import Grid from "./components/Grid.svelte";
   import AddButton from "./appmenu/AddButton.svelte";
-  import { writable } from 'svelte/store';
   import ActionEvent from "./appmenu/ActionEvent.svelte";
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
-  import HeaderCard from "./components/HeaderCard.svelte";
-  import ModelSettings from "./components/ModelSettings.svelte";
-  import { models, coordinates } from './store';
+  import Editor from "./components/Editor.svelte";
+  import Modal from "./components/Modal.svelte";
+  import ShareButton from "./components/Sharebutton.svelte";
+  import GlassmorphismButton from "./components/GlassmorphismButton.svelte";
+  import RoamingControls from "./components/RoamingControls.svelte";
+  import { 
+    models, 
+    coordinates, 
+    currentCoords,
+    showPicture,
+    gridReady,
+    isVisible,
+    isRecordModalVisible,
+    isModelModalVisible,
+    selectedRecord,
+    selectedModel,
+    recordButtonText,
+    cesiumActions,
+    basemapProgress,
+    tilesetProgress,
+    isInitialLoadComplete
+  } from './store';
   import { dataManager } from './dataManager';
+  import { formatTimestamp } from './utils/timeUtils';
+  import { addModel, updateModel, removeModel, createFinalModelData, validateModelForm } from './utils/modelUtils';
+  import { logger } from './utils/logger';
+  import './shared-styles.css';
 
-  let showPicture = true;
   let quote = "\"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.\" Buckminster Fuller";
-  let gridReady = false;
-
-  const isVisible = writable(false);
 
   // Component references for cleanup
   let cesiumComponent: Cesium | null = null;
@@ -29,20 +47,16 @@
   let advertisingBannerComponent: AdvertisingBanner | null = null;
   let progressBarComponent: ProgressBar | null = null;
 
-  // Progress data from Cesium component
-  let basemapProgress = 0;
-  let tilesetProgress = 0;
-  let isInitialLoadComplete = false;
-  let toggleModelUI: (() => void) | undefined = undefined;
-  
   // Preview functions from Cesium component
   let addPreviewModelToScene: ((modelData: any) => void) | undefined = undefined;
   let removePreviewModelFromScene: (() => void) | undefined = undefined;
   let updatePreviewModelInScene: ((modelData: any) => void) | undefined = undefined;
+  
+  // Roaming animation functions from Cesium component
+  let updateRoamingModel: ((modelData: any) => void) | undefined = undefined;
 
   // Card visibility states
-  let showHeaderCard = false;
-  let showModelSettingsCard = false;
+  let showModelSettingsCard = true;
 
   // Dropdown states for bottom cards
   let showModelSettingsDropdown = true;
@@ -50,14 +64,7 @@
   // Card data states
   let isEditMode = false;
   let editingModelId = '';
-  let currentCoords = { latitude: '', longitude: '', height: 0 };
 
-  // Reactive statement to update currentCoords when coordinates store changes
-  $: currentCoords = {
-    latitude: $coordinates.latitude || '',
-    longitude: $coordinates.longitude || '',
-    height: $coordinates.height || 0
-  };
   
   // Form data states
   let selectedSource = 'url';
@@ -72,6 +79,16 @@
   let pitch = 0;
   let roll = 0;
 
+  // Roaming-related variables
+  let isRoamingEnabled = false;
+  let roamingSpeed = 1.0;
+  let roamingArea: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  } | null = null;
+
   // Reactive statements to update preview when form data changes
   $: if (gltfFile || gltfUrl) {
     updatePreview();
@@ -84,7 +101,6 @@
 
   // Functions to show/hide all cards
   function showAllCards() {
-    showHeaderCard = true;
     showModelSettingsCard = true;
     // Reset dropdown states to open when showing cards
     showModelSettingsDropdown = true;
@@ -96,7 +112,6 @@
       removePreviewModelFromScene();
     }
     
-    showHeaderCard = false;
     showModelSettingsCard = false;
     // Reset dropdown states
     showModelSettingsDropdown = false;
@@ -163,6 +178,11 @@
         gltfFile = null;
       }
       
+      // Set roaming data
+      isRoamingEnabled = modelData.roaming?.isEnabled || false;
+      roamingSpeed = modelData.roaming?.speed || 1.0;
+      roamingArea = modelData.roaming?.area || null;
+      
       showAllCards();
       // Close the AddButton menu
       if (addButtonComponent) {
@@ -174,49 +194,42 @@
   // Handle form submission
   async function handleSubmit() {
     try {
-      // Validate required fields
-      if (!modelName.trim()) {
-        alert('Please enter a model name');
+      // Validate form using shared utility
+      const validation = validateModelForm(
+        modelName,
+        $coordinates,
+        selectedSource,
+        gltfFile,
+        gltfUrl
+      );
+
+      if (!validation.isValid) {
+        alert(validation.errorMessage);
         return;
       }
 
-      if (!$coordinates.latitude || !$coordinates.longitude) {
-        alert('Please select coordinates on the map');
-        return;
-      }
-
-      if (selectedSource === 'file' && !gltfFile) {
-        alert('Please select a file');
-        return;
-      }
-
-      if (selectedSource === 'url' && !gltfUrl.trim()) {
-        alert('Please enter a URL');
-        return;
-      }
-
-      // Create model data
-      const modelData = {
-        id: isEditMode ? editingModelId : 'model_' + Date.now(),
-        name: modelName.trim(),
-        description: modelDescription.trim(),
-        source: selectedSource,
-        file: gltfFile,
-        url: gltfUrl.trim(),
-        coordinates: {
-          latitude: parseFloat($coordinates.latitude),
-          longitude: parseFloat($coordinates.longitude)
+      // Create model data using shared utility
+      const modelData = createFinalModelData(
+        $coordinates,
+        {
+          selectedSource,
+          gltfFile,
+          gltfUrl,
+          modelName,
+          modelDescription,
+          scale,
+          height,
+          heightOffset,
+          heading,
+          pitch,
+          roll,
+          isRoamingEnabled,
+          roamingSpeed,
+          roamingArea
         },
-        transform: {
-          scale: scale,
-          height: height,
-          heightOffset: heightOffset,
-          heading: heading,
-          pitch: pitch,
-          roll: roll
-        },
-        timestamp: new Date().toISOString()
-      };
+        isEditMode,
+        editingModelId
+      );
 
       // Remove preview model before adding to store
       if (removePreviewModelFromScene) {
@@ -226,17 +239,27 @@
       if (isEditMode) {
         // Update existing model
         await updateModel(modelData);
-        console.log('Model updated:', modelData.name);
+        logger.modelUpdated(modelData.name);
+        
+        // Update roaming animation if enabled
+        if (updateRoamingModel && modelData.roaming?.isEnabled) {
+          updateRoamingModel(modelData);
+        }
       } else {
         // Add new model
         await addModel(modelData);
-        console.log('Model added:', modelData.name);
+        logger.modelAdded(modelData.name);
+        
+        // Add to roaming animation if enabled
+        if (updateRoamingModel && modelData.roaming?.isEnabled) {
+          updateRoamingModel(modelData);
+        }
       }
 
       // Hide all cards after successful submission
       hideAllCards();
     } catch (error) {
-      console.error('Error submitting model:', error);
+      logger.operationError('submitModel', error, { component: 'App', operation: 'handleSubmit' });
       alert('Failed to save model. Please try again.');
     }
   }
@@ -312,32 +335,26 @@
     showModelSettingsDropdown = !showModelSettingsDropdown;
   }
 
-  // Model management functions
-  async function addModel(modelData: any) {
-    try {
-      await dataManager.addModel(modelData);
-      // Update store after successful IDB + scene operation
-      models.update((currentModels: any[]) => [...currentModels, modelData]);
-    } catch (error) {
-      console.error('Error adding model:', error);
-      throw error;
-    }
+  // Modal management functions
+  function closeRecordModal() {
+    isRecordModalVisible.set(false);
+    selectedRecord.set(null);
+    recordButtonText.set('');
   }
 
-  async function updateModel(modelData: any) {
-    try {
-      await dataManager.updateModel(modelData);
-      // Update store after successful IDB + scene operation
-      models.update((currentModels: any[]) => 
-        currentModels.map((model: any) => 
-          model.id === modelData.id ? modelData : model
-        )
-      );
-    } catch (error) {
-      console.error('Error updating model:', error);
-      throw error;
-    }
+  function closeModelModal() {
+    isModelModalVisible.set(false);
+    selectedModel.set(null);
   }
+
+  function closeModelModalForEdit() {
+    isModelModalVisible.set(false);
+    // The edit functionality will be handled by the existing handleEditModel function
+  }
+
+  // Time formatting now uses centralized utility from timeUtils.ts
+
+  // Model management functions are now imported from utils/modelUtils.ts
 
   // Set up event listener for edit model events
   function setupEventListeners() {
@@ -350,8 +367,8 @@
 
   onDestroy(() => {
     // Reset state
-    showPicture = false;
-    
+    showPicture.set(false);
+
     // Reset store
     isVisible.set(false);
     
@@ -375,8 +392,8 @@
 </script>
 
 <div class="app-container">
-  {#if showPicture}
-    <div class="picture-container" on:click={() => showPicture = false} on:keydown={(e) => e.key === 'Enter' && (showPicture = false)} role="button" tabindex="0">
+  {#if $showPicture}
+    <div class="picture-container" on:click={() => showPicture.set(false)} on:keydown={(e) => e.key === 'Enter' && showPicture.set(false)} role="button" tabindex="0">
       <video
   autoplay
   loop
@@ -394,38 +411,24 @@
       <div class="twpg-text under-enter animated-gradient">THE WORLD PEACE GAME</div>
     </div>
   {:else}
-    <div class="gridcontainer"><Grid bind:this={gridComponent} on:gridReady={() => gridReady = true} /></div>
-    {#if gridReady}
-      <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:basemapProgress bind:tilesetProgress bind:isInitialLoadComplete bind:toggleModelUI bind:addPreviewModelToScene bind:removePreviewModelFromScene bind:updatePreviewModelInScene /></div>
+    <div class="gridcontainer"><Grid bind:this={gridComponent} on:gridReady={() => gridReady.set(true)} /></div>
+    {#if $gridReady}
+      <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:addPreviewModelToScene bind:removePreviewModelFromScene bind:updatePreviewModelInScene bind:updateRoamingModel /></div>
     {/if}
     <!--- <div class="searchcontainer"><Appsearch /></div> -->
-    <div class="infoboxcontainer"><Infobox bind:this={infoboxComponent} {isVisible} /></div>
+    <div class="infoboxcontainer"><Infobox bind:this={infoboxComponent} isVisible={isVisible} /></div>
     <AdvertisingBanner bind:this={advertisingBannerComponent} />
-    <ProgressBar bind:this={progressBarComponent} {basemapProgress} {tilesetProgress} {isInitialLoadComplete} />
+    <ProgressBar bind:this={progressBarComponent} basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
     <AddButton 
       bind:this={addButtonComponent} 
-      {addPreviewModelToScene}
-      {removePreviewModelFromScene}
-      {updatePreviewModelInScene}
       onAddModel={handleAddModel}
     />
 
-    <!-- Three Card Components -->
-    {#if showHeaderCard}
-      <div class="header-card-container">
-        <HeaderCard 
-          coordinates={currentCoords}
-          {isEditMode}
-          isUploading={false}
-          onClose={hideAllCards}
-          onSubmit={handleSubmit}
-        />
-      </div>
-    {/if}
-
+    <!-- Editor Card -->
     {#if showModelSettingsCard}
       <div class="model-settings-card-container">
-        <ModelSettings 
+        <Editor 
+          {isEditMode}
           bind:selectedSource
           bind:gltfFile
           bind:gltfUrl
@@ -437,14 +440,103 @@
           bind:heading
           bind:pitch
           bind:roll
-          {currentCoords}
-          showDropdown={showModelSettingsDropdown}
-          onToggleDropdown={toggleModelSettingsDropdown}
-          onSourceChange={(source) => selectedSource = source}
-          onFileSelect={handleFileSelect}
-          onUrlChange={handleUrlChange}
+          bind:isRoamingEnabled
+          bind:roamingSpeed
+          bind:roamingArea
+          on:save={handleSubmit}
+          on:cancel={hideAllCards}
+          on:close={hideAllCards}
         />
       </div>
+    {/if}
+
+    <!-- Roaming Controls -->
+    <RoamingControls />
+
+    <!-- Modals moved from Cesium.svelte -->
+    {#if $isRecordModalVisible && $selectedRecord}
+      <Modal 
+        isVisible={$isRecordModalVisible} 
+        onClose={closeRecordModal}
+        title="Record Details"
+        maxWidth="500px"
+      >
+        <div class="modal-record">
+          <div>
+            <p class="title">{$selectedRecord.title}</p>
+            <p class="text">{$selectedRecord.text}</p>
+          </div>
+          <div>
+            <p class="created">CREATED {formatTimestamp($selectedRecord.timestamp)}</p>
+            <p>
+              <GlassmorphismButton variant="primary" onClick={() => $selectedRecord && window.open($selectedRecord.link, '_blank')}>
+                {$recordButtonText}
+              </GlassmorphismButton>
+            </p>
+          </div>
+          <div>
+            <ShareButton 
+              title={$selectedRecord.title} 
+              text={$selectedRecord.text} 
+              link={$selectedRecord.link} 
+            />
+          </div>
+        </div>
+      </Modal>
+    {/if}
+
+    {#if $isModelModalVisible && $selectedModel}
+      <Modal 
+        isVisible={$isModelModalVisible} 
+        onClose={closeModelModal}
+        title="3D Model Details"
+        maxWidth="500px"
+      >
+        <div class="modal-record">
+          <div>
+            <p class="title">{$selectedModel.name}</p>
+            <p class="text">{$selectedModel.description || '3D Model'}</p>
+            <p class="model-info">
+              Scale: {$selectedModel.transform.scale}x | 
+              Height: {$selectedModel.transform.height}m | 
+              Source: {$selectedModel.source}
+            </p>
+          </div>
+          <div>
+            <p class="created">CREATED {formatTimestamp($selectedModel.timestamp)}</p>
+            <p>
+              <GlassmorphismButton 
+                variant="primary" 
+                onClick={() => {
+                  // Store the model data before closing the modal
+                  const modelToEdit = $selectedModel;
+                  closeModelModalForEdit();
+                  if (modelToEdit) {
+                    handleEditModel(modelToEdit);
+                  }
+                }}
+              >
+                EDIT MODEL
+              </GlassmorphismButton>
+            </p>
+            <p>
+              <GlassmorphismButton 
+                variant="danger" 
+                onClick={async () => {
+                  try {
+                    await removeModel($selectedModel.id);
+                    closeModelModal();
+                  } catch (error) {
+                    logger.operationError('removeModel', error, { component: 'App', operation: 'removeModel' });
+                  }
+                }}
+              >
+                REMOVE MODEL
+              </GlassmorphismButton>
+            </p>
+          </div>
+        </div>
+      </Modal>
     {/if}
   {/if}
 </div>
@@ -465,6 +557,7 @@
     height: 100vh;
     width: 100vw;
     box-sizing: border-box;
+    border: 3px solid #ff6b6b;
   }
 
   .gridcontainer {
@@ -499,32 +592,17 @@
     position: absolute;
   }
 
-  /* Editor Header Card positioning */
-  .header-card-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-  }
-
   /* Editor Model Settings Card positioning */
   .model-settings-card-container {
     position: fixed;
     top: 0;
     left: 0;
+    width: 100%;
     z-index: 1000;
   }
 
   /* Responsive design for cards */
   @media (max-width: 768px) {
-    .header-card-container {
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      transform: none;
-      max-width: none;
-    }
-
     .model-settings-card-container {
       bottom: 10px;
       left: 10px;
@@ -668,7 +746,7 @@
   }
 }
 
-/* Specific fix for very small screens (under 400px) */
+  /* Specific fix for very small screens (under 400px) */
 @media (max-width: 400px) {
     .quote {
       font-size: 1em; /* Reduce the font size further */
@@ -683,6 +761,47 @@
     .twpg-text.under-enter {
       font-size: 7vw; /* Adjust font size for the secondary text */
     }
+  }
+
+  /* Modal styles moved from Cesium.svelte */
+  .modal-record {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .modal-record .title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0 0 0.5rem 0;
+    color: #333;
+  }
+
+  .modal-record .text {
+    font-size: 1rem;
+    margin: 0 0 1rem 0;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  .modal-record .model-info {
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+    color: #888;
+    font-style: italic;
+  }
+
+  .modal-record .created {
+    font-size: 0.8rem;
+    margin: 0 0 1rem 0;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .modal-record p {
+    margin: 0.5rem 0;
   }
 
 </style>

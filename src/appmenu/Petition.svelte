@@ -7,6 +7,16 @@
   import { idb } from '../idb';
   import FormInput from '../components/FormInput.svelte';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
+  import { 
+    deleteOldRecords, 
+    deleteOldRecordsLocal, 
+    storeRecord, 
+    storeRecordInLocalPins, 
+    loadRecordsFromIndexedDB, 
+    initializeApp 
+  } from '../utils/recordUtils';
+  import { getCurrentTime } from '../utils/timeUtils';
+  import { createEmptyRecord, recordIsValidWithPattern, formRecordToPinData } from '../utils/formUtils';
 
 
   // Initialize IndexedDB using shared module
@@ -19,55 +29,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-  // Function to delete old records from the locationpins object store
-  async function deleteOldRecords() {
-    try {
-      const deletedCount = await idb.deleteOldRecords(30); // Delete records older than 30 days
-      console.log(`Deleted ${deletedCount} old records from locationpins`);
-    } catch (error) {
-      console.error('Error deleting old records from locationpins:', error);
-    }
-  }
-
-  // Function to delete old records from the localpins object store
-  async function deleteOldRecordsLocal() {
-    try {
-      const deletedCount = await idb.deleteOldLocalRecords(30); // Delete records older than 30 days
-      console.log(`Deleted ${deletedCount} old local records from localpins`);
-    } catch (error) {
-      console.error('Error deleting old local records from localpins:', error);
-    }
-  }
-
-  // Function to store a record in the locationpins object store
-  async function storeRecord(record: Record) {
-    try {
-      await idb.savePin(record);
-      console.log('Stored record in IndexedDB');
-    } catch (error) {
-      console.error('Error storing record in IndexedDB:', error);
-    }
-  }
-
-  // Function to store a record in the 'localpins' object store
-  async function storeRecordInLocalPins(record: Record) {
-    try {
-      await idb.saveLocalPin(record);
-      console.log('Stored record in localpins IndexedDB');
-    } catch (error) {
-      console.error('Error storing record in localpins IndexedDB:', error);
-    }
-  }
-
-  // Function to load records from the locationpins object store
-  async function loadRecordsFromIndexedDB() {
-    try {
-      return await idb.loadPins();
-    } catch (error) {
-      console.error('Error loading records from IndexedDB:', error);
-      return [];
-    }
-  }
+  // Record management functions now use centralized utilities from recordUtils.ts
 
 
 
@@ -75,20 +37,7 @@
 
 
 
-// Function to initialize the app in the right sequence
- async function initializeApp(): Promise<void> {
-  try {
-    await initializeIndexedDB();
-    await deleteOldRecords();
-    await deleteOldRecordsLocal();
-  } catch (error) {
-    console.error('An error occurred during initialization:', error);
-  }
-  const storedRecords = await loadRecordsFromIndexedDB();
-  records.set(storedRecords);
-  recordCache.push(...storedRecords);
-  console.log('Loaded records from IndexedDB');
-}
+// App initialization now uses centralized utility from recordUtils.ts
 
 
 
@@ -123,13 +72,7 @@ const trysteroroomname = import.meta.env.VITE_TRYSTERO_ROOM_NAME;
 // *                             *
 // *******************************
 
-  function getCurrentTime() {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
-}
+  // Time formatting now uses centralized utility from timeUtils.ts
 
 function startRoom(): void {
     room.onPeerJoin(peerId => {
@@ -148,7 +91,7 @@ function startRoom(): void {
 
   // Create writable store for records
   const records = writable<Record[]>([]);
-  let record: Record = createEmptyRecord();
+  let record: Record = createEmptyRecord('petition');
 
   // Create action to send record
   const [sendRecordAction, getRecord] = room.makeAction('record');
@@ -179,7 +122,7 @@ function startRoom(): void {
   // Send and receive records
   const send = async () => {
     // Check if coordinates are present
-    if ($coordinates.latitude && $coordinates.longitude && recordIsValid(record)) {
+    if ($coordinates.latitude && $coordinates.longitude && recordIsValidWithPattern(record, /^https:\/\/(www\.)?change\.org\/p\/[a-zA-Z0-9-]+\/?$/)) {
       sendRecordAction(record);
 
       // Immediately process the record as if it was received from another peer
@@ -198,7 +141,7 @@ function startRoom(): void {
       await storeRecord(record);
       console.log('Self-processed the sent record and stored in IndexedDB');
 
-      record = createEmptyRecord(); // Reset record
+      record = createEmptyRecord('petition'); // Reset record
       $coordinates.latitude = '';
       $coordinates.longitude = '';
     } else {
@@ -240,15 +183,6 @@ function startRoom(): void {
 
 
 
-  // Function to check if a record is valid
-  function recordIsValid(rec: Record): boolean {
-    const isTitleValid = rec.title.trim() !== '';
-    // Define the regex pattern for Change.org URLs
-    const linkPattern = /^https:\/\/(www\.)?change\.org\/p\/[a-zA-Z0-9-]+\/?$/;
-    const isLinkValid = linkPattern.test(rec.link.trim());
-    
-    return isTitleValid && isLinkValid;
-  }
 
   // Function to validate latitude and longitude with max 6 decimal places
 
@@ -268,23 +202,12 @@ function startRoom(): void {
     [key: string]: any; // Add index signature for Trystero compatibility
   }
   
-  // Function to create an empty record with appid as a suffix to the mapid
-  function createEmptyRecord(): Record {
-      return {
-      mapid: crypto.randomUUID(), // Append the appid as a suffix to the mapid
-      timestamp: new Date().toISOString(),
-      title: '',
-      text: '',
-      link: '',
-      longitude: '',
-      latitude: '',
-      category: 'petition',
-      height: 0,
-    };
-  }
 
 onMount(async () => { 
-    await initializeApp();
+    await initializeIndexedDB();
+    const storedRecords = await initializeApp();
+    records.set(storedRecords);
+    recordCache.push(...storedRecords);
     startRoom();
   });
 

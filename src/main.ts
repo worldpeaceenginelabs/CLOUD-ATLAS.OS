@@ -1,4 +1,5 @@
 import './app.css'
+import './shared-styles.css'
 import App from './App.svelte'
 
 const app = new App({
