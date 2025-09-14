@@ -18,7 +18,10 @@
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement;
     if (type === 'number') {
-      value = (parseFloat(target.value) || 0).toString();
+      const numValue = parseFloat(target.value);
+      if (!isNaN(numValue)) {
+        value = numValue.toString();
+      }
     } else {
       value = target.value;
     }

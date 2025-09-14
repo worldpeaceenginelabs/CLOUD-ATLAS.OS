@@ -25,15 +25,10 @@
 	import { 
 		coordinates, 
 		models, 
-		selectedModel, 
 		pins, 
 		isZoomModalVisible, 
 		lastTriggeredModal, 
 		resetAllStores, 
-		isRecordModalVisible,
-		isModelModalVisible,
-		selectedRecord,
-		recordButtonText,
 		cesiumActions,
 		cesiumReady,
 		viewer,
@@ -47,6 +42,7 @@
 	} from './store';
 	import type { ModelData, PinData } from './types';
 	import { dataManager } from './dataManager';
+	import { modalService } from './utils/modalService';
 import { addModel, updateModel, removeModel } from './utils/modelUtils';
 import { getCurrentTimeIso8601 } from './utils/timeUtils';
 import { logger } from './utils/logger';
@@ -76,7 +72,7 @@ let roamingAnimationFrameId: number | null = null;
 let isRoamingAnimationActive = false;
 
 // Export preview model functions for parent component
-export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateRoamingModel };
+export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateRoamingModel, hideOriginalModel, showOriginalModel };
   
 	// Initialize data manager
 	const initializeDataManager = async (): Promise<void> => {
@@ -332,6 +328,14 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 // Add 3D model to the scene
 function addModelToScene(modelData: ModelData) {
 	try {
+		console.log('🎯 [CESIUM] Adding model to scene:', {
+			id: modelData.id,
+			name: modelData.name,
+			scale: modelData.transform.scale,
+			height: modelData.transform.height,
+			coordinates: modelData.coordinates
+		});
+		
 		const position = Cartesian3.fromDegrees(
 			modelData.coordinates.longitude,
 			modelData.coordinates.latitude,
@@ -345,7 +349,13 @@ function addModelToScene(modelData: ModelData) {
 		// Create object URL for file uploads
 		let modelUri: string;
 		if (modelData.source === 'file' && modelData.file) {
-			modelUri = URL.createObjectURL(modelData.file);
+			// Check if file is a File object or a URL string (from IndexedDB)
+			if (modelData.file instanceof File) {
+				modelUri = URL.createObjectURL(modelData.file);
+			} else {
+				// It's a URL string from IndexedDB
+				modelUri = modelData.file as string;
+			}
 		} else if (modelData.source === 'url' && modelData.url) {
 			modelUri = modelData.url;
 		} else {
@@ -419,13 +429,48 @@ function loadModelsFromStore() {
 	}
 }
 
+// Track previous models to prevent unnecessary reloads
+let previousModels: ModelData[] = [];
+
+// Reactive statement to automatically load models when store changes
+$: if (cesiumViewer && modelDataSource && $models.length >= 0) {
+	// Only reload if the models array actually changed
+	const modelsChanged = $models.length !== previousModels.length || 
+		$models.some((model, index) => {
+			const prevModel = previousModels[index];
+			return !prevModel || 
+				model.id !== prevModel.id || 
+				model.name !== prevModel.name ||
+				model.coordinates.latitude !== prevModel.coordinates.latitude ||
+				model.coordinates.longitude !== prevModel.coordinates.longitude ||
+				model.transform.scale !== prevModel.transform.scale ||
+				model.transform.height !== prevModel.transform.height;
+		});
+	
+	if (modelsChanged) {
+		console.log('🎯 [CESIUM] Models store changed, reloading models:', {
+			modelCount: $models.length,
+			models: $models.map(m => ({ id: m.id, name: m.name, tempId: m.id.startsWith('temp_') }))
+		});
+		loadModelsFromStore();
+		previousModels = [...$models]; // Update previous models
+	}
+}
+
 // Remove model from scene
 function removeModelFromScene(modelId: string) {
+	console.log('🎯 [CESIUM] Removing model from scene:', modelId);
 	if (modelDataSource) {
 		const entity = modelDataSource.entities.getById(modelId);
 		if (entity) {
+			console.log('🎯 [CESIUM] Found entity to remove:', entity.name);
 			modelDataSource.entities.remove(entity);
+			console.log('🎯 [CESIUM] Entity removed successfully');
+		} else {
+			console.log('🎯 [CESIUM] Entity not found for ID:', modelId);
 		}
+	} else {
+		console.log('🎯 [CESIUM] Model data source not available');
 	}
 	
 	// Remove from roaming animation if active
@@ -465,10 +510,7 @@ function animateRoamingModels() {
 	// Update all roaming models
 	const roamingModels = roamingAnimationManager.getAllRoamingModels();
 	
-	// Only log occasionally to reduce console spam
-	if (roamingModels.length > 0 && Math.random() < 0.01) { // 1% chance to log
-		console.log('🎯 [CESIUM] Animating', roamingModels.length, 'roaming models');
-	}
+	// Animation logging removed for better performance
 	
 	for (const roamingModel of roamingModels) {
 		const position = roamingAnimationManager.getModelPosition(roamingModel.id);
@@ -518,12 +560,26 @@ let currentPreviewModelId: string | null = null;
 
 // Add preview model to the scene (temporary, not saved to store)
 function addPreviewModelToScene(modelData: ModelData) {
+	console.log('🎯 [DEBUG] addPreviewModelToScene called - Starting preview model creation', {
+		modelId: modelData.id,
+		modelName: modelData.name,
+		source: modelData.source,
+		coordinates: modelData.coordinates,
+		transform: modelData.transform
+	});
+	
 	try {
 		// Remove existing preview model if any
+		console.log('🎯 [DEBUG] addPreviewModelToScene - Removing existing preview model');
 		removePreviewModelFromScene();
+		
+		// Hide the original model if it exists (for edit mode)
+		console.log('🎯 [DEBUG] addPreviewModelToScene - Hiding original model:', modelData.id);
+		hideOriginalModel(modelData.id);
 		
 		// Create preview data source if it doesn't exist
 		if (!previewModelDataSource) {
+			console.log('🎯 [DEBUG] addPreviewModelToScene - Creating preview data source');
 			previewModelDataSource = new CustomDataSource('previewModels');
 			if (cesiumViewer) {
 				cesiumViewer.dataSources.add(previewModelDataSource);
@@ -536,23 +592,61 @@ function addPreviewModelToScene(modelData: ModelData) {
 			modelData.transform.height
 		);
 
+		console.log('🎯 [DEBUG] addPreviewModelToScene - Position calculated:', {
+			longitude: modelData.coordinates.longitude,
+			latitude: modelData.coordinates.latitude,
+			height: modelData.transform.height
+		});
+
 		const heading = CesiumMath.toRadians(modelData.transform.heading);
 		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
 		const roll = CesiumMath.toRadians(modelData.transform.roll);
 
+		console.log('🎯 [DEBUG] addPreviewModelToScene - Orientation calculated:', {
+			heading: modelData.transform.heading,
+			pitch: modelData.transform.pitch,
+			roll: modelData.transform.roll,
+			headingRad: heading,
+			pitchRad: pitch,
+			rollRad: roll
+		});
+
 		// Create object URL for file uploads
 		let modelUri: string;
 		if (modelData.source === 'file' && modelData.file) {
-			modelUri = URL.createObjectURL(modelData.file);
+			// Check if file is a File object or a URL string (from IndexedDB)
+			if (modelData.file instanceof File) {
+				modelUri = URL.createObjectURL(modelData.file);
+				console.log('🎯 [DEBUG] addPreviewModelToScene - File source, created object URL:', modelUri);
+			} else {
+				// It's a URL string from IndexedDB
+				modelUri = modelData.file as string;
+				console.log('🎯 [DEBUG] addPreviewModelToScene - File source from IndexedDB:', modelUri);
+			}
 		} else if (modelData.source === 'url' && modelData.url) {
 			modelUri = modelData.url;
+			console.log('🎯 [DEBUG] addPreviewModelToScene - URL source:', modelUri);
 		} else {
-			console.error('Invalid model source or missing URL/file for preview');
+			console.error('🎯 [DEBUG] addPreviewModelToScene - Invalid model source or missing URL/file for preview', {
+				source: modelData.source,
+				hasFile: !!modelData.file,
+				hasUrl: !!modelData.url
+			});
 			return;
 		}
 
 		// Create the preview model entity
-		if (!previewModelDataSource) return;
+		if (!previewModelDataSource) {
+			console.error('🎯 [DEBUG] addPreviewModelToScene - Preview data source not available');
+			return;
+		}
+		
+		console.log('🎯 [DEBUG] addPreviewModelToScene - Creating preview entity:', {
+			id: modelData.id,
+			name: modelData.name + ' (Preview)',
+			uri: modelUri,
+			scale: modelData.transform.scale
+		});
 		
 		const entity = previewModelDataSource.entities.add({
 			id: modelData.id,
@@ -573,28 +667,216 @@ function addPreviewModelToScene(modelData: ModelData) {
 		});
 
 		currentPreviewModelId = modelData.id;
+		console.log('🎯 [DEBUG] addPreviewModelToScene - Preview model added successfully:', {
+			entityId: entity.id,
+			currentPreviewModelId,
+			entityName: entity.name
+		});
 		logger.info('Preview model added to scene: ' + modelData.name, { component: 'Cesium', operation: 'addPreviewModel' });
 	} catch (error) {
-		console.error('Error adding preview model to scene:', error);
+		console.error('🎯 [DEBUG] addPreviewModelToScene - Error adding preview model to scene:', error);
 	}
 }
 
 // Remove preview model from scene
 function removePreviewModelFromScene() {
+	console.log('🎯 [DEBUG] removePreviewModelFromScene called - Removing preview model from scene', {
+		hasPreviewDataSource: !!previewModelDataSource,
+		currentPreviewModelId
+	});
+	
 	if (previewModelDataSource && currentPreviewModelId) {
 		const entity = previewModelDataSource.entities.getById(currentPreviewModelId);
 		if (entity) {
+			console.log('🎯 [DEBUG] removePreviewModelFromScene - Found preview entity, removing it:', {
+				entityId: entity.id,
+				entityName: entity.name
+			});
 			previewModelDataSource.entities.remove(entity);
+		} else {
+			console.warn('🎯 [DEBUG] removePreviewModelFromScene - Preview entity not found:', currentPreviewModelId);
 		}
+		
+		// Show the original model again
+		console.log('🎯 [DEBUG] removePreviewModelFromScene - Showing original model again');
+		showOriginalModel(currentPreviewModelId);
+		
 		currentPreviewModelId = null;
+		console.log('🎯 [DEBUG] removePreviewModelFromScene - Preview model removed successfully');
 		logger.info('Preview model removed from scene', { component: 'Cesium', operation: 'removePreviewModel' });
+	} else {
+		console.log('🎯 [DEBUG] removePreviewModelFromScene - No preview model to remove', {
+			hasPreviewDataSource: !!previewModelDataSource,
+			currentPreviewModelId
+		});
+	}
+}
+
+// Hide original model when in preview mode
+function hideOriginalModel(modelId: string) {
+	console.log('🎯 [DEBUG] hideOriginalModel called - Hiding original model for preview', {
+		modelId,
+		hasModelDataSource: !!modelDataSource
+	});
+	
+	if (modelDataSource) {
+		const entity = modelDataSource.entities.getById(modelId);
+		if (entity && entity.model) {
+			console.log('🎯 [DEBUG] hideOriginalModel - Found original model entity, hiding it:', {
+				entityId: entity.id,
+				entityName: entity.name,
+				wasVisible: entity.model.show
+			});
+			entity.model.show = false;
+			logger.info('Original model hidden for preview: ' + modelId, { component: 'Cesium', operation: 'hideOriginalModel' });
+		} else {
+			console.warn('🎯 [DEBUG] hideOriginalModel - Original model entity not found or has no model property:', {
+				modelId,
+				entityFound: !!entity,
+				hasModel: !!(entity && entity.model)
+			});
+		}
+	} else {
+		console.warn('🎯 [DEBUG] hideOriginalModel - Model data source not available');
+	}
+}
+
+// Show original model when exiting preview mode
+function showOriginalModel(modelId: string) {
+	console.log('🎯 [DEBUG] showOriginalModel called - Showing original model after preview', {
+		modelId,
+		hasModelDataSource: !!modelDataSource
+	});
+	
+	if (modelDataSource) {
+		const entity = modelDataSource.entities.getById(modelId);
+		if (entity && entity.model) {
+			console.log('🎯 [DEBUG] showOriginalModel - Found original model entity, showing it:', {
+				entityId: entity.id,
+				entityName: entity.name,
+				wasVisible: entity.model.show
+			});
+			entity.model.show = true;
+			logger.info('Original model shown: ' + modelId, { component: 'Cesium', operation: 'showOriginalModel' });
+		} else {
+			console.warn('🎯 [DEBUG] showOriginalModel - Original model entity not found or has no model property:', {
+				modelId,
+				entityFound: !!entity,
+				hasModel: !!(entity && entity.model)
+			});
+		}
+	} else {
+		console.warn('🎯 [DEBUG] showOriginalModel - Model data source not available');
 	}
 }
 
 // Update preview model in scene
 function updatePreviewModelInScene(modelData: ModelData) {
-	removePreviewModelFromScene();
-	addPreviewModelToScene(modelData);
+	console.log('🎯 [DEBUG] updatePreviewModelInScene called - Starting preview model update', {
+		modelId: modelData.id,
+		modelName: modelData.name,
+		currentPreviewModelId,
+		hasPreviewDataSource: !!previewModelDataSource
+	});
+	
+	try {
+		if (!previewModelDataSource || !currentPreviewModelId) {
+			console.log('🎯 [DEBUG] updatePreviewModelInScene - No existing preview model, adding new one');
+			// No existing preview model, add a new one
+			addPreviewModelToScene(modelData);
+			return;
+		}
+
+		// Find the existing preview entity
+		const entity = previewModelDataSource.entities.getById(currentPreviewModelId);
+		if (!entity) {
+			console.log('🎯 [DEBUG] updatePreviewModelInScene - Entity not found, adding new one');
+			// Entity not found, add a new one
+			addPreviewModelToScene(modelData);
+			return;
+		}
+
+		console.log('🎯 [DEBUG] updatePreviewModelInScene - Found existing entity, updating properties:', {
+			entityId: entity.id,
+			entityName: entity.name
+		});
+
+		// Update the existing entity
+		const position = Cartesian3.fromDegrees(
+			modelData.coordinates.longitude,
+			modelData.coordinates.latitude,
+			modelData.transform.height
+		);
+
+		console.log('🎯 [DEBUG] updatePreviewModelInScene - New position calculated:', {
+			longitude: modelData.coordinates.longitude,
+			latitude: modelData.coordinates.latitude,
+			height: modelData.transform.height
+		});
+
+		const heading = CesiumMath.toRadians(modelData.transform.heading);
+		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
+		const roll = CesiumMath.toRadians(modelData.transform.roll);
+
+		console.log('🎯 [DEBUG] updatePreviewModelInScene - New orientation calculated:', {
+			heading: modelData.transform.heading,
+			pitch: modelData.transform.pitch,
+			roll: modelData.transform.roll
+		});
+
+		// Create object URL for file uploads
+		let modelUri: string;
+		if (modelData.source === 'file' && modelData.file) {
+			if (modelData.file instanceof File) {
+				modelUri = URL.createObjectURL(modelData.file);
+				console.log('🎯 [DEBUG] updatePreviewModelInScene - File source, created object URL:', modelUri);
+			} else {
+				modelUri = modelData.file as string;
+				console.log('🎯 [DEBUG] updatePreviewModelInScene - File source from IndexedDB:', modelUri);
+			}
+		} else if (modelData.source === 'url' && modelData.url) {
+			modelUri = modelData.url;
+			console.log('🎯 [DEBUG] updatePreviewModelInScene - URL source:', modelUri);
+		} else {
+			console.error('🎯 [DEBUG] updatePreviewModelInScene - Invalid model source or missing URL/file for preview update', {
+				source: modelData.source,
+				hasFile: !!modelData.file,
+				hasUrl: !!modelData.url
+			});
+			return;
+		}
+
+		// Update entity properties
+		console.log('🎯 [DEBUG] updatePreviewModelInScene - Updating entity properties:', {
+			position: position,
+			name: modelData.name + ' (Preview)',
+			uri: modelUri,
+			scale: modelData.transform.scale
+		});
+
+		entity.position = position;
+		entity.name = modelData.name + ' (Preview)';
+		entity.description = modelData.description || '3D Model Preview';
+		
+		if (entity.model) {
+			entity.model.uri = modelUri;
+			entity.model.scale = modelData.transform.scale;
+		}
+		
+		entity.orientation = Transforms.headingPitchRollQuaternion(
+			position,
+			new HeadingPitchRoll(heading, pitch, roll)
+		);
+
+		console.log('🎯 [DEBUG] updatePreviewModelInScene - Preview model updated successfully');
+		logger.info('Preview model updated in scene: ' + modelData.name, { component: 'Cesium', operation: 'updatePreviewModel' });
+	} catch (error) {
+		console.error('🎯 [DEBUG] updatePreviewModelInScene - Error updating preview model in scene:', error);
+		// Fallback to remove and re-add
+		console.log('🎯 [DEBUG] updatePreviewModelInScene - Falling back to remove and re-add');
+		removePreviewModelFromScene();
+		addPreviewModelToScene(modelData);
+	}
 }
 
 // Model operations now use centralized utilities from modelUtils.ts
@@ -623,19 +905,15 @@ async function removePin(mapid: string) {
 
 
   
-	// Reactive statement to update recordButtonText based on modalRecord
-	$: {
-	if ($selectedRecord) {
+	// Record button text mapping - now handled by modal service
+	const getRecordButtonText = (category: string): string => {
 		const categoryMap: { [key: string]: string } = {
-		brainstorming: "Join Brainstorming",
-		actionevent: "Take Action Now",
-		petition: "Sign Now",
-		crowdfunding: "Back this Project",
+			brainstorming: "Join Brainstorming",
+			actionevent: "Take Action Now",
+			petition: "Sign Now",
+			crowdfunding: "Back this Project",
 		};
-		recordButtonText.set(categoryMap[$selectedRecord.category] || "Go");
-	} else {
-		recordButtonText.set("Go");
-	}
+		return categoryMap[category] || "Go";
 	}
 
 	// Track if models have been initially loaded from IndexedDB
@@ -812,8 +1090,7 @@ async function removePin(mapid: string) {
 					const modelId = pickedObject.id.id;
 					const modelData = $models.find(model => model.id === modelId);
 					if (modelData) {
-						selectedModel.set(modelData);
-						isModelModalVisible.set(true);
+						modalService.showModelDetails(modelData);
 					}
 				} else {
 					await handleEntityPick(pickedObject);
@@ -1119,8 +1396,7 @@ async function handleEntityPick(pickedFeature: any) {
   try {
     const record = await fetchRecord(mapid);
     if (record) {
-      isRecordModalVisible.set(true);
-      selectedRecord.set(record as { mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string });
+      modalService.showRecordDetails(record as PinData);
     }
   } catch (error) {
     console.error('Error fetching record:', error);
@@ -1236,8 +1512,7 @@ function handleCoordinatePick(result: any) {
 		resetAllStores();
 		
 		// Reset state variables
-		isRecordModalVisible.set(false);
-		isModelModalVisible.set(false);
+		modalService.closeAllModals();
 		
 		// Clean up roaming area state
 		roamingAreaStart = null;
@@ -1245,7 +1520,6 @@ function handleCoordinatePick(result: any) {
 		roamingAreaRectangle = null;
 		isZoomModalVisible.set(false);
 		lastTriggeredModal.set(null);
-		selectedRecord.set(null);
 		pointEntity = null;
 		userLocationEntity = null;
 		userLocationPreloaded = false;
@@ -1281,7 +1555,6 @@ function handleCoordinatePick(result: any) {
 	  height: 100vh;
 	  margin: 0;
 	  padding: 0;
-	  border: 3px solid #4ecdc4;
 	}
 
 

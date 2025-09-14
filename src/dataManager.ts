@@ -138,21 +138,32 @@ export class DataManager {
     }
 
     try {
+      console.log('🎯 [DATA MANAGER] Starting model update:', {
+        id: modelData.id,
+        name: modelData.name,
+        scale: modelData.transform.scale,
+        height: modelData.transform.height
+      });
+      
       // 1. Remove from scene
+      console.log('🎯 [DATA MANAGER] Removing model from scene:', modelData.id);
       this.callbacks.removeModelFromScene(modelData.id);
       
       // 2. Create serializable version for IDB (remove File objects)
       const serializableModelData = this.createSerializableModelData(modelData);
+      console.log('🎯 [DATA MANAGER] Created serializable model data:', serializableModelData);
       
       // 3. Update in IDB
+      console.log('🎯 [DATA MANAGER] Saving to IDB...');
       await idb.saveModel(serializableModelData);
       
       // 4. Add updated model to scene
+      console.log('🎯 [DATA MANAGER] Adding updated model to scene...');
       this.callbacks.addModelToScene(modelData);
       
-      console.log('Model updated successfully:', modelData.name);
+      console.log('🎯 [DATA MANAGER] Model updated successfully:', modelData.name);
     } catch (error) {
-      console.error('Error updating model:', error);
+      console.error('🎯 [DATA MANAGER] Error updating model:', error);
       throw error;
     }
   }

@@ -8,11 +8,7 @@ export const showPicture = writable(true);
 export const gridReady = writable(false);
 export const isVisible = writable(false);
 
-// Modal State Stores
-export const isRecordModalVisible = writable(false);
-export const isModelModalVisible = writable(false);
-export const selectedRecord = writable<{ mapid: string; latitude: string; longitude: string; category: string; title: string; text: string; link: string; timestamp: string } | null>(null);
-export const recordButtonText = writable('');
+// Modal State Stores - now handled by modalManager
 
 // 3D Scene State Stores
 export const cesiumReady = writable(false);
@@ -36,6 +32,8 @@ export interface CesiumActions {
   addPreviewModelToScene: ((modelData: ModelData) => void) | null;
   removePreviewModelFromScene: (() => void) | null;
   updatePreviewModelInScene: ((modelData: ModelData) => void) | null;
+  hideOriginalModel: ((modelId: string) => void) | null;
+  showOriginalModel: ((modelId: string) => void) | null;
   flyTo: ((destination: any) => void) | null;
   setCamera: ((position: any) => void) | null;
 }
@@ -49,6 +47,8 @@ export const cesiumActions = writable<CesiumActions>({
   addPreviewModelToScene: null,
   removePreviewModelFromScene: null,
   updatePreviewModelInScene: null,
+  hideOriginalModel: null,
+  showOriginalModel: null,
   flyTo: null,
   setCamera: null
 });
@@ -61,7 +61,7 @@ export const coordinates: Writable<Coordinates> = writable({
 
 export const models: Writable<ModelData[]> = writable([]);
 
-export const selectedModel: Writable<ModelData | null> = writable(null);
+// selectedModel moved to modalManager
 
 export const pins: Writable<PinData[]> = writable([]);
 
@@ -78,6 +78,14 @@ export const roamingAreaBounds: Writable<{
   west: number;
 } | null> = writable(null);
 
+// Preview Model State
+export const previewModel: Writable<ModelData | null> = writable(null);
+export const isPreviewMode: Writable<boolean> = writable(false);
+export const editingModelId: Writable<string | null> = writable(null);
+
+// Temporary Model State
+export const temporaryModelId: Writable<string | null> = writable(null);
+
 // Derived Stores
 export const currentCoords = derived(coordinates, $coords => ({
   latitude: $coords.latitude || '',
@@ -92,11 +100,7 @@ export function resetAllStores() {
   gridReady.set(false);
   isVisible.set(false);
   
-  // Modal State
-  isRecordModalVisible.set(false);
-  isModelModalVisible.set(false);
-  selectedRecord.set(null);
-  recordButtonText.set('');
+  // Modal State - now handled by modalManager
   
   // 3D Scene State
   cesiumReady.set(false);
@@ -118,7 +122,6 @@ export function resetAllStores() {
     height: 0
   });
   models.set([]);
-  selectedModel.set(null);
   pins.set([]);
   isZoomModalVisible.set(false);
   lastTriggeredModal.set(null);
@@ -126,6 +129,14 @@ export function resetAllStores() {
   // Roaming state
   isRoamingAreaMode.set(false);
   roamingAreaBounds.set(null);
+  
+  // Preview state
+  previewModel.set(null);
+  isPreviewMode.set(false);
+  editingModelId.set(null);
+  
+  // Temporary model state
+  temporaryModelId.set(null);
   
   // Cesium Actions
   cesiumActions.set({
@@ -136,6 +147,8 @@ export function resetAllStores() {
     addPreviewModelToScene: null,
     removePreviewModelFromScene: null,
     updatePreviewModelInScene: null,
+    hideOriginalModel: null,
+    showOriginalModel: null,
     flyTo: null,
     setCamera: null
   });
@@ -154,9 +167,7 @@ export function resetModels() {
   models.set([]);
 }
 
-export function resetSelectedModel() {
-  selectedModel.set(null);
-}
+// resetSelectedModel moved to modalManager
 
 export function resetPins() {
   pins.set([]);

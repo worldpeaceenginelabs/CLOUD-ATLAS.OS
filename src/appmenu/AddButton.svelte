@@ -9,10 +9,11 @@
   import Crowdfunding from './Crowdfunding.svelte';
   import Modal from '../components/Modal.svelte';
   
-  import { coordinates, isZoomModalVisible, lastTriggeredModal, models, selectedModel } from '../store';
+  import { coordinates, isZoomModalVisible, lastTriggeredModal, models } from '../store';
   import type { ModelData } from '../types';
   import { dataManager } from '../dataManager';
   import { addModel, updateModel } from '../utils/modelUtils';
+  import { modalService } from '../utils/modalService';
 
   // Props - removed toggleModelUI as it's handled internally now
   export const addPreviewModelToScene: ((modelData: any) => void) | undefined = undefined;
@@ -36,14 +37,8 @@
     hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
   }
 
-  // Modal states
-  let showBrainstormingModal = false;
-  let showSimulationModal = false;
+  // Modal states - now managed by modal service
   let showActionDropdown = false;
-  let showActionEventModal = false;
-  let showPetitionModal = false;
-  let showCrowdfundingModal = false;
-  let showCoordinatePickerModal = false;
 
   // Toggle dropdown
   function toggleDropdown() {
@@ -132,17 +127,12 @@
 
   // Show coordinate picker modal
   function showCoordinatePickerMessage() {
-    showCoordinatePickerModal = true;
+    modalService.showCoordinatePicker();
     lastTriggeredModal.set('pick');
-    // Auto-hide after 5 seconds
+    // Auto-hide after 3 seconds
     setTimeout(() => {
-      showCoordinatePickerModal = false;
+      modalService.hideCoordinatePicker();
     }, 3000);
-  }
-
-  // Close coordinate picker modal
-  function closeCoordinatePickerModal() {
-    showCoordinatePickerModal = false;
   }
 
   // Handle item click
@@ -166,11 +156,11 @@
         }
         break;
       case 'brainstorming':
-        showBrainstormingModal = true;
+        modalService.showBrainstorming();
         // Don't close menu - let user decide when to close it
         break;
       case 'simulation':
-        showSimulationModal = true;
+        modalService.showSimulation();
         // Don't close menu - let user decide when to close it
         break;
       case 'action':
@@ -180,15 +170,7 @@
     }
   }
 
-  // Close modals
-  function closeBrainstormingModal() {
-    showBrainstormingModal = false;
-  }
-
-  function closeSimulationModal() {
-    showSimulationModal = false;
-  }
-
+  // Close modals - now handled by modal service
   function closeActionDropdown() {
     showActionDropdown = false;
   }
@@ -208,32 +190,21 @@
     
     switch (actionType) {
       case 'actionevent':
-        showActionEventModal = true;
+        modalService.showActionEvent();
         // Don't close submenu - let user decide when to close it
         break;
       case 'petition':
-        showPetitionModal = true;
+        modalService.showPetition();
         // Don't close submenu - let user decide when to close it
         break;
       case 'crowdfunding':
-        showCrowdfundingModal = true;
+        modalService.showCrowdfunding();
         // Don't close submenu - let user decide when to close it
         break;
     }
   }
 
-  // Close action modals
-  function closeActionEventModal() {
-    showActionEventModal = false;
-  }
-
-  function closePetitionModal() {
-    showPetitionModal = false;
-  }
-
-  function closeCrowdfundingModal() {
-    showCrowdfundingModal = false;
-  }
+  // Close action modals - now handled by modal service
 
 
   // Model operations now use centralized utilities from modelUtils.ts
@@ -242,16 +213,12 @@
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       isDropdownVisible = false;
-      showBrainstormingModal = false;
-      showSimulationModal = false;
       showActionDropdown = false;
-      showActionEventModal = false;
-      showPetitionModal = false;
-      showCrowdfundingModal = false;
-      showCoordinatePickerModal = false;
       hoveredItem = '';
       hoveredSubmenuItem = '';
       showInfoPanel = false;
+      // Close all modals via modal service
+      modalService.closeAllModals();
     }
   }
 
@@ -276,13 +243,7 @@
     infoPanelContent = '';
     
     // Reset modal states
-    showBrainstormingModal = false;
-    showSimulationModal = false;
     showActionDropdown = false;
-    showActionEventModal = false;
-    showPetitionModal = false;
-    showCrowdfundingModal = false;
-    showCoordinatePickerModal = false;
   });
 </script>
 
@@ -544,82 +505,7 @@
   {/if}
 </div>
 
-<!-- Modals -->
-<!-- UI component moved to Cesium.svelte where data manager functions are available -->
-
-<Modal 
-  isVisible={showBrainstormingModal} 
-  onClose={closeBrainstormingModal}
-  title="Add Brainstorming"
-  maxWidth="600px"
-  transitionDuration={500}
->
-  <Brainstorming />
-</Modal>
-
-<Modal 
-  isVisible={showSimulationModal} 
-  onClose={closeSimulationModal}
-  title="Add Simulation"
-  maxWidth="600px"
-  transitionDuration={500}
->
-  <Simulation />
-</Modal>
-
-<Modal 
-  isVisible={showActionEventModal} 
-  onClose={closeActionEventModal}
-  title="Add Action Event"
-  maxWidth="600px"
-  transitionDuration={500}
->
-  <ActionEvent />
-</Modal>
-
-<Modal 
-  isVisible={showPetitionModal} 
-  onClose={closePetitionModal}
-  title="Add Petition"
-  maxWidth="600px"
-  transitionDuration={500}
->
-  <Petition />
-</Modal>
-
-<Modal 
-  isVisible={showCrowdfundingModal} 
-  onClose={closeCrowdfundingModal}
-  title="Add Crowdfunding"
-  maxWidth="600px"
-  transitionDuration={500}
->
-  <Crowdfunding />
-</Modal>
-
-<Modal 
-  isVisible={showCoordinatePickerModal} 
-  onClose={closeCoordinatePickerModal}
-  modalType="notification"
-  zIndex={$lastTriggeredModal === 'pick' ? 1001 : 1000}
-  showCloseButton={false}
-  closeOnBackdropClick={false}
-  transitionDuration={500}
->
-  <p>Please pick coordinates on the map first — then you can add application pins.</p>
-</Modal>
-
-<Modal 
-  isVisible={$isZoomModalVisible} 
-  onClose={() => isZoomModalVisible.set(false)}
-  modalType="notification"
-  zIndex={$lastTriggeredModal === 'zoom' ? 1001 : 1000}
-  showCloseButton={false}
-  closeOnBackdropClick={false}
-  transitionDuration={500}
->
-  <p>Zoom in until the city level comes into view — then you can drop a pin.</p>
-</Modal>
+<!-- All modals are now handled by the centralized ModalManager component -->
 
 
 <style>

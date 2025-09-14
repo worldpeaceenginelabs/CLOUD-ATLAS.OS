@@ -138,7 +138,7 @@
   });
 </script>
 
-<main transition:fade={{ duration: 500 }} class="shared-form shared-scrollbar">
+<main transition:fade={{ duration: 500 }}>
   <form>
     <FormInput 
       type="textarea"
@@ -183,3 +183,89 @@
     </GlassmorphismButton>
   </form>
 </main>
+
+<style>
+  main {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-align: center;
+    color: white;
+    padding: 0%;
+    margin: 0%;
+    text-decoration: none;
+  }
+
+  main form {
+    border: 0px solid #ccc;
+    padding-bottom: 1rem;
+    margin: 0;
+  }
+
+  main :global(label) {
+    font-weight: bold;
+  }
+
+  main :global(input),
+  main :global(textarea) {
+    width: 100%;
+    padding: 0rem;
+    margin-bottom: 0rem;
+  }
+
+  .coord-green {
+    color: green;
+    font-size: large;
+    font-weight: 900;
+  }
+
+  .animated-gradient {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+  }
+
+  @keyframes gradientBG {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Scrollbar styles */
+  main {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+  }
+
+  main::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  main::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  main::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  main::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+</style>

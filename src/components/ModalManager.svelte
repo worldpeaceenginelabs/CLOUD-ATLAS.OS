@@ -1,0 +1,250 @@
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import { modalStack, openModals, topModal } from '../utils/modalManager';
+  import Modal from './Modal.svelte';
+  import Editor from './Editor.svelte';
+  import Brainstorming from '../appmenu/Brainstorming.svelte';
+  import Simulation from '../appmenu/Simulation.svelte';
+  import ActionEvent from '../appmenu/ActionEvent.svelte';
+  import Petition from '../appmenu/Petition.svelte';
+  import Crowdfunding from '../appmenu/Crowdfunding.svelte';
+  import { formatTimestamp } from '../utils/timeUtils';
+  import { removeModel } from '../utils/modelUtils';
+  import { logger } from '../utils/logger';
+  import GlassmorphismButton from './GlassmorphismButton.svelte';
+  import ShareButton from './Sharebutton.svelte';
+
+  // Modal content components mapping
+  const modalComponents = {
+    'record-details': 'RecordDetails',
+    'model-details': 'ModelDetails',
+    'model-editor': 'ModelEditor',
+    'brainstorming': 'Brainstorming',
+    'simulation': 'Simulation',
+    'action-event': 'ActionEvent',
+    'petition': 'Petition',
+    'crowdfunding': 'Crowdfunding',
+    'coordinate-picker': 'CoordinatePicker',
+    'zoom-required': 'ZoomRequired'
+  };
+
+  // Handle modal close
+  function handleModalClose(modalId: string) {
+    import('../utils/modalManager').then(({ modalManager }) => {
+      modalManager.hideModal(modalId);
+    });
+  }
+  
+  // Handle form data changes from Editor
+  function handleFormDataChange(event: CustomEvent) {
+    // Dispatch the event to the parent (App.svelte)
+    window.dispatchEvent(new CustomEvent('editorFormDataChange', {
+      detail: event.detail
+    }));
+  }
+
+  // Handle Editor save event
+  function handleEditorSave() {
+    // Dispatch the save event to the parent (App.svelte)
+    window.dispatchEvent(new CustomEvent('editorSave'));
+  }
+
+  // Handle Editor cancel event
+  function handleEditorCancel() {
+    // Dispatch the cancel event to the parent (App.svelte)
+    window.dispatchEvent(new CustomEvent('editorCancel'));
+  }
+
+  // Handle model edit
+  function handleModelEdit(modelData: any) {
+    import('../utils/modalService').then(({ modalService }) => {
+      modalService.hideModelDetails();
+      modalService.showModelEditor(true, modelData);
+    });
+  }
+
+  // Handle model remove
+  async function handleModelRemove(modelData: any) {
+    try {
+      await removeModel(modelData.id);
+      const { modalService } = await import('../utils/modalService');
+      modalService.hideModelDetails();
+      logger.info('Model removed successfully', { component: 'ModalManager', operation: 'removeModel' });
+    } catch (error) {
+      logger.operationError('removeModel', error, { component: 'ModalManager', operation: 'removeModel' });
+    }
+  }
+
+  // Handle record link click
+  function handleRecordLinkClick(link: string) {
+    window.open(link, '_blank');
+  }
+
+  onMount(() => {
+    // Setup any initialization if needed
+  });
+
+  onDestroy(() => {
+    // Cleanup if needed
+  });
+</script>
+
+<!-- Render all open modals -->
+{#each $openModals as modal (modal.id)}
+  {#if modal.config.type === 'card'}
+    <!-- Card-type modals (like Editor) -->
+    {#if modal.id === 'model-editor'}
+      <div class="modal-card-container">
+        <Editor 
+          isEditMode={modal.config.data?.editMode || false}
+          modelData={modal.config.data?.modelData}
+          on:save={handleEditorSave}
+          on:cancel={handleEditorCancel}
+          on:close={() => handleModalClose(modal.id)}
+          on:formDataChange={handleFormDataChange}
+          on:editorOpened={(event) => window.dispatchEvent(new CustomEvent('editorOpened', { detail: event.detail }))}
+        />
+      </div>
+    {/if}
+  {:else}
+    <!-- Regular modals -->
+    <Modal 
+      isVisible={modal.isVisible}
+      onClose={() => handleModalClose(modal.id)}
+      title={modal.config.title}
+      maxWidth={modal.config.maxWidth}
+      zIndex={modal.zIndex}
+      showCloseButton={modal.config.showCloseButton}
+      closeOnBackdropClick={modal.config.closeOnBackdropClick}
+      transitionDuration={modal.config.transitionDuration}
+      customClass={modal.config.customClass}
+      forwardInputs={modal.config.forwardInputs}
+      modalType={modal.config.type}
+    >
+      {#if modal.id === 'record-details' && modal.config.data?.record}
+        {@const record = modal.config.data.record}
+        <div class="modal-record">
+          <div>
+            <p class="title">{record.title}</p>
+            <p class="text">{record.text}</p>
+          </div>
+          <div>
+            <p class="created">CREATED {formatTimestamp(record.timestamp)}</p>
+            <p>
+              <GlassmorphismButton 
+                variant="primary" 
+                onClick={() => handleRecordLinkClick(record.link)}
+              >
+                {record.link.includes('t.me') ? 'JOIN TELEGRAM' : 'VIEW LINK'}
+              </GlassmorphismButton>
+            </p>
+          </div>
+          <div>
+            <ShareButton 
+              title={record.title} 
+              text={record.text} 
+              link={record.link} 
+            />
+          </div>
+        </div>
+      {:else if modal.id === 'model-details' && modal.config.data?.model}
+        {@const model = modal.config.data.model}
+        <div class="modal-record">
+          <div>
+            <p class="title">{model.name}</p>
+            <p class="text">{model.description || '3D Model'}</p>
+            <p class="model-info">
+              Scale: {model.transform.scale}x | 
+              Height: {model.transform.height}m | 
+              Source: {model.source}
+            </p>
+          </div>
+          <div>
+            <p class="created">CREATED {formatTimestamp(model.timestamp)}</p>
+            <p>
+              <GlassmorphismButton 
+                variant="primary" 
+                onClick={() => handleModelEdit(model)}
+              >
+                EDIT MODEL
+              </GlassmorphismButton>
+            </p>
+            <p>
+              <GlassmorphismButton 
+                variant="danger" 
+                onClick={() => handleModelRemove(model)}
+              >
+                REMOVE MODEL
+              </GlassmorphismButton>
+            </p>
+          </div>
+        </div>
+      {:else if modal.id === 'brainstorming'}
+        <Brainstorming />
+      {:else if modal.id === 'simulation'}
+        <Simulation />
+      {:else if modal.id === 'action-event'}
+        <ActionEvent />
+      {:else if modal.id === 'petition'}
+        <Petition />
+      {:else if modal.id === 'crowdfunding'}
+        <Crowdfunding />
+      {:else if modal.id === 'coordinate-picker'}
+        <p>Please pick coordinates on the map first — then you can add application pins.</p>
+      {:else if modal.id === 'zoom-required'}
+        <p>Zoom in until the city level comes into view — then you can drop a pin.</p>
+      {/if}
+    </Modal>
+  {/if}
+{/each}
+
+<style>
+  .modal-card-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+  }
+
+  /* Modal content styles */
+  .modal-record {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .modal-record .title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0 0 0.5rem 0;
+    color: #333;
+  }
+
+  .modal-record .text {
+    font-size: 1rem;
+    margin: 0 0 1rem 0;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  .modal-record .model-info {
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+    color: #888;
+    font-style: italic;
+  }
+
+  .modal-record .created {
+    font-size: 0.8rem;
+    margin: 0 0 1rem 0;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .modal-record p {
+    margin: 0.5rem 0;
+  }
+</style>

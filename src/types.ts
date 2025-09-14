@@ -96,3 +96,33 @@ export const PLACEHOLDER_TEXT: Record<AppMenuCategory, { label: string; placehol
     placeholder: 'https://www.change.org/p/your-petition-name'
   }
 };
+
+// Modal Management Types
+export type ModalType = 'default' | 'notification' | 'overlay' | 'card';
+
+export interface ModalConfig {
+  id: string;
+  type: ModalType;
+  title?: string;
+  maxWidth?: string;
+  zIndex?: number;
+  showCloseButton?: boolean;
+  closeOnBackdropClick?: boolean;
+  transitionDuration?: number;
+  customClass?: string;
+  forwardInputs?: boolean;
+  data?: any;
+}
+
+export interface ModalState {
+  id: string;
+  config: ModalConfig;
+  isVisible: boolean;
+  timestamp: number;
+  zIndex: number;
+}
+
+export interface ModalHistory {
+  modals: string[];
+  currentIndex: number;
+}

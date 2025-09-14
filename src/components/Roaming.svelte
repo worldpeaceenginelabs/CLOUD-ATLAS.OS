@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, afterUpdate } from 'svelte';
   import { isRoamingAreaMode, roamingAreaBounds, coordinates } from '../store';
   import FormInput from './FormInput.svelte';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
@@ -25,17 +25,23 @@
 
   // Local state for form input
   let roamingSpeedValue = roamingSpeed.toString();
+  let lastPropSpeed = roamingSpeed;
 
   // Reactive statements
   $: if (roamingArea) {
     areaBounds = roamingArea;
   }
   
-  // Update roamingSpeed when roamingSpeedValue changes
-  $: if (roamingSpeedValue !== roamingSpeed.toString()) {
-    roamingSpeed = parseFloat(roamingSpeedValue) || 1.0;
-  }
-
+  // Update roamingSpeed when roamingSpeedValue changes (user input)
+  $: roamingSpeed = parseFloat(roamingSpeedValue) || 1.0;
+  
+  // Handle prop updates for edit mode using afterUpdate
+  afterUpdate(() => {
+    if (roamingSpeed !== lastPropSpeed) {
+      roamingSpeedValue = roamingSpeed.toString();
+      lastPropSpeed = roamingSpeed;
+    }
+  });
 
   function startPaintingArea() {
     isPaintingArea = true;

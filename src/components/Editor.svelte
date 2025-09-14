@@ -1,9 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import ModelSettings from './ModelSettings.svelte';
+  import { roamingAreaBounds, coordinates, editingModelId } from '../store';
   
   // Props
   export let isEditMode = false;
+  export let modelData: any = null;
   
   // Component state
   export let selectedEditor: 'threejs' | 'webglstudio' = 'threejs';
@@ -31,6 +33,102 @@
     east: number;
     west: number;
   } | null = null;
+
+  // Reactive statement to sync roamingArea with store
+  $: if ($roamingAreaBounds) {
+    roamingArea = $roamingAreaBounds;
+  }
+
+  // Track if form has been initially populated to prevent overwriting user changes
+  let hasBeenInitiallyPopulated = false;
+  
+  // Reset populated flag when component mounts
+  $: if (typeof window !== 'undefined') {
+    hasBeenInitiallyPopulated = false;
+  }
+  
+  // Populate form fields when modelData is provided (edit mode) - only once
+  $: if (modelData && isEditMode && !hasBeenInitiallyPopulated) {
+    console.log('🎯 [EDITOR] Populating form with model data (EDIT MODE):', {
+      modelId: modelData.id,
+      modelName: modelData.name,
+      isEditMode,
+      hasBeenInitiallyPopulated,
+      coordinates: modelData.coordinates
+    });
+    
+    // Set coordinates in store for edit mode
+    coordinates.set({
+      latitude: modelData.coordinates.latitude.toString(),
+      longitude: modelData.coordinates.longitude.toString(),
+      height: modelData.transform.height
+    });
+    
+    console.log('🎯 [EDITOR] Coordinates set in store:', {
+      latitude: modelData.coordinates.latitude,
+      longitude: modelData.coordinates.longitude,
+      height: modelData.transform.height
+    });
+    
+    // Set the editing model ID directly in the store
+    editingModelId.set(modelData.id);
+    console.log('🎯 [EDITOR] editingModelId set to:', modelData.id);
+    
+    // Dispatch event to notify App.svelte about edit mode
+    dispatch('editorOpened', { editMode: true, modelData });
+    
+    // Populate basic fields
+    modelName = modelData.name || '';
+    modelDescription = modelData.description || '';
+    scale = modelData.transform?.scale || 1.0;
+    height = modelData.transform?.height || 0;
+    heightOffset = modelData.transform?.heightOffset || 0.0;
+    heading = modelData.transform?.heading || 0;
+    pitch = modelData.transform?.pitch || 0;
+    roll = modelData.transform?.roll || 0;
+    
+    // Populate source and file/URL
+    if (modelData.source === 'file' && modelData.file) {
+      selectedSource = 'file';
+      gltfFile = modelData.file instanceof File ? modelData.file : null;
+      gltfUrl = '';
+    } else {
+      selectedSource = 'url';
+      gltfUrl = modelData.url || '';
+      gltfFile = null;
+    }
+    
+    // Populate roaming data
+    isRoamingEnabled = modelData.roaming?.isEnabled || false;
+    roamingSpeed = modelData.roaming?.speed || 1.0;
+    roamingArea = modelData.roaming?.area || null;
+    
+    console.log('🎯 [EDITOR] Form populated (EDIT MODE):', {
+      modelName,
+      selectedSource,
+      isRoamingEnabled,
+      roamingSpeed,
+      roamingArea
+    });
+    
+    // Mark as initially populated
+    hasBeenInitiallyPopulated = true;
+  } else if (modelData && !isEditMode) {
+    console.log('🎯 [EDITOR] Model data provided but NOT in edit mode - ignoring form population:', {
+      modelId: modelData.id,
+      modelName: modelData.name,
+      isEditMode,
+      hasBeenInitiallyPopulated
+    });
+  }
+
+  // Dispatch event when Editor opens in add mode
+  $: if (!isEditMode && !modelData) {
+    dispatch('editorOpened', { editMode: false, modelData: null });
+    // Reset the populated flag for add mode
+    hasBeenInitiallyPopulated = false;
+  }
+  
   
   // Event dispatcher
   const dispatch = createEventDispatcher();
@@ -54,6 +152,50 @@
   
   function handleToggleDropdown() {
     showDropdown = !showDropdown;
+  }
+  
+  // Emit form data changes for preview
+  function emitFormDataChange() {
+    console.log('🎯 [EDITOR] Emitting form data change for automatic preview update:', {
+      selectedSource,
+      hasFile: !!gltfFile,
+      hasUrl: !!gltfUrl,
+      modelName,
+      isRoamingEnabled
+    });
+    dispatch('formDataChange', {
+      selectedSource,
+      gltfFile,
+      gltfUrl,
+      modelName,
+      modelDescription,
+      scale,
+      height,
+      heightOffset,
+      heading,
+      pitch,
+      roll,
+      isRoamingEnabled,
+      roamingSpeed,
+      roamingArea
+    });
+  }
+  
+  // Watch for form data changes and emit events
+  $: {
+    console.log('🎯 [EDITOR] Reactive statement triggered:', {
+      selectedSource,
+      modelName,
+      scale,
+      height,
+      isEditMode,
+      hasFile: !!gltfFile,
+      hasUrl: !!gltfUrl,
+      isRoamingEnabled,
+      roamingSpeed,
+      hasRoamingArea: !!roamingArea
+    });
+    emitFormDataChange();
   }
 </script>
 
@@ -113,7 +255,7 @@
 
   <!-- Model Settings Component -->
   <ModelSettings 
-    coordinates={{ latitude: '0', longitude: '0', height: 0 }}
+    coordinates={$coordinates}
     bind:selectedSource
     bind:gltfFile
     bind:gltfUrl
@@ -131,8 +273,8 @@
     bind:showDropdown
     onToggleDropdown={handleToggleDropdown}
     onSourceChange={(source) => selectedSource = source}
-    onFileSelect={() => {}}
-    onUrlChange={() => {}}
+    onFileSelect={() => { console.log('🎯 [EDITOR] onFileSelect called'); emitFormDataChange(); }}
+    onUrlChange={() => { console.log('🎯 [EDITOR] onUrlChange called'); emitFormDataChange(); }}
   />
 </div>
 

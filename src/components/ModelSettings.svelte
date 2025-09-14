@@ -1,6 +1,8 @@
 <script lang="ts">
-    import FormInput from './FormInput.svelte';
-    import Roaming from './Roaming.svelte';
+  import { afterUpdate } from 'svelte';
+  import FormInput from './FormInput.svelte';
+  import Roaming from './Roaming.svelte';
+  import RoamingControls from './RoamingControls.svelte';
   
     // HeaderCard props
     export let coordinates: { latitude: string; longitude: string; height: number };
@@ -46,21 +48,57 @@
     // Drag and drop state
     let isDragOver = false;
   
-    // Convert string values to numbers for FormInput (transform fields)
-    let scaleValue = scale.toString();
-    let heightValue = height.toString();
-    let heightOffsetValue = heightOffset.toString();
-    let headingValue = heading.toString();
-    let pitchValue = pitch.toString();
-    let rollValue = roll.toString();
+  // Convert string values to numbers for FormInput (transform fields)
+  let scaleValue = scale.toString();
+  let heightValue = height.toString();
+  let heightOffsetValue = heightOffset.toString();
+  let headingValue = heading.toString();
+  let pitchValue = pitch.toString();
+  let rollValue = roll.toString();
   
-    // Reactive statements to update the number values when string values change
-    $: scale = parseFloat(scaleValue) || 0;
-    $: height = parseFloat(heightValue) || 0;
-    $: heightOffset = parseFloat(heightOffsetValue) || 0;
-    $: heading = parseFloat(headingValue) || 0;
-    $: pitch = parseFloat(pitchValue) || 0;
-    $: roll = parseFloat(rollValue) || 0;
+  // Track last prop values
+  let lastScale = scale;
+  let lastHeight = height;
+  let lastHeightOffset = heightOffset;
+  let lastHeading = heading;
+  let lastPitch = pitch;
+  let lastRoll = roll;
+
+  // Reactive statements to update the number values when string values change
+  $: scale = parseFloat(scaleValue) || 0;
+  $: height = parseFloat(heightValue) || 0;
+  $: heightOffset = parseFloat(heightOffsetValue) || 0;
+  $: heading = parseFloat(headingValue) || 0;
+  $: pitch = parseFloat(pitchValue) || 0;
+  $: roll = parseFloat(rollValue) || 0;
+  
+  // Handle prop updates for edit mode using afterUpdate
+  afterUpdate(() => {
+    if (scale !== lastScale) {
+      scaleValue = scale.toString();
+      lastScale = scale;
+    }
+    if (height !== lastHeight) {
+      heightValue = height.toString();
+      lastHeight = height;
+    }
+    if (heightOffset !== lastHeightOffset) {
+      heightOffsetValue = heightOffset.toString();
+      lastHeightOffset = heightOffset;
+    }
+    if (heading !== lastHeading) {
+      headingValue = heading.toString();
+      lastHeading = heading;
+    }
+    if (pitch !== lastPitch) {
+      pitchValue = pitch.toString();
+      lastPitch = pitch;
+    }
+    if (roll !== lastRoll) {
+      rollValue = roll.toString();
+      lastRoll = roll;
+    }
+  });
   
   
     function handleSourceChange(event: Event) {
@@ -75,12 +113,47 @@
         onFileSelect(event);
       }
     }
-  
-    function handleUrlChange(event: Event) {
-      if (onUrlChange) {
-        onUrlChange();
+
+    // Handle file selection with automatic loading
+    function handleFileSelectAuto(event: Event) {
+      console.log('🎯 [MODEL_SETTINGS] handleFileSelectAuto called');
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+      console.log('🎯 [MODEL_SETTINGS] File from input:', file);
+      if (file) {
+        gltfFile = file;
+        console.log('🎯 [MODEL_SETTINGS] File selected, triggering automatic loading:', file.name);
+        // Trigger automatic preview update when file is selected
+        if (onFileSelect) {
+          console.log('🎯 [MODEL_SETTINGS] Calling onFileSelect callback');
+          onFileSelect(event);
+        } else {
+          console.warn('🎯 [MODEL_SETTINGS] onFileSelect callback is not defined');
+        }
+      } else {
+        console.log('🎯 [MODEL_SETTINGS] No file selected');
       }
     }
+  
+  function handleUrlChange(event: Event) {
+    if (onUrlChange) {
+      onUrlChange();
+    }
+  }
+
+  // Handle URL input with automatic loading
+  function handleUrlInput(event: Event) {
+    const target = event.target as HTMLInputElement;
+    gltfUrl = target.value;
+    console.log('🎯 [MODEL_SETTINGS] URL input detected, triggering automatic loading:', gltfUrl);
+    // Trigger automatic preview update when URL is pasted or typed
+    if (onUrlChange) {
+      console.log('🎯 [MODEL_SETTINGS] Calling onUrlChange callback');
+      onUrlChange();
+    } else {
+      console.warn('🎯 [MODEL_SETTINGS] onUrlChange callback is not defined');
+    }
+  }
   
     // Debounced toggle function to prevent race conditions
     function handleToggleDropdown() {
@@ -121,6 +194,9 @@
           if (onSourceChange) {
             onSourceChange('file');
           }
+          // Set the file directly and trigger automatic loading
+          gltfFile = file;
+          console.log('🎯 [MODEL_SETTINGS] File dropped, triggering automatic loading:', file.name);
           if (onFileSelect) {
             // Create a synthetic event that matches the expected interface
             const syntheticEvent = {
@@ -195,7 +271,7 @@
                 type="file"
                 accept=".glb,.gltf"
                 bind:this={fileInput}
-                on:change={handleFileSelect}
+                on:change={handleFileSelectAuto}
                 class="file-input"
               />
               {#if gltfFile}
@@ -215,7 +291,8 @@
                 id="gltfUrl"
                 type="url"
                 bind:value={gltfUrl}
-                on:input={handleUrlChange}
+                on:input={handleUrlInput}
+                on:paste={handleUrlInput}
                 placeholder="https://example.com/model.glb"
                 class="text-input"
               />
@@ -246,6 +323,13 @@
           bind:roamingSpeed={roamingSpeed}
           bind:roamingArea={roamingArea}
         />
+
+        <!-- Roaming Controls Section - Only show when roaming is enabled -->
+        {#if isRoamingEnabled}
+          <div class="settings-section">
+            <RoamingControls />
+          </div>
+        {/if}
   
         <!-- Transform Section -->
         <div class="settings-section">

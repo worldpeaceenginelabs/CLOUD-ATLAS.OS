@@ -44,16 +44,8 @@ export class RoamingAnimationManager {
    * Add a model to the roaming system
    */
   addModel(modelData: ModelData): void {
-    console.log('🎯 [ROAMING MANAGER] addModel called with:', {
-      name: modelData.name,
-      hasRoaming: !!modelData.roaming,
-      isEnabled: modelData.roaming?.isEnabled,
-      hasArea: !!modelData.roaming?.area,
-      speed: modelData.roaming?.speed
-    });
     
     if (!shouldStartRoaming(modelData) || !modelData.roaming?.area) {
-      console.log('🎯 [ROAMING MANAGER] Model does not meet roaming requirements');
       return;
     }
 
@@ -88,7 +80,6 @@ export class RoamingAnimationManager {
     this.generateNewTarget(roamingModel);
     this.roamingModels.set(modelData.id, roamingModel);
     
-    console.log('🎯 [ROAMING MANAGER] Model added successfully. Total roaming models:', this.roamingModels.size);
   }
 
   /**
@@ -159,13 +150,6 @@ export class RoamingAnimationManager {
       roamingModel.speed
     ) * 1000; // Convert to milliseconds
     
-    console.log('🎯 [ROAMING MANAGER] New target generated:', {
-      id: roamingModel.id,
-      from: { lat: roamingModel.startPosition.latitude, lon: roamingModel.startPosition.longitude },
-      to: { lat: roamingModel.targetPosition.latitude, lon: roamingModel.targetPosition.longitude },
-      travelTime: roamingModel.travelTime / 1000 + 's',
-      speed: roamingModel.speed + ' m/s'
-    });
   }
 
   /**
@@ -181,7 +165,6 @@ export class RoamingAnimationManager {
       // Reached target, generate new one
       roamingModel.currentPosition = { ...roamingModel.targetPosition };
       roamingModel.currentHeading = roamingModel.targetHeading;
-      console.log('🎯 [ROAMING MANAGER] Reached target, generating new one:', roamingModel.id);
       this.generateNewTarget(roamingModel);
       return;
     }
@@ -292,7 +275,6 @@ export class RoamingAnimationManager {
   private updateAllModels(currentTime: number): void {
     // Only log occasionally to reduce console spam
     if (this.roamingModels.size > 0 && Math.random() < 0.01) { // 1% chance to log
-      console.log('🎯 [ROAMING MANAGER] Updating', this.roamingModels.size, 'roaming models');
     }
     
     for (const roamingModel of this.roamingModels.values()) {
