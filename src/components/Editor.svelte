@@ -8,7 +8,7 @@
   export let modelData: any = null;
   
   // Component state
-  export let selectedEditor: 'threejs' | 'webglstudio' = 'threejs';
+  export let selectedEditor: 'caos-editor' | 'playcanvas' = 'caos-editor';
   
   // Dropdown state for ModelSettings - controlled by Editor visibility
   let showDropdown = false;
@@ -133,9 +133,29 @@
   // Event dispatcher
   const dispatch = createEventDispatcher();
   
-  function switchEditor(editor: 'threejs' | 'webglstudio') {
-    selectedEditor = editor;
-    dispatch('editorSwitch', editor);
+  function switchEditor(editor: 'caos-editor' | 'playcanvas') {
+    if (editor === 'playcanvas') {
+      // Open PlayCanvas in a custom frameless, resizable window
+      const playcanvasWindow = window.open(
+        'https://playcanvas.com/editor',
+        'playcanvas-editor',
+        'width=1200,height=800,resizable=yes,scrollbars=yes,status=yes,toolbar=no,menubar=no,location=no,personalbar=no'
+      );
+      
+      // Focus the new window
+      if (playcanvasWindow) {
+        playcanvasWindow.focus();
+      }
+      
+      // Don't change the selected editor in the UI since we're opening external window
+      return;
+    }
+    
+    // Only change selectedEditor if it's actually different to avoid unnecessary state changes
+    if (selectedEditor !== editor) {
+      selectedEditor = editor;
+      dispatch('editorSwitch', editor);
+    }
   }
   
   function handleSave() {
@@ -244,28 +264,28 @@
     <div class="editor-selector">
       <button 
         class="editor-tab" 
-        class:active={selectedEditor === 'threejs'}
-        on:click={() => switchEditor('threejs')}
+        class:active={selectedEditor === 'caos-editor'}
+        on:click={() => switchEditor('caos-editor')}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        ThreeJS Editor
+        CAOS Editor
       </button>
       
       <button 
         class="editor-tab" 
-        class:active={selectedEditor === 'webglstudio'}
-        on:click={() => switchEditor('webglstudio')}
+        class:active={selectedEditor === 'playcanvas'}
+        on:click={() => switchEditor('playcanvas')}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
           <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2"/>
           <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2"/>
         </svg>
-        WebGL Studio
+        PlayCanvas
       </button>
     </div>
     
