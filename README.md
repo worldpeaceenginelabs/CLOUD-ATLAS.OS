@@ -19,6 +19,25 @@ It’s fully owned by <strong>you and everyone</strong>, working as a <strong>gl
 # CLOUD ATLAS STACK
 ![image](https://github.com/user-attachments/assets/88b18843-42b5-4beb-ac8b-5b2f154ce806)
 
+1. Fork the repo and set up a free Cloudflare account.
+2. Install dependencies:
+```   
+  - npm install
+```
+3. Start development server
+```
+  - npm run dev
+```
+   → Hot reloads are reliable, but some script changes may require a full reload due to app logic/state/network sequences.
+
+4. Create a new Cloudflare Pages project = your Cloud Atlas on 200 CDNs worldwide. (free)
+```
+   - Connect your Git repo (enables full dev → preview → production pipeline)
+   - Build settings: SvelteJS
+   - Root folder: dist
+```
+
+
 # FEATURES
 ### Already working / What's coming?
 - [x] Authentication-less authentication. Checks indexeddb for username and appid, if no result creates new username and appid (combination from username, appid, ENVsalt + https)
