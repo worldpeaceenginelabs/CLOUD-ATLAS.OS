@@ -16,97 +16,38 @@ It’s fully owned by <strong>you and everyone</strong>, working as a <strong>gl
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/a5b20e2b-33ec-492c-961f-b6fd61139425" />
 <br><br><br>
 
-#### Let's build what comes next...<br>
-<br>
-The world’s first truly decentralized ecosystem — a new operating system for Earth.
+# CLOUD ATLAS STACK
+![image](https://github.com/user-attachments/assets/88b18843-42b5-4beb-ac8b-5b2f154ce806)
 
-Infrastructureless. Unstoppable.
-Run by the people, for the people.
-
-Not just a platform.
-Not just an app.
-
-A new spatial interface merging the digital and physical worlds.
-
-One shared ecosystem where civic action, learning, entertainment, and real-world impact converge on a fully decentralized infrastructure—serving as both the foundation and a seamless part of the experience.
-
-Here, apps, games, knowledge, and civic tools live directly on a 3D globe, replacing traditional feeds, menus, and app stores with a geography-driven discovery experience:
-
-🌐 Zoom in to act locally,
-
-🌎 Zoom out to think globally.
-
-Discover by geography, not keywords.
-Instantly create and collaborate through:
-
-🧠 Prompt-to-app
-
-🎮 Prompt-to-game
-
-💡 Prompt-to-idea
-
-🛠️ Prompt-to-solution
-
-🌐 Swarm Governance
-
-🌍 Live brainstormings
-
-🤝 Collective missions
-
-📺 Mission TV 
-
-📚 Virtual Encyclopedia (Wikipedia 2D/AR/VR)
-
-—all within one intuitive interface, and without any infrastructure costs.
-<br><br><br>
-
-# Cloud Atlas OS: A New Frontier — Turning the World Into Your Operating System
-
-*Revolutionizing how users create, interact with, and govern digital worlds*
-
-Today, we're excited to introduce **Cloud Atlas OS**, a groundbreaking platform that evolves world models into a complete operating system—designed to give users unprecedented power to create, govern, and share. Cloud Atlas OS represents a fundamental shift toward user-owned digital infrastructure, combining real-time interactive world generation with decentralized governance, content creation, and social impact tools.
-
-## A General-Purpose World Model for Everyone
-
-Like advanced world models that generate diverse interactive environments, Cloud Atlas OS provides users with the tools to create, modify, and interact with digital worlds in real time. But where traditional world models stop at simulation, Cloud Atlas OS begins a new chapter: putting the power of world creation directly into users’ hands through intuitive interfaces—democratizing what was once the domain of major tech companies.
-
-Our platform runs on a **self-scaling, zero-cost infrastructure** powered by user devices instead of centralized servers. This ensures that users maintain ownership of their private data through encrypted local storage, while freely sharing creative content with the global community.
-
-## Revolutionary Features Powered by User-Centric Design
-
-**AppWorld Layer**: Instantly turn ideas into apps, games, and experiences with drag-and-drop tools, code, or AI prompts. Say: *“New York, Cyberpunk style, First Person Shooter”*—and instantly generate a monetizable, real-world game.
-
-**Virtual Encyclopedia**: Over 6 million Wikipedia articles become immersive, animated 3D objects and scenes, geolocated on a global map and powered by BitTorrent. Spotting anomalies while exploring—like a green giraffe at Starbucks—automatically flags corrections to the Wikipedia community.
-
-**SWARM Governance**: From voting to doing. Cloud Atlas OS enables brainstorming, petitions, crowdfunding, and collective action through gamified civic modules. Users get paid for addressing issues they care about while building meaningful connections.
-
-**MissionTV**: A streaming platform where users broadcast real-world mission progress, earn tips, and inspire action. We’re creating a new kind of influencer: the *good human*—recognized for doing good and motivating others to do the same.
-
-## An Ecosystem of the Users, By the Users
-
-Cloud Atlas OS is more than a platform—it’s a community-owned ecosystem where 8 billion minds can collectively create:
-
-* **Telecommunication of the users**: Decentralized communication networks
-* **App and game stores of the users**: Creator-owned marketplaces without middlemen
-* **Economies of the users**: Direct monetization between creators and consumers
-* **Governance tools of the users**: Democratic decision-making that scales
-* **Incubation of the users**: Crowdsourced business, app, and game development
-
-## Technical Innovation Meets Social Impact
-
-The platform goes far beyond entertainment. Users can leverage our 6 million Wikipedia 3D objects to build real-world, location-based apps and games. The more people explore, the smarter and faster the system becomes—creating a virtuous cycle of improvement and engagement.
-
-Our gamified civic model turns social change into entertainment. Viewers don’t just watch—they fund and participate. This creates sustainable systems for tackling real-world challenges while keeping users engaged and motivated.
-
-## The Future of User Empowerment
-
-Cloud Atlas OS is more than a technological leap—it’s a paradigm shift toward true digital democracy. By merging advanced world modeling with user ownership, decentralized infrastructure, and collaborative governance, we’re laying the foundation for a digital ecosystem that serves users instead of extracting from them.
-
-As we continue to expand, Cloud Atlas OS will grow into user-owned alternatives to major platforms and services—always guided by our principle: **power to the users, profits to the creators, and progress through collective intelligence.**
-
-The future isn’t just about creating better AI—it’s about creating better systems that amplify human potential. With Cloud Atlas OS, we’re not just building technology—**we’re building the world’s first user-owned future.**
-
-**PS: What makes Cloud Atlas OS different is that its AI isn’t a black box—it’s a walkable brain. Our Virtual Encyclopedia doubles as a living neural map where users can literally explore how the AI thinks, spot glitches as easily as a child noticing a misplaced giraffe, and feed it real-time data. This turns world modeling into a collective intelligence—a general AI for the masses, inspired by Buckminster Fuller’s vision of a world peace game.**
+# FEATURES
+### Already working / What's coming?
+- [x] Authentication-less authentication. Checks indexeddb for username and appid, if no result creates new username and appid (combination from username, appid, ENVsalt + https)
+- [x] Trystero connects everyone using the app. Without any server in the middle!!! WebRTC + BitTorrent Signalling 🥷
+- [x] Records are transferred between all online users automatically.
+- [x] If a new user comes online, the new user gets all past records from the other users' record cache.
+- [x] Records older than 30 days are deleted on every app start.
+- [x] IndexedDB refills the record cache after reload.
+- [x] The globe populates pins from IndexedDB every 5000ms
+- [x] Rate limiting. Decentralized approach: More than five post in localpins objectstore will disable the input form. checkRecordCount()
+- [x] Sharing function: Posts can be shared to Whatsapp, Gmail, and many more app and services via the Web Share API, on both mobile (templatetext + post text + post link) and desktop (post link only)
+- [x] Live Edit Cloud Atlas: A click on the settings icon brings you to Stackblitz and loads Cloud Atlas in a hot reloading developer IDE with preview. Not only for professionals! Try it out, you cant damage anything! ;)
+- [x] UI Branding: Animated Hex Grid background with moving light. Glassmorphism Style UI. Transitions and Fades.
+- [x] Atmosphere: Space and Ground Atmosphere added together with Google Photorealistic 3D tiles.
+- [x] Link validation: Is performed using two methods: 1. A regex pattern checks if the string .starts with https://desireddomain.org/ID (implemented/works), 2. Before submission, the app fetches the link. If the response is 200, the link is validated; if 404, the link is denied. (doesnt work for now due to CORS issue)
+- [x] Home Screen Dapps: Brainstorming (Zoom.us), ActionEvent (Telegram), Petition (Change.org), Crowdfunding (GoFundMe.com)
+- [ ] ChatGPT: Before you send your post, you can click the ChatGPT button, which fetches your title and text and prompts them to ChatGPT for optimizing your call to action with specifics regarding the input limits.
+- [ ] Template from Home Screen Dapps and distribution of Cesium, Trystero and UI for your creations.
+- [ ] For developers and non-technicians: GitHub Workspace Integration - "If you can describe it, you can code it"
+- [ ] USE YOUR OWN MAPTILE API KEY: Drop your API KEY and use your own free tier. The key stays local with you and will not be synced. Option for storing it in indexeddb or dropping the key every time manually.
+- [ ] Fallback on another decentralized network: The Nostr network serves as a fallback in case the BitTorrent network fails for any reason.
+- [ ] Swearwords Detection: a static list or API
+- [ ] Decentralized censorship: If you dont like it, you can block it! But locally only! Every user decides for themselves what they want and what they dont want to see!
+- [ ] Progressive Web App features (PWA).
+- [ ] Transfer limiting.
+- [ ] WebRTC channel for synchronizing assets (get client from client, P2P downloadable software).
+- [ ] Multiple other protocols as fallbacks.
+- [ ] Bluetooth beacon and other Adhoc strategies (quickshare?)
+- [ ] Decentralized domains.
 <br><br><br>
 
 # Technical Summary
@@ -336,44 +277,101 @@ The future isn’t just about creating better AI—it’s about creating better 
 - **Decentralized access** via Unstoppable Domains. (❌ coming)
 - **Decentralized backup** via IPFS, Airweave, Bittorrent, Nostr etc. (❌ coming) 
 - **Links accessible** from multiple platforms, including **end-user-shared links** for infinite access points. (❌ coming)
+<br><br><br>
 
 ---
 
-**Cloud Atlas OS = 💥 Decentralized Power + Always Available + Ultra Privacy 🔐**
+#### Let's build what comes next...<br>
+<br>
+The world’s first truly decentralized ecosystem — a new operating system for Earth.
+
+Infrastructureless. Unstoppable.
+Run by the people, for the people.
+
+Not just a platform.
+Not just an app.
+
+A new spatial interface merging the digital and physical worlds.
+
+One shared ecosystem where civic action, learning, entertainment, and real-world impact converge on a fully decentralized infrastructure—serving as both the foundation and a seamless part of the experience.
+
+Here, apps, games, knowledge, and civic tools live directly on a 3D globe, replacing traditional feeds, menus, and app stores with a geography-driven discovery experience:
+
+🌐 Zoom in to act locally,
+
+🌎 Zoom out to think globally.
+
+Discover by geography, not keywords.
+Instantly create and collaborate through:
+
+🧠 Prompt-to-app
+
+🎮 Prompt-to-game
+
+💡 Prompt-to-idea
+
+🛠️ Prompt-to-solution
+
+🌐 Swarm Governance
+
+🌍 Live brainstormings
+
+🤝 Collective missions
+
+📺 Mission TV 
+
+📚 Virtual Encyclopedia (Wikipedia 2D/AR/VR)
+
+—all within one intuitive interface, and without any infrastructure costs.
 <br><br><br>
 
-# CLOUD ATLAS STACK
-![image](https://github.com/user-attachments/assets/88b18843-42b5-4beb-ac8b-5b2f154ce806)
+# Cloud Atlas OS: A New Frontier — Turning the World Into Your Operating System
 
-# FEATURES
-### Already working / What's coming?
-- [x] Authentication-less authentication. Checks indexeddb for username and appid, if no result creates new username and appid (combination from username, appid, ENVsalt + https)
-- [x] Trystero connects everyone using the app. Without any server in the middle!!! WebRTC + BitTorrent Signalling 🥷
-- [x] Records are transferred between all online users automatically.
-- [x] If a new user comes online, the new user gets all past records from the other users' record cache.
-- [x] Records older than 30 days are deleted on every app start.
-- [x] IndexedDB refills the record cache after reload.
-- [x] The globe populates pins from IndexedDB every 5000ms
-- [x] Rate limiting. Decentralized approach: More than five post in localpins objectstore will disable the input form. checkRecordCount()
-- [x] Sharing function: Posts can be shared to Whatsapp, Gmail, and many more app and services via the Web Share API, on both mobile (templatetext + post text + post link) and desktop (post link only)
-- [x] Live Edit Cloud Atlas: A click on the settings icon brings you to Stackblitz and loads Cloud Atlas in a hot reloading developer IDE with preview. Not only for professionals! Try it out, you cant damage anything! ;)
-- [x] UI Branding: Animated Hex Grid background with moving light. Glassmorphism Style UI. Transitions and Fades.
-- [x] Atmosphere: Space and Ground Atmosphere added together with Google Photorealistic 3D tiles.
-- [x] Link validation: Is performed using two methods: 1. A regex pattern checks if the string .starts with https://desireddomain.org/ID (implemented/works), 2. Before submission, the app fetches the link. If the response is 200, the link is validated; if 404, the link is denied. (doesnt work for now due to CORS issue)
-- [x] Home Screen Dapps: Brainstorming (Zoom.us), ActionEvent (Telegram), Petition (Change.org), Crowdfunding (GoFundMe.com)
-- [ ] ChatGPT: Before you send your post, you can click the ChatGPT button, which fetches your title and text and prompts them to ChatGPT for optimizing your call to action with specifics regarding the input limits.
-- [ ] Template from Home Screen Dapps and distribution of Cesium, Trystero and UI for your creations.
-- [ ] For developers and non-technicians: GitHub Workspace Integration - "If you can describe it, you can code it"
-- [ ] USE YOUR OWN MAPTILE API KEY: Drop your API KEY and use your own free tier. The key stays local with you and will not be synced. Option for storing it in indexeddb or dropping the key every time manually.
-- [ ] Fallback on another decentralized network: The Nostr network serves as a fallback in case the BitTorrent network fails for any reason.
-- [ ] Swearwords Detection: a static list or API
-- [ ] Decentralized censorship: If you dont like it, you can block it! But locally only! Every user decides for themselves what they want and what they dont want to see!
-- [ ] Progressive Web App features (PWA).
-- [ ] Transfer limiting.
-- [ ] WebRTC channel for synchronizing assets (get client from client, P2P downloadable software).
-- [ ] Multiple other protocols as fallbacks.
-- [ ] Bluetooth beacon and other Adhoc strategies (quickshare?)
-- [ ] Decentralized domains.
+*Revolutionizing how users create, interact with, and govern digital worlds*
+
+Today, we're excited to introduce **Cloud Atlas OS**, a groundbreaking platform that evolves world models into a complete operating system—designed to give users unprecedented power to create, govern, and share. Cloud Atlas OS represents a fundamental shift toward user-owned digital infrastructure, combining real-time interactive world generation with decentralized governance, content creation, and social impact tools.
+
+## A General-Purpose World Model for Everyone
+
+Like advanced world models that generate diverse interactive environments, Cloud Atlas OS provides users with the tools to create, modify, and interact with digital worlds in real time. But where traditional world models stop at simulation, Cloud Atlas OS begins a new chapter: putting the power of world creation directly into users’ hands through intuitive interfaces—democratizing what was once the domain of major tech companies.
+
+Our platform runs on a **self-scaling, zero-cost infrastructure** powered by user devices instead of centralized servers. This ensures that users maintain ownership of their private data through encrypted local storage, while freely sharing creative content with the global community.
+
+## Revolutionary Features Powered by User-Centric Design
+
+**AppWorld Layer**: Instantly turn ideas into apps, games, and experiences with drag-and-drop tools, code, or AI prompts. Say: *“New York, Cyberpunk style, First Person Shooter”*—and instantly generate a monetizable, real-world game.
+
+**Virtual Encyclopedia**: Over 6 million Wikipedia articles become immersive, animated 3D objects and scenes, geolocated on a global map and powered by BitTorrent. Spotting anomalies while exploring—like a green giraffe at Starbucks—automatically flags corrections to the Wikipedia community.
+
+**SWARM Governance**: From voting to doing. Cloud Atlas OS enables brainstorming, petitions, crowdfunding, and collective action through gamified civic modules. Users get paid for addressing issues they care about while building meaningful connections.
+
+**MissionTV**: A streaming platform where users broadcast real-world mission progress, earn tips, and inspire action. We’re creating a new kind of influencer: the *good human*—recognized for doing good and motivating others to do the same.
+
+## An Ecosystem of the Users, By the Users
+
+Cloud Atlas OS is more than a platform—it’s a community-owned ecosystem where 8 billion minds can collectively create:
+
+* **Telecommunication of the users**: Decentralized communication networks
+* **App and game stores of the users**: Creator-owned marketplaces without middlemen
+* **Economies of the users**: Direct monetization between creators and consumers
+* **Governance tools of the users**: Democratic decision-making that scales
+* **Incubation of the users**: Crowdsourced business, app, and game development
+
+## Technical Innovation Meets Social Impact
+
+The platform goes far beyond entertainment. Users can leverage our 6 million Wikipedia 3D objects to build real-world, location-based apps and games. The more people explore, the smarter and faster the system becomes—creating a virtuous cycle of improvement and engagement.
+
+Our gamified civic model turns social change into entertainment. Viewers don’t just watch—they fund and participate. This creates sustainable systems for tackling real-world challenges while keeping users engaged and motivated.
+
+## The Future of User Empowerment
+
+Cloud Atlas OS is more than a technological leap—it’s a paradigm shift toward true digital democracy. By merging advanced world modeling with user ownership, decentralized infrastructure, and collaborative governance, we’re laying the foundation for a digital ecosystem that serves users instead of extracting from them.
+
+As we continue to expand, Cloud Atlas OS will grow into user-owned alternatives to major platforms and services—always guided by our principle: **power to the users, profits to the creators, and progress through collective intelligence.**
+
+The future isn’t just about creating better AI—it’s about creating better systems that amplify human potential. With Cloud Atlas OS, we’re not just building technology—**we’re building the world’s first user-owned future.**
+
+**PS: What makes Cloud Atlas OS different is that its AI isn’t a black box—it’s a walkable brain. Our Virtual Encyclopedia doubles as a living neural map where users can literally explore how the AI thinks, spot glitches as easily as a child noticing a misplaced giraffe, and feed it real-time data. This turns world modeling into a collective intelligence—a general AI for the masses, inspired by Buckminster Fuller’s vision of a world peace game.**
 <br><br><br>
 
 # My Journey with Cloud Atlas
