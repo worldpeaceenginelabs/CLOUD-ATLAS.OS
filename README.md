@@ -40,19 +40,16 @@ It’s fully owned by <strong>you and everyone</strong>, working as a <strong>gl
 
 # FEATURES
 ### Already working / What's coming?
-- [x] Authentication-less authentication. Checks indexeddb for username and appid, if no result creates new username and appid (combination from username, appid, ENVsalt + https)
 - [x] Trystero connects everyone using the app. Without any server in the middle!!! WebRTC + BitTorrent Signalling 🥷
 - [x] Records are transferred between all online users automatically.
 - [x] If a new user comes online, the new user gets all past records from the other users' record cache.
 - [x] Records older than 30 days are deleted on every app start.
 - [x] IndexedDB refills the record cache after reload.
 - [x] The globe populates pins from IndexedDB every 5000ms
-- [x] Rate limiting. Decentralized approach: More than five post in localpins objectstore will disable the input form. checkRecordCount()
 - [x] Sharing function: Posts can be shared to Whatsapp, Gmail, and many more app and services via the Web Share API, on both mobile (templatetext + post text + post link) and desktop (post link only)
 - [x] Live Edit Cloud Atlas: A click on the settings icon brings you to Stackblitz and loads Cloud Atlas in a hot reloading developer IDE with preview. Not only for professionals! Try it out, you cant damage anything! ;)
 - [x] UI Branding: Animated Hex Grid background with moving light. Glassmorphism Style UI. Transitions and Fades.
 - [x] Atmosphere: Space and Ground Atmosphere added together with Google Photorealistic 3D tiles.
-- [x] Link validation: Is performed using two methods: 1. A regex pattern checks if the string .starts with https://desireddomain.org/ID (implemented/works), 2. Before submission, the app fetches the link. If the response is 200, the link is validated; if 404, the link is denied. (doesnt work for now due to CORS issue)
 - [x] Home Screen Dapps: Brainstorming (Zoom.us), ActionEvent (Telegram), Petition (Change.org), Crowdfunding (GoFundMe.com)
 - [ ] ChatGPT: Before you send your post, you can click the ChatGPT button, which fetches your title and text and prompts them to ChatGPT for optimizing your call to action with specifics regarding the input limits.
 - [ ] Template from Home Screen Dapps and distribution of Cesium, Trystero and UI for your creations.
@@ -68,6 +65,9 @@ It’s fully owned by <strong>you and everyone</strong>, working as a <strong>gl
 - [ ] Bluetooth beacon and other Adhoc strategies (quickshare?)
 - [ ] Decentralized domains.
 <br><br><br>
+
+# Moderation and Sync coming
+https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.peerset.DB
 
 # Technical Summary
 
