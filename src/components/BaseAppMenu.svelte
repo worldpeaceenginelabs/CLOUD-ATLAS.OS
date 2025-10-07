@@ -201,6 +201,7 @@
     border: 0px solid #ccc;
     padding-bottom: 1rem;
     margin: 0;
+    box-sizing: border-box;
   }
 
   main :global(label) {
@@ -212,6 +213,7 @@
     width: 100%;
     padding: 0rem;
     margin-bottom: 0rem;
+    box-sizing: border-box;
   }
 
   .coord-green {
