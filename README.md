@@ -296,9 +296,77 @@ https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.peerset.DB
 - **Decentralized access** via Unstoppable Domains. (❌ coming)
 - **Decentralized backup** via IPFS, Airweave, Bittorrent, Nostr etc. (❌ coming) 
 - **Links accessible** from multiple platforms, including **end-user-shared links** for infinite access points. (❌ coming)
-<br><br><br>
 
 ---
+
+# Creating Your Own Apps with Cloud Atlas:
+<h4><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It’s as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You’ll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.</h4>
+
+Don’t get hung up on the tools; pick what suits your flow. Elevate your concepts using <strong>Unreal Engine 5</strong> (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.), <strong>Unity 3D</strong> (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.), and/or <strong>HTML, CSS, JS, APIs</strong> (JAMstack), <strong>WASM</strong> (C, C++, C#, and Rust, but for the Web), or <strong>WebContainers</strong> (Node.js in the browser). Then continue with <strong>*Stackblitz IDE Integration (Live Edit)*</strong>
+
+## Stackblitz IDE Integration (Live Edit)
+The Stackblitz IDE is seamlessly integrated (settings icon top-right), enabling you to propose, create, and implement new applications, enhancements, and bug fixes directly - in Browser — all without the need for installing a coding environment. Contributions can be made effortlessly via a simple pull request.
+
+## Future App Creation with Cloud Atlas
+#### Funding Innovation:
+Want to support the development of a feature or app? With Cloud Atlas, you can finance it yourself or rally community support through applying as pop app (so (pop)ular, devs want to code it for free) money and code donations, and/or crowdfunding. This opens up a vast marketplace for development work and incentivizes contributions, democratizing app creation like never before.
+
+#### Free Access to All Updates:
+The best part is that all enhancements and new applications are free for every user. Since the creation was donated/paid for by the crowd and the operation on Cloud Atlas is free due to its decentralized nature.
+
+We’re committed to the vast potential of Cloud Atlas and are thrilled to witness its growth as the future of app development.<br><br>
+
+# How to create your idea, app, game, network...?
+- clone or LiveEdit (settings-icon top-right)
+- npm install
+- npm run dev
+<br><br>
+
+<img width="1920" height="1048" alt="image" src="https://github.com/user-attachments/assets/8f4ca88e-a37d-4e2d-9e90-59e1a505770c" />
+
+##### No framework boilerplate
+
+SvelteJS is not a framework, its more of a WYSIWYG editor and compiler.
+https://learn.svelte.dev/tutorial/welcome-to-svelte
+
+Enjoy the per page/component view, reactive store, and the bind feature of SvelteJS, but code in plain Javascript! (every .svelte file is a page AND a component, based on your usecase. Every file has an area for script, markup, css per page/component)
+
+Blazing fast because the build output is your app precompiled. Static, but reactive! This is SvelteJS/JAMstack, which runs on edge and every other storage. 😝
+
+Simply get started with whatever you can think of. Everything is well pre-configured. In turn you can start to code your idea instant, without thinking about the repo configuration or the back-end. In Javascript, without any framework boilerplate. Only the reactive store and the binds are Sveltejs, but the modifications/extensions can be done by anyone who knows JS without understanding a shred of Sveltejs. (when you see how the form in Brainstorming.svelte works, it will click, promise! 😉😁)<br><br>
+
+# Summarize
+This repository is meant as a clean start point for decentralized, location-based apps. I even go so far to say, EVERY APP should be location based! Since everything in reality is happening in the 3D space anyway, we are missing a lot of spatial intelligence and even very positive outcomes/synergies in app logic, compared to our traditional systems today. Unleash your creativity without caring too much about the tools and the back-end scaling (99% "automatically") or locking yourself in!<br>
+
+Don’t get hung up on the tools; pick what suits your flow. Elevate your concepts using <strong>Unreal Engine 5</strong> (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.), <strong>Unity 3D</strong> (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.), and/or <strong>HTML, CSS, JS, APIs</strong> (JAMstack), <strong>WASM</strong> (C, C++, C#, and Rust, but for the Web), or <strong>WebContainers</strong> (Node.js in the browser). Then continue with the settings icon in the top-right and do a pull-request.<br>
+
+Launch your creations to a global audience across various platforms—be it <strong>browsers, mobile devices, desktops, VR, or WebVR, right out of the box.</strong> Enjoy the liberty of creation, supported by a <strong>backend that scales automatically by 99%, free from any restrictive ties.</strong><br><br>
+
+# Support Cloud Atlas
+## Funding Cloud Atlas
+#### Cloud Atlas, my passion project, intentionally remains non-profit and free forever. Why I Need Your Support? While Cloud Atlas is my passion, I also have to meet my day-to-day living expenses. Instead of requesting large sums of money to hire developers or to cover substantial project costs, I’ve decided to take a more sustainable and humble approach. I am seeking support to continue my journey as a digital nomad, which allows me to live and work full-time on Cloud Atlas with minimal expenses. With just €6,000 a year, I can live comfortably in Southeast Asia, dedicating all my time and energy to developing and growing Cloud Atlas. This amount covers my living costs and allows me to focus on what truly matters—building this platform for the benefit of all. Please consider supporting me by contributing to my Bitcoin address: [12KQqWzc4BkVgm6syqEMjy3yoBd7hhoCHA](https://bitcoinblockexplorers.com/address/12KQqWzc4BkVgm6syqEMjy3yoBd7hhoCHA) or via [PayPal Me](https://paypal.me/worldpeaceengine). Everything above €6,000 a year will flow directly into enhancing Cloud Atlas.
+
+## Become a Relay Node!
+Become a contributor to our network by simply pinning the Cloud Atlas tab in your desktop browser and help us grow.
+
+Background: Cloud Atlas operates on a decentralized back-end, synchronizing through WebRTC and signaling over the BitTorrent tracker network. By simply running our page, you become an integral part of our infrastructure as a relay node.<br><br>
+
+# Join our Community:
+[CCC - Collective Computer Collaboration Hub (Developer Chat)](https://app.element.io/#/room/#METAVERSE-DAO_CLOUD-ATLAS_community:gitter.im) <br>
+Become a part of Cloud Atlas today and join an exciting community that’s shaping a brighter future. Together, we can forge a better world for ourselves and the generations to come.
+<br><br>
+
+# Want more apps and functions?
+Reach out to me and our community anytime on GitHub, Gitter.im, or during our upcoming weekly Zoom brainstorming sessions on YouTube.<br><br>
+<br><br><br>
+
+# Some inspiration...
+https://worldpeaceengine.pubpub.org/pub/futurefeatures/release/78
+<br><br>
+
+![cloudatlas8kzip](https://github.com/user-attachments/assets/0012c1cb-257b-49ea-9dc7-f1524ee1baaa)
+“Decentralization places the globe within your grasp, ensuring your voice resonates daily, not merely at the ballot box every few years. It’s about making your voice count every day, not just delegating it during elections.” BK
+<br><br><br>
 
 #### Let's build what comes next...<br>
 <br>
@@ -421,7 +489,7 @@ My journey has been filled with challenges and learning experiences, but each st
 ![image](https://github.com/user-attachments/assets/faf603b0-f3fc-406b-9016-3009db874da7)
 <br><br>
 
-# Pitch
+# The concept was dead simple...
 Buckminster Fuller once said, "You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete."<br><br>
 
 Ira Chaleff, in his book Intelligent Disobedience: Doing Right When What You're Told to Do Is Wrong, stated, "A function of civil society is to organize ourselves to collectively stand up to those who add to the suffering of others."<br><br>
@@ -490,7 +558,7 @@ Leverage the 6 million Wikipedia 3D objects to build real-world, location-based 
 *“If you can describe it, you can code it.”*<br><br>
 
 ### Cutting out the middlemen
-The first privately developed dApp, **Couchsurfing Free**, sets the stage for what’s possible. Upcoming projects like **dAmazon**, **dUber**, **dUber Eats**, and **dAirBNB** showcase the limitless potential for innovation, cutting out the middlemen. By the (p)eople, for the (p)eople – P2P at its finest.<br><br>
+The first developed dApp, **Couchsurfing Free**, sets the stage for what’s possible. Upcoming projects like **dAmazon**, **dUber**, **dUber Eats**, and **dAirBNB** showcase the limitless potential for innovation, cutting out the middlemen. By the (p)eople, for the (p)eople – P2P at its finest.<br><br>
 ![image](https://github.com/user-attachments/assets/094a5a7d-9cd4-440c-b469-67257752a645)
 ![image](https://github.com/user-attachments/assets/e630a5a4-9309-45ea-a64f-168a049d3e81)
 ![image](https://github.com/user-attachments/assets/69342182-2418-498b-8f48-0b978d95eed5)
@@ -503,40 +571,13 @@ A decentralized video platform like Twitch — but for real-world impact. Users 
 <br><br><br>
 
 # The Future
-With Cloud Atlas, you can explore stunning UE5 content, games, and applications on any device, including browser, mobile, desktop, AR and VR. But that's not all.<br><br>
 
-You can also experience Wikipedia articles in 3D and engage with them on a whole new level. Each article has an artificial identity, which means they can communicate with each other and identify conflicting information, which they will forward as pull-requests to the Wikipedia community. This helps maintain the accuracy of Wikipedia and promotes collaboration on knowledge among users.<br><br>
-
-But Cloud Atlas is more than just a platform for exploration and learning. It also provides a social network where people from different backgrounds can come together to brainstorm solutions to local and global issues. With the power of in-person meetups, crowdfunding, and petitions, you can turn your ideas into reality and make a difference in the world. And that's not all.<br><br>
-
-Cloud Atlas also features MissionTV, a decentralized platform similar to YouTube or Twitch, but with a focus on showcasing good deeds. With built-in live-chat and donation options, MissionTV provides an easy way to share your achievements and inspire others to do good.<br><br>
-
-# Imagine...
+### Imagine...
 ### Imagine creating our own version of Google Maps/Earth, incorporating all the services we desire, free from the constraints of profit-driven entities. Goodbye monopolies, influential lone wolves, guerrillas, and political cults.
 ### Imagine decentralized payments without intermediaries. Goodbye banks.
 ### Imagine combining crowd engineering and petitioning with crowdfunding. Envision decentralized allocation of homes, schools, jobs, medical services, transport, food, goods, and services. Goodbye governments, corporations, employers, and landlords.
 ### And don't forget ChatGPT, evolving rapidly to become your all-day digital assistant with coming access to your display and the Cloud Atlas API.
 <br>
-
-# Highly Adaptable
-The first "app" is Brainstorming on Zoom Meetings. Simple as that. Now, imagine re-engineering the Couchsurfing app (free home/shelter allocation, which went commercial due to lack of funding). By simply changing the link validation to another URL and modifying the button text, you can create a new app.<br><br>
-
-This network is free of cost. Funding not needed. If needed: Crowdfunding it is!<br><br>
-
-The possibilities are endless. The question is: How can we implement various apps in an organized way, ensuring the most sustainable ones remain prioritized?<br><br>
-
-I've always held the theory that "everything is already there, it is just mismanaged".<br>
-Cloud Atlas is a Collective Computer and was realized with only two publicly available repositories and watching too much science fiction:<br><br>
-
-### CesiumJS is a powerful open-source JavaScript library for creating 3D globes and maps on the web
-It enables high-performance visualization of geospatial data, dynamic data, and 3D models. Integrating seamlessly with Unreal Engine and Unity 3D, it leverages advanced rendering and development tools to create high-fidelity, interactive 3D geospatial experiences for urban planning, simulations, immersive virtual environments, apps, and games, supporting mobile, desktop, AR, and VR out of the box.
-
-### Cloud Atlas is fully decentralized and uses Trystero as "back-end"! How does it connect?
-To establish a direct peer-to-peer connection with WebRTC, a signalling channel is needed to exchange peer information (SDP). Typically this involves running your own matchmaking server but Trystero abstracts this away for you and offers multiple "serverless" strategies for connecting peers (currently BitTorrent, Nostr, MQTT, Firebase, and IPFS).<br><br>
-
-Cloud Atlas uses the BitTorrent strategy: peer-to-peer real-time data transfers with WebRTC, but without signal server but the public Bittorrent tracker network instead. A network consisting of 2 Billion users. One quarter of the world's population.<br><br>
-
-What's more on GitHub and the internet to aim for the moon of a post-scarcity, post-government society? Imagine dragons...!<br><br>
 
 # Announcements
 ## 🚨Call to Apple, Android, Web Devs, Entrepreneurs, and all Dreamers🚨
@@ -560,103 +601,9 @@ Dreamers with big ideas, come join too! Your app could grow to help billions of 
 When you win, we all win, your app makes Cloud Atlas OS famous ✨, and as more friends join, we make it even better together. Want to start building and make it giant? 🚀
 
 We're inviting people to join Cloud Atlas OS right now. We can team up on your app idea, and we've got helpers ready to jump in and learn while they help. What’s your project about? Oh, and good news: you’re never stuck with us, grab the project from GitHub anytime, build it your way, and still use the Cloud Atlas OS advantages to make it big. Cool, right?
-<br><br>
-
-## UI Update Coming: Corporate Control Ends Now!
-### "Cloud Atlas OS is evolving – picture a world where your favorite services are cheaper for the customer, and fairer with more money for the worker. No more middlemen. Just direct connections, where value goes where it should. We’re shifting the power from the few to the many, and building a future that works for everyone. The revolution begins now."<br><br> Think upcoming projects like dAmazon, dUber, dUberEats, and dAirBNB
-<br><br>
-
-# Creating Your Own Apps with Cloud Atlas:
-<h4><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It’s as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You’ll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.</h4>
-
-Don’t get hung up on the tools; pick what suits your flow. Elevate your concepts using <strong>Unreal Engine 5</strong> (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.), <strong>Unity 3D</strong> (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.), and/or <strong>HTML, CSS, JS, APIs</strong> (JAMstack), <strong>WASM</strong> (C, C++, C#, and Rust, but for the Web), or <strong>WebContainers</strong> (Node.js in the browser). Then continue with <strong>*Stackblitz IDE Integration (Live Edit)*</strong>
-
-## Stackblitz IDE Integration (Live Edit)
-The Stackblitz IDE is seamlessly integrated (settings icon top-right), enabling you to propose, create, and implement new applications, enhancements, and bug fixes directly - in Browser — all without the need for installing a coding environment. Contributions can be made effortlessly via a simple pull request.
-
-## Future App Creation with Cloud Atlas
-#### Funding Innovation:
-Want to support the development of a feature or app? With Cloud Atlas, you can finance it yourself or rally community support through applying as pop app (so (pop)ular, devs want to code it for free) money and code donations, and/or crowdfunding. This opens up a vast marketplace for development work and incentivizes contributions, democratizing app creation like never before.
-
-#### Free Access to All Updates:
-The best part is that all enhancements and new applications are free for every user. Since the creation was donated/paid for by the crowd and the operation on Cloud Atlas is free due to its decentralized nature.
-
-We’re committed to the vast potential of Cloud Atlas and are thrilled to witness its growth as the future of app development.<br><br>
-
-# How to create your idea, app, game, network...?
-- clone or LiveEdit (settings-icon top-right)
-- npm install
-- npm run dev
-
-##### No framework boilerplate
-SvelteJS is not a framework, its more of a WYSIWYG editor and compiler.
-https://learn.svelte.dev/tutorial/welcome-to-svelte
-
-Enjoy the per page/component view, reactive store, and the bind feature of SvelteJS, but code in plain Javascript! (every .svelte file is a page AND a component, based on your usecase. Every file has an area for script, markup, css per page/component)
-
-Blazing fast because the build output is your app precompiled. Static, but reactive! This is SvelteJS/JAMstack, which runs on edge and every other storage. 😝
-
-Simply get started with whatever you can think of. Everything is well pre-configured. In turn you can start to code your idea instant, without thinking about the repo configuration or the back-end. In Javascript, without any framework boilerplate. Only the reactive store and the binds are Sveltejs, but the modifications/extensions can be done by anyone who knows JS without understanding a shred of Sveltejs. (when you see how the form in Brainstorming.svelte works, it will click, promise! 😉😁)<br><br>
-
-### It’s essentially about connecting any creation to specific coordinates on the globe. Imagine a future where you can seamlessly run, drive, or fly virtually from one real-world game or app to another.
-- Cesium.svelte: Here you control the globe and the population with entities (pins, objects, events, apps, etc...)
-- /DAPPS/HomeScreen.svelte(App Template): Infinit possibilities. For instance Title, Text, Zoom Link, and Coordinates alone are already enabling Online Meetings, but location based, for instance brainstorming, event planning, live session, you name it... It's perfect for social networks, multiplayer games, E-Learning, you name it...
-- from here you can do literally everything because you can connect everything with this digital twin of the globe:
-HTML, JS, CSS, APIs! (JAMstack), WASM (C, C++, C#, and Rust, but for the Web), WebContainers (Node in Browser), Unreal Engine 5 (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.), Unity 3D (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.), you name it!<br><br>
-
-# Summarize
-This repository is meant as a clean start point for decentralized, location-based apps. I even go so far to say, EVERY APP should be location based! Since everything in reality is happening in the 3D space anyway, we are missing a lot of spatial intelligence and even very positive outcomes/synergies in app logic, compared to our traditional systems today. Unleash your creativity without caring too much about the tools and the back-end scaling (99% "automatically") or locking yourself in!<br>
-
-Don’t get hung up on the tools; pick what suits your flow. Elevate your concepts using <strong>Unreal Engine 5</strong> (Uses C++ as the primary programming language, with Blueprints for visual scripting, and also supports Python for scripting certain tasks.), <strong>Unity 3D</strong> (Uses C# as the primary programming language, with Unity Visual Scripting (Bolt) for visual scripting.), and/or <strong>HTML, CSS, JS, APIs</strong> (JAMstack), <strong>WASM</strong> (C, C++, C#, and Rust, but for the Web), or <strong>WebContainers</strong> (Node.js in the browser). Then continue with the settings icon in the top-right and do a pull-request.<br>
-
-Launch your creations to a global audience across various platforms—be it <strong>browsers, mobile devices, desktops, VR, or WebVR, right out of the box.</strong> Enjoy the liberty of creation, supported by a <strong>backend that scales automatically by 99%, free from any restrictive ties.</strong><br><br>
-
-# Support Cloud Atlas
-## Funding Cloud Atlas
-#### Cloud Atlas, my passion project, intentionally remains non-profit and free forever. Why I Need Your Support? While Cloud Atlas is my passion, I also have to meet my day-to-day living expenses. Instead of requesting large sums of money to hire developers or to cover substantial project costs, I’ve decided to take a more sustainable and humble approach. I am seeking support to continue my journey as a digital nomad, which allows me to live and work full-time on Cloud Atlas with minimal expenses. With just €6,000 a year, I can live comfortably in Southeast Asia, dedicating all my time and energy to developing and growing Cloud Atlas. This amount covers my living costs and allows me to focus on what truly matters—building this platform for the benefit of all. Please consider supporting me by contributing to my Bitcoin address: [12KQqWzc4BkVgm6syqEMjy3yoBd7hhoCHA](https://bitcoinblockexplorers.com/address/12KQqWzc4BkVgm6syqEMjy3yoBd7hhoCHA) or via [PayPal Me](https://paypal.me/worldpeaceengine). Everything above €6,000 a year will flow directly into enhancing Cloud Atlas.
-
-## Become a Relay Node!
-Become a contributor to our network by simply pinning the Cloud Atlas tab in your desktop browser and help us grow.
-
-Background: Cloud Atlas operates on a decentralized back-end, synchronizing through WebRTC and signaling over the BitTorrent tracker network. By simply running our page, you become an integral part of our infrastructure as a relay node.<br><br>
-
-# Join our Community:
-[CCC - Collective Computer Collaboration Hub (Developer Chat)](https://app.element.io/#/room/#METAVERSE-DAO_CLOUD-ATLAS_community:gitter.im) <br>
-Become a part of Cloud Atlas today and join an exciting community that’s shaping a brighter future. Together, we can forge a better world for ourselves and the generations to come.
-<br><br>
-
-# Want more apps and functions?
-Reach out to me and our community anytime on GitHub, Gitter.im, or during our upcoming weekly Zoom brainstorming sessions on YouTube.<br><br>
-
-# Some inspiration...
-https://worldpeaceengine.pubpub.org/pub/futurefeatures/release/78
-<br><br>
-
-![cloudatlas8k](https://github.com/user-attachments/assets/e4e5443d-7f66-4e2b-a973-f42fe1c113da)
-“Decentralization places the globe within your grasp, ensuring your voice resonates daily, not merely at the ballot box every few years. It’s about making your voice count every day, not just delegating it during elections.” BK<br><br>
-
-### Status: (OPEN BETA)<br>Lean Startup Mode (Startup, Incubator & Accelerator united in one entity)<br>Prototyping, MVPs, and Optimizing as an ongoing process.
-The first application on Cloud Atlas is Brainstorming. On private and public, local and global issues and tasks.<br>An incubator and accelerator for your ideas, solutions and funding.(GoFundMe implementation coming soon)<br><br>
-
-Simple as that. Now, imagine the crowdfunding feature. By simply changing the link validation to the Gofundme.com URL and modifying the UI (button text and choice brainstorming/crowdfunding on form), you can create a new app.<br><br>
-
-This network is free of cost. Funding not needed. If needed: Crowdfunding it is!<br><br>
-
-The possibilities are endless. The question is: How can we implement various apps in an organized way, ensuring the most sustainable ones remain prioritized?<br><br>
-
-![image](https://github.com/user-attachments/assets/d44c4929-b106-4b42-881d-0bdbad96d7a6)
-![image](https://github.com/worldpeaceenginelabs/METAVERSE-SEED/assets/67427045/c20604d6-10af-4d98-bab0-05cc053aa743)
-### 2D/3D Display, Augmented, Virtual... Everything out of the box!<br><br>
-
-# RESOURCES
-https://cesium.com/platform/cesium-for-o3de/<br>
-https://cesium.com/platform/cesium-for-unreal/<br>
-https://cesium.com/platform/cesium-for-omniverse/<br>
-https://cesium.com/platform/cesium-for-unity/<br><br>
-
----
+<br><br><br>
 
 **Let’s build a future without limits, together**
 <br>
 
-Restarted Project The Seed on 30.03.2024<br><br>
+Project begin 2017
