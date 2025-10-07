@@ -68,6 +68,7 @@ It’s fully owned by <strong>you and everyone</strong>, working as a <strong>gl
 
 # New Moderation and Sync logic coming (Nostr Auth, client-side moderation, efficient Merkle Tree Sync)
 https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.peerset.DB
+<br><br><br>
 
 # Technical Summary
 
