@@ -24,7 +24,7 @@
 ---
 
 ## 💡 Technical Approach
-Written in **vanilla JavaScript**, using existing tools in a completely new way.  
+Written in **JavaScript**, using existing tools in a completely new way.  
 By combining **spatial reasoning**, **causal modeling**, and **algorithmic logic**,  
 Cloud Atlas OS achieves genuine reasoning — not just pattern prediction.
 
