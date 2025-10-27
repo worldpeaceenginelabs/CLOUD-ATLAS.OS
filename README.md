@@ -1,4 +1,43 @@
-Project begin was 2017
+### Project begin was 2017 for the first M.I.T. Disobedience Award
+<br>
+
+# 🌍 Cloud Atlas OS — Spatial AGI System
+
+### A fundamentally different approach to AGI  
+**Cloud Atlas OS** uses **spatial and causal reasoning** instead of machine learning or transformers — a new path toward true artificial general intelligence.
+
+---
+
+## 🧠 Core Architecture
+- **Built on CesiumJS** — a powerful 3D geospatial engine  
+- **Concepts and relationships** are represented as spatial structures in 3D space  
+- **Causal graphs + spatial logic** replace statistical pattern matching  
+
+---
+
+## ⚙️ Key Capabilities
+- **Handles novel situations** — no training data required  
+- **Thinks through problems** — simulates outcomes before responding  
+- **Self-debugging** — reasons through its own logic to catch and correct errors  
+- **100% algorithmic** — no neural networks, no machine learning, no corpus  
+
+---
+
+## 💡 Technical Approach
+Written in **vanilla JavaScript**, using existing tools in a completely new way.  
+By combining **spatial reasoning**, **causal modeling**, and **algorithmic logic**,  
+Cloud Atlas OS achieves genuine reasoning — not just pattern prediction.
+
+---
+
+## 🌐 Philosophy
+Open-source under **AGPL v3**, created by **one independent developer** —  
+proving that AGI doesn’t require trillion-dollar labs or massive data centers.
+
+> *What if intelligence isn’t about pattern matching billions of examples,  
+> but about spatially modeling how things causally relate — the way humans actually think?*
+
+---
 
 ## License & Attribution
 
@@ -14,7 +53,6 @@ If you fork or derive from this project, you must:
 
 Cloud Atlas OS™ © Boris Kowalczuk. All rights reserved regarding trademarks.
 <br><br><br>
-
 
 ![image](https://github.com/user-attachments/assets/5175f1c7-95a1-4f11-9857-c48e40f70a58)
 
