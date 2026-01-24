@@ -45,6 +45,9 @@ import { addModel, updateModel, removeModel } from './utils/modelUtils';
 import { getCurrentTimeIso8601 } from './utils/timeUtils';
 import { logger } from './utils/logger';
 import { roamingAnimationManager } from './utils/roamingAnimation';
+import { SingleTileImageryProvider } from 'cesium';	
+import { currentEpoch, epochs } from './store';
+import GeologicalTimeline from './components/GeologicalTimeline.svelte';
   
 // Global variables and states
 let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
@@ -59,6 +62,7 @@ let tileset: Cesium3DTileset | null = null; // Global tileset reference
 let isBasemapLoaded = false; // Local variable for basemap loading state
 let isTilesetLoaded = false; // Local variable for tileset loading state
 let cesiumViewer: any = null; // Global viewer reference
+let epochImageryLayer: any = null; // Store reference to epoch imagery layer
 
 // Roaming area painting state
 let roamingAreaStart: { latitude: number; longitude: number } | null = null;
@@ -453,6 +457,14 @@ $: if (cesiumViewer && modelDataSource && $models.length >= 0) {
 		loadModelsFromStore();
 		previousModels = [...$models]; // Update previous models
 	}
+}
+
+// Reactive statement to update imagery when epoch changes
+$: if (cesiumViewer && $currentEpoch && cesiumViewer.scene) {
+  // Use a small delay to ensure viewer is fully initialized
+  setTimeout(() => {
+    updateEpochImagery($currentEpoch);
+  }, 0);
 }
 
 // Remove model from scene
@@ -949,6 +961,63 @@ async function removePin(mapid: string) {
 		}, 200); // Reduced frequency from 100ms to 200ms
 	}
 
+	// Function to update globe imagery based on selected epoch
+function updateEpochImagery(epoch: typeof epochs[0]) {
+  if (!cesiumViewer) {
+    console.warn('Cesium viewer not ready yet');
+    return;
+  }
+  
+  const imageUrl = `./ancientearth/${epoch.filename}`;
+  
+  // Get the base imagery layer (first layer, usually the default Cesium imagery)
+  const baseImageryLayer = cesiumViewer.imageryLayers.get(0);
+  
+  // Remove existing epoch imagery layer if it exists
+  if (epochImageryLayer) {
+    cesiumViewer.imageryLayers.remove(epochImageryLayer);
+    epochImageryLayer = null;
+  }
+  
+  // Only add epoch imagery if not Present Day (use default imagery for present)
+  if (epoch.age > 0) {
+    try {
+      // Hide the base layer when showing epoch imagery
+      if (baseImageryLayer) {
+        baseImageryLayer.show = false;
+      }
+      
+      const imageryProvider = new SingleTileImageryProvider({
+        url: imageUrl,
+        rectangle: Cesium.Rectangle.MAX_VALUE,
+        tileWidth: 256,  // Add this - standard tile width
+        tileHeight: 256  // Add this - standard tile height
+      });
+      
+      // Add the epoch imagery as a new layer
+      epochImageryLayer = cesiumViewer.imageryLayers.addImageryProvider(imageryProvider);
+      
+      // Make sure it's visible and fully opaque
+      epochImageryLayer.alpha = 1.0;
+      epochImageryLayer.show = true;
+      
+      console.log(`Updated globe imagery to ${epoch.label}`, imageUrl);
+    } catch (error) {
+      console.error(`Error loading epoch imagery for ${epoch.label}:`, error);
+      // Show base layer again if there's an error
+      if (baseImageryLayer) {
+        baseImageryLayer.show = true;
+      }
+    }
+  } else {
+    // For Present Day, show the base layer and hide epoch imagery
+    if (baseImageryLayer) {
+      baseImageryLayer.show = true;
+    }
+    console.log('Using default Present Day imagery');
+  }
+}
+
 	// Function to load 3D tileset with progress
 	async function loadTilesetWithProgress() {
 		if (!cesiumViewer) return;
@@ -1245,7 +1314,7 @@ async function removePin(mapid: string) {
 		navigationHelpButton: false,
 		shouldAnimate: true,
 		skyBox: false,
-		sceneModePicker: false,
+		sceneModePicker: true,
 		baseLayerPicker: false,
 		contextOptions: {
 		  webgl: { alpha: true },
@@ -1433,6 +1502,12 @@ function handleCoordinatePick(result: any) {
     height: cartographic.height
   });
 
+// Remove epoch imagery layer
+if (epochImageryLayer && cesiumViewer) {
+  cesiumViewer.imageryLayers.remove(epochImageryLayer);
+  epochImageryLayer = null;
+}
+
   if (pointEntity && cesiumViewer) {
     cesiumViewer.entities.remove(pointEntity);
   }
@@ -1541,7 +1616,9 @@ function handleCoordinatePick(result: any) {
   
 <div style="width: 100%; display: flex; justify-content: center; align-items: center; position: relative;">
   <main id="cesiumContainer"></main>
-  
+
+  <!-- Geological Timeline Switcher -->
+  <GeologicalTimeline />
   
   <!-- Height Display (bottom left) -->
   <div class="height-display">
@@ -1713,5 +1790,12 @@ function handleCoordinatePick(result: any) {
     *::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.5);
     }
+
+	:global(.cesium-viewer-toolbar) {
+  top: 10px !important;
+  left: 10px !important;
+  right: auto !important;
+  bottom: auto !important;
+}
 </style>
   
