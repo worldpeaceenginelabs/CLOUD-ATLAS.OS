@@ -1,6 +1,7 @@
 ### Project begin was 2017 for the first M.I.T. Disobedience Award
 <br>
 
+
 # 🌍 Cloud Atlas OS — Spatial AGI System
 
 ### A fundamentally different approach to AGI  
