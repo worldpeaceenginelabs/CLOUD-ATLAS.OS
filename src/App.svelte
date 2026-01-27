@@ -33,6 +33,9 @@
   import { formatTimestamp } from './utils/timeUtils';
   import { addModel, updateModel, removeModel, createFinalModelData, validateModelForm, addTemporaryModel, removeTemporaryModel, persistTemporaryModel } from './utils/modelUtils';
   import { logger } from './utils/logger';
+  import AncientEarth from './components/AncientEarth.svelte';
+  
+  let showAncientEarth = false;
 
   let quote = "\"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.\" Buckminster Fuller";
 
@@ -725,6 +728,9 @@
     }
   }
 
+  function openAncientEarth() { showAncientEarth = true; }
+  function closeAncientEarth() { showAncientEarth = false; }
+
   onDestroy(() => {
     // Reset state
     showPicture.set(false);
@@ -734,6 +740,13 @@
     
     // Clean up event listeners
     cleanupEventListeners();
+    
+    // Remove Escape key handler if set
+    const handler = (window as any).__ancientKeyHandler;
+    if (handler) {
+      window.removeEventListener('keydown', handler);
+      delete (window as any).__ancientKeyHandler;
+    }
     
     // Clear component references
     cesiumComponent = null;
@@ -748,10 +761,27 @@
   onMount(() => {
     // Set up event listeners when component mounts
     setupEventListeners();
+
+    // Add Escape key handler to close ancient earth overlay
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showAncientEarth) closeAncientEarth();
+    };
+    window.addEventListener('keydown', onKey);
+    (window as any).__ancientKeyHandler = onKey;
   });
 </script>
 
+<button
+  class="ancient-toggle fixed"
+  on:click={openAncientEarth}
+  aria-haspopup="dialog"
+  aria-expanded={showAncientEarth}>
+  Ancient Earth
+</button>
+
 <div class="app-container">
+  
+
   {#if $showPicture}
     <div class="picture-container" on:click={() => showPicture.set(false)} on:keydown={(e) => e.key === 'Enter' && showPicture.set(false)} role="button" tabindex="0">
       <video
@@ -771,6 +801,8 @@
       <div class="twpg-text under-enter animated-gradient">THE WORLD PEACE GAME</div>
     </div>
   {:else}
+
+  
     <div class="gridcontainer"><Grid bind:this={gridComponent} on:gridReady={() => gridReady.set(true)} /></div>
     {#if $gridReady}
       <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateRoamingModel /></div>
@@ -791,13 +823,78 @@
   {/if}
 </div>
 
+{#if showAncientEarth}
+  <div class="ancient-earth-overlay" on:click={() => closeAncientEarth()} role="dialog" aria-modal="true">
+    <div class="ancient-earth-container" on:click|stopPropagation>
+      <button class="ancient-close" on:click={() => closeAncientEarth()} aria-label="Close Ancient Earth">✕</button>
+      <AncientEarth />
+    </div>
+  </div>
+{/if}
+
 <!-- Hidden component off-screen -->
 <div style="position: absolute; left: -9999px; top: -9999px;">
 <ActionEvent bind:this={actionEventComponent} />
 </div>
 
-
 <style>
+
+.ancient-toggle.fixed {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 2000000; /* very high so it sits above the app UI */
+  background: #121212;
+  color: #fff;
+  border: 1px solid #333;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* Ancient Earth overlay */
+.ancient-earth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  z-index: 2000000;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* inner container keeps the component full size but allows margin for close button */
+.ancient-earth-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* close button */
+.ancient-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 2000001;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
   :global(body) {
     margin: 0;
     overflow: hidden;
