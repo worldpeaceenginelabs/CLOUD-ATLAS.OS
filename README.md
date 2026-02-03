@@ -1,6 +1,10 @@
 ### Project begin was 2017 for the first M.I.T. Disobedience Award
 <br>
 
+# Join our Community:
+[Developer Chat auf Keet/Holepunch](pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyskxoh5pjh7dortjkosrse99psyfj6rnxi6qyygzh7fnjs4siswpn3ckc5iwao6qu88o74gbsrdfh5uj479tfg3j7bat77ydrjeyhx1eyedsyrto9tmow9pftuus1ejpn8pujwja) <br>
+Become a part of Cloud Atlas today and join an exciting community that’s shaping a brighter future. Together, we can forge a better world for ourselves and the generations to come.
+<br><br>
 
 # 🌍 Cloud Atlas OS — Spatial AGI System
 
@@ -408,11 +412,6 @@ Launch your creations to a global audience across various platforms—be it <str
 Become a contributor to our network by simply pinning the Cloud Atlas tab in your desktop browser and help us grow.
 
 Background: Cloud Atlas operates on a decentralized back-end, synchronizing through WebRTC and signaling over the BitTorrent tracker network. By simply running our page, you become an integral part of our infrastructure as a relay node.<br><br>
-
-# Join our Community:
-[CCC - Collective Computer Collaboration Hub (Developer Chat)](https://app.element.io/#/room/#METAVERSE-DAO_CLOUD-ATLAS_community:gitter.im) <br>
-Become a part of Cloud Atlas today and join an exciting community that’s shaping a brighter future. Together, we can forge a better world for ourselves and the generations to come.
-<br><br>
 
 # Want more apps and functions?
 Reach out to me and our community anytime on GitHub, Gitter.im, or during our upcoming weekly Zoom brainstorming sessions on YouTube.<br><br>
