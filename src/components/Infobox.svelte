@@ -133,18 +133,18 @@
       <img class="bottomicons" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
   </a>
 
-    <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS#readme" target="_blank">
+    <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" target="_blank">
       <img class="bottomicons" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
   </a>
  
-    <a href="https://app.element.io/#/room/#METAVERSE-DAO_CLOUD-ATLAS_community:gitter.im" target="_blank">
-        <img class="bottomicons" src="chat-icon.svg" alt="" title="Developer Chat" height="30" width="30">
+    <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyskxoh5pjh7dortjkosrse99psyfj6rnxi6qyygzh7fnjs4siswpn3ckc5iwao6qu88o74gbsrdfh5uj479tfg3j7bat77ydrjeyhx1eyedsyrto9tmow9pftuus1ejpn8pujwja" target="_blank">
+        <img class="bottomicons" src="chat-icon.svg" alt="" title="Developer Chat on Keet" height="30" width="30">
     </a>
     
-    <a href="https://twitter.com/peace_engine" target="_blank">
+    <a href="https://twitter.com/cloudatlasos" target="_blank">
         <img class="bottomicons" src="x-icon.svg" alt="" title="X" height="30" width="30">
     </a>
-    <a href="https://www.youtube.com/@worldpeacegame/videos" target="_blank">
+    <a href="https://www.youtube.com/@cloudatlasos" target="_blank">
         <img class="bottomicons" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
     </a>
     <a href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp" target="_blank">
