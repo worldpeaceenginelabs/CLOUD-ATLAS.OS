@@ -2,7 +2,10 @@
 <br>
 
 # Join our Community:
-[Developer Chat auf Keet/Holepunch](pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyskxoh5pjh7dortjkosrse99psyfj6rnxi6qyygzh7fnjs4siswpn3ckc5iwao6qu88o74gbsrdfh5uj479tfg3j7bat77ydrjeyhx1eyedsyrto9tmow9pftuus1ejpn8pujwja) <br>
+Developer Chat auf Keet/Holepunch<br>
+
+pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyskxoh5pjh7dortjkosrse99psyfj6rnxi6qyygzh7fnjs4siswpn3ckc5iwao6qu88o74gbsrdfh5uj479tfg3j7bat77ydrjeyhx1eyedsyrto9tmow9pftuus1ejpn8pujwja<br>
+
 Become a part of Cloud Atlas today and join an exciting community that’s shaping a brighter future. Together, we can forge a better world for ourselves and the generations to come.
 <br><br>
 
