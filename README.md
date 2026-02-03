@@ -2,7 +2,7 @@
 <br>
 
 # Join our Community:
-Developer Chat auf Keet/Holepunch<br>
+[Developer Chat auf Keet/Holepunch](https://keet.io/)<br>
 
 pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyskxoh5pjh7dortjkosrse99psyfj6rnxi6qyygzh7fnjs4siswpn3ckc5iwao6qu88o74gbsrdfh5uj479tfg3j7bat77ydrjeyhx1eyedsyrto9tmow9pftuus1ejpn8pujwja<br>
 
