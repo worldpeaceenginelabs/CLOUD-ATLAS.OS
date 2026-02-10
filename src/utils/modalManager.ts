@@ -433,15 +433,12 @@ export const MODAL_CONFIGS: Record<string, ModalConfig> = {
     transitionDuration: 500
   },
 
-  // Gig Economy modal
+  // Gig Economy modal (card type — no backdrop, map stays interactive)
   'gig-economy': {
     id: 'gig-economy',
-    type: 'default',
-    title: 'Gig Economy',
-    maxWidth: '360px',
+    type: 'card',
     showCloseButton: true,
-    closeOnBackdropClick: true,
-    transitionDuration: 500
+    closeOnBackdropClick: false
   },
 
   // Notification modals

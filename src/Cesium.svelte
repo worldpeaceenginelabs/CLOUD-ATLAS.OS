@@ -36,7 +36,9 @@
 		tilesetProgress,
 		isInitialLoadComplete,
 		isRoamingAreaMode,
-		roamingAreaBounds
+		roamingAreaBounds,
+		isGigPickingDestination,
+		userLiveLocation
 	} from './store';
 	import type { ModelData, PinData } from './types';
 	import { dataManager } from './dataManager';
@@ -53,6 +55,7 @@ let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tile
 let pointEntity: Entity | null = null; // For coordinate picking
 let userLocationEntity: Entity | null = null; // For preloaded user location
 let userLocationPreloaded = false; // Track if user location has been preloaded
+let geoWatchId: number | null = null; // For watchPosition cleanup
 let isMonitoringCamera = false; // Track if camera monitoring is active
 let animationFrameId: number | null = null; // For requestAnimationFrame
 let tileset: Cesium3DTileset | null = null; // Global tileset reference
@@ -208,7 +211,7 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 	  });
 	};
   
-	// Fetch user's geolocation
+	// Fetch user's geolocation (one-shot, used for initial placement)
 	const getLocationFromNavigator = (): Promise<GeolocationPosition> => {
 	  return new Promise((resolve, reject) => {
 		if (navigator.geolocation) {
@@ -218,6 +221,47 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		}
 	  });
 	};
+
+	// Update the blue dot position and live location store
+	const updateUserLocationOnMap = (latitude: number, longitude: number) => {
+	  // Update live location store
+	  userLiveLocation.set({ latitude, longitude });
+
+	  // Update entity position if it exists
+	  if (userLocationEntity && cesiumViewer) {
+		const newPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
+		(userLocationEntity.position as any) = newPosition;
+	  }
+	};
+
+	// Start continuous GPS tracking
+	const startGeoWatch = () => {
+	  if (!navigator.geolocation) return;
+	  if (geoWatchId !== null) return; // already watching
+
+	  geoWatchId = navigator.geolocation.watchPosition(
+		(position) => {
+		  const { latitude, longitude } = position.coords;
+		  updateUserLocationOnMap(latitude, longitude);
+		},
+		(error) => {
+		  console.error('Geolocation watch error:', error);
+		},
+		{
+		  enableHighAccuracy: true,
+		  maximumAge: 10000, // accept cached position up to 10s old
+		  timeout: 15000,
+		}
+	  );
+	};
+
+	// Stop continuous GPS tracking
+	const stopGeoWatch = () => {
+	  if (geoWatchId !== null && navigator.geolocation) {
+		navigator.geolocation.clearWatch(geoWatchId);
+		geoWatchId = null;
+	  }
+	};
   
 	// Add user's location as a pulsating point on the map
 	const addUserLocation = async (silent = false) => {
@@ -226,6 +270,9 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		if (userLocation && cesiumViewer) {
 		  const { longitude, latitude } = userLocation.coords;
 		  const userPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
+
+		  // Set initial live location in store
+		  userLiveLocation.set({ latitude, longitude });
 
 		  userLocationEntity = createPulsatingPoint('Your Location!', userPosition, Cesium.Color.BLUE);
 		  
@@ -246,6 +293,9 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 			  }
 			}, 3000);
 		  }
+
+		  // Start continuous tracking after initial placement
+		  startGeoWatch();
 		}
 	  } catch (error) {
 		console.error(error);
@@ -1098,18 +1148,23 @@ async function removePin(mapid: string) {
 				}
 			} else {
 				// If no object is picked, handle coordinate picking
-				// Skip zoom modal during roaming area painting
+				// Skip zoom modal during roaming area painting or gig destination picking
 				if (!$isRoamingAreaMode) {
-					const height = cesiumViewer.camera.positionCartographic.height;
-					if (height > 250000) {
-						// Show the zoom modal
-						modalService.showZoomRequired();
-						// Auto-hide after 3 seconds
-						setTimeout(() => {
-							modalService.hideZoomRequired();
-						}, 3000);
-					} else {
+					if ($isGigPickingDestination) {
+						// Gig economy destination picking — bypass zoom restriction
 						handleCoordinatePick(click);
+					} else {
+						const height = cesiumViewer.camera.positionCartographic.height;
+						if (height > 250000) {
+							// Show the zoom modal
+							modalService.showZoomRequired();
+							// Auto-hide after 3 seconds
+							setTimeout(() => {
+								modalService.hideZoomRequired();
+							}, 3000);
+						} else {
+							handleCoordinatePick(click);
+						}
 					}
 				}
 			}
@@ -1408,16 +1463,21 @@ async function handleEntityPick(pickedFeature: any) {
 function handleCoordinatePick(result: any) {
   if (!cesiumViewer) return;
   
-  // Check camera height before allowing pin placement
-  const cameraHeight = cesiumViewer.camera.positionCartographic.height;
-  if (cameraHeight > 250000) {
-    // Show the zoom modal if trying to place pin from too high
-    modalService.showZoomRequired();
-    // Auto-hide after 3 seconds
-    setTimeout(() => {
-      modalService.hideZoomRequired();
-    }, 3000);
-    return; // Prevent pin placement
+  // When picking destination for gig economy, skip zoom check and pin billboard
+  const isGigPicking = $isGigPickingDestination;
+  
+  if (!isGigPicking) {
+    // Check camera height before allowing pin placement
+    const cameraHeight = cesiumViewer.camera.positionCartographic.height;
+    if (cameraHeight > 250000) {
+      // Show the zoom modal if trying to place pin from too high
+      modalService.showZoomRequired();
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        modalService.hideZoomRequired();
+      }, 3000);
+      return; // Prevent pin placement
+    }
   }
   
   const cartesian = cesiumViewer.scene.pickPosition(result.position);
@@ -1435,6 +1495,9 @@ function handleCoordinatePick(result: any) {
     longitude: longitude.toFixed(10),
     height: cartographic.height
   });
+
+  // Skip pin billboard when picking for gig economy
+  if (isGigPicking) return;
 
   if (pointEntity && cesiumViewer) {
     cesiumViewer.entities.remove(pointEntity);
@@ -1533,6 +1596,7 @@ function handleCoordinatePick(result: any) {
 		pointEntity = null;
 		userLocationEntity = null;
 		userLocationPreloaded = false;
+		stopGeoWatch();
 		isMonitoringCamera = false;
 		animationFrameId = null;
 	});

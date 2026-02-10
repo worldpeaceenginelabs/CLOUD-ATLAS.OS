@@ -3,7 +3,7 @@
   import { writable } from 'svelte/store';
   import { fade, slide } from 'svelte/transition';
   import { joinRoom } from 'trystero';
-  import { coordinates, viewer, rideRequests, driverOffers, userGigRole } from '../store';
+  import { coordinates, viewer, rideRequests, driverOffers, userGigRole, isGigPickingDestination, userLiveLocation } from '../store';
   import type { RideRequest, DriverOffer, RideType } from '../types';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { logger } from '../utils/logger';
@@ -199,6 +199,18 @@
     driverEntities.push(entity);
   }
 
+  function updateDriverEntityOnMap(offer: DriverOffer) {
+    if (!$viewer) return;
+    const entity = $viewer.entities.getById(`driver_${offer.id}`);
+    if (entity) {
+      (entity.position as any) = Cesium.Cartesian3.fromDegrees(
+        offer.currentLocation.longitude,
+        offer.currentLocation.latitude,
+        0
+      );
+    }
+  }
+
   function removeRideEntitiesFromMap(requestId: string) {
     if (!$viewer) return;
     const idsToRemove = [
@@ -246,11 +258,12 @@
 
   function handlePickDestination() {
     isPickingDestination = true;
+    isGigPickingDestination.set(true);
   }
 
   function submitRideRequest() {
-    if (!$coordinates.latitude || !$coordinates.longitude) {
-      logger.warn('No user location available', { component: 'GigEconomy', operation: 'submitRideRequest' });
+    if (!$userLiveLocation) {
+      logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitRideRequest' });
       return;
     }
     if (!destinationLat || !destinationLon) {
@@ -261,8 +274,8 @@
     const request: RideRequest = {
       id: crypto.randomUUID(),
       startLocation: {
-        latitude: parseFloat($coordinates.latitude),
-        longitude: parseFloat($coordinates.longitude),
+        latitude: $userLiveLocation.latitude,
+        longitude: $userLiveLocation.longitude,
       },
       destination: {
         latitude: parseFloat(destinationLat),
@@ -287,16 +300,16 @@
   }
 
   function submitDriverOffer() {
-    if (!$coordinates.latitude || !$coordinates.longitude) {
-      logger.warn('No user location available', { component: 'GigEconomy', operation: 'submitDriverOffer' });
+    if (!$userLiveLocation) {
+      logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitDriverOffer' });
       return;
     }
 
     const offer: DriverOffer = {
       id: crypto.randomUUID(),
       currentLocation: {
-        latitude: parseFloat($coordinates.latitude),
-        longitude: parseFloat($coordinates.longitude),
+        latitude: $userLiveLocation.latitude,
+        longitude: $userLiveLocation.longitude,
       },
       radiusKm: driverRadiusKm,
       isAvailable: true,
@@ -317,6 +330,7 @@
     }
 
     currentView = 'pending';
+    startDriverLocationUpdates();
     logger.info('Driver offer submitted', { component: 'GigEconomy', operation: 'submitDriverOffer' });
   }
 
@@ -366,6 +380,7 @@
     myDriverOffer = null;
     matchedRequest = null;
     awaitingConfirmation = false;
+    stopDriverLocationUpdates();
     userGigRole.set(null);
     currentView = 'menu';
     logger.info('Driver offer cancelled', { component: 'GigEconomy', operation: 'cancelDriverOffer' });
@@ -381,6 +396,7 @@
       currentView = 'menu';
     }
     isPickingDestination = false;
+    isGigPickingDestination.set(false);
     destinationLat = '';
     destinationLon = '';
   }
@@ -392,6 +408,7 @@
     matchedRequest = null;
     awaitingConfirmation = false;
     rideConfirmedDriverId = null;
+    stopDriverLocationUpdates();
     userGigRole.set(null);
     currentView = 'menu';
     destinationLat = '';
@@ -510,6 +527,33 @@
     removeDriverEntitiesFromMap(data.driverOfferId);
   });
 
+  // ─── Live Location Updates (driver) ─────────────────────────
+  let locationUpdateInterval: ReturnType<typeof setInterval> | null = null;
+
+  function startDriverLocationUpdates() {
+    if (locationUpdateInterval) return;
+    locationUpdateInterval = setInterval(() => {
+      if (!myDriverOffer || !$userLiveLocation) return;
+      // Update local offer
+      myDriverOffer.currentLocation = {
+        latitude: $userLiveLocation.latitude,
+        longitude: $userLiveLocation.longitude,
+      };
+      myDriverOffer = myDriverOffer; // trigger reactivity
+      // Broadcast updated position to peers
+      sendDriverOffer(myDriverOffer);
+      // Update map entity
+      updateDriverEntityOnMap(myDriverOffer);
+    }, 10000); // every 10s
+  }
+
+  function stopDriverLocationUpdates() {
+    if (locationUpdateInterval) {
+      clearInterval(locationUpdateInterval);
+      locationUpdateInterval = null;
+    }
+  }
+
   // ─── Destination Picking ─────────────────────────────────────
   let unsubCoords: (() => void) | null = null;
 
@@ -523,6 +567,7 @@
         destinationLat = value.latitude;
         destinationLon = value.longitude;
         isPickingDestination = false;
+        isGigPickingDestination.set(false);
       }
     });
   }
@@ -530,6 +575,8 @@
   // ─── Lifecycle ───────────────────────────────────────────────
   onDestroy(() => {
     clearAllGigEntities();
+    stopDriverLocationUpdates();
+    isGigPickingDestination.set(false);
     if (unsubCoords) unsubCoords();
     try { room.leave(); } catch (_) { /* room may already be left */ }
   });
@@ -575,12 +622,12 @@
       <h3 class="gig-title">Request a Ride</h3>
 
       <div class="form-group">
-        <span class="field-label">Start Location</span>
+        <span class="field-label">Start Location <span class="live-badge">LIVE</span></span>
         <p class="location-display">
-          {#if $coordinates.latitude && $coordinates.longitude}
-            {parseFloat($coordinates.latitude).toFixed(5)}, {parseFloat($coordinates.longitude).toFixed(5)}
+          {#if $userLiveLocation}
+            {$userLiveLocation.latitude.toFixed(5)}, {$userLiveLocation.longitude.toFixed(5)}
           {:else}
-            <span class="location-hint">Click your location on the map</span>
+            <span class="location-hint">Waiting for GPS signal...</span>
           {/if}
         </p>
       </div>
@@ -627,7 +674,7 @@
         variant="primary"
         fullWidth={true}
         onClick={submitRideRequest}
-        disabled={!$coordinates.latitude || !destinationLat}
+        disabled={!$userLiveLocation || !destinationLat}
       >
         Request Ride
       </GlassmorphismButton>
@@ -640,12 +687,12 @@
       <h3 class="gig-title">Offer a Ride</h3>
 
       <div class="form-group">
-        <span class="field-label">Your Location</span>
+        <span class="field-label">Your Location <span class="live-badge">LIVE</span></span>
         <p class="location-display">
-          {#if $coordinates.latitude && $coordinates.longitude}
-            {parseFloat($coordinates.latitude).toFixed(5)}, {parseFloat($coordinates.longitude).toFixed(5)}
+          {#if $userLiveLocation}
+            {$userLiveLocation.latitude.toFixed(5)}, {$userLiveLocation.longitude.toFixed(5)}
           {:else}
-            <span class="location-hint">Click your location on the map</span>
+            <span class="location-hint">Waiting for GPS signal...</span>
           {/if}
         </p>
       </div>
@@ -676,7 +723,7 @@
         variant="primary"
         fullWidth={true}
         onClick={submitDriverOffer}
-        disabled={!$coordinates.latitude}
+        disabled={!$userLiveLocation}
       >
         Start Offering
       </GlassmorphismButton>
@@ -1071,6 +1118,27 @@
   .match-success p {
     color: rgba(255, 255, 255, 0.8);
     margin: 0;
+  }
+
+  /* ── Live Badge ── */
+  .live-badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #34a853;
+    background: rgba(52, 168, 83, 0.15);
+    border: 1px solid rgba(52, 168, 83, 0.3);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    vertical-align: middle;
+    animation: livePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
 
   /* ── Responsive ── */

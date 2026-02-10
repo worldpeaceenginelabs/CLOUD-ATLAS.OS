@@ -107,6 +107,15 @@
           on:editorOpened={(event) => window.dispatchEvent(new CustomEvent('editorOpened', { detail: event.detail }))}
         />
       </div>
+    {:else if modal.id === 'gig-economy'}
+      <div class="gig-economy-panel">
+        <button class="gig-close-btn" on:click={() => handleModalClose(modal.id)} aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+        <GigEconomy />
+      </div>
     {/if}
   {:else}
     <!-- Regular modals -->
@@ -191,8 +200,6 @@
         <Petition />
       {:else if modal.id === 'crowdfunding'}
         <Crowdfunding />
-      {:else if modal.id === 'gig-economy'}
-        <GigEconomy />
       {:else if modal.id === 'coordinate-picker'}
         <p>Please pick coordinates on the map first — then you can add application pins.</p>
       {:else if modal.id === 'zoom-required'}
@@ -209,6 +216,54 @@
     left: 0;
     width: 100%;
     z-index: 1000;
+  }
+
+  .gig-economy-panel {
+    position: fixed;
+    top: 80px;
+    left: 10px;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+
+  .gig-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .gig-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+
+  @media (max-width: 768px) {
+    .gig-economy-panel {
+      top: auto;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      max-height: 50vh;
+    }
   }
 
   /* Modal content styles */

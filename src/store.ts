@@ -87,10 +87,14 @@ export const editingModelId: Writable<string | null> = writable(null);
 // Temporary Model State
 export const temporaryModelId: Writable<string | null> = writable(null);
 
+// User Live GPS Location (updated via watchPosition)
+export const userLiveLocation: Writable<{ latitude: number; longitude: number } | null> = writable(null);
+
 // Gig Economy Stores
 export const rideRequests: Writable<RideRequest[]> = writable([]);
 export const driverOffers: Writable<DriverOffer[]> = writable([]);
 export const userGigRole: Writable<'rider' | 'driver' | null> = writable(null);
+export const isGigPickingDestination: Writable<boolean> = writable(false);
 
 // Derived Stores
 export const currentCoords = derived(coordinates, $coords => ({
@@ -145,10 +149,14 @@ export function resetAllStores() {
   // Temporary model state
   temporaryModelId.set(null);
   
+  // Live location
+  userLiveLocation.set(null);
+  
   // Gig Economy state
   rideRequests.set([]);
   driverOffers.set([]);
   userGigRole.set(null);
+  isGigPickingDestination.set(false);
   
   // Cesium Actions
   cesiumActions.set({
