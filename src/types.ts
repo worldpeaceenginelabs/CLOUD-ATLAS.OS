@@ -66,6 +66,42 @@ export interface LocalPinData {
   height: number;
 }
 
+// Gig Economy Types
+export type RideType = 'person' | 'delivery';
+export type GigRole = 'rider' | 'driver';
+export type RideStatus = 'pending' | 'matched' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
+
+export interface RideRequest {
+  id: string;
+  startLocation: {
+    latitude: number;
+    longitude: number;
+  };
+  destination: {
+    latitude: number;
+    longitude: number;
+  };
+  rideType: RideType;
+  status: RideStatus;
+  matchedDriverId: string | null;
+  timestamp: string;
+  requesterId: string;
+  [key: string]: any; // Trystero compatibility
+}
+
+export interface DriverOffer {
+  id: string;
+  currentLocation: {
+    latitude: number;
+    longitude: number;
+  };
+  radiusKm: number;
+  isAvailable: boolean;
+  timestamp: string;
+  driverId: string;
+  [key: string]: any; // Trystero compatibility
+}
+
 // App Menu Categories
 export type AppMenuCategory = 'actionevent' | 'brainstorming' | 'crowdfunding' | 'petition';
 

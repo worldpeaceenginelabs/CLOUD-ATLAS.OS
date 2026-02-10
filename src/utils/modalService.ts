@@ -86,6 +86,15 @@ export class ModalService {
     modalManager.hideModal('crowdfunding');
   }
 
+  // Gig Economy
+  showGigEconomy(): void {
+    modalManager.showModal('gig-economy');
+  }
+
+  hideGigEconomy(): void {
+    modalManager.hideModal('gig-economy');
+  }
+
   // Notification modals
   showCoordinatePicker(): void {
     modalManager.showModal('coordinate-picker');
@@ -186,5 +195,7 @@ export const showCoordinatePicker = () => modalService.showCoordinatePicker();
 export const hideCoordinatePicker = () => modalService.hideCoordinatePicker();
 export const showZoomRequired = () => modalService.showZoomRequired();
 export const hideZoomRequired = () => modalService.hideZoomRequired();
+export const showGigEconomy = () => modalService.showGigEconomy();
+export const hideGigEconomy = () => modalService.hideGigEconomy();
 export const closeAllModals = () => modalService.closeAllModals();
 export const closeTopModal = () => modalService.closeTopModal();

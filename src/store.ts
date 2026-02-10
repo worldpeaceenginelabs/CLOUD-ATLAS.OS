@@ -1,5 +1,5 @@
 import { writable, derived, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, PinData } from './types';
+import type { Coordinates, ModelData, PinData, RideRequest, DriverOffer } from './types';
 
 export type { Coordinates, ModelData, PinData };
 
@@ -87,6 +87,11 @@ export const editingModelId: Writable<string | null> = writable(null);
 // Temporary Model State
 export const temporaryModelId: Writable<string | null> = writable(null);
 
+// Gig Economy Stores
+export const rideRequests: Writable<RideRequest[]> = writable([]);
+export const driverOffers: Writable<DriverOffer[]> = writable([]);
+export const userGigRole: Writable<'rider' | 'driver' | null> = writable(null);
+
 // Derived Stores
 export const currentCoords = derived(coordinates, $coords => ({
   latitude: $coords.latitude || '',
@@ -139,6 +144,11 @@ export function resetAllStores() {
   
   // Temporary model state
   temporaryModelId.set(null);
+  
+  // Gig Economy state
+  rideRequests.set([]);
+  driverOffers.set([]);
+  userGigRole.set(null);
   
   // Cesium Actions
   cesiumActions.set({

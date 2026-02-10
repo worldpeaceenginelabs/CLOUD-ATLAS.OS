@@ -433,6 +433,17 @@ export const MODAL_CONFIGS: Record<string, ModalConfig> = {
     transitionDuration: 500
   },
 
+  // Gig Economy modal
+  'gig-economy': {
+    id: 'gig-economy',
+    type: 'default',
+    title: 'Gig Economy',
+    maxWidth: '360px',
+    showCloseButton: true,
+    closeOnBackdropClick: true,
+    transitionDuration: 500
+  },
+
   // Notification modals
   'coordinate-picker': {
     id: 'coordinate-picker',

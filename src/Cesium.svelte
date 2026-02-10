@@ -1076,13 +1076,16 @@ async function removePin(mapid: string) {
 				handleRoamingAreaClick(click);
 				return;
 			}
-			
+
 			const pickedObject = cesiumViewer.scene.pick(click.position);
 
 			// If an object is picked, handle entity picking
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
 				if (pickedObject.id.id === "pickedPoint") {
 					// Do nothing or handle pickedPoint specific logic here if needed
+				} else if (pickedObject.id.id === "Your Location!") {
+					// Open Gig Economy when user clicks the blue location dot
+					modalService.showGigEconomy();
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
 					// Handle 3D model click
 					const modelId = pickedObject.id.id;

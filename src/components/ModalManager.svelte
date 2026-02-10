@@ -8,6 +8,7 @@
   import ActionEvent from '../appmenu/ActionEvent.svelte';
   import Petition from '../appmenu/Petition.svelte';
   import Crowdfunding from '../appmenu/Crowdfunding.svelte';
+  import GigEconomy from './GigEconomy.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
@@ -24,6 +25,7 @@
     'action-event': 'ActionEvent',
     'petition': 'Petition',
     'crowdfunding': 'Crowdfunding',
+    'gig-economy': 'GigEconomy',
     'coordinate-picker': 'CoordinatePicker',
     'zoom-required': 'ZoomRequired'
   };
@@ -189,6 +191,8 @@
         <Petition />
       {:else if modal.id === 'crowdfunding'}
         <Crowdfunding />
+      {:else if modal.id === 'gig-economy'}
+        <GigEconomy />
       {:else if modal.id === 'coordinate-picker'}
         <p>Please pick coordinates on the map first — then you can add application pins.</p>
       {:else if modal.id === 'zoom-required'}
