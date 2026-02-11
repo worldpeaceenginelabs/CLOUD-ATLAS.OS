@@ -37,7 +37,7 @@
   let driverEntities: any[] = [];
 
   // ─── Trystero P2P ───────────────────────────────────────────
-  const config = { appId: 'cloud-atlas-gig' };
+  const config = { appId: 'username' };
   const room = joinRoom(config, 'gig-economy-room');
   const myPeerId = crypto.randomUUID();
 
@@ -96,6 +96,8 @@
   // ─── Cesium Visualization ────────────────────────────────────
   function addRideRequestToMap(request: RideRequest) {
     if (!$viewer) return;
+    // Skip if already on map
+    if ($viewer.entities.getById(`ride_${request.id}`)) return;
 
     // Blue point at start location
     const startEntity = $viewer.entities.add({
@@ -170,6 +172,8 @@
 
   function addDriverOfferToMap(offer: DriverOffer) {
     if (!$viewer) return;
+    // Skip if already on map
+    if ($viewer.entities.getById(`driver_${offer.id}`)) return;
 
     // Yellow point + radius circle
     const entity = $viewer.entities.add({
@@ -295,6 +299,13 @@
     sendRideRequest(request);
     addRideRequestToMap(request);
 
+    // Re-broadcast after 2s to ensure drivers who just joined or submitted see it
+    setTimeout(() => {
+      if (myRideRequest && myRideRequest.status === 'pending') {
+        sendRideRequest(myRideRequest);
+      }
+    }, 2000);
+
     currentView = 'pending';
     logger.info('Ride request submitted', { component: 'GigEconomy', operation: 'submitRideRequest' });
   }
@@ -331,6 +342,18 @@
 
     currentView = 'pending';
     startDriverLocationUpdates();
+
+    // Delayed re-scan: catches ride requests arriving via P2P right around submit time
+    setTimeout(() => {
+      if (myDriverOffer && !matchedRequest && !awaitingConfirmation) {
+        const delayed = findMatchingRequests(myDriverOffer);
+        if (delayed.length > 0) {
+          matchedRequest = delayed[0];
+          logger.info('Delayed re-scan found matching request', { component: 'GigEconomy', operation: 'submitDriverOffer' });
+        }
+      }
+    }, 2000);
+
     logger.info('Driver offer submitted', { component: 'GigEconomy', operation: 'submitDriverOffer' });
   }
 
@@ -445,11 +468,25 @@
     if (!data || !data.id || data.driverId === myPeerId) return;
     const offer = data as DriverOffer;
 
+    let isUpdate = false;
     driverOffers.update(d => {
-      if (d.some(existing => existing.id === offer.id)) return d;
+      const idx = d.findIndex(existing => existing.id === offer.id);
+      if (idx >= 0) {
+        // Update existing offer (driver re-broadcasts with new position)
+        d[idx] = offer;
+        isUpdate = true;
+        return [...d];
+      }
       return [...d, offer];
     });
-    addDriverOfferToMap(offer);
+
+    if (isUpdate) {
+      // Just update position on map
+      updateDriverEntityOnMap(offer);
+    } else {
+      // New offer — add to map
+      addDriverOfferToMap(offer);
+    }
   });
 
   // Rider receives accept from a driver — ARBITER LOGIC
@@ -544,6 +581,15 @@
       sendDriverOffer(myDriverOffer);
       // Update map entity
       updateDriverEntityOnMap(myDriverOffer);
+
+      // Re-scan for matching ride requests (catches requests that arrived between checks)
+      if (!matchedRequest && !awaitingConfirmation) {
+        const matching = findMatchingRequests(myDriverOffer);
+        if (matching.length > 0) {
+          matchedRequest = matching[0];
+          logger.info('Periodic re-scan found matching request', { component: 'GigEconomy', operation: 'driverLocationUpdate' });
+        }
+      }
     }, 10000); // every 10s
   }
 
