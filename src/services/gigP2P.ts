@@ -27,6 +27,8 @@ export interface GigP2PCallbacks {
   onPeerDisconnected: (pubkey: string) => void;
   /** A P2P message was received over a DataChannel. */
   onMessage: (fromPubkey: string, message: GigP2PMessage) => void;
+  /** Relay connection count changed. */
+  onRelayCountChange: (connected: number, total: number) => void;
 }
 
 // ─── Orchestrator ────────────────────────────────────────────
@@ -65,30 +67,34 @@ export class GigP2P {
 
   /**
    * Start the Gig P2P session.
-   * Connects to relays, publishes presence, subscribes to discovery & signaling.
+   * Returns immediately — relay connections happen in the background.
+   * Presence is published automatically when the first relay connects.
    */
-  async start(role: GigRole, geohash: string, payload: PresencePayload): Promise<void> {
+  start(role: GigRole, geohash: string, payload: PresencePayload): void {
     if (this.running) return;
     this.running = true;
     this.myRole = role;
     this.myGeohash = geohash;
 
-    // 1. Connect to relays
-    await this.nostr.connect();
-
-    // 2. Publish our presence
-    await this.nostr.publishPresence(payload);
-
-    // 3. Subscribe to presence of opposite role
-    const oppositeRole: GigRole = role === 'rider' ? 'driver' : 'rider';
-    this.nostr.subscribePresence(geohash, oppositeRole, (pubkey, peerPayload, eventId) => {
-      this.handlePeerDiscovered(pubkey, peerPayload);
+    // 1. Wire up relay count change callback
+    this.nostr.setOnRelayCountChange((connected, total) => {
+      this.callbacks.onRelayCountChange(connected, total);
     });
 
-    // 4. Subscribe to signaling messages addressed to us
+    // 2. Set up subscriptions (stored internally, sent to relays as they connect)
+    const oppositeRole: GigRole = role === 'rider' ? 'driver' : 'rider';
+    this.nostr.subscribePresence(geohash, oppositeRole, (pubkey, peerPayload, _eventId) => {
+      this.handlePeerDiscovered(pubkey, peerPayload);
+    });
     this.nostr.subscribeSignaling((fromPubkey, signal) => {
       this.webrtc.handleSignal(fromPubkey, signal);
     });
+
+    // 3. Queue presence for auto-publish when first relay connects
+    this.nostr.queuePresence(payload);
+
+    // 4. Start connecting to relays in background (non-blocking)
+    this.nostr.connectInBackground();
 
     // 5. Wire up WebRTC callbacks
     this.webrtc.setOnMessage((fromPubkey, data) => {

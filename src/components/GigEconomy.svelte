@@ -25,6 +25,8 @@
   let matchedRequest: RideRequest | null = null;
   let awaitingConfirmation = false;
   let connectedPeerCount = 0;
+  let relayCount = 0;
+  let relayTotal = 0;
 
   // Rider-as-arbiter lock: once set, no other driver can claim this ride
   let rideConfirmedDriverPubkey: string | null = null;
@@ -68,6 +70,10 @@
         logger.info(`Peer disconnected: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPeerDisconnected' });
       },
       onMessage: handleP2PMessage,
+      onRelayCountChange: (connected: number, total: number) => {
+        relayCount = connected;
+        relayTotal = total;
+      },
     });
   }
 
@@ -366,7 +372,7 @@
     isGigPickingDestination.set(true);
   }
 
-  async function submitRideRequest() {
+  function submitRideRequest() {
     if (!$userLiveLocation) {
       logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitRideRequest' });
       return;
@@ -379,9 +385,9 @@
     const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
     currentGeohash.set(geohash);
 
-    // Create P2P instance and start
+    // Create P2P instance and start (non-blocking — relays connect in background)
     p2p = createP2P();
-    await p2p.start('rider', geohash, {
+    p2p.start('rider', geohash, {
       geohash,
       role: 'rider',
       rideType,
@@ -394,9 +400,6 @@
         longitude: parseFloat(destinationLon),
       },
     });
-
-    // Guard: p2p may have been nulled during the await (e.g. user cancelled)
-    if (!p2p) return;
 
     const request: RideRequest = {
       id: crypto.randomUUID(),
@@ -427,7 +430,7 @@
     logger.info('Ride request submitted', { component: 'GigEconomy', operation: 'submitRideRequest' });
   }
 
-  async function submitDriverOffer() {
+  function submitDriverOffer() {
     if (!$userLiveLocation) {
       logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitDriverOffer' });
       return;
@@ -436,9 +439,9 @@
     const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
     currentGeohash.set(geohash);
 
-    // Create P2P instance and start
+    // Create P2P instance and start (non-blocking — relays connect in background)
     p2p = createP2P();
-    await p2p.start('driver', geohash, {
+    p2p.start('driver', geohash, {
       geohash,
       role: 'driver',
       startLocation: {
@@ -446,9 +449,6 @@
         longitude: $userLiveLocation.longitude,
       },
     });
-
-    // Guard: p2p may have been nulled during the await (e.g. user cancelled)
-    if (!p2p) return;
 
     userGigRole.set('driver');
     currentView = 'pending';
@@ -546,6 +546,8 @@
     rideConfirmedDriverPubkey = null;
     matchedPeerPubkey = null;
     connectedPeerCount = 0;
+    relayCount = 0;
+    relayTotal = 0;
 
     if (p2p) {
       await p2p.finish();
@@ -569,6 +571,8 @@
       p2p = null;
     }
     connectedPeerCount = 0;
+    relayCount = 0;
+    relayTotal = 0;
     gigPeers.set([]);
     currentGeohash.set('');
     clearAllGigEntities();
@@ -760,6 +764,14 @@
       <!-- ── Rider pending ── -->
       {#if myRideRequest && $userGigRole === 'rider'}
         <h3 class="gig-title">Waiting for Driver</h3>
+        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0}>
+          <span class="relay-dot"></span>
+          {#if relayCount > 0}
+            {relayCount}/{relayTotal} relays
+          {:else}
+            Connecting...
+          {/if}
+        </div>
         <div class="status-indicator">
           <div class="pulse-dot"></div>
           <span>
@@ -786,6 +798,14 @@
       <!-- ── Driver pending ── -->
       {:else if $userGigRole === 'driver'}
         <h3 class="gig-title">Offering Rides</h3>
+        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0}>
+          <span class="relay-dot"></span>
+          {#if relayCount > 0}
+            {relayCount}/{relayTotal} relays
+          {:else}
+            Connecting...
+          {/if}
+        </div>
         <div class="status-indicator">
           <div class="pulse-dot driver"></div>
           <span>
@@ -1077,6 +1097,44 @@
     color: rgba(255, 255, 255, 0.35);
     margin: 0;
     font-family: monospace;
+  }
+
+  .relay-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    font-family: monospace;
+    transition: all 0.3s ease;
+  }
+  .relay-status.connected {
+    color: rgba(100, 255, 160, 0.85);
+    background: rgba(100, 255, 160, 0.08);
+  }
+  .relay-status.connecting {
+    color: rgba(255, 200, 100, 0.85);
+    background: rgba(255, 200, 100, 0.08);
+  }
+  .relay-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .relay-status.connected .relay-dot {
+    background: rgba(100, 255, 160, 0.9);
+    box-shadow: 0 0 4px rgba(100, 255, 160, 0.5);
+  }
+  .relay-status.connecting .relay-dot {
+    background: rgba(255, 200, 100, 0.9);
+    animation: relay-blink 1s ease-in-out infinite;
+  }
+  @keyframes relay-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
   }
 
   .cancel-section {

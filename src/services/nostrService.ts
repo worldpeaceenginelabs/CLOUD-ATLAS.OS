@@ -65,6 +65,7 @@ export interface SignalPayload {
 
 export type OnPresenceCallback = (pubkey: string, payload: PresencePayload, eventId: string) => void;
 export type OnSignalCallback = (fromPubkey: string, signal: SignalPayload) => void;
+export type OnRelayCountChangeCallback = (connected: number, total: number) => void;
 
 // ─── Service Class ───────────────────────────────────────────
 
@@ -80,6 +81,11 @@ export class NostrService {
   private closed = false;
   private seenEventIds: Set<string> = new Set(); // dedup events from multiple relays
   private pendingOkResolvers: Map<string, () => void> = new Map(); // eventId → resolve callback
+  private onRelayCountChange: OnRelayCountChangeCallback | null = null;
+  private pendingPresence: PresencePayload | null = null;
+  private presencePublished = false;
+  private pendingPresenceFilter: { subId: string; filter: object } | null = null;
+  private pendingSignalFilter: { subId: string; filter: object } | null = null;
 
   constructor(relays?: string[]) {
     this.sk = generateSecretKey();
@@ -100,48 +106,104 @@ export class NostrService {
 
   // ─── Relay Connection ────────────────────────────────────
 
-  /** Connect to all relays. Waits until all have connected or failed. */
-  async connect(): Promise<void> {
-    const results = await Promise.allSettled(
-      this.relays.map(url => this.connectRelay(url))
-    );
-    const connected = results.filter(r => r.status === 'fulfilled').length;
-    if (connected === 0) {
-      logger.warn('No relay connected', { component: 'NostrService', operation: 'connect' });
-    } else {
-      logger.info(`Connected to ${connected}/${this.relays.length} relays`, { component: 'NostrService', operation: 'connect' });
+  /** Register a callback for relay count changes. */
+  setOnRelayCountChange(callback: OnRelayCountChangeCallback): void {
+    this.onRelayCountChange = callback;
+  }
+
+  /**
+   * Start connecting to all relays in the background (non-blocking).
+   * Each relay connects independently. When the first relay connects,
+   * any pending presence is automatically published.
+   */
+  connectInBackground(): void {
+    for (const url of this.relays) {
+      this.connectRelay(url);
     }
   }
 
-  private connectRelay(url: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // 5s timeout per relay to prevent allSettled from hanging
-      const timeout = setTimeout(() => {
-        reject(new Error(`Timeout connecting to ${url}`));
-      }, 5000);
+  /**
+   * Set a presence payload to be published as soon as the first relay connects.
+   * If a relay is already connected, publishes immediately.
+   */
+  async queuePresence(payload: PresencePayload): Promise<void> {
+    this.pendingPresence = payload;
+    this.presencePublished = false;
+    // If we already have a connected relay, publish now
+    if (this.connectedRelayCount > 0) {
+      await this.flushPendingPresence();
+    }
+  }
 
-      try {
-        const ws = new WebSocket(url);
-        ws.onopen = () => {
-          clearTimeout(timeout);
-          this.sockets.set(url, ws);
-          logger.info(`Connected to relay ${url}`, { component: 'NostrService', operation: 'connectRelay' });
-          resolve();
-        };
-        ws.onclose = () => {
-          this.sockets.delete(url);
-          this.subscriptionIds.delete(url);
-        };
-        ws.onerror = () => {
-          clearTimeout(timeout);
-          reject(new Error(`Failed to connect to ${url}`));
-        };
-        ws.onmessage = (msg) => this.handleRelayMessage(url, msg);
-      } catch (e) {
+  /** Publish pending presence if not yet published. */
+  private async flushPendingPresence(): Promise<void> {
+    if (this.presencePublished || !this.pendingPresence) return;
+    this.presencePublished = true;
+    await this.publishPresence(this.pendingPresence);
+    this.pendingPresence = null;
+  }
+
+  private connectRelay(url: string): void {
+    const timeout = setTimeout(() => {
+      // If the WebSocket hasn't connected after 5s, give up on this relay
+      logger.warn(`Timeout connecting to ${url}`, { component: 'NostrService', operation: 'connectRelay' });
+    }, 5000);
+
+    try {
+      const ws = new WebSocket(url);
+      ws.onopen = () => {
         clearTimeout(timeout);
-        reject(e);
-      }
-    });
+        if (this.closed) { ws.close(); return; }
+        this.sockets.set(url, ws);
+        logger.info(`Connected to relay ${url}`, { component: 'NostrService', operation: 'connectRelay' });
+        this.notifyRelayCountChange();
+
+        // Auto-publish presence and subscribe on the newly connected relay
+        this.flushPendingPresence();
+        this.sendPendingSubscriptions(url, ws);
+      };
+      ws.onclose = () => {
+        this.sockets.delete(url);
+        this.subscriptionIds.delete(url);
+        this.notifyRelayCountChange();
+      };
+      ws.onerror = () => {
+        clearTimeout(timeout);
+      };
+      ws.onmessage = (msg) => this.handleRelayMessage(url, msg);
+    } catch (e) {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Notify the relay count change callback. */
+  private notifyRelayCountChange(): void {
+    if (this.onRelayCountChange) {
+      this.onRelayCountChange(this.connectedRelayCount, this.relays.length);
+    }
+  }
+
+  /** Send any active subscriptions to a newly connected relay. */
+  private sendPendingSubscriptions(url: string, ws: WebSocket): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
+
+    // Re-send presence subscription if active
+    if (this.pendingPresenceFilter) {
+      const subId = this.pendingPresenceFilter.subId;
+      ws.send(JSON.stringify(['REQ', subId, this.pendingPresenceFilter.filter]));
+      const existing = this.subscriptionIds.get(url) ?? [];
+      existing.push(subId);
+      this.subscriptionIds.set(url, existing);
+    }
+
+    // Re-send signaling subscription if active
+    if (this.pendingSignalFilter) {
+      const subId = this.pendingSignalFilter.subId;
+      ws.send(JSON.stringify(['REQ', subId, this.pendingSignalFilter.filter]));
+      const existing = this.subscriptionIds.get(url) ?? [];
+      existing.push(subId);
+      this.subscriptionIds.set(url, existing);
+    }
   }
 
   private handleRelayMessage(relayUrl: string, msg: MessageEvent) {
@@ -228,6 +290,9 @@ export class NostrService {
       '#r': [oppositeRole],
     };
 
+    // Store for late-connecting relays
+    this.pendingPresenceFilter = { subId, filter };
+
     for (const [url, ws] of this.sockets) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(['REQ', subId, filter]));
@@ -251,6 +316,9 @@ export class NostrService {
       '#p': [this.pk],
       since: Math.floor(Date.now() / 1000) - 60, // only recent
     };
+
+    // Store for late-connecting relays
+    this.pendingSignalFilter = { subId, filter };
 
     for (const [url, ws] of this.sockets) {
       if (ws.readyState === WebSocket.OPEN) {
@@ -356,6 +424,8 @@ export class NostrService {
     }
     this.onPresence = null;
     this.onSignal = null;
+    this.pendingPresenceFilter = null;
+    this.pendingSignalFilter = null;
   }
 
   /** Disconnect from all relays. */
