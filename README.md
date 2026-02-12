@@ -65,13 +65,17 @@ Cloud Atlas OS™ © Boris Kowalczuk. All rights reserved regarding trademarks.
 <br><br><br>
 
 # Core Components
-### Cutting out the middlemen
+### The Zero Economy: Eliminate the Middlemen. Take Back Every Gig Model, Gig Platform, and Corporation.
 **What do you do for a living?** Wooow. Now go to CloudAtlas.club — and keep 100% of what you earn.<br>
+
 **How do *I* make money?** I don't. CloudAtlas runs for free. No servers to pay. No overhead to cover. I'm a gig worker like you. I keep 100% too.<br>
+
 **What about taxes?** You're a freelancer now. A digital nomad. You are your own boss. You choose your insurance. Your structure. Your deductions.
 Drivers. Couriers. Hosts. Creators. Your costs aren't personal expenses. They're business infrastructure.
 Vehicle. Fuel. Maintenance. Equipment. Software. Phone. Data. Rent share. Utilities. Cleaning. Camera. Editing tools. If it earns you money — it's deductible.<br>
+
 **You operate.** **You create.** **You keep it all.**<br>
+
 **That's what corporations do. What landlords do. What the rich do.** **Now it's what you do.**
 <br><br>
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/16f50f0c-03c6-4b29-a4b3-a0ec3f71bd20" />
