@@ -36,13 +36,16 @@ const SIGNAL_KIND = 4;
 /** Event deletion kind. */
 const DELETE_KIND = 5;
 
-/** Public Nostr relays – updated periodically. */
+/** Public Nostr relays – updated 2026-02-12. */
 const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
   'wss://nos.lol',
-  'wss://relay.nostr.band',
   'wss://nostr.mom',
-  'wss://relay.nostr.bg',
+  'wss://relay.damus.io',
+  'wss://relay.nostromo.social',
+  'wss://nostr.data.haus',
+  'wss://relay.fountain.fm',
+  'wss://relay.verified-nostr.com',
+  'wss://nostr.vulpem.com',
 ];
 
 // ─── Types ───────────────────────────────────────────────────
@@ -76,6 +79,7 @@ export class NostrService {
   private relays: string[];
   private closed = false;
   private seenEventIds: Set<string> = new Set(); // dedup events from multiple relays
+  private pendingOkResolvers: Map<string, () => void> = new Map(); // eventId → resolve callback
 
   constructor(relays?: string[]) {
     this.sk = generateSecretKey();
@@ -151,8 +155,18 @@ export class NostrService {
         const event: NostrEvent = data[2];
         if (!event) return;
         this.handleEvent(event);
+      } else if (type === 'OK') {
+        // ["OK", <event-id>, <accepted: bool>, <message>]
+        const eventId: string = data[1];
+        const accepted: boolean = data[2];
+        if (accepted && eventId) {
+          const resolver = this.pendingOkResolvers.get(eventId);
+          if (resolver) {
+            resolver();
+            this.pendingOkResolvers.delete(eventId);
+          }
+        }
       }
-      // EOSE, OK, NOTICE — ignored for now
     } catch (e) {
       // Malformed message
     }
@@ -267,21 +281,66 @@ export class NostrService {
 
   // ─── Cleanup ────────────────────────────────────────────
 
-  /** Delete our presence event from relays and close all subscriptions. */
+  /**
+   * Delete our presence from relays. Uses two strategies:
+   *   1. NIP-09 DELETE event (Kind 5) referencing the original event
+   *   2. Empty replacement event (same Kind 30078 + d-tag "gig") to overwrite on relays
+   *      that don't honour DELETE
+   *
+   * Waits for at least one relay to confirm the replacement via OK,
+   * or times out after 3 seconds.
+   */
   async deletePresence(): Promise<void> {
     if (!this.presenceEventId) return;
 
-    const template: EventTemplate = {
+    // 1. Send NIP-09 DELETE event (best-effort, some relays may ignore)
+    const deleteTemplate: EventTemplate = {
       kind: DELETE_KIND,
       created_at: Math.floor(Date.now() / 1000),
       tags: [['e', this.presenceEventId]],
       content: 'gig session ended',
     };
+    const deleteEvent = finalizeEvent(deleteTemplate, this.sk);
+    this.broadcast(deleteEvent);
 
-    const event = finalizeEvent(template, this.sk);
-    this.broadcast(event);
+    // 2. Send empty replacement event (overwrites the original on all NIP-33 relays)
+    const replaceTemplate: EventTemplate = {
+      kind: PRESENCE_KIND,
+      created_at: Math.floor(Date.now() / 1000) + 1, // +1s to ensure it's newer
+      tags: [['d', 'gig']],   // same d-tag → replaces the old one, no geohash/role tags
+      content: '',             // empty content = no longer available
+    };
+    const replaceEvent = finalizeEvent(replaceTemplate, this.sk);
+
+    // Wait for at least one relay to confirm the replacement, or timeout after 3s
+    const confirmed = await this.broadcastAndWaitForOk(replaceEvent, 3000);
+
     this.presenceEventId = null;
-    logger.info('Presence deleted', { component: 'NostrService', operation: 'deletePresence' });
+    if (confirmed) {
+      logger.info('Presence deleted (confirmed by relay)', { component: 'NostrService', operation: 'deletePresence' });
+    } else {
+      logger.warn('Presence deletion not confirmed (timeout), proceeding anyway', { component: 'NostrService', operation: 'deletePresence' });
+    }
+  }
+
+  /**
+   * Broadcast an event and wait until at least one relay responds with OK.
+   * Returns true if confirmed, false if timed out.
+   */
+  private broadcastAndWaitForOk(event: NostrEvent, timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingOkResolvers.delete(event.id);
+        resolve(false);
+      }, timeoutMs);
+
+      this.pendingOkResolvers.set(event.id, () => {
+        clearTimeout(timer);
+        resolve(true);
+      });
+
+      this.broadcast(event);
+    });
   }
 
   /** Close all subscriptions on all relays. */

@@ -112,14 +112,21 @@ export class GigP2P {
 
   /**
    * Stop the session completely. Deletes presence, closes all connections.
+   * Order: Delete presence → wait for relay confirmation → close subs → close WebRTC → disconnect sockets
    */
   async stop(): Promise<void> {
     if (!this.running) return;
     this.running = false;
 
+    // 1. Delete presence and wait for relay confirmation (up to 3s)
     await this.nostr.deletePresence();
+    // 2. Short grace period so delete events propagate before sockets close
+    await this.delay(500);
+    // 3. Close Nostr subscriptions
     this.nostr.closeSubscriptions();
+    // 4. Close all WebRTC connections
     this.webrtc.closeAll();
+    // 5. Disconnect sockets
     this.nostr.disconnect();
 
     this.discoveredPeers.clear();
@@ -148,13 +155,15 @@ export class GigP2P {
    * connection, closes everything else, and cleans up Nostr.
    */
   async finalizeMatch(matchedPubkey: string): Promise<void> {
-    // Delete presence from relays
+    // 1. Delete presence from relays (waits for OK or 3s timeout)
     await this.nostr.deletePresence();
-    // Close Nostr subscriptions (no more discovery needed)
+    // 2. Grace period for delete propagation
+    await this.delay(500);
+    // 3. Close Nostr subscriptions (no more discovery needed)
     this.nostr.closeSubscriptions();
-    // Close all WebRTC connections except the matched one
+    // 4. Close all WebRTC connections except the matched one
     this.webrtc.closeAllExcept(matchedPubkey);
-    // Clean up peer map, keep only matched
+    // 5. Clean up peer map, keep only matched
     const matchedPeer = this.discoveredPeers.get(matchedPubkey);
     this.discoveredPeers.clear();
     if (matchedPeer) {
@@ -166,16 +175,34 @@ export class GigP2P {
 
   /**
    * Full cleanup after "Done" or final cancel. Closes the last connection too.
+   * Ensures presence is removed from relays before disconnecting.
+   * Order: Delete presence → wait → close WebRTC → disconnect sockets
    */
   async finish(): Promise<void> {
+    // 1. Reconnect briefly if sockets were closed after finalizeMatch
+    //    (finalizeMatch only closes subscriptions, not sockets – so usually still connected)
+    // 2. Delete presence and wait for relay confirmation (up to 3s)
+    await this.nostr.deletePresence();
+    // 3. Grace period for event propagation
+    await this.delay(500);
+    // 4. Close all remaining WebRTC connections (including the matched peer)
     this.webrtc.closeAll();
+    // 5. Disconnect Nostr sockets
     this.nostr.disconnect();
+
     this.discoveredPeers.clear();
     this.running = false;
     this.myRole = null;
     this.myGeohash = '';
 
     logger.info('GigP2P finished', { component: 'GigP2P', operation: 'finish' });
+  }
+
+  // ─── Helpers ────────────────────────────────────────────
+
+  /** Simple async delay. */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   // ─── Discovery Handler ─────────────────────────────────
