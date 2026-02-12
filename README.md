@@ -1,4 +1,4 @@
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/cf36e71c-7f57-48f0-8053-3eff9a98eb28" />### Project begin was 2017 for the first M.I.T. Disobedience Award
+### Project begin was 2017 for the first M.I.T. Disobedience Award
 <br>
 
 <img width="1024" height="1024" alt="cloudatlasoslogo" src="https://github.com/user-attachments/assets/fa7db772-665c-4b2a-8c92-c606f17ecd5c" />
