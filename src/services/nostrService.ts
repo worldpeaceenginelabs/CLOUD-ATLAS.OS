@@ -83,7 +83,7 @@ export class NostrService {
   private pendingOkResolvers: Map<string, () => void> = new Map(); // eventId → resolve callback
   private onRelayCountChange: OnRelayCountChangeCallback | null = null;
   private pendingPresence: PresencePayload | null = null;
-  private presencePublished = false;
+  private presenceEventMsg: string | null = null; // cached signed ["EVENT", ...] for late-connecting relays
   private pendingPresenceFilter: { subId: string; filter: object } | null = null;
   private pendingSignalFilter: { subId: string; filter: object } | null = null;
 
@@ -123,24 +123,17 @@ export class NostrService {
   }
 
   /**
-   * Set a presence payload to be published as soon as the first relay connects.
+   * Queue a presence payload to be published when the first relay connects.
    * If a relay is already connected, publishes immediately.
    */
-  async queuePresence(payload: PresencePayload): Promise<void> {
+  queuePresence(payload: PresencePayload): void {
     this.pendingPresence = payload;
-    this.presencePublished = false;
+    this.presenceEventMsg = null;
     // If we already have a connected relay, publish now
     if (this.connectedRelayCount > 0) {
-      await this.flushPendingPresence();
+      this.publishPresence(payload);
+      this.pendingPresence = null;
     }
-  }
-
-  /** Publish pending presence if not yet published. */
-  private async flushPendingPresence(): Promise<void> {
-    if (this.presencePublished || !this.pendingPresence) return;
-    this.presencePublished = true;
-    await this.publishPresence(this.pendingPresence);
-    this.pendingPresence = null;
   }
 
   private connectRelay(url: string): void {
@@ -158,8 +151,17 @@ export class NostrService {
         logger.info(`Connected to relay ${url}`, { component: 'NostrService', operation: 'connectRelay' });
         this.notifyRelayCountChange();
 
-        // Auto-publish presence and subscribe on the newly connected relay
-        this.flushPendingPresence();
+        // Send presence to this relay
+        if (this.presenceEventMsg) {
+          // Already signed for an earlier relay — send cached message to this one
+          ws.send(this.presenceEventMsg);
+        } else if (this.pendingPresence) {
+          // First relay to connect — sign, broadcast, cache
+          this.publishPresence(this.pendingPresence);
+          this.pendingPresence = null;
+        }
+
+        // Send active subscriptions to this relay
         this.sendPendingSubscriptions(url, ws);
       };
       ws.onclose = () => {
@@ -261,7 +263,7 @@ export class NostrService {
   // ─── Presence (Discovery) ───────────────────────────────
 
   /** Publish or update our gig presence. Uses replaceable event (d-tag = "gig"). */
-  async publishPresence(payload: PresencePayload): Promise<void> {
+  publishPresence(payload: PresencePayload): void {
     const template: EventTemplate = {
       kind: PRESENCE_KIND,
       created_at: Math.floor(Date.now() / 1000),
@@ -275,6 +277,7 @@ export class NostrService {
 
     const event = finalizeEvent(template, this.sk);
     this.presenceEventId = event.id;
+    this.presenceEventMsg = JSON.stringify(['EVENT', event]); // cache for late-connecting relays
     this.broadcast(event);
     logger.info('Presence published', { component: 'NostrService', operation: 'publishPresence' });
   }
@@ -384,6 +387,8 @@ export class NostrService {
     const confirmed = await this.broadcastAndWaitForOk(replaceEvent, 3000);
 
     this.presenceEventId = null;
+    this.presenceEventMsg = null;
+    this.pendingPresence = null;
     if (confirmed) {
       logger.info('Presence deleted (confirmed by relay)', { component: 'NostrService', operation: 'deletePresence' });
     } else {
