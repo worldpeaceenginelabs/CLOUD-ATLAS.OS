@@ -395,6 +395,9 @@
       },
     });
 
+    // Guard: p2p may have been nulled during the await (e.g. user cancelled)
+    if (!p2p) return;
+
     const request: RideRequest = {
       id: crypto.randomUUID(),
       pubkey: p2p.pubkey,
@@ -443,6 +446,9 @@
         longitude: $userLiveLocation.longitude,
       },
     });
+
+    // Guard: p2p may have been nulled during the await (e.g. user cancelled)
+    if (!p2p) return;
 
     userGigRole.set('driver');
     currentView = 'pending';

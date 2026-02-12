@@ -75,6 +75,7 @@ export class NostrService {
   private presenceEventId: string | null = null;
   private relays: string[];
   private closed = false;
+  private seenEventIds: Set<string> = new Set(); // dedup events from multiple relays
 
   constructor(relays?: string[]) {
     this.sk = generateSecretKey();
@@ -110,9 +111,15 @@ export class NostrService {
 
   private connectRelay(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
+      // 5s timeout per relay to prevent allSettled from hanging
+      const timeout = setTimeout(() => {
+        reject(new Error(`Timeout connecting to ${url}`));
+      }, 5000);
+
       try {
         const ws = new WebSocket(url);
         ws.onopen = () => {
+          clearTimeout(timeout);
           this.sockets.set(url, ws);
           logger.info(`Connected to relay ${url}`, { component: 'NostrService', operation: 'connectRelay' });
           resolve();
@@ -122,10 +129,12 @@ export class NostrService {
           this.subscriptionIds.delete(url);
         };
         ws.onerror = () => {
+          clearTimeout(timeout);
           reject(new Error(`Failed to connect to ${url}`));
         };
         ws.onmessage = (msg) => this.handleRelayMessage(url, msg);
       } catch (e) {
+        clearTimeout(timeout);
         reject(e);
       }
     });
@@ -152,6 +161,10 @@ export class NostrService {
   private async handleEvent(event: NostrEvent) {
     // Ignore own events
     if (event.pubkey === this.pk) return;
+
+    // Deduplicate: same event may arrive from multiple relays
+    if (this.seenEventIds.has(event.id)) return;
+    this.seenEventIds.add(event.id);
 
     if (event.kind === PRESENCE_KIND && this.onPresence) {
       try {

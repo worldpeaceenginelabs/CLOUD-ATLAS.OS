@@ -177,6 +177,12 @@ export class WebRTCService {
     const conn = this.connections.get(fromPubkey);
     if (!conn) return;
 
+    // Guard: only accept answer if we're waiting for one (have-local-offer state)
+    if (conn.pc.signalingState !== 'have-local-offer') {
+      logger.warn(`Ignoring answer from ${fromPubkey.slice(0, 8)} — signalingState is ${conn.pc.signalingState}`, { component: 'WebRTC', operation: 'handleAnswer' });
+      return;
+    }
+
     // Clear timeout
     if (conn.timeoutId) {
       clearTimeout(conn.timeoutId);
