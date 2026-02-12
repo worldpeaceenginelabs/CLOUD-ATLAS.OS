@@ -1133,9 +1133,21 @@ async function removePin(mapid: string) {
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
 				if (pickedObject.id.id === "pickedPoint") {
 					// Do nothing or handle pickedPoint specific logic here if needed
-				} else if (pickedObject.id.id === "Your Location!") {
-					// Open Gig Economy when user clicks the blue location dot
-					modalService.showGigEconomy();
+			} else if (pickedObject.id.id === "Your Location!") {
+				// Open Gig Economy when user clicks the blue location dot
+				modalService.showGigEconomy();
+				// Fly camera to 2000m above the user's location
+				const position = pickedObject.id.position?.getValue(JulianDate.now());
+				if (position && cesiumViewer) {
+					const cartographic = Cartographic.fromCartesian(position);
+					cesiumViewer.camera.flyTo({
+						destination: Cartesian3.fromDegrees(
+							CesiumMath.toDegrees(cartographic.longitude),
+							CesiumMath.toDegrees(cartographic.latitude),
+							2000
+						),
+					});
+				}
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
 					// Handle 3D model click
 					const modelId = pickedObject.id.id;
