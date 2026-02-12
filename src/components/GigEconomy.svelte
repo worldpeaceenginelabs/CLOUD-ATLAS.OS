@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { writable } from 'svelte/store';
+  import { onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
-  import { joinRoom } from 'trystero';
-  import { coordinates, viewer, rideRequests, driverOffers, userGigRole, isGigPickingDestination, userLiveLocation } from '../store';
-  import type { RideRequest, DriverOffer, RideType } from '../types';
+  import { coordinates, viewer, rideRequests, userGigRole, isGigPickingDestination, userLiveLocation, gigPeers, currentGeohash } from '../store';
+  import type { RideRequest, RideType, GigPeer, GigP2PMessage } from '../types';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
+  import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
+  import { GigP2P } from '../services/gigP2P';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
   import * as Cesium from 'cesium';
 
@@ -20,83 +20,193 @@
   let destinationLon = '';
   let isPickingDestination = false;
 
-  // ─── Driver Offer Form ───────────────────────────────────────
-  let driverRadiusKm = 4;
-
   // ─── User's Own State ────────────────────────────────────────
   let myRideRequest: RideRequest | null = null;
-  let myDriverOffer: DriverOffer | null = null;
   let matchedRequest: RideRequest | null = null;
   let awaitingConfirmation = false;
+  let connectedPeerCount = 0;
 
   // Rider-as-arbiter lock: once set, no other driver can claim this ride
-  let rideConfirmedDriverId: string | null = null;
+  let rideConfirmedDriverPubkey: string | null = null;
+  // The pubkey of the matched peer (driver or rider)
+  let matchedPeerPubkey: string | null = null;
 
   // ─── Cesium Entities ─────────────────────────────────────────
   let rideEntities: any[] = [];
-  let driverEntities: any[] = [];
+  let peerEntities: any[] = [];
 
-  // ─── Trystero P2P ───────────────────────────────────────────
-  const config = { appId: 'username' };
-  const room = joinRoom(config, 'gig-economy-room');
-  const myPeerId = crypto.randomUUID();
+  // ─── GigP2P Orchestrator ───────────────────────────────────
+  let p2p: GigP2P | null = null;
 
-  // P2P Actions — 3-step matching + cancel flows
-  // Note: Trystero action names must be ≤12 bytes
-  const [sendRideRequest, onRideRequest] = room.makeAction('rideReq');
-  const [sendDriverOffer, onDriverOffer] = room.makeAction('drvOffer');
-  const [sendAccept, onAccept] = room.makeAction('gigAccept');
-  const [sendConfirm, onConfirm] = room.makeAction('gigConfirm');
-  const [sendAlreadyTaken, onAlreadyTaken] = room.makeAction('gigTaken');
-  const [sendReject, onReject] = room.makeAction('gigReject');
-  const [sendCancelRide, onCancelRide] = room.makeAction('gigCxRide');
-  const [sendCancelOffer, onCancelOffer] = room.makeAction('gigCxOffer');
+  function createP2P(): GigP2P {
+    return new GigP2P({
+      onPeerDiscovered: (peer: GigPeer) => {
+        gigPeers.update(p => [...p, peer]);
+        addPeerToMap(peer);
+        logger.info(`Peer discovered: ${peer.pubkey.slice(0, 8)} (${peer.role})`, { component: 'GigEconomy', operation: 'onPeerDiscovered' });
+      },
+      onPeerConnected: (pubkey: string) => {
+        connectedPeerCount = p2p?.getConnectedPeerPubkeys().length ?? 0;
+        logger.info(`Peer connected: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPeerConnected' });
 
-  // ─── Haversine Distance ──────────────────────────────────────
-  function haversineDistanceKm(
-    lat1: number, lon1: number,
-    lat2: number, lon2: number
-  ): number {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
+        // If I'm a rider and a driver just connected, send my ride request
+        if (myRideRequest && $userGigRole === 'rider') {
+          p2p?.sendTo(pubkey, { type: 'ride-request', request: myRideRequest });
+        }
+      },
+      onPeerDisconnected: (pubkey: string) => {
+        connectedPeerCount = p2p?.getConnectedPeerPubkeys().length ?? 0;
+        gigPeers.update(p => p.filter(peer => peer.pubkey !== pubkey));
+        removePeerFromMap(pubkey);
 
-  // ─── Matching Logic ──────────────────────────────────────────
-  function findMatchingDrivers(request: RideRequest): DriverOffer[] {
-    return $driverOffers.filter(driver => {
-      if (!driver.isAvailable) return false;
-      const distance = haversineDistanceKm(
-        request.startLocation.latitude, request.startLocation.longitude,
-        driver.currentLocation.latitude, driver.currentLocation.longitude
-      );
-      return distance <= driver.radiusKm;
+        // If the matched request's rider disconnected, clear it
+        if (matchedRequest && matchedRequest.pubkey === pubkey) {
+          matchedRequest = null;
+          awaitingConfirmation = false;
+        }
+
+        logger.info(`Peer disconnected: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPeerDisconnected' });
+      },
+      onMessage: handleP2PMessage,
     });
   }
 
-  function findMatchingRequests(offer: DriverOffer): RideRequest[] {
-    return $rideRequests.filter(request => {
-      if (request.status !== 'pending') return false;
-      const distance = haversineDistanceKm(
-        request.startLocation.latitude, request.startLocation.longitude,
-        offer.currentLocation.latitude, offer.currentLocation.longitude
-      );
-      return distance <= offer.radiusKm;
+  // ─── P2P Message Handler ───────────────────────────────────
+  function handleP2PMessage(fromPubkey: string, message: GigP2PMessage) {
+    switch (message.type) {
+      case 'ride-request':
+        handleIncomingRideRequest(fromPubkey, message.request);
+        break;
+      case 'accept':
+        handleIncomingAccept(fromPubkey, message);
+        break;
+      case 'confirm':
+        handleIncomingConfirm(fromPubkey, message);
+        break;
+      case 'taken':
+        handleIncomingTaken(fromPubkey);
+        break;
+      case 'reject':
+        handleIncomingReject(fromPubkey, message);
+        break;
+      case 'cancel-ride':
+        handleIncomingCancelRide(fromPubkey, message);
+        break;
+      case 'cancel-offer':
+        handleIncomingCancelOffer(fromPubkey);
+        break;
+    }
+  }
+
+  // Driver receives a ride request from a connected rider
+  function handleIncomingRideRequest(fromPubkey: string, request: RideRequest) {
+    if ($userGigRole !== 'driver') return;
+
+    rideRequests.update(r => {
+      if (r.some(existing => existing.id === request.id)) return r;
+      return [...r, request];
     });
+    addRideRequestToMap(request);
+
+    // Show as match card if we don't already have one
+    if (!matchedRequest && !awaitingConfirmation) {
+      matchedRequest = request;
+    }
+  }
+
+  // Rider receives accept from a driver — ARBITER LOGIC
+  function handleIncomingAccept(fromPubkey: string, message: GigP2PMessage & { type: 'accept' }) {
+    if (!myRideRequest || $userGigRole !== 'rider') return;
+    if (message.rideRequestId !== myRideRequest.id) return;
+
+    if (rideConfirmedDriverPubkey === null) {
+      // First driver to accept → lock it in
+      rideConfirmedDriverPubkey = fromPubkey;
+      matchedPeerPubkey = fromPubkey;
+      myRideRequest.status = 'accepted';
+      myRideRequest.matchedDriverId = fromPubkey;
+      myRideRequest = myRideRequest; // trigger reactivity
+
+      p2p?.sendTo(fromPubkey, {
+        type: 'confirm',
+        rideRequestId: myRideRequest.id,
+        riderPubkey: p2p.pubkey,
+      });
+
+      // Finalize: keep only the matched connection
+      p2p?.finalizeMatch(fromPubkey);
+
+      currentView = 'matched';
+      logger.info('Ride confirmed with driver', { component: 'GigEconomy', operation: 'handleIncomingAccept' });
+    } else {
+      // Another driver tried to accept → too late
+      p2p?.sendTo(fromPubkey, {
+        type: 'taken',
+        rideRequestId: myRideRequest.id,
+        riderPubkey: p2p!.pubkey,
+      });
+    }
+  }
+
+  // Driver receives confirmation from rider
+  function handleIncomingConfirm(fromPubkey: string, message: GigP2PMessage & { type: 'confirm' }) {
+    if ($userGigRole !== 'driver') return;
+    awaitingConfirmation = false;
+    matchedPeerPubkey = fromPubkey;
+
+    // Finalize: keep only the matched connection
+    p2p?.finalizeMatch(fromPubkey);
+
+    currentView = 'matched';
+    logger.info('Rider confirmed the match!', { component: 'GigEconomy', operation: 'handleIncomingConfirm' });
+  }
+
+  // Driver receives already-taken
+  function handleIncomingTaken(fromPubkey: string) {
+    if ($userGigRole !== 'driver') return;
+    awaitingConfirmation = false;
+    matchedRequest = null;
+
+    // Look for other pending requests
+    const otherRequests = $rideRequests.filter(r => r.status === 'pending' && r.pubkey !== fromPubkey);
+    if (otherRequests.length > 0) {
+      matchedRequest = otherRequests[0];
+    }
+
+    logger.info('Ride was taken by another driver', { component: 'GigEconomy', operation: 'handleIncomingTaken' });
+  }
+
+  // Rider receives a rejection from a driver
+  function handleIncomingReject(fromPubkey: string, message: GigP2PMessage & { type: 'reject' }) {
+    if (!myRideRequest || $userGigRole !== 'rider') return;
+    if (message.rideRequestId === myRideRequest.id) {
+      // Reset to pending — another driver might still accept
+      myRideRequest.status = 'pending';
+      myRideRequest.matchedDriverId = null;
+      myRideRequest = myRideRequest;
+    }
+  }
+
+  // Driver or rider: someone cancelled their ride request
+  function handleIncomingCancelRide(fromPubkey: string, message: GigP2PMessage & { type: 'cancel-ride' }) {
+    rideRequests.update(r => r.filter(req => req.id !== message.rideRequestId));
+    removeRideEntitiesFromMap(message.rideRequestId);
+
+    if (matchedRequest && matchedRequest.id === message.rideRequestId) {
+      matchedRequest = null;
+      awaitingConfirmation = false;
+    }
+  }
+
+  // Rider: a driver cancelled their offer (disconnected)
+  function handleIncomingCancelOffer(fromPubkey: string) {
+    removePeerFromMap(fromPubkey);
+    gigPeers.update(p => p.filter(peer => peer.pubkey !== fromPubkey));
   }
 
   // ─── Cesium Visualization ────────────────────────────────────
   function addRideRequestToMap(request: RideRequest) {
     if (!$viewer) return;
-    // Skip if already on map
     if ($viewer.entities.getById(`ride_${request.id}`)) return;
 
     // Blue point at start location
@@ -146,7 +256,7 @@
     });
     rideEntities.push(destEntity);
 
-    // Dashed line from start → destination
+    // Line from start → destination
     const lineEntity = $viewer.entities.add({
       id: `ride_line_${request.id}`,
       polyline: {
@@ -170,49 +280,51 @@
     rideEntities.push(lineEntity);
   }
 
-  function addDriverOfferToMap(offer: DriverOffer) {
-    if (!$viewer) return;
-    // Skip if already on map
-    if ($viewer.entities.getById(`driver_${offer.id}`)) return;
+  function addPeerToMap(peer: GigPeer) {
+    if (!$viewer || !peer.startLocation) return;
+    const entityId = `peer_${peer.pubkey}`;
+    if ($viewer.entities.getById(entityId)) return;
 
-    // Yellow point + radius circle
+    const isDriver = peer.role === 'driver';
     const entity = $viewer.entities.add({
-      id: `driver_${offer.id}`,
+      id: entityId,
       position: Cesium.Cartesian3.fromDegrees(
-        offer.currentLocation.longitude,
-        offer.currentLocation.latitude,
+        peer.startLocation.longitude,
+        peer.startLocation.latitude,
         0
       ),
-      ellipse: {
-        semiMajorAxis: offer.radiusKm * 1000,
-        semiMinorAxis: offer.radiusKm * 1000,
-        material: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.12),
-        outline: true,
-        outlineColor: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.4),
-        outlineWidth: 2,
-        height: 0,
-      },
       point: {
         pixelSize: 10,
-        color: Cesium.Color.fromCssColorString('#FBBC04'),
+        color: Cesium.Color.fromCssColorString(isDriver ? '#FBBC04' : '#4285F4'),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
+      label: {
+        text: isDriver ? 'Driver' : 'Rider',
+        font: '11px sans-serif',
+        fillColor: Cesium.Color.WHITE,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cesium.Cartesian2(0, -14),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
     });
-    driverEntities.push(entity);
+    peerEntities.push(entity);
   }
 
-  function updateDriverEntityOnMap(offer: DriverOffer) {
+  function removePeerFromMap(pubkey: string) {
     if (!$viewer) return;
-    const entity = $viewer.entities.getById(`driver_${offer.id}`);
-    if (entity) {
-      (entity.position as any) = Cesium.Cartesian3.fromDegrees(
-        offer.currentLocation.longitude,
-        offer.currentLocation.latitude,
-        0
-      );
-    }
+    const entityId = `peer_${pubkey}`;
+    peerEntities = peerEntities.filter(entity => {
+      if (entity.id === entityId) {
+        $viewer.entities.remove(entity);
+        return false;
+      }
+      return true;
+    });
   }
 
   function removeRideEntitiesFromMap(requestId: string) {
@@ -231,24 +343,13 @@
     });
   }
 
-  function removeDriverEntitiesFromMap(offerId: string) {
-    if (!$viewer) return;
-    driverEntities = driverEntities.filter(entity => {
-      if (entity.id === `driver_${offerId}`) {
-        $viewer.entities.remove(entity);
-        return false;
-      }
-      return true;
-    });
-  }
-
   function clearAllGigEntities() {
     if (!$viewer) return;
-    [...rideEntities, ...driverEntities].forEach(entity => {
+    [...rideEntities, ...peerEntities].forEach(entity => {
       try { $viewer.entities.remove(entity); } catch (_) { /* already removed */ }
     });
     rideEntities = [];
-    driverEntities = [];
+    peerEntities = [];
   }
 
   // ─── User Actions ────────────────────────────────────────────
@@ -265,7 +366,7 @@
     isGigPickingDestination.set(true);
   }
 
-  function submitRideRequest() {
+  async function submitRideRequest() {
     if (!$userLiveLocation) {
       logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitRideRequest' });
       return;
@@ -275,8 +376,28 @@
       return;
     }
 
+    const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
+    currentGeohash.set(geohash);
+
+    // Create P2P instance and start
+    p2p = createP2P();
+    await p2p.start('rider', geohash, {
+      geohash,
+      role: 'rider',
+      rideType,
+      startLocation: {
+        latitude: $userLiveLocation.latitude,
+        longitude: $userLiveLocation.longitude,
+      },
+      destination: {
+        latitude: parseFloat(destinationLat),
+        longitude: parseFloat(destinationLon),
+      },
+    });
+
     const request: RideRequest = {
       id: crypto.randomUUID(),
+      pubkey: p2p.pubkey,
       startLocation: {
         latitude: $userLiveLocation.latitude,
         longitude: $userLiveLocation.longitude,
@@ -289,131 +410,118 @@
       status: 'pending',
       matchedDriverId: null,
       timestamp: getCurrentTimeIso8601(),
-      requesterId: myPeerId,
+      geohash,
     };
 
     myRideRequest = request;
-    rideConfirmedDriverId = null;
+    rideConfirmedDriverPubkey = null;
     rideRequests.update(r => [...r, request]);
     userGigRole.set('rider');
-    sendRideRequest(request);
     addRideRequestToMap(request);
 
-    // Re-broadcast after 2s to ensure drivers who just joined or submitted see it
-    setTimeout(() => {
-      if (myRideRequest && myRideRequest.status === 'pending') {
-        sendRideRequest(myRideRequest);
-      }
-    }, 2000);
-
     currentView = 'pending';
+    registerBeforeUnload();
     logger.info('Ride request submitted', { component: 'GigEconomy', operation: 'submitRideRequest' });
   }
 
-  function submitDriverOffer() {
+  async function submitDriverOffer() {
     if (!$userLiveLocation) {
       logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitDriverOffer' });
       return;
     }
 
-    const offer: DriverOffer = {
-      id: crypto.randomUUID(),
-      currentLocation: {
+    const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
+    currentGeohash.set(geohash);
+
+    // Create P2P instance and start
+    p2p = createP2P();
+    await p2p.start('driver', geohash, {
+      geohash,
+      role: 'driver',
+      startLocation: {
         latitude: $userLiveLocation.latitude,
         longitude: $userLiveLocation.longitude,
       },
-      radiusKm: driverRadiusKm,
-      isAvailable: true,
-      timestamp: getCurrentTimeIso8601(),
-      driverId: myPeerId,
-    };
+    });
 
-    myDriverOffer = offer;
-    driverOffers.update(d => [...d, offer]);
     userGigRole.set('driver');
-    sendDriverOffer(offer);
-    addDriverOfferToMap(offer);
-
-    // Check for existing matching requests
-    const matching = findMatchingRequests(offer);
-    if (matching.length > 0) {
-      matchedRequest = matching[0];
-    }
-
     currentView = 'pending';
-    startDriverLocationUpdates();
-
-    // Delayed re-scan: catches ride requests arriving via P2P right around submit time
-    setTimeout(() => {
-      if (myDriverOffer && !matchedRequest && !awaitingConfirmation) {
-        const delayed = findMatchingRequests(myDriverOffer);
-        if (delayed.length > 0) {
-          matchedRequest = delayed[0];
-          logger.info('Delayed re-scan found matching request', { component: 'GigEconomy', operation: 'submitDriverOffer' });
-        }
-      }
-    }, 2000);
-
+    registerBeforeUnload();
     logger.info('Driver offer submitted', { component: 'GigEconomy', operation: 'submitDriverOffer' });
   }
 
   // ─── Driver: Accept / Reject ─────────────────────────────────
   function acceptMatch() {
-    if (!matchedRequest || !myDriverOffer) return;
-    // Don't jump to matched yet — wait for rider's confirmation (3-step flow)
+    if (!matchedRequest || !p2p) return;
     awaitingConfirmation = true;
-    sendAccept({
+    p2p.sendTo(matchedRequest.pubkey, {
+      type: 'accept',
       rideRequestId: matchedRequest.id,
-      driverId: myPeerId,
+      driverPubkey: p2p.pubkey,
     });
     logger.info('Sent accept, awaiting rider confirmation', { component: 'GigEconomy', operation: 'acceptMatch' });
   }
 
   function rejectMatch() {
-    if (!matchedRequest) return;
-    sendReject({
+    if (!matchedRequest || !p2p) return;
+    p2p.sendTo(matchedRequest.pubkey, {
+      type: 'reject',
       rideRequestId: matchedRequest.id,
-      driverId: myPeerId,
+      driverPubkey: p2p.pubkey,
     });
+    const rejectedId = matchedRequest.id;
     matchedRequest = null;
     awaitingConfirmation = false;
+
+    // Check for other pending requests
+    const others = $rideRequests.filter(r => r.status === 'pending' && r.id !== rejectedId);
+    if (others.length > 0) {
+      matchedRequest = others[0];
+    }
     logger.info('Rejected ride request', { component: 'GigEconomy', operation: 'rejectMatch' });
   }
 
   // ─── Cancel Flows ────────────────────────────────────────────
-  function cancelRideRequest() {
+  async function cancelRideRequest() {
     if (!myRideRequest) return;
-    myRideRequest.status = 'cancelled';
-    sendCancelRide({ rideRequestId: myRideRequest.id });
+
+    // Notify all connected peers
+    if (p2p) {
+      p2p.broadcastMessage({ type: 'cancel-ride', rideRequestId: myRideRequest.id });
+    }
+
     removeRideEntitiesFromMap(myRideRequest.id);
     rideRequests.update(r => r.filter(req => req.id !== myRideRequest!.id));
     myRideRequest = null;
-    rideConfirmedDriverId = null;
+    rideConfirmedDriverPubkey = null;
+
+    await stopP2P();
     userGigRole.set(null);
     currentView = 'menu';
+    unregisterBeforeUnload();
     logger.info('Ride request cancelled', { component: 'GigEconomy', operation: 'cancelRideRequest' });
   }
 
-  function cancelDriverOffer() {
-    if (!myDriverOffer) return;
-    myDriverOffer.isAvailable = false;
-    sendCancelOffer({ driverOfferId: myDriverOffer.id });
-    removeDriverEntitiesFromMap(myDriverOffer.id);
-    driverOffers.update(d => d.filter(o => o.id !== myDriverOffer!.id));
-    myDriverOffer = null;
+  async function cancelDriverOffer() {
+    if (!p2p) return;
+
+    // Notify all connected peers
+    p2p.broadcastMessage({ type: 'cancel-offer', driverPubkey: p2p.pubkey });
+
     matchedRequest = null;
     awaitingConfirmation = false;
-    stopDriverLocationUpdates();
+
+    await stopP2P();
     userGigRole.set(null);
     currentView = 'menu';
+    unregisterBeforeUnload();
     logger.info('Driver offer cancelled', { component: 'GigEconomy', operation: 'cancelDriverOffer' });
   }
 
   function goBack() {
-    // Back acts as cancel if the user has an active request/offer
     if (myRideRequest) {
       cancelRideRequest();
-    } else if (myDriverOffer) {
+    } else if ($userGigRole === 'driver') {
       cancelDriverOffer();
     } else {
       currentView = 'menu';
@@ -424,180 +532,58 @@
     destinationLon = '';
   }
 
-  function finishAndReset() {
+  async function finishAndReset() {
     clearAllGigEntities();
     myRideRequest = null;
-    myDriverOffer = null;
     matchedRequest = null;
     awaitingConfirmation = false;
-    rideConfirmedDriverId = null;
-    stopDriverLocationUpdates();
+    rideConfirmedDriverPubkey = null;
+    matchedPeerPubkey = null;
+    connectedPeerCount = 0;
+
+    if (p2p) {
+      await p2p.finish();
+      p2p = null;
+    }
+
+    rideRequests.set([]);
+    gigPeers.set([]);
+    currentGeohash.set('');
     userGigRole.set(null);
     currentView = 'menu';
     destinationLat = '';
     destinationLon = '';
+    unregisterBeforeUnload();
   }
 
-  // ─── P2P Listeners ──────────────────────────────────────────
-
-  // Incoming ride request (seen by drivers)
-  onRideRequest((data: any) => {
-    if (!data || !data.id || data.requesterId === myPeerId) return;
-    const request = data as RideRequest;
-
-    rideRequests.update(r => {
-      if (r.some(existing => existing.id === request.id)) return r;
-      return [...r, request];
-    });
-    addRideRequestToMap(request);
-
-    // If I'm an active driver, check spatial match
-    if (myDriverOffer && myDriverOffer.isAvailable && !matchedRequest && !awaitingConfirmation) {
-      const distance = haversineDistanceKm(
-        request.startLocation.latitude, request.startLocation.longitude,
-        myDriverOffer.currentLocation.latitude, myDriverOffer.currentLocation.longitude
-      );
-      if (distance <= myDriverOffer.radiusKm) {
-        matchedRequest = request;
-      }
+  // ─── P2P Cleanup Helper ─────────────────────────────────────
+  async function stopP2P() {
+    if (p2p) {
+      await p2p.stop();
+      p2p = null;
     }
-  });
-
-  // Incoming driver offer (seen by riders)
-  onDriverOffer((data: any) => {
-    if (!data || !data.id || data.driverId === myPeerId) return;
-    const offer = data as DriverOffer;
-
-    let isUpdate = false;
-    driverOffers.update(d => {
-      const idx = d.findIndex(existing => existing.id === offer.id);
-      if (idx >= 0) {
-        // Update existing offer (driver re-broadcasts with new position)
-        d[idx] = offer;
-        isUpdate = true;
-        return [...d];
-      }
-      return [...d, offer];
-    });
-
-    if (isUpdate) {
-      // Just update position on map
-      updateDriverEntityOnMap(offer);
-    } else {
-      // New offer — add to map
-      addDriverOfferToMap(offer);
-    }
-  });
-
-  // Rider receives accept from a driver — ARBITER LOGIC
-  onAccept((data: any) => {
-    if (!data || !myRideRequest) return;
-    if (data.rideRequestId !== myRideRequest.id) return;
-
-    if (rideConfirmedDriverId === null) {
-      // First driver to accept — lock it in
-      rideConfirmedDriverId = data.driverId;
-      myRideRequest.status = 'accepted';
-      myRideRequest.matchedDriverId = data.driverId;
-      myRideRequest = myRideRequest; // trigger reactivity
-
-      sendConfirm({
-        rideRequestId: myRideRequest.id,
-        driverId: data.driverId,
-      });
-
-      currentView = 'matched';
-      logger.info('Ride confirmed with driver', { component: 'GigEconomy', operation: 'onAccept' });
-    } else {
-      // Another driver tried to accept — too late
-      sendAlreadyTaken({
-        rideRequestId: myRideRequest.id,
-        driverId: data.driverId,
-      });
-    }
-  });
-
-  // Driver receives confirmation from rider — you got it
-  onConfirm((data: any) => {
-    if (!data || data.driverId !== myPeerId) return;
-    awaitingConfirmation = false;
-    currentView = 'matched';
-    logger.info('Rider confirmed the match!', { component: 'GigEconomy', operation: 'onConfirm' });
-  });
-
-  // Driver receives already-taken — someone else got it
-  onAlreadyTaken((data: any) => {
-    if (!data || data.driverId !== myPeerId) return;
-    awaitingConfirmation = false;
-    matchedRequest = null;
-    logger.info('Ride was taken by another driver', { component: 'GigEconomy', operation: 'onAlreadyTaken' });
-  });
-
-  // Driver or rider receives a rejection
-  onReject((data: any) => {
-    if (!data) return;
-    // If I'm a rider and my ride was rejected by a driver
-    if (myRideRequest && data.rideRequestId === myRideRequest.id) {
-      myRideRequest.status = 'pending';
-      myRideRequest.matchedDriverId = null;
-      myRideRequest = myRideRequest;
-    }
-  });
-
-  // Someone cancelled their ride request
-  onCancelRide((data: any) => {
-    if (!data || !data.rideRequestId) return;
-    rideRequests.update(r => r.filter(req => req.id !== data.rideRequestId));
-    removeRideEntitiesFromMap(data.rideRequestId);
-
-    // If the driver was looking at or confirming this request
-    if (matchedRequest && matchedRequest.id === data.rideRequestId) {
-      matchedRequest = null;
-      awaitingConfirmation = false;
-    }
-  });
-
-  // Someone cancelled their driver offer
-  onCancelOffer((data: any) => {
-    if (!data || !data.driverOfferId) return;
-    driverOffers.update(d => d.filter(o => o.id !== data.driverOfferId));
-    removeDriverEntitiesFromMap(data.driverOfferId);
-  });
-
-  // ─── Live Location Updates (driver) ─────────────────────────
-  let locationUpdateInterval: ReturnType<typeof setInterval> | null = null;
-
-  function startDriverLocationUpdates() {
-    if (locationUpdateInterval) return;
-    locationUpdateInterval = setInterval(() => {
-      if (!myDriverOffer || !$userLiveLocation) return;
-      // Update local offer
-      myDriverOffer.currentLocation = {
-        latitude: $userLiveLocation.latitude,
-        longitude: $userLiveLocation.longitude,
-      };
-      myDriverOffer = myDriverOffer; // trigger reactivity
-      // Broadcast updated position to peers
-      sendDriverOffer(myDriverOffer);
-      // Update map entity
-      updateDriverEntityOnMap(myDriverOffer);
-
-      // Re-scan for matching ride requests (catches requests that arrived between checks)
-      if (!matchedRequest && !awaitingConfirmation) {
-        const matching = findMatchingRequests(myDriverOffer);
-        if (matching.length > 0) {
-          matchedRequest = matching[0];
-          logger.info('Periodic re-scan found matching request', { component: 'GigEconomy', operation: 'driverLocationUpdate' });
-        }
-      }
-    }, 10000); // every 10s
+    connectedPeerCount = 0;
+    gigPeers.set([]);
+    currentGeohash.set('');
+    clearAllGigEntities();
   }
 
-  function stopDriverLocationUpdates() {
-    if (locationUpdateInterval) {
-      clearInterval(locationUpdateInterval);
-      locationUpdateInterval = null;
+  // ─── beforeunload Warning ──────────────────────────────────
+  function onBeforeUnload(e: BeforeUnloadEvent) {
+    e.preventDefault();
+    e.returnValue = 'Your ride request/offer will be deleted if you close this tab.';
+    // Best-effort cleanup
+    if (p2p) {
+      p2p.stop();
     }
+  }
+
+  function registerBeforeUnload() {
+    window.addEventListener('beforeunload', onBeforeUnload);
+  }
+
+  function unregisterBeforeUnload() {
+    window.removeEventListener('beforeunload', onBeforeUnload);
   }
 
   // ─── Destination Picking ─────────────────────────────────────
@@ -607,7 +593,6 @@
     if (unsubCoords) unsubCoords();
     let skipFirst = true;
     unsubCoords = coordinates.subscribe(value => {
-      // Skip the initial subscription fire
       if (skipFirst) { skipFirst = false; return; }
       if (isPickingDestination && value.latitude && value.longitude) {
         destinationLat = value.latitude;
@@ -621,10 +606,13 @@
   // ─── Lifecycle ───────────────────────────────────────────────
   onDestroy(() => {
     clearAllGigEntities();
-    stopDriverLocationUpdates();
     isGigPickingDestination.set(false);
     if (unsubCoords) unsubCoords();
-    try { room.leave(); } catch (_) { /* room may already be left */ }
+    if (p2p) {
+      p2p.stop();
+      p2p = null;
+    }
+    unregisterBeforeUnload();
   });
 </script>
 
@@ -655,7 +643,7 @@
           </svg>
           <div class="action-text">
             <span class="action-label">I offer a Ride</span>
-            <span class="action-desc">Set your service radius</span>
+            <span class="action-desc">Offer rides in your area</span>
           </div>
         </button>
       </div>
@@ -743,26 +731,10 @@
         </p>
       </div>
 
-      <div class="form-group">
-        <label for="radius-slider">Service Radius: {driverRadiusKm} km</label>
-        <input
-          id="radius-slider"
-          type="range"
-          min="3"
-          max="5"
-          step="0.5"
-          bind:value={driverRadiusKm}
-          class="radius-slider"
-        />
-        <div class="radius-labels">
-          <span>3 km</span>
-          <span>5 km</span>
-        </div>
-      </div>
-
       <p class="hint">
-        You'll be automatically matched with ride requests
-        starting within your {driverRadiusKm} km radius.
+        You'll be matched with riders in your geohash cell
+        (~1.2 km × 0.6 km area around your location).
+        Discovery and matching happen fully peer-to-peer.
       </p>
 
       <GlassmorphismButton
@@ -780,13 +752,13 @@
     <div class="gig-pending" transition:slide={{ duration: 300 }}>
 
       <!-- ── Rider pending ── -->
-      {#if myRideRequest}
+      {#if myRideRequest && $userGigRole === 'rider'}
         <h3 class="gig-title">Waiting for Driver</h3>
         <div class="status-indicator">
           <div class="pulse-dot"></div>
           <span>
-            {#if myRideRequest.status === 'matched'}
-              Driver found! Waiting for confirmation...
+            {#if connectedPeerCount > 0}
+              Connected to {connectedPeerCount} driver{connectedPeerCount !== 1 ? 's' : ''}...
             {:else}
               Searching for nearby drivers...
             {/if}
@@ -795,6 +767,9 @@
         <p class="ride-info">
           {myRideRequest.rideType === 'person' ? 'Passenger' : 'Delivery'} ride
         </p>
+        {#if $currentGeohash}
+          <p class="cell-info">Cell: {$currentGeohash}</p>
+        {/if}
 
         <div class="cancel-section">
           <GlassmorphismButton variant="danger" fullWidth={true} onClick={cancelRideRequest}>
@@ -803,12 +778,21 @@
         </div>
 
       <!-- ── Driver pending ── -->
-      {:else if myDriverOffer}
+      {:else if $userGigRole === 'driver'}
         <h3 class="gig-title">Offering Rides</h3>
         <div class="status-indicator">
           <div class="pulse-dot driver"></div>
-          <span>Listening for rides within {myDriverOffer.radiusKm} km...</span>
+          <span>
+            {#if connectedPeerCount > 0}
+              Connected to {connectedPeerCount} rider{connectedPeerCount !== 1 ? 's' : ''}...
+            {:else}
+              Listening for riders in your cell...
+            {/if}
+          </span>
         </div>
+        {#if $currentGeohash}
+          <p class="cell-info">Cell: {$currentGeohash}</p>
+        {/if}
 
         <!-- Awaiting rider confirmation after clicking Accept -->
         {#if awaitingConfirmation}
@@ -826,14 +810,7 @@
             <p class="match-type">
               {matchedRequest.rideType === 'person' ? 'Passenger' : 'Delivery'}
             </p>
-            <p class="match-distance">
-              {haversineDistanceKm(
-                matchedRequest.startLocation.latitude,
-                matchedRequest.startLocation.longitude,
-                myDriverOffer.currentLocation.latitude,
-                myDriverOffer.currentLocation.longitude
-              ).toFixed(1)} km away
-            </p>
+            <p class="match-detail">From rider in your cell</p>
             <div class="match-actions">
               <GlassmorphismButton variant="success" size="small" onClick={acceptMatch}>
                 Accept
@@ -863,6 +840,9 @@
           <polyline points="22 4 12 14.01 9 11.01"/>
         </svg>
         <p>Your ride has been confirmed.</p>
+        <p class="match-peer-info">
+          Connected directly via P2P
+        </p>
       </div>
       <GlassmorphismButton variant="secondary" fullWidth={true} onClick={finishAndReset}>
         Done
@@ -974,7 +954,6 @@
     gap: 0.25rem;
   }
 
-  .form-group label,
   .form-group .field-label {
     font-size: 0.85rem;
     font-weight: 600;
@@ -1041,19 +1020,6 @@
     border-right: 1px solid rgba(255, 255, 255, 0.15);
   }
 
-  .radius-slider {
-    width: 100%;
-    accent-color: #4285F4;
-    margin: 0.25rem 0;
-  }
-
-  .radius-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
-  }
-
   .hint {
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.5);
@@ -1100,6 +1066,13 @@
     margin: 0;
   }
 
+  .cell-info {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.35);
+    margin: 0;
+    font-family: monospace;
+  }
+
   .cancel-section {
     margin-top: 0.5rem;
   }
@@ -1124,11 +1097,10 @@
     color: rgba(255, 255, 255, 0.7);
   }
 
-  .match-distance {
+  .match-detail {
     margin: 0.25rem 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: white;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
   }
 
   .match-actions {
@@ -1164,6 +1136,11 @@
   .match-success p {
     color: rgba(255, 255, 255, 0.8);
     margin: 0;
+  }
+
+  .match-peer-info {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.4) !important;
   }
 
   /* ── Live Badge ── */

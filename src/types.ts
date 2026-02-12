@@ -73,6 +73,7 @@ export type RideStatus = 'pending' | 'matched' | 'accepted' | 'rejected' | 'canc
 
 export interface RideRequest {
   id: string;
+  pubkey: string;
   startLocation: {
     latitude: number;
     longitude: number;
@@ -85,22 +86,45 @@ export interface RideRequest {
   status: RideStatus;
   matchedDriverId: string | null;
   timestamp: string;
-  requesterId: string;
-  [key: string]: any; // Trystero compatibility
+  geohash: string;
 }
 
 export interface DriverOffer {
   id: string;
+  pubkey: string;
   currentLocation: {
     latitude: number;
     longitude: number;
   };
-  radiusKm: number;
   isAvailable: boolean;
   timestamp: string;
-  driverId: string;
-  [key: string]: any; // Trystero compatibility
+  geohash: string;
 }
+
+/** A discovered peer from Nostr discovery. */
+export interface GigPeer {
+  pubkey: string;
+  role: GigRole;
+  geohash: string;
+  rideType?: RideType;
+  destination?: { latitude: number; longitude: number };
+  startLocation?: { latitude: number; longitude: number };
+  timestamp: string;
+  /** WebRTC DataChannel to this peer, set after signaling completes. */
+  dataChannel?: RTCDataChannel;
+  /** The underlying RTCPeerConnection. */
+  peerConnection?: RTCPeerConnection;
+}
+
+/** Messages sent over WebRTC DataChannels between matched peers. */
+export type GigP2PMessage =
+  | { type: 'ride-request'; request: RideRequest }
+  | { type: 'accept'; rideRequestId: string; driverPubkey: string }
+  | { type: 'confirm'; rideRequestId: string; riderPubkey: string }
+  | { type: 'taken'; rideRequestId: string; riderPubkey: string }
+  | { type: 'reject'; rideRequestId: string; driverPubkey: string }
+  | { type: 'cancel-ride'; rideRequestId: string }
+  | { type: 'cancel-offer'; driverPubkey: string };
 
 // App Menu Categories
 export type AppMenuCategory = 'actionevent' | 'brainstorming' | 'crowdfunding' | 'petition';
