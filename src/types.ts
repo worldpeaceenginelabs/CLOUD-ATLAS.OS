@@ -89,18 +89,6 @@ export interface RideRequest {
   geohash: string;
 }
 
-export interface DriverOffer {
-  id: string;
-  pubkey: string;
-  currentLocation: {
-    latitude: number;
-    longitude: number;
-  };
-  isAvailable: boolean;
-  timestamp: string;
-  geohash: string;
-}
-
 /** A discovered peer from Nostr discovery. */
 export interface GigPeer {
   pubkey: string;

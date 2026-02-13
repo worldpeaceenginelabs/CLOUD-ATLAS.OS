@@ -33,6 +33,21 @@
   // The pubkey of the matched peer (driver or rider)
   let matchedPeerPubkey: string | null = null;
 
+  // ─── Error / Feedback State ─────────────────────────────────
+  let errorMessage: string | null = null;
+  let errorTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function showError(msg: string, durationMs = 5000) {
+    errorMessage = msg;
+    if (errorTimeout) clearTimeout(errorTimeout);
+    errorTimeout = setTimeout(() => { errorMessage = null; }, durationMs);
+  }
+
+  function clearError() {
+    errorMessage = null;
+    if (errorTimeout) clearTimeout(errorTimeout);
+  }
+
   // ─── Cesium Entities ─────────────────────────────────────────
   let rideEntities: any[] = [];
   let peerEntities: any[] = [];
@@ -43,20 +58,34 @@
   function createP2P(): GigP2P {
     return new GigP2P({
       onPeerDiscovered: (peer: GigPeer) => {
-        gigPeers.update(p => [...p, peer]);
+        // Deduplicate: only add if not already in the store (#10)
+        gigPeers.update(p => {
+          if (p.some(existing => existing.pubkey === peer.pubkey)) return p;
+          return [...p, peer];
+        });
         discoveredPeerCount = p2p?.peers.size ?? 0;
         addPeerToMap(peer);
         logger.info(`Peer discovered: ${peer.pubkey.slice(0, 8)} (${peer.role})`, { component: 'GigEconomy', operation: 'onPeerDiscovered' });
 
         // If I'm a rider and a driver was discovered, send my ride request immediately
         if (myRideRequest && $userGigRole === 'rider') {
-          p2p?.sendTo(peer.pubkey, { type: 'ride-request', request: myRideRequest });
+          const sent = p2p?.sendTo(peer.pubkey, { type: 'ride-request', request: myRideRequest });
+          if (sent === false) {
+            showError('Failed to send ride request. Retrying...');
+          }
         }
       },
       onMessage: handleP2PMessage,
       onRelayCountChange: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
+      },
+      onPeerExpired: (pubkey: string) => {
+        // Remove expired stale peer from store and map (#11)
+        removePeerFromMap(pubkey);
+        gigPeers.update(p => p.filter(peer => peer.pubkey !== pubkey));
+        discoveredPeerCount = p2p?.peers.size ?? 0;
+        logger.info(`Stale peer expired: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPeerExpired' });
       },
     });
   }
@@ -358,10 +387,12 @@
 
   function submitRideRequest() {
     if (!$userLiveLocation) {
+      showError('GPS location not available. Please enable location services and try again.');
       logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitRideRequest' });
       return;
     }
     if (!destinationLat || !destinationLon) {
+      showError('Please pick a destination on the map first.');
       logger.warn('No destination set', { component: 'GigEconomy', operation: 'submitRideRequest' });
       return;
     }
@@ -416,6 +447,7 @@
 
   function submitDriverOffer() {
     if (!$userLiveLocation) {
+      showError('GPS location not available. Please enable location services and try again.');
       logger.warn('No live GPS location available', { component: 'GigEconomy', operation: 'submitDriverOffer' });
       return;
     }
@@ -443,13 +475,17 @@
   // ─── Driver: Accept / Reject ─────────────────────────────────
   function acceptMatch() {
     if (!matchedRequest || !p2p) return;
-    awaitingConfirmation = true;
-    p2p.sendTo(matchedRequest.pubkey, {
+    const sent = p2p.sendTo(matchedRequest.pubkey, {
       type: 'accept',
       rideRequestId: matchedRequest.id,
       driverPubkey: p2p.pubkey,
     });
-    logger.info('Sent accept, awaiting rider confirmation', { component: 'GigEconomy', operation: 'acceptMatch' });
+    if (sent) {
+      awaitingConfirmation = true;
+      logger.info('Sent accept, awaiting rider confirmation', { component: 'GigEconomy', operation: 'acceptMatch' });
+    } else {
+      showError('Failed to send accept. Check your connection.');
+    }
   }
 
   function rejectMatch() {
@@ -607,10 +643,20 @@
       p2p = null;
     }
     unregisterBeforeUnload();
+    clearError();
   });
 </script>
 
 <div class="gig-economy" transition:fade={{ duration: 300 }}>
+
+  <!-- ═══════════════ ERROR BANNER ═══════════════════ -->
+  {#if errorMessage}
+    <div class="error-banner" transition:slide={{ duration: 200 }}>
+      <span class="error-icon">!</span>
+      <span class="error-text">{errorMessage}</span>
+      <button class="error-dismiss" on:click={clearError}>&times;</button>
+    </div>
+  {/if}
 
   <!-- ═══════════════════════ MENU VIEW ═══════════════════════ -->
   {#if currentView === 'menu'}
@@ -655,7 +701,7 @@
           {#if $userLiveLocation}
             {$userLiveLocation.latitude.toFixed(5)}, {$userLiveLocation.longitude.toFixed(5)}
           {:else}
-            <span class="location-hint">Waiting for GPS signal...</span>
+            <span class="location-hint">Waiting for GPS... Enable location services if this persists.</span>
           {/if}
         </p>
       </div>
@@ -720,7 +766,7 @@
           {#if $userLiveLocation}
             {$userLiveLocation.latitude.toFixed(5)}, {$userLiveLocation.longitude.toFixed(5)}
           {:else}
-            <span class="location-hint">Waiting for GPS signal...</span>
+            <span class="location-hint">Waiting for GPS... Enable location services if this persists.</span>
           {/if}
         </p>
       </div>
@@ -748,12 +794,14 @@
       <!-- ── Rider pending ── -->
       {#if myRideRequest && $userGigRole === 'rider'}
         <h3 class="gig-title">Waiting for Driver</h3>
-        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0}>
+        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0 && relayTotal > 0} class:failed={relayCount === 0 && relayTotal === 0}>
           <span class="relay-dot"></span>
           {#if relayCount > 0}
             {relayCount}/{relayTotal} relays
+          {:else if relayTotal > 0}
+            Connecting to relays...
           {:else}
-            Connecting...
+            No relays available
           {/if}
         </div>
         <div class="status-indicator">
@@ -782,12 +830,14 @@
       <!-- ── Driver pending ── -->
       {:else if $userGigRole === 'driver'}
         <h3 class="gig-title">Offering Rides</h3>
-        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0}>
+        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0 && relayTotal > 0} class:failed={relayCount === 0 && relayTotal === 0}>
           <span class="relay-dot"></span>
           {#if relayCount > 0}
             {relayCount}/{relayTotal} relays
+          {:else if relayTotal > 0}
+            Connecting to relays...
           {:else}
-            Connecting...
+            No relays available
           {/if}
         </div>
         <div class="status-indicator">
@@ -867,6 +917,52 @@
     color: white;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     max-width: 320px;
+  }
+
+  /* ── Error Banner ── */
+  .error-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 0.75rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: rgba(252, 165, 165, 1);
+  }
+
+  .error-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.3);
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .error-text {
+    flex: 1;
+    line-height: 1.3;
+  }
+
+  .error-dismiss {
+    background: none;
+    border: none;
+    color: rgba(252, 165, 165, 0.7);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+
+  .error-dismiss:hover {
+    color: rgba(252, 165, 165, 1);
   }
 
   .gig-title {
@@ -1115,6 +1211,13 @@
   .relay-status.connecting .relay-dot {
     background: rgba(255, 200, 100, 0.9);
     animation: relay-blink 1s ease-in-out infinite;
+  }
+  .relay-status.failed {
+    color: rgba(252, 165, 165, 0.85);
+    background: rgba(239, 68, 68, 0.08);
+  }
+  .relay-status.failed .relay-dot {
+    background: rgba(239, 68, 68, 0.9);
   }
   @keyframes relay-blink {
     0%, 100% { opacity: 1; }

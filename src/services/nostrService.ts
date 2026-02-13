@@ -14,10 +14,13 @@ import {
   finalizeEvent,
   generateSecretKey,
   getPublicKey,
+  verifyEvent,
   type EventTemplate,
   type Event as NostrEvent,
 } from 'nostr-tools/pure';
-import { encrypt, decrypt } from 'nostr-tools/nip04';
+import {
+  v2 as nip44,
+} from 'nostr-tools/nip44';
 import { logger } from '../utils/logger';
 import type { GigP2PMessage } from '../types';
 
@@ -48,6 +51,11 @@ const DEFAULT_RELAYS = [
   'wss://relay.verified-nostr.com',
   'wss://nostr.vulpem.com',
 ];
+
+/** Reconnection constants. */
+const RECONNECT_BASE_MS = 1000;    // initial backoff delay
+const RECONNECT_MAX_MS = 30000;    // max backoff cap
+const RECONNECT_MULTIPLIER = 2;    // exponential growth factor
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -82,6 +90,9 @@ export class NostrService {
   private presenceEventMsg: string | null = null; // cached signed ["EVENT", ...] for late-connecting relays
   private pendingPresenceFilter: { subId: string; filter: object } | null = null;
   private pendingMatchFilter: { subId: string; filter: object } | null = null;
+  private reconnectAttempts: Map<string, number> = new Map();       // relay url → attempt count
+  private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map(); // relay url → timer
+  private conversationKeys: Map<string, Uint8Array> = new Map();   // peer pubkey → NIP-44 conversation key
 
   constructor(relays?: string[]) {
     this.sk = generateSecretKey();
@@ -133,8 +144,10 @@ export class NostrService {
   }
 
   private connectRelay(url: string): void {
+    // Don't connect if service is closed
+    if (this.closed) return;
+
     const timeout = setTimeout(() => {
-      // If the WebSocket hasn't connected after 5s, give up on this relay
       logger.warn(`Timeout connecting to ${url}`, { component: 'NostrService', operation: 'connectRelay' });
     }, 5000);
 
@@ -144,6 +157,8 @@ export class NostrService {
         clearTimeout(timeout);
         if (this.closed) { ws.close(); return; }
         this.sockets.set(url, ws);
+        // Reset reconnect backoff on successful connection
+        this.reconnectAttempts.delete(url);
         logger.info(`Connected to relay ${url}`, { component: 'NostrService', operation: 'connectRelay' });
         this.notifyRelayCountChange();
 
@@ -164,6 +179,8 @@ export class NostrService {
         this.sockets.delete(url);
         this.subscriptionIds.delete(url);
         this.notifyRelayCountChange();
+        // Attempt to reconnect with exponential backoff
+        this.scheduleReconnect(url);
       };
       ws.onerror = () => {
         clearTimeout(timeout);
@@ -171,7 +188,35 @@ export class NostrService {
       ws.onmessage = (msg) => this.handleRelayMessage(url, msg);
     } catch (e) {
       clearTimeout(timeout);
+      // Schedule reconnect even on construction failure
+      this.scheduleReconnect(url);
     }
+  }
+
+  /**
+   * Schedule a reconnection attempt for a relay with exponential backoff.
+   * Backs off from 1s → 2s → 4s → 8s → ... → 30s (capped).
+   */
+  private scheduleReconnect(url: string): void {
+    if (this.closed) return;
+
+    const attempt = this.reconnectAttempts.get(url) ?? 0;
+    const delayMs = Math.min(RECONNECT_BASE_MS * Math.pow(RECONNECT_MULTIPLIER, attempt), RECONNECT_MAX_MS);
+    this.reconnectAttempts.set(url, attempt + 1);
+
+    // Clear any existing reconnect timer for this relay
+    const existingTimer = this.reconnectTimers.get(url);
+    if (existingTimer) clearTimeout(existingTimer);
+
+    const timer = setTimeout(() => {
+      this.reconnectTimers.delete(url);
+      if (!this.closed) {
+        logger.info(`Reconnecting to ${url} (attempt ${attempt + 1}, delay ${delayMs}ms)`, { component: 'NostrService', operation: 'scheduleReconnect' });
+        this.connectRelay(url);
+      }
+    }, delayMs);
+
+    this.reconnectTimers.set(url, timer);
   }
 
   /** Notify the relay count change callback. */
@@ -236,6 +281,12 @@ export class NostrService {
     // Ignore own events
     if (event.pubkey === this.pk) return;
 
+    // Verify event signature — reject forged events from malicious relays
+    if (!verifyEvent(event)) {
+      logger.warn(`Rejected event with invalid signature: ${event.id?.slice(0, 8)}`, { component: 'NostrService', operation: 'handleEvent' });
+      return;
+    }
+
     // Deduplicate: same event may arrive from multiple relays
     if (this.seenEventIds.has(event.id)) return;
     this.seenEventIds.add(event.id);
@@ -246,18 +297,23 @@ export class NostrService {
         // Ignore empty presence (deleted/replaced)
         if (!payload.role || !payload.geohash) return;
         this.onPresence(event.pubkey, payload, event.id);
-      } catch { /* malformed content */ }
+      } catch {
+        logger.warn('Malformed presence event content', { component: 'NostrService', operation: 'handleEvent' });
+      }
     }
 
     if (event.kind === MATCH_MSG_KIND && this.onMatchMessage) {
       try {
-        const plaintext = await decrypt(this.sk, event.pubkey, event.content);
+        const conversationKey = this.getConversationKey(event.pubkey);
+        const plaintext = nip44.decrypt(event.content, conversationKey);
         const envelope = JSON.parse(plaintext);
         // Only process messages tagged as gig match messages
         if (envelope.gig && envelope.message) {
           this.onMatchMessage(event.pubkey, envelope.message as GigP2PMessage);
         }
-      } catch { /* decrypt or parse failure */ }
+      } catch {
+        logger.warn(`Failed to decrypt match message from ${event.pubkey.slice(0, 8)}`, { component: 'NostrService', operation: 'handleEvent' });
+      }
     }
   }
 
@@ -336,22 +392,28 @@ export class NostrService {
     logger.info('Subscribed to match messages', { component: 'NostrService', operation: 'subscribeMatchMessages' });
   }
 
-  /** Send a match-protocol message (encrypted) to a specific peer. */
-  async sendMatchMessage(toPubkey: string, message: GigP2PMessage): Promise<void> {
-    const envelope = { gig: true, message };
-    const plaintext = JSON.stringify(envelope);
-    const ciphertext = await encrypt(this.sk, toPubkey, plaintext);
+  /** Send a match-protocol message (NIP-44 encrypted) to a specific peer. */
+  sendMatchMessage(toPubkey: string, message: GigP2PMessage): void {
+    try {
+      const envelope = { gig: true, message };
+      const plaintext = JSON.stringify(envelope);
+      const conversationKey = this.getConversationKey(toPubkey);
+      const ciphertext = nip44.encrypt(plaintext, conversationKey);
 
-    const template: EventTemplate = {
-      kind: MATCH_MSG_KIND,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [['p', toPubkey]],
-      content: ciphertext,
-    };
+      const template: EventTemplate = {
+        kind: MATCH_MSG_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', toPubkey]],
+        content: ciphertext,
+      };
 
-    const event = finalizeEvent(template, this.sk);
-    this.broadcast(event);
-    logger.info(`Match message sent to ${toPubkey.slice(0, 8)}: ${message.type}`, { component: 'NostrService', operation: 'sendMatchMessage' });
+      const event = finalizeEvent(template, this.sk);
+      this.broadcast(event);
+      logger.info(`Match message sent to ${toPubkey.slice(0, 8)}: ${message.type}`, { component: 'NostrService', operation: 'sendMatchMessage' });
+    } catch (e) {
+      logger.error(`Failed to send match message to ${toPubkey.slice(0, 8)}: ${e}`, { component: 'NostrService', operation: 'sendMatchMessage' });
+      throw e; // re-throw so callers can handle
+    }
   }
 
   // ─── Cleanup ────────────────────────────────────────────
@@ -437,14 +499,23 @@ export class NostrService {
     this.pendingMatchFilter = null;
   }
 
-  /** Disconnect from all relays. */
+  /** Disconnect from all relays and cancel all pending reconnections. */
   disconnect(): void {
     this.closed = true;
+
+    // Cancel all pending reconnection timers
+    for (const [, timer] of this.reconnectTimers) {
+      clearTimeout(timer);
+    }
+    this.reconnectTimers.clear();
+    this.reconnectAttempts.clear();
+
     this.closeSubscriptions();
     for (const [, ws] of this.sockets) {
       ws.close();
     }
     this.sockets.clear();
+    this.conversationKeys.clear();
     logger.info('Disconnected from all relays', { component: 'NostrService', operation: 'disconnect' });
   }
 
@@ -467,5 +538,18 @@ export class NostrService {
       if (ws.readyState === WebSocket.OPEN) count++;
     }
     return count;
+  }
+
+  /**
+   * Get or compute the NIP-44 conversation key for a peer.
+   * Caches the key to avoid recomputing on every message.
+   */
+  private getConversationKey(peerPubkey: string): Uint8Array {
+    let key = this.conversationKeys.get(peerPubkey);
+    if (!key) {
+      key = nip44.utils.getConversationKey(this.sk, peerPubkey);
+      this.conversationKeys.set(peerPubkey, key);
+    }
+    return key;
   }
 }
