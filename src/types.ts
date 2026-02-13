@@ -69,7 +69,7 @@ export interface LocalPinData {
 // Gig Economy Types
 export type RideType = 'person' | 'delivery';
 export type GigRole = 'rider' | 'driver';
-export type RideStatus = 'pending' | 'matched' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
+export type RideStatus = 'open' | 'taken' | 'cancelled';
 
 export interface RideRequest {
   id: string;
@@ -84,31 +84,14 @@ export interface RideRequest {
   };
   rideType: RideType;
   status: RideStatus;
-  matchedDriverId: string | null;
+  matchedDriverPubkey: string | null;
   timestamp: string;
   geohash: string;
 }
 
-/** A discovered peer from Nostr discovery. */
-export interface GigPeer {
-  pubkey: string;
-  role: GigRole;
-  geohash: string;
-  rideType?: RideType;
-  destination?: { latitude: number; longitude: number };
-  startLocation?: { latitude: number; longitude: number };
-  timestamp: string;
-}
-
-/** Messages sent over Nostr encrypted DMs between matched peers. */
-export type GigP2PMessage =
-  | { type: 'ride-request'; request: RideRequest }
-  | { type: 'accept'; rideRequestId: string; driverPubkey: string }
-  | { type: 'confirm'; rideRequestId: string; riderPubkey: string }
-  | { type: 'taken'; rideRequestId: string; riderPubkey: string }
-  | { type: 'reject'; rideRequestId: string; driverPubkey: string }
-  | { type: 'cancel-ride'; rideRequestId: string }
-  | { type: 'cancel-offer'; driverPubkey: string };
+/** Encrypted DM types used in the gig matching protocol. */
+export type MatchDM =
+  | { type: 'accept'; requestId: string; driverPubkey: string };
 
 // App Menu Categories
 export type AppMenuCategory = 'actionevent' | 'brainstorming' | 'crowdfunding' | 'petition';
