@@ -2,11 +2,11 @@
  * Nostr Service
  *
  * Handles relay connections, presence publishing/subscribing, and
- * WebRTC signaling over Nostr for the Gig Economy feature.
+ * encrypted match messaging over Nostr for the Gig Economy feature.
  *
  * Event Kinds used:
  *   30078  – Replaceable: Gig presence (discovery)
- *   4      – Encrypted DM: WebRTC signaling (offer/answer/ice)
+ *   20004  – Ephemeral: Encrypted match-protocol messages (ride-request, accept, confirm, etc.)
  *   5      – Deletion: remove own presence on cleanup
  */
 
@@ -19,6 +19,7 @@ import {
 } from 'nostr-tools/pure';
 import { encrypt, decrypt } from 'nostr-tools/nip04';
 import { logger } from '../utils/logger';
+import type { GigP2PMessage } from '../types';
 
 /** Convert Uint8Array to hex string. */
 function bytesToHex(bytes: Uint8Array): string {
@@ -30,8 +31,8 @@ function bytesToHex(bytes: Uint8Array): string {
 /** Replaceable event kind for gig presence (NIP-33 parametrized replaceable). */
 const PRESENCE_KIND = 30078;
 
-/** Encrypted DM kind used for WebRTC signaling. */
-const SIGNAL_KIND = 4;
+/** Ephemeral event kind for match messaging (20000+ = relays don't persist). */
+const MATCH_MSG_KIND = 20004;
 
 /** Event deletion kind. */
 const DELETE_KIND = 5;
@@ -58,13 +59,8 @@ export interface PresencePayload {
   destination?: { latitude: number; longitude: number };
 }
 
-export interface SignalPayload {
-  type: 'offer' | 'answer' | 'ice-candidate';
-  data: any;
-}
-
 export type OnPresenceCallback = (pubkey: string, payload: PresencePayload, eventId: string) => void;
-export type OnSignalCallback = (fromPubkey: string, signal: SignalPayload) => void;
+export type OnMatchMessageCallback = (fromPubkey: string, message: GigP2PMessage) => void;
 export type OnRelayCountChangeCallback = (connected: number, total: number) => void;
 
 // ─── Service Class ───────────────────────────────────────────
@@ -75,7 +71,7 @@ export class NostrService {
   private sockets: Map<string, WebSocket> = new Map();
   private subscriptionIds: Map<string, string[]> = new Map(); // relay → [subId]
   private onPresence: OnPresenceCallback | null = null;
-  private onSignal: OnSignalCallback | null = null;
+  private onMatchMessage: OnMatchMessageCallback | null = null;
   private presenceEventId: string | null = null;
   private relays: string[];
   private closed = false;
@@ -85,7 +81,7 @@ export class NostrService {
   private pendingPresence: PresencePayload | null = null;
   private presenceEventMsg: string | null = null; // cached signed ["EVENT", ...] for late-connecting relays
   private pendingPresenceFilter: { subId: string; filter: object } | null = null;
-  private pendingSignalFilter: { subId: string; filter: object } | null = null;
+  private pendingMatchFilter: { subId: string; filter: object } | null = null;
 
   constructor(relays?: string[]) {
     this.sk = generateSecretKey();
@@ -198,10 +194,10 @@ export class NostrService {
       this.subscriptionIds.set(url, existing);
     }
 
-    // Re-send signaling subscription if active
-    if (this.pendingSignalFilter) {
-      const subId = this.pendingSignalFilter.subId;
-      ws.send(JSON.stringify(['REQ', subId, this.pendingSignalFilter.filter]));
+    // Re-send match message subscription if active
+    if (this.pendingMatchFilter) {
+      const subId = this.pendingMatchFilter.subId;
+      ws.send(JSON.stringify(['REQ', subId, this.pendingMatchFilter.filter]));
       const existing = this.subscriptionIds.get(url) ?? [];
       existing.push(subId);
       this.subscriptionIds.set(url, existing);
@@ -247,15 +243,20 @@ export class NostrService {
     if (event.kind === PRESENCE_KIND && this.onPresence) {
       try {
         const payload: PresencePayload = JSON.parse(event.content);
+        // Ignore empty presence (deleted/replaced)
+        if (!payload.role || !payload.geohash) return;
         this.onPresence(event.pubkey, payload, event.id);
       } catch { /* malformed content */ }
     }
 
-    if (event.kind === SIGNAL_KIND && this.onSignal) {
+    if (event.kind === MATCH_MSG_KIND && this.onMatchMessage) {
       try {
         const plaintext = await decrypt(this.sk, event.pubkey, event.content);
-        const signal: SignalPayload = JSON.parse(plaintext);
-        this.onSignal(event.pubkey, signal);
+        const envelope = JSON.parse(plaintext);
+        // Only process messages tagged as gig match messages
+        if (envelope.gig && envelope.message) {
+          this.onMatchMessage(event.pubkey, envelope.message as GigP2PMessage);
+        }
       } catch { /* decrypt or parse failure */ }
     }
   }
@@ -291,6 +292,7 @@ export class NostrService {
       kinds: [PRESENCE_KIND],
       '#g': [geohash],
       '#r': [oppositeRole],
+      since: Math.floor(Date.now() / 1000) - 300, // only events from last 5 minutes
     };
 
     // Store for late-connecting relays
@@ -307,21 +309,21 @@ export class NostrService {
     logger.info(`Subscribed to presence: geohash=${geohash}, role=${oppositeRole}`, { component: 'NostrService', operation: 'subscribePresence' });
   }
 
-  // ─── Signaling (WebRTC over Nostr) ──────────────────────
+  // ─── Match Messaging (Encrypted DMs) ──────────────────────
 
-  /** Subscribe to incoming signaling messages addressed to us. */
-  subscribeSignaling(callback: OnSignalCallback): void {
-    this.onSignal = callback;
-    const subId = `gig-sig-${Date.now()}`;
+  /** Subscribe to incoming match messages addressed to us. */
+  subscribeMatchMessages(callback: OnMatchMessageCallback): void {
+    this.onMatchMessage = callback;
+    const subId = `gig-match-${Date.now()}`;
 
     const filter = {
-      kinds: [SIGNAL_KIND],
+      kinds: [MATCH_MSG_KIND],
       '#p': [this.pk],
       since: Math.floor(Date.now() / 1000) - 60, // only recent
     };
 
     // Store for late-connecting relays
-    this.pendingSignalFilter = { subId, filter };
+    this.pendingMatchFilter = { subId, filter };
 
     for (const [url, ws] of this.sockets) {
       if (ws.readyState === WebSocket.OPEN) {
@@ -331,16 +333,17 @@ export class NostrService {
         this.subscriptionIds.set(url, existing);
       }
     }
-    logger.info('Subscribed to signaling', { component: 'NostrService', operation: 'subscribeSignaling' });
+    logger.info('Subscribed to match messages', { component: 'NostrService', operation: 'subscribeMatchMessages' });
   }
 
-  /** Send a signaling message (offer/answer/ice) encrypted to a specific peer. */
-  async sendSignal(toPubkey: string, signal: SignalPayload): Promise<void> {
-    const plaintext = JSON.stringify(signal);
+  /** Send a match-protocol message (encrypted) to a specific peer. */
+  async sendMatchMessage(toPubkey: string, message: GigP2PMessage): Promise<void> {
+    const envelope = { gig: true, message };
+    const plaintext = JSON.stringify(envelope);
     const ciphertext = await encrypt(this.sk, toPubkey, plaintext);
 
     const template: EventTemplate = {
-      kind: SIGNAL_KIND,
+      kind: MATCH_MSG_KIND,
       created_at: Math.floor(Date.now() / 1000),
       tags: [['p', toPubkey]],
       content: ciphertext,
@@ -348,6 +351,7 @@ export class NostrService {
 
     const event = finalizeEvent(template, this.sk);
     this.broadcast(event);
+    logger.info(`Match message sent to ${toPubkey.slice(0, 8)}: ${message.type}`, { component: 'NostrService', operation: 'sendMatchMessage' });
   }
 
   // ─── Cleanup ────────────────────────────────────────────
@@ -428,9 +432,9 @@ export class NostrService {
       this.subscriptionIds.set(url, []);
     }
     this.onPresence = null;
-    this.onSignal = null;
+    this.onMatchMessage = null;
     this.pendingPresenceFilter = null;
-    this.pendingSignalFilter = null;
+    this.pendingMatchFilter = null;
   }
 
   /** Disconnect from all relays. */

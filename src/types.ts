@@ -110,13 +110,9 @@ export interface GigPeer {
   destination?: { latitude: number; longitude: number };
   startLocation?: { latitude: number; longitude: number };
   timestamp: string;
-  /** WebRTC DataChannel to this peer, set after signaling completes. */
-  dataChannel?: RTCDataChannel;
-  /** The underlying RTCPeerConnection. */
-  peerConnection?: RTCPeerConnection;
 }
 
-/** Messages sent over WebRTC DataChannels between matched peers. */
+/** Messages sent over Nostr encrypted DMs between matched peers. */
 export type GigP2PMessage =
   | { type: 'ride-request'; request: RideRequest }
   | { type: 'accept'; rideRequestId: string; driverPubkey: string }

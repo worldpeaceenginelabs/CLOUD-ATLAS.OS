@@ -24,7 +24,7 @@
   let myRideRequest: RideRequest | null = null;
   let matchedRequest: RideRequest | null = null;
   let awaitingConfirmation = false;
-  let connectedPeerCount = 0;
+  let discoveredPeerCount = 0;
   let relayCount = 0;
   let relayTotal = 0;
 
@@ -44,30 +44,14 @@
     return new GigP2P({
       onPeerDiscovered: (peer: GigPeer) => {
         gigPeers.update(p => [...p, peer]);
+        discoveredPeerCount = p2p?.peers.size ?? 0;
         addPeerToMap(peer);
         logger.info(`Peer discovered: ${peer.pubkey.slice(0, 8)} (${peer.role})`, { component: 'GigEconomy', operation: 'onPeerDiscovered' });
-      },
-      onPeerConnected: (pubkey: string) => {
-        connectedPeerCount = p2p?.getConnectedPeerPubkeys().length ?? 0;
-        logger.info(`Peer connected: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPeerConnected' });
 
-        // If I'm a rider and a driver just connected, send my ride request
+        // If I'm a rider and a driver was discovered, send my ride request immediately
         if (myRideRequest && $userGigRole === 'rider') {
-          p2p?.sendTo(pubkey, { type: 'ride-request', request: myRideRequest });
+          p2p?.sendTo(peer.pubkey, { type: 'ride-request', request: myRideRequest });
         }
-      },
-      onPeerDisconnected: (pubkey: string) => {
-        connectedPeerCount = p2p?.getConnectedPeerPubkeys().length ?? 0;
-        gigPeers.update(p => p.filter(peer => peer.pubkey !== pubkey));
-        removePeerFromMap(pubkey);
-
-        // If the matched request's rider disconnected, clear it
-        if (matchedRequest && matchedRequest.pubkey === pubkey) {
-          matchedRequest = null;
-          awaitingConfirmation = false;
-        }
-
-        logger.info(`Peer disconnected: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPeerDisconnected' });
       },
       onMessage: handleP2PMessage,
       onRelayCountChange: (connected: number, total: number) => {
@@ -545,7 +529,7 @@
     awaitingConfirmation = false;
     rideConfirmedDriverPubkey = null;
     matchedPeerPubkey = null;
-    connectedPeerCount = 0;
+    discoveredPeerCount = 0;
     relayCount = 0;
     relayTotal = 0;
 
@@ -570,7 +554,7 @@
       await p2p.stop();
       p2p = null;
     }
-    connectedPeerCount = 0;
+    discoveredPeerCount = 0;
     relayCount = 0;
     relayTotal = 0;
     gigPeers.set([]);
@@ -775,8 +759,8 @@
         <div class="status-indicator">
           <div class="pulse-dot"></div>
           <span>
-            {#if connectedPeerCount > 0}
-              Connected to {connectedPeerCount} driver{connectedPeerCount !== 1 ? 's' : ''}...
+            {#if discoveredPeerCount > 0}
+              Found {discoveredPeerCount} driver{discoveredPeerCount !== 1 ? 's' : ''} nearby...
             {:else}
               Searching for nearby drivers...
             {/if}
@@ -809,8 +793,8 @@
         <div class="status-indicator">
           <div class="pulse-dot driver"></div>
           <span>
-            {#if connectedPeerCount > 0}
-              Connected to {connectedPeerCount} rider{connectedPeerCount !== 1 ? 's' : ''}...
+            {#if discoveredPeerCount > 0}
+              Found {discoveredPeerCount} rider{discoveredPeerCount !== 1 ? 's' : ''} nearby...
             {:else}
               Listening for riders in your cell...
             {/if}
