@@ -65,6 +65,7 @@ export interface PresencePayload {
   rideType?: 'person' | 'delivery';
   startLocation?: { latitude: number; longitude: number };
   destination?: { latitude: number; longitude: number };
+  status?: 'taken';
 }
 
 export type OnPresenceCallback = (pubkey: string, payload: PresencePayload, eventId: string) => void;

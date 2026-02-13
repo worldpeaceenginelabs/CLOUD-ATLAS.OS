@@ -87,11 +87,45 @@
         discoveredPeerCount = p2p?.peers.size ?? 0;
         logger.info(`Stale peer expired: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPeerExpired' });
       },
+      onPresenceTaken: (pubkey: string) => {
+        // Already in matched view — ignore (we're the winning driver)
+        if (currentView === 'matched') return;
+
+        // We accepted this rider and are mid-handshake — the DM (confirm or taken)
+        // is the authority, not the presence event. Don't touch anything.
+        if (awaitingConfirmation && matchedRequest?.pubkey === pubkey) return;
+
+        const wasShowingThisRider = matchedRequest?.pubkey === pubkey;
+
+        if (wasShowingThisRider) {
+          matchedRequest = null;
+        }
+
+        // Remove this rider from stores and map
+        rideRequests.update(r => r.filter(req => req.pubkey !== pubkey));
+        removePeerFromMap(pubkey);
+        gigPeers.update(p => p.filter(peer => peer.pubkey !== pubkey));
+        discoveredPeerCount = p2p?.peers.size ?? 0;
+
+        // Promote next pending request if we just cleared the card
+        if (wasShowingThisRider) {
+          const others = $rideRequests.filter(r => r.status === 'pending');
+          if (others.length > 0) {
+            matchedRequest = others[0];
+          }
+        }
+
+        logger.info(`Rider taken: ${pubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'onPresenceTaken' });
+      },
     });
   }
 
   // ─── P2P Message Handler ───────────────────────────────────
   function handleP2PMessage(fromPubkey: string, message: GigP2PMessage) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/1dafa5f7-9312-4aaa-b774-9d73b5bd2fee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GigEconomy.svelte:handleP2PMessage',message:'P2P message received',data:{role:$userGigRole,myPubkey:p2p?.pubkey?.slice(0,8),fromPubkey:fromPubkey.slice(0,8),messageType:message.type,hasMatchedRequest:!!matchedRequest,awaitingConfirmation,currentView},timestamp:Date.now(),hypothesisId:'H-A,H-D'})}).catch(()=>{});
+    // #endregion
+
     switch (message.type) {
       case 'ride-request':
         handleIncomingRideRequest(fromPubkey, message.request);
@@ -121,6 +155,10 @@
   function handleIncomingRideRequest(fromPubkey: string, request: RideRequest) {
     if ($userGigRole !== 'driver') return;
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/1dafa5f7-9312-4aaa-b774-9d73b5bd2fee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GigEconomy.svelte:handleIncomingRideRequest',message:'Driver received ride-request from rider',data:{driverPubkey:p2p?.pubkey?.slice(0,8),riderPubkey:fromPubkey.slice(0,8),requestId:request.id,hasExistingMatch:!!matchedRequest,awaitingConfirmation},timestamp:Date.now(),hypothesisId:'H-D'})}).catch(()=>{});
+    // #endregion
+
     rideRequests.update(r => {
       if (r.some(existing => existing.id === request.id)) return r;
       return [...r, request];
@@ -146,11 +184,18 @@
       myRideRequest.matchedDriverId = fromPubkey;
       myRideRequest = myRideRequest; // trigger reactivity
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/1dafa5f7-9312-4aaa-b774-9d73b5bd2fee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GigEconomy.svelte:handleIncomingAccept',message:'Rider confirming first driver - checking discoveredPeers before finalizeMatch',data:{confirmedDriver:fromPubkey.slice(0,8),allPeers:Array.from(p2p?.peers?.keys() ?? []).map((k:string)=>k.slice(0,8)),peerCount:p2p?.peers?.size ?? 0,rideRequestId:myRideRequest.id},timestamp:Date.now(),hypothesisId:'H-A,H-B'})}).catch(()=>{});
+      // #endregion
+
       p2p?.sendTo(fromPubkey, {
         type: 'confirm',
         rideRequestId: myRideRequest.id,
         riderPubkey: p2p.pubkey,
       });
+
+      // Broadcast to all drivers in the cell that this ride is taken
+      p2p?.publishTaken();
 
       // Finalize: keep only the matched connection
       p2p?.finalizeMatch(fromPubkey);

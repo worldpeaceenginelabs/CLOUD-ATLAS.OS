@@ -37,6 +37,8 @@ export interface GigP2PCallbacks {
   onRelayCountChange: (connected: number, total: number) => void;
   /** A peer was removed because it became stale (optional). */
   onPeerExpired?: (pubkey: string) => void;
+  /** A peer published presence with status 'taken' (ride no longer available). */
+  onPresenceTaken?: (pubkey: string) => void;
 }
 
 // ─── Orchestrator ────────────────────────────────────────────
@@ -49,6 +51,7 @@ export class GigP2P {
   private discoveredPeers: Map<string, GigPeer> = new Map();
   private running = false;
   private staleSweepTimer: ReturnType<typeof setInterval> | null = null;
+  private presencePayload: PresencePayload | null = null;
 
   constructor(callbacks: GigP2PCallbacks) {
     this.nostr = new NostrService();
@@ -82,6 +85,7 @@ export class GigP2P {
     this.running = true;
     this.myRole = role;
     this.myGeohash = geohash;
+    this.presencePayload = payload;
 
     // 1. Wire up relay count change callback
     this.nostr.setOnRelayCountChange((connected, total) => {
@@ -157,6 +161,16 @@ export class GigP2P {
     }
   }
 
+  /**
+   * Re-publish presence with status 'taken' so all peers in the cell
+   * know this ride is no longer available. One event to all relays.
+   */
+  publishTaken(): void {
+    if (!this.presencePayload) return;
+    this.nostr.publishPresence({ ...this.presencePayload, status: 'taken' });
+    logger.info('Published taken presence', { component: 'GigP2P', operation: 'publishTaken' });
+  }
+
   // ─── Match Finalization ─────────────────────────────────
 
   /**
@@ -164,6 +178,10 @@ export class GigP2P {
    * cleans up presence so no new peers discover us.
    */
   async finalizeMatch(matchedPubkey: string): Promise<void> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/1dafa5f7-9312-4aaa-b774-9d73b5bd2fee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gigP2P.ts:finalizeMatch',message:'finalizeMatch called - peers BEFORE clear',data:{matchedPubkey:matchedPubkey.slice(0,8),allPeersBeforeClear:Array.from(this.discoveredPeers.keys()).map(k=>k.slice(0,8)),peerCount:this.discoveredPeers.size},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
+    // #endregion
+
     // 1. Delete presence from relays (waits for OK or 3s timeout)
     await this.nostr.deletePresence();
     // 2. Grace period for delete propagation
@@ -242,6 +260,16 @@ export class GigP2P {
   // ─── Discovery Handler ─────────────────────────────────
 
   private handlePeerDiscovered(pubkey: string, payload: PresencePayload): void {
+    // Peer marked their ride as taken — remove them and notify component
+    if (payload.status === 'taken') {
+      if (this.discoveredPeers.has(pubkey)) {
+        this.discoveredPeers.delete(pubkey);
+        this.callbacks.onPresenceTaken?.(pubkey);
+        logger.info(`Peer taken: ${pubkey.slice(0, 8)}`, { component: 'GigP2P', operation: 'handlePeerDiscovered' });
+      }
+      return;
+    }
+
     // Skip if already known
     if (this.discoveredPeers.has(pubkey)) return;
 
