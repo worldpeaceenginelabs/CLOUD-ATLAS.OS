@@ -1,5 +1,5 @@
 import { writable, derived, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, PinData, RideRequest } from './types';
+import type { Coordinates, ModelData, PinData } from './types';
 
 export type { Coordinates, ModelData, PinData };
 
@@ -91,7 +91,6 @@ export const temporaryModelId: Writable<string | null> = writable(null);
 export const userLiveLocation: Writable<{ latitude: number; longitude: number } | null> = writable(null);
 
 // Gig Economy Stores
-export const rideRequests: Writable<RideRequest[]> = writable([]);
 export const userGigRole: Writable<'rider' | 'driver' | null> = writable(null);
 export const isGigPickingDestination: Writable<boolean> = writable(false);
 export const currentGeohash: Writable<string> = writable('');
@@ -153,7 +152,6 @@ export function resetAllStores() {
   userLiveLocation.set(null);
   
   // Gig Economy state
-  rideRequests.set([]);
   userGigRole.set(null);
   isGigPickingDestination.set(false);
   currentGeohash.set('');

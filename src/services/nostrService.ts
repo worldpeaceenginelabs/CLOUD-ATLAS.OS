@@ -31,7 +31,7 @@ export type { NostrEvent };
 
 // ─── Constants ───────────────────────────────────────────────
 
-const REPLACEABLE_KIND = 30078;
+export const REPLACEABLE_KIND = 30078;
 const DM_KIND = 20004;
 const DELETE_KIND = 5;
 
@@ -323,23 +323,6 @@ export class NostrService {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(['REQ', id, filter]));
       }
-    }
-  }
-
-  /** Close a specific subscription. */
-  unsubscribe(id: string): void {
-    this.subscriptions.delete(id);
-    for (const ws of this.sockets.values()) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(['CLOSE', id]));
-      }
-    }
-  }
-
-  /** Close all subscriptions. */
-  unsubscribeAll(): void {
-    for (const id of [...this.subscriptions.keys()]) {
-      this.unsubscribe(id);
     }
   }
 

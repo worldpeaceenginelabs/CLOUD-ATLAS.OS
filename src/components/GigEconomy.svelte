@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
-  import { coordinates, viewer, rideRequests, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash } from '../store';
+  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash } from '../store';
   import type { RideRequest, RideType } from '../types';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
@@ -24,7 +24,7 @@
   let myRideRequest: RideRequest | null = null;
   let matchedRequest: RideRequest | null = null;
   let awaitingConfirmation = false;
-  let discoveredPeerCount = 0;
+  let nearbyCount = 0;
   let relayCount = 0;
   let relayTotal = 0;
   let confirmedDriverPubkey: string | null = null;
@@ -59,6 +59,9 @@
       onRideRequest: handleRideRequest,
       onRideRequestGone: handleRideRequestGone,
       onDriverAccepted: handleDriverAccepted,
+      onDriverCount: (count: number) => {
+        nearbyCount = count;
+      },
     });
   }
 
@@ -67,9 +70,8 @@
   /** Driver: a new open ride request appeared in the cell. */
   function handleRideRequest(request: RideRequest) {
     requestQueue = [...requestQueue, request];
-    rideRequests.update(r => [...r, request]);
     addRideRequestToMap(request);
-    discoveredPeerCount = requestQueue.length;
+    nearbyCount = requestQueue.length;
 
     // Show as match card if we don't already have one
     if (!matchedRequest && !awaitingConfirmation) {
@@ -95,9 +97,8 @@
     }
 
     requestQueue = requestQueue.filter(r => r.id !== requestId);
-    rideRequests.update(r => r.filter(req => req.id !== requestId));
     removeRideEntitiesFromMap(requestId);
-    discoveredPeerCount = requestQueue.length;
+    nearbyCount = requestQueue.length;
 
     // Promote next request if we just cleared the card
     if (wasShowing && requestQueue.length > 0) {
@@ -274,7 +275,6 @@
     service.startAsRider(geohash, request);
     myRideRequest = request;
     confirmedDriverPubkey = null;
-    rideRequests.update(r => [...r, request]);
     userGigRole.set('rider');
     addRideRequestToMap(request);
     currentView = 'pending';
@@ -322,7 +322,7 @@
     awaitingConfirmation = false;
 
     requestQueue = requestQueue.filter(r => r.id !== rejectedId);
-    discoveredPeerCount = requestQueue.length;
+    nearbyCount = requestQueue.length;
 
     // Promote next request
     if (requestQueue.length > 0) {
@@ -339,7 +339,6 @@
     service.cancelRequest(myRideRequest);
 
     removeRideEntitiesFromMap(myRideRequest.id);
-    rideRequests.update(r => r.filter(req => req.id !== myRideRequest!.id));
     myRideRequest = null;
     confirmedDriverPubkey = null;
 
@@ -354,7 +353,7 @@
     matchedRequest = null;
     awaitingConfirmation = false;
     requestQueue = [];
-    discoveredPeerCount = 0;
+    nearbyCount = 0;
 
     await stopService();
     userGigRole.set(null);
@@ -383,13 +382,12 @@
     matchedRequest = null;
     awaitingConfirmation = false;
     confirmedDriverPubkey = null;
-    discoveredPeerCount = 0;
+    nearbyCount = 0;
     relayCount = 0;
     relayTotal = 0;
     requestQueue = [];
 
     await stopService();
-    rideRequests.set([]);
     currentGeohash.set('');
     userGigRole.set(null);
     currentView = 'menu';
@@ -618,8 +616,8 @@
         <div class="status-indicator">
           <div class="pulse-dot"></div>
           <span>
-            {#if discoveredPeerCount > 0}
-              Found {discoveredPeerCount} driver{discoveredPeerCount !== 1 ? 's' : ''} nearby...
+            {#if nearbyCount > 0}
+              Found {nearbyCount} driver{nearbyCount !== 1 ? 's' : ''} nearby...
             {:else}
               Searching for nearby drivers...
             {/if}
@@ -654,8 +652,8 @@
         <div class="status-indicator">
           <div class="pulse-dot driver"></div>
           <span>
-            {#if discoveredPeerCount > 0}
-              Found {discoveredPeerCount} rider{discoveredPeerCount !== 1 ? 's' : ''} nearby...
+            {#if nearbyCount > 0}
+              Found {nearbyCount} rider{nearbyCount !== 1 ? 's' : ''} nearby...
             {:else}
               Listening for riders in your cell...
             {/if}

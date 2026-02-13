@@ -16,13 +16,9 @@
  *   Encrypted DMs:  accept (driver → rider) — the only DM in the protocol
  */
 
-import { NostrService, type NostrEvent } from './nostrService';
+import { NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
 import type { RideRequest } from '../types';
-
-// ─── Constants ───────────────────────────────────────────────
-
-const REPLACEABLE_KIND = 30078;
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -35,6 +31,8 @@ export interface GigCallbacks {
   onRideRequestGone: (requestId: string, matchedDriverPubkey: string | null) => void;
   /** Rider: a driver sent an accept for our request. */
   onDriverAccepted: (driverPubkey: string, requestId: string) => void;
+  /** Rider: number of available drivers in the cell changed. */
+  onDriverCount?: (count: number) => void;
 }
 
 /** The only DM type in the protocol. */
@@ -50,6 +48,7 @@ export class GigService {
   private nostr: NostrService;
   private callbacks: GigCallbacks;
   private knownRequests = new Set<string>();            // requestIds we've delivered to the component
+  private knownDrivers = new Set<string>();             // driver pubkeys seen in the cell (for rider count)
   private myRequestId: string | null = null;            // rider's own request ID (to filter DMs)
   private eventIds = new Map<string, string>();          // dTag → eventId (for deletion)
 
@@ -89,6 +88,14 @@ export class GigService {
         this.callbacks.onDriverAccepted(fromPubkey, dm.requestId);
       }
     });
+
+    // Subscribe to driver availability events to show count
+    this.nostr.subscribe('driver-avail', {
+      kinds: [REPLACEABLE_KIND],
+      '#g': [geohash],
+      '#t': ['driver-avail'],
+      since: Math.floor(Date.now() / 1000) - 300,
+    }, (event: NostrEvent) => this.handleDriverAvailEvent(event));
 
     // Connect to relays in the background
     this.nostr.connectInBackground();
@@ -216,6 +223,25 @@ export class GigService {
     }
   }
 
+  /**
+   * Handle a driver availability event.
+   * Tracks driver pubkeys and fires onDriverCount when the count changes.
+   */
+  private handleDriverAvailEvent(event: NostrEvent): void {
+    if (!event.content) {
+      // Empty content = driver went offline — remove them
+      if (this.knownDrivers.delete(event.pubkey)) {
+        this.callbacks.onDriverCount?.(this.knownDrivers.size);
+      }
+      return;
+    }
+
+    if (!this.knownDrivers.has(event.pubkey)) {
+      this.knownDrivers.add(event.pubkey);
+      this.callbacks.onDriverCount?.(this.knownDrivers.size);
+    }
+  }
+
   // ─── Cleanup ───────────────────────────────────────────────
 
   /** Stop the service. Deletes published events and disconnects. */
@@ -225,6 +251,7 @@ export class GigService {
     }
     this.eventIds.clear();
     this.knownRequests.clear();
+    this.knownDrivers.clear();
     this.myRequestId = null;
     this.nostr.disconnect();
 

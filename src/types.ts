@@ -68,8 +68,6 @@ export interface LocalPinData {
 
 // Gig Economy Types
 export type RideType = 'person' | 'delivery';
-export type GigRole = 'rider' | 'driver';
-export type RideStatus = 'open' | 'taken' | 'cancelled';
 
 export interface RideRequest {
   id: string;
@@ -83,15 +81,11 @@ export interface RideRequest {
     longitude: number;
   };
   rideType: RideType;
-  status: RideStatus;
+  status: 'open' | 'taken' | 'cancelled';
   matchedDriverPubkey: string | null;
   timestamp: string;
   geohash: string;
 }
-
-/** Encrypted DM types used in the gig matching protocol. */
-export type MatchDM =
-  | { type: 'accept'; requestId: string; driverPubkey: string };
 
 // App Menu Categories
 export type AppMenuCategory = 'actionevent' | 'brainstorming' | 'crowdfunding' | 'petition';
