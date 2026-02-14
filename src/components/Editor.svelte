@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import ModelSettings from './ModelSettings.svelte';
-  import { roamingAreaBounds, coordinates, editingModelId, isEditorOpen } from '../store';
+  import { roamingAreaBounds, coordinates, isEditorOpen } from '../store';
+  import { modelEditorService } from '../utils/modelEditorService';
   
   // Props
   export let isEditMode = false;
@@ -10,74 +11,43 @@
   // Component state
   export let selectedEditor: 'caos-editor' | 'playcanvas' = 'caos-editor';
   
-  // Dropdown state for ModelSettings - controlled by Editor visibility
+  // Dropdown state for ModelSettings
   let showDropdown = false;
   
-  // ModelSettings props
-  export let selectedSource = 'url';
-  export let gltfFile: File | null = null;
-  export let gltfUrl = '';
-  export let modelName = '';
-  export let modelDescription = '';
-  export let scale = 1.0;
-  export let height = 0;
-  export let heightOffset = 0.0;
-  export let heading = 0;
-  export let pitch = 0;
-  export let roll = 0;
-  export let isRoamingEnabled = false;
-  export let roamingSpeed = 1.0;
-  export let roamingArea: {
+  // Local form state (bound to ModelSettings via bind:)
+  let selectedSource = 'url';
+  let gltfFile: File | null = null;
+  let gltfUrl = '';
+  let modelName = '';
+  let modelDescription = '';
+  let scale = 1.0;
+  let height = 0;
+  let heightOffset = 0.0;
+  let heading = 0;
+  let pitch = 0;
+  let roll = 0;
+  let isRoamingEnabled = false;
+  let roamingSpeed = 1.0;
+  let roamingArea: {
     north: number;
     south: number;
     east: number;
     west: number;
   } | null = null;
 
-  // Reactive statement to sync roamingArea with store
+  // Sync roamingArea with store
   $: if ($roamingAreaBounds) {
     roamingArea = $roamingAreaBounds;
   }
 
   // Track if form has been initially populated to prevent overwriting user changes
   let hasBeenInitiallyPopulated = false;
-  
-  // Reset populated flag when component mounts
-  $: if (typeof window !== 'undefined') {
-    hasBeenInitiallyPopulated = false;
-  }
-  
+
   // Populate form fields when modelData is provided (edit mode) - only once
   $: if (modelData && isEditMode && !hasBeenInitiallyPopulated) {
-    console.log('🎯 [EDITOR] Populating form with model data (EDIT MODE):', {
-      modelId: modelData.id,
-      modelName: modelData.name,
-      isEditMode,
-      hasBeenInitiallyPopulated,
-      coordinates: modelData.coordinates
-    });
-    
-    // Set coordinates in store for edit mode
-    coordinates.set({
-      latitude: modelData.coordinates.latitude.toString(),
-      longitude: modelData.coordinates.longitude.toString(),
-      height: modelData.transform.height
-    });
-    
-    console.log('🎯 [EDITOR] Coordinates set in store:', {
-      latitude: modelData.coordinates.latitude,
-      longitude: modelData.coordinates.longitude,
-      height: modelData.transform.height
-    });
-    
-    // Set the editing model ID directly in the store
-    editingModelId.set(modelData.id);
-    console.log('🎯 [EDITOR] editingModelId set to:', modelData.id);
-    
-    // Dispatch event to notify App.svelte about edit mode
-    dispatch('editorOpened', { editMode: true, modelData });
-    
-    // Populate basic fields
+    modelEditorService.handleEditorOpened(true, modelData);
+
+    // Populate local form fields for ModelSettings binding
     modelName = modelData.name || '';
     modelDescription = modelData.description || '';
     scale = modelData.transform?.scale || 1.0;
@@ -86,8 +56,7 @@
     heading = modelData.transform?.heading || 0;
     pitch = modelData.transform?.pitch || 0;
     roll = modelData.transform?.roll || 0;
-    
-    // Populate source and file/URL
+
     if (modelData.source === 'file' && modelData.file) {
       selectedSource = 'file';
       gltfFile = modelData.file instanceof File ? modelData.file : null;
@@ -97,98 +66,60 @@
       gltfUrl = modelData.url || '';
       gltfFile = null;
     }
-    
-    // Populate roaming data
+
     isRoamingEnabled = modelData.roaming?.isEnabled || false;
     roamingSpeed = modelData.roaming?.speed || 1.0;
     roamingArea = modelData.roaming?.area || null;
-    
-    console.log('🎯 [EDITOR] Form populated (EDIT MODE):', {
-      modelName,
-      selectedSource,
-      isRoamingEnabled,
-      roamingSpeed,
-      roamingArea
-    });
-    
-    // Mark as initially populated
+
     hasBeenInitiallyPopulated = true;
-  } else if (modelData && !isEditMode) {
-    console.log('🎯 [EDITOR] Model data provided but NOT in edit mode - ignoring form population:', {
-      modelId: modelData.id,
-      modelName: modelData.name,
-      isEditMode,
-      hasBeenInitiallyPopulated
-    });
   }
 
-  // Dispatch event when Editor opens in add mode
+  // Handle add mode initialization
   $: if (!isEditMode && !modelData) {
-    dispatch('editorOpened', { editMode: false, modelData: null });
-    // Reset the populated flag for add mode
+    modelEditorService.handleEditorOpened(false, null);
     hasBeenInitiallyPopulated = false;
   }
   
-  
-  // Event dispatcher
-  const dispatch = createEventDispatcher();
-  
   function switchEditor(editor: 'caos-editor' | 'playcanvas') {
     if (editor === 'playcanvas') {
-      // Open PlayCanvas in a custom frameless, resizable window
       const playcanvasWindow = window.open(
         'https://playcanvas.com/editor',
         'playcanvas-editor',
         'width=1200,height=800,resizable=yes,scrollbars=yes,status=yes,toolbar=no,menubar=no,location=no,personalbar=no'
       );
-      
-      // Focus the new window
       if (playcanvasWindow) {
         playcanvasWindow.focus();
       }
-      
-      // Don't change the selected editor in the UI since we're opening external window
       return;
     }
     
-    // Only change selectedEditor if it's actually different to avoid unnecessary state changes
     if (selectedEditor !== editor) {
       selectedEditor = editor;
-      dispatch('editorSwitch', editor);
     }
   }
   
   function handleSave() {
-    dispatch('save');
+    modelEditorService.handleSubmit();
   }
   
   function handleCancel() {
-    dispatch('cancel');
+    modelEditorService.handleCancel();
   }
   
   function handleClose() {
-    dispatch('close');
+    modelEditorService.handleCancel();
   }
   
   function handleToggleDropdown() {
-    // Only allow toggling if Editor is open
     if ($isEditorOpen) {
       showDropdown = !showDropdown;
     }
   }
   
-  // Emit form data changes for preview
-  function emitFormDataChange() {
-    console.log('🎯 [EDITOR] Emitting form data change for automatic preview update:', {
-      selectedSource,
-      hasFile: !!gltfFile,
-      hasUrl: !!gltfUrl,
-      modelName,
-      isRoamingEnabled
-    });
-    
-    const formData = {
-      selectedSource,
+  // Notify the service when form data changes (for preview model)
+  function syncFormDataToService() {
+    modelEditorService.handleFormDataChange({
+      selectedSource: selectedSource as 'url' | 'file',
       gltfFile,
       gltfUrl,
       modelName,
@@ -202,46 +133,30 @@
       isRoamingEnabled,
       roamingSpeed,
       roamingArea
-    };
-    
-    console.log('🎯 [EDITOR] Dispatching editorFormDataChange window event with data:', formData);
-    
-    // Dispatch window event for App.svelte to catch
-    window.dispatchEvent(new CustomEvent('editorFormDataChange', { detail: formData }));
+    });
   }
   
-  // Watch for form data changes and emit events
+  // Watch for form data changes and sync to service
   $: {
-    console.log('🎯 [EDITOR] Reactive statement triggered:', {
-      selectedSource,
-      modelName,
-      scale,
-      height,
-      isEditMode,
-      hasFile: !!gltfFile,
-      hasUrl: !!gltfUrl,
-      isRoamingEnabled,
-      roamingSpeed,
-      hasRoamingArea: !!roamingArea
-    });
-    emitFormDataChange();
+    // Touch all reactive variables to trigger on any change
+    selectedSource; gltfFile; gltfUrl; modelName; modelDescription;
+    scale; height; heightOffset; heading; pitch; roll;
+    isRoamingEnabled; roamingSpeed; roamingArea;
+    syncFormDataToService();
   }
 
   // Control dropdown state based on Editor visibility
   $: if ($isEditorOpen) {
-    showDropdown = true; // Always open dropdown when Editor is visible
+    showDropdown = true;
   } else {
-    showDropdown = false; // Close dropdown when Editor is hidden
+    showDropdown = false;
   }
 
-  // Lifecycle functions to manage Editor state
   onMount(() => {
-    console.log('🎯 [EDITOR] Editor mounted - setting isEditorOpen to true');
     isEditorOpen.set(true);
   });
 
   onDestroy(() => {
-    console.log('🎯 [EDITOR] Editor destroyed - setting isEditorOpen to false');
     isEditorOpen.set(false);
   });
 </script>
@@ -320,8 +235,8 @@
     bind:showDropdown
     onToggleDropdown={handleToggleDropdown}
     onSourceChange={(source) => selectedSource = source}
-    onFileSelect={() => { console.log('🎯 [EDITOR] onFileSelect called'); emitFormDataChange(); }}
-    onUrlChange={() => { console.log('🎯 [EDITOR] onUrlChange called'); emitFormDataChange(); }}
+    onFileSelect={() => syncFormDataToService()}
+    onUrlChange={() => syncFormDataToService()}
   />
 </div>
 

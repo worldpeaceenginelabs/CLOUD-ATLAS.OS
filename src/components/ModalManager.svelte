@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { modalStack, openModals, topModal } from '../utils/modalManager';
+  import { openModals } from '../utils/modalManager';
   import Modal from './Modal.svelte';
   import Editor from './Editor.svelte';
   import Brainstorming from '../appmenu/Brainstorming.svelte';
@@ -12,23 +11,9 @@
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
+  import { modelEditorService } from '../utils/modelEditorService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
   import ShareButton from './Sharebutton.svelte';
-
-  // Modal content components mapping
-  const modalComponents = {
-    'record-details': 'RecordDetails',
-    'model-details': 'ModelDetails',
-    'model-editor': 'ModelEditor',
-    'brainstorming': 'Brainstorming',
-    'simulation': 'Simulation',
-    'action-event': 'ActionEvent',
-    'petition': 'Petition',
-    'crowdfunding': 'Crowdfunding',
-    'gig-economy': 'GigEconomy',
-    'coordinate-picker': 'CoordinatePicker',
-    'zoom-required': 'ZoomRequired'
-  };
 
   // Handle modal close
   function handleModalClose(modalId: string) {
@@ -36,33 +21,13 @@
       modalManager.hideModal(modalId);
     });
   }
-  
-  // Handle form data changes from Editor
-  function handleFormDataChange(event: CustomEvent) {
-    // Dispatch the event to the parent (App.svelte)
-    window.dispatchEvent(new CustomEvent('editorFormDataChange', {
-      detail: event.detail
-    }));
-  }
-
-  // Handle Editor save event
-  function handleEditorSave() {
-    // Dispatch the save event to the parent (App.svelte)
-    window.dispatchEvent(new CustomEvent('editorSave'));
-  }
-
-  // Handle Editor cancel event
-  function handleEditorCancel() {
-    // Dispatch the cancel event to the parent (App.svelte)
-    window.dispatchEvent(new CustomEvent('editorCancel'));
-  }
 
   // Handle model edit
   function handleModelEdit(modelData: any) {
     import('../utils/modalService').then(({ modalService }) => {
       modalService.hideModelDetails();
-      modalService.showModelEditor(true, modelData);
     });
+    modelEditorService.handleEditModel(modelData);
   }
 
   // Handle model remove
@@ -81,14 +46,6 @@
   function handleRecordLinkClick(link: string) {
     window.open(link, '_blank');
   }
-
-  onMount(() => {
-    // Setup any initialization if needed
-  });
-
-  onDestroy(() => {
-    // Cleanup if needed
-  });
 </script>
 
 <!-- Render all open modals -->
@@ -100,11 +57,6 @@
         <Editor 
           isEditMode={modal.config.data?.editMode || false}
           modelData={modal.config.data?.modelData}
-          on:save={handleEditorSave}
-          on:cancel={handleEditorCancel}
-          on:close={() => handleModalClose(modal.id)}
-          on:formDataChange={handleFormDataChange}
-          on:editorOpened={(event) => window.dispatchEvent(new CustomEvent('editorOpened', { detail: event.detail }))}
         />
       </div>
     {:else if modal.id === 'gig-economy'}
