@@ -53,8 +53,8 @@ let customDataSource: CustomDataSource | null = new CustomDataSource('locationpi
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
 let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tileset
 let pointEntity: Entity | null = null; // For coordinate picking
-let userLocationEntity: Entity | null = null; // For preloaded user location
-let userLocationPreloaded = false; // Track if user location has been preloaded
+let userLocationEntity: Entity | null = null; // For user location on map
+let userLocationInitialized = false; // Track if user location entity has been created
 let geoWatchId: number | null = null; // For watchPosition cleanup
 let isMonitoringCamera = false; // Track if camera monitoring is active
 let animationFrameId: number | null = null; // For requestAnimationFrame
@@ -211,94 +211,63 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 	  });
 	};
   
-	// Fetch user's geolocation (one-shot, used for initial placement)
-	const getLocationFromNavigator = (): Promise<GeolocationPosition> => {
-	  return new Promise((resolve, reject) => {
-		if (navigator.geolocation) {
-		  navigator.geolocation.getCurrentPosition(resolve, reject);
-		} else {
-		  reject(new Error('Geolocation is not supported by this browser.'));
-		}
-	  });
-	};
-
-	// Update the blue dot position and live location store
-	const updateUserLocationOnMap = (latitude: number, longitude: number) => {
-	  // Update live location store
-	  userLiveLocation.set({ latitude, longitude });
-
-	  // Update entity position if it exists
-	  if (userLocationEntity && cesiumViewer) {
-		const newPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
-		(userLocationEntity.position as any) = newPosition;
-	  }
-	};
-
-	// Start continuous GPS tracking
-	const startGeoWatch = () => {
-	  if (!navigator.geolocation) return;
-	  if (geoWatchId !== null) return; // already watching
+	// Start user location tracking (single watchPosition handles both initial placement and live updates)
+	const startUserLocationTracking = (silent = false) => {
+	  if (!navigator.geolocation || !cesiumViewer) return;
+	  if (geoWatchId !== null) return; // already tracking
 
 	  geoWatchId = navigator.geolocation.watchPosition(
 		(position) => {
 		  const { latitude, longitude } = position.coords;
-		  updateUserLocationOnMap(latitude, longitude);
+		  userLiveLocation.set({ latitude, longitude });
+
+		  if (!userLocationInitialized) {
+			userLocationInitialized = true;
+			const userPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
+			userLocationEntity = createPulsatingPoint('Your Location!', userPosition, Cesium.Color.BLUE);
+			userLocationEntity.show = !silent;
+			cesiumViewer!.entities.add(userLocationEntity);
+			return;
+		  }
+
+		  // All subsequent updates: move the dot
+		  if (userLocationEntity && cesiumViewer) {
+			(userLocationEntity.position as any) = Cartesian3.fromDegrees(longitude, latitude, 100);
+		  }
 		},
 		(error) => {
-		  console.error('Geolocation watch error:', error);
+		  console.error('Geolocation error:', error);
 		},
 		{
 		  enableHighAccuracy: true,
-		  maximumAge: 10000, // accept cached position up to 10s old
+		  maximumAge: 10000,
 		  timeout: 15000,
 		}
 	  );
 	};
 
-	// Stop continuous GPS tracking
-	const stopGeoWatch = () => {
+	// Show the user location entity and fly to it
+	const showUserLocation = () => {
+	  if (userLocationEntity && cesiumViewer) {
+		userLocationEntity.show = true;
+		const position = userLocationEntity.position?.getValue(JulianDate.now());
+		if (position) {
+		  cesiumViewer.camera.flyTo({
+			destination: Cartesian3.fromDegrees(
+			  CesiumMath.toDegrees(Cartographic.fromCartesian(position).longitude),
+			  CesiumMath.toDegrees(Cartographic.fromCartesian(position).latitude),
+			  20000000.0
+			),
+		  });
+		}
+	  }
+	};
+
+	// Stop user location tracking
+	const stopUserLocationTracking = () => {
 	  if (geoWatchId !== null && navigator.geolocation) {
 		navigator.geolocation.clearWatch(geoWatchId);
 		geoWatchId = null;
-	  }
-	};
-  
-	// Add user's location as a pulsating point on the map
-	const addUserLocation = async (silent = false) => {
-	  try {
-		const userLocation = await getLocationFromNavigator();
-		if (userLocation && cesiumViewer) {
-		  const { longitude, latitude } = userLocation.coords;
-		  const userPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
-
-		  // Set initial live location in store
-		  userLiveLocation.set({ latitude, longitude });
-
-		  userLocationEntity = createPulsatingPoint('Your Location!', userPosition, Cesium.Color.BLUE);
-		  
-		  if (silent) {
-			// Silent preload - add entity but don't show it yet
-			userLocationEntity.show = false;
-			cesiumViewer.entities.add(userLocationEntity);
-			userLocationPreloaded = true;
-		  } else {
-			// Normal behavior - show entity and fly to it
-			cesiumViewer.entities.add(userLocationEntity);
-			
-			setTimeout(() => {
-			  if (cesiumViewer) {
-				cesiumViewer.camera.flyTo({
-				  destination: Cartesian3.fromDegrees(longitude, latitude, 20000000.0),
-				});
-			  }
-			}, 3000);
-		  }
-
-		  // Start continuous tracking after initial placement
-		  startGeoWatch();
-		}
-	  } catch (error) {
-		console.error(error);
 	  }
 	};
 
@@ -1054,26 +1023,9 @@ async function removePin(mapid: string) {
 				duration: 3.0
 			});
 			
-			// Show preloaded user location after zoom animation completes
+			// Show user location after zoom animation completes
 			setTimeout(() => {
-				if (userLocationPreloaded && userLocationEntity && viewer) {
-					// Show the preloaded user location
-					userLocationEntity.show = true;
-					// Fly to the user location
-					const position = userLocationEntity.position?.getValue(JulianDate.now());
-					if (position) {
-						cesiumViewer.camera.flyTo({
-							destination: Cartesian3.fromDegrees(
-								CesiumMath.toDegrees(Cartographic.fromCartesian(position).longitude),
-								CesiumMath.toDegrees(Cartographic.fromCartesian(position).latitude),
-								20000000.0
-							)
-						});
-					}
-				} else {
-					// Fallback to normal behavior if preloading failed
-					addUserLocation();
-				}
+				showUserLocation();
 			}, 3000); // 3.0 seconds to allow for 3-second zoom duration
 		}
 	}
@@ -1357,8 +1309,8 @@ async function removePin(mapid: string) {
 		},
 	  });
 
-	  // Silently preload user location at 10 billion meters
-	  addUserLocation(true);
+	  // Start location tracking (entity hidden until initial load completes)
+	  startUserLocationTracking(true);
 
 	  // Initialize height display
 	  updateHeightDisplay();
@@ -1607,8 +1559,8 @@ function handleCoordinatePick(result: any) {
 		roamingAreaRectangle = null;
 		pointEntity = null;
 		userLocationEntity = null;
-		userLocationPreloaded = false;
-		stopGeoWatch();
+		userLocationInitialized = false;
+		stopUserLocationTracking();
 		isMonitoringCamera = false;
 		animationFrameId = null;
 	});
