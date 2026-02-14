@@ -315,6 +315,8 @@ class ModelEditorService {
         }
       }
 
+      // Remove roaming area visuals from the Cesium scene
+      window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
       modalService.hideModelEditor();
     } catch (error) {
       logger.operationError('submitModel', error, { component: 'ModelEditorService', operation: 'handleSubmit' });
@@ -325,6 +327,8 @@ class ModelEditorService {
   /** Cancel editing -- clean up temporary model and close */
   handleCancel() {
     this.resetFormData();
+    // Remove roaming area visuals from the Cesium scene
+    window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
     modalService.hideModelEditor();
   }
 

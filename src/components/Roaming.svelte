@@ -59,6 +59,8 @@
     areaBounds = null;
     roamingAreaBounds.set(null);
     roamingArea = null; // Clear the prop
+    // Remove visual entities from the Cesium scene
+    window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
   }
 
   function confirmArea() {
@@ -117,6 +119,8 @@
             // Clear area when disabling roaming
             areaBounds = null;
             roamingAreaBounds.set(null);
+            // Remove visual entities from the Cesium scene
+            window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
           }
         }}
       />

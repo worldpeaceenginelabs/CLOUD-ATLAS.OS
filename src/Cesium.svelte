@@ -846,6 +846,9 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		// Listen for cancel painting mode event
 		window.addEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
 		
+		// Listen for clear roaming area visuals event (from Roaming.svelte and modelEditorService)
+		window.addEventListener('clearRoamingAreaVisuals', removeRoamingAreaVisuals);
+		
 		// Listen for start painting mode event (store reference for cleanup)
 		startRoamingHandler = () => { disableCameraControls(); };
 		window.addEventListener('startRoamingAreaPainting', startRoamingHandler);
@@ -1035,6 +1038,20 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		}
 	}
 
+	// Remove roaming area visual entities (rectangle fill + outline) from the scene
+	function removeRoamingAreaVisuals() {
+		if (cesiumViewer) {
+			if (roamingAreaRectangle) {
+				cesiumViewer.entities.remove(roamingAreaRectangle);
+				roamingAreaRectangle = null;
+			}
+			if (roamingAreaOutline) {
+				cesiumViewer.entities.remove(roamingAreaOutline);
+				roamingAreaOutline = null;
+			}
+		}
+	}
+
 	// Function to cancel painting mode
 	function cancelPaintingMode() {
 		// Re-enable camera controls
@@ -1048,6 +1065,9 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			cesiumViewer.entities.remove(roamingAreaEntity);
 			roamingAreaEntity = null;
 		}
+
+		// Remove roaming area visuals (rectangle + outline)
+		removeRoamingAreaVisuals();
 		
 		// Exit painting mode
 		isRoamingAreaMode.set(false);
@@ -1311,6 +1331,7 @@ function handleCoordinatePick(result: any) {
 		
 		// Remove event listeners
 		window.removeEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
+		window.removeEventListener('clearRoamingAreaVisuals', removeRoamingAreaVisuals);
 		if (startRoamingHandler) {
 			window.removeEventListener('startRoamingAreaPainting', startRoamingHandler);
 			startRoamingHandler = null;
