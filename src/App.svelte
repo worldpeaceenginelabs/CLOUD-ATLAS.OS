@@ -4,7 +4,6 @@
   import Infobox from "./components/Infobox.svelte";
   import Grid from "./components/Grid.svelte";
   import AddButton from "./appmenu/AddButton.svelte";
-  import ActionEvent from "./appmenu/ActionEvent.svelte";
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
@@ -77,11 +76,6 @@
     />
     <ModalManager />
   {/if}
-</div>
-
-<!-- ActionEvent kept off-screen for background event processing -->
-<div style="position: absolute; left: -9999px; top: -9999px;">
-  <ActionEvent />
 </div>
 
 

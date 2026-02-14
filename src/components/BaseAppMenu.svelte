@@ -1,141 +1,44 @@
 <script lang="ts">
-  import { joinRoom } from 'trystero';
-  import { onMount } from 'svelte';
-  import { writable } from 'svelte/store';
   import { fade } from 'svelte/transition';
   import { coordinates } from '../store';
-  import { idb } from '../idb';
   import FormInput from './FormInput.svelte';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
-  import type { AppMenuCategory, PinData } from '../types';
+  import type { AppMenuCategory } from '../types';
   import { PLACEHOLDER_TEXT } from '../types';
-  import { 
-    deleteOldRecords, 
-    deleteOldRecordsLocal, 
-    storeRecord, 
-    storeRecordInLocalPins, 
-    loadRecordsFromIndexedDB, 
-    initializeApp 
-  } from '../utils/recordUtils';
-  import { getCurrentTime } from '../utils/timeUtils';
-  import { createEmptyRecord, recordIsValid, formRecordToPinData } from '../utils/formUtils';
-  import { logger } from '../utils/logger';
+  import { createEmptyRecord, recordIsValid } from '../utils/formUtils';
 
   // Props
   export let category: AppMenuCategory;
 
-  // Initialize IndexedDB using shared module
-  const initializeIndexedDB = async (): Promise<void> => {
-    await idb.openDB();
-  };
+  // Form state
+  let record = createEmptyRecord(category);
 
-  // Record management functions now use centralized utilities from recordUtils.ts
-
-  // Trystero setup
-  const trysteroroomname = import.meta.env.VITE_TRYSTERO_ROOM_NAME;
-  const config = { appId: 'username' };
-  const room = joinRoom(config, trysteroroomname);
-
-  // Time formatting now uses centralized utility from timeUtils.ts
-
-  function startRoom() {
-    room.onPeerJoin(peerId => {
-      sendCache(recordCache);
-      logger.peerJoined(peerId);
-    });
-
-    room.onPeerLeave(peerId => {
-      logger.peerLeft(peerId);
-    });
-  }
-
-  // Create writable store for records
-  const records = writable<PinData[]>([]);
-  let record: PinData = formRecordToPinData(createEmptyRecord(category));
-
-  // Create action to send record
-  const [sendRecordAction, getRecord] = room.makeAction('record');
-
-  // Record cache to send records to new peers
-  let recordCache: PinData[] = [];
-  const MAX_CACHE_SIZE = 10000;
-
-  // Receive records from other peers
-  getRecord(async (data: any, peerId: string) => {
-    if (data && typeof data === 'object' && data.mapid && !recordCache.some(rec => rec.mapid === data.mapid)) {
-      records.update(recs => [...recs, data]);
-      recordCache.push(data);
-
-      if (recordCache.length > MAX_CACHE_SIZE) {
-        recordCache.shift();
-      }
-
-      await storeRecord(data);
-      logger.recordReceived(data.title || 'Untitled', peerId);
-    }
-  });
-
-  // Send and receive records
-  const send = async () => {
-    if ($coordinates.latitude && $coordinates.longitude && recordIsValid(record)) {
-      sendRecordAction(record);
-
-      records.update(recs => [...recs, record]);
-      recordCache.push(record);
-
-      await storeRecordInLocalPins(record);
-      logger.dataStored('localpins', record.mapid);
-
-      if (recordCache.length > MAX_CACHE_SIZE) {
-        recordCache.shift();
-      }
-
-      await storeRecord(record);
-      logger.recordSent(record.title);
-
-      record = formRecordToPinData(createEmptyRecord(category));
-      $coordinates.latitude = '';
-      $coordinates.longitude = '';
-    } else {
-      logger.warn('Please click on the map to fetch coordinates', { component: 'BaseAppMenu', operation: 'send' });
-    }
-  };
-
-  // Subscribe to coordinates from click/touch in store
+  // Sync coordinates from map clicks into the form record
   coordinates.subscribe(value => {
     record.latitude = value.latitude;
     record.longitude = value.longitude;
     record.height = value.height;
   });
 
-  // New peers receive all previous records
-  const [sendCache, getCache] = room.makeAction('cache');
-
-  getCache(async (data: any) => {
-    if (Array.isArray(data)) {
-      const receivedRecords = data.filter(rec => rec && typeof rec === 'object' && rec.mapid && !recordCache.some(rc => rc.mapid === rec.mapid));
-      records.update(recs => [...recs, ...receivedRecords]);
-      recordCache.push(...receivedRecords);
-
-      if (recordCache.length > MAX_CACHE_SIZE) {
-        recordCache.splice(0, recordCache.length - MAX_CACHE_SIZE);
-      }
-
-      for (const record of receivedRecords) {
-        await storeRecord(record);
-        logger.dataStored('locationpins', record.mapid);
-      }
+  // Submit handler (ghost — backend not yet wired)
+  function handleSubmit() {
+    if (!$coordinates.latitude || !$coordinates.longitude) {
+      alert('Please click on the map to pick coordinates first.');
+      return;
     }
-  });
+    if (!recordIsValid(record)) {
+      alert('Please fill in all required fields with valid data.');
+      return;
+    }
 
+    // TODO: wire to Nostr event publishing
+    alert('Pin validated! Backend not yet connected.');
 
-  onMount(async () => { 
-    await initializeIndexedDB();
-    const storedRecords = await initializeApp();
-    records.set(storedRecords);
-    recordCache.push(...storedRecords);
-    startRoom();
-  });
+    // Reset form
+    record = createEmptyRecord(category);
+    $coordinates.latitude = '';
+    $coordinates.longitude = '';
+  }
 </script>
 
 <main transition:fade={{ duration: 500 }}>
@@ -178,7 +81,7 @@
     <p class="coord-green animated-gradient">Pin dropped...</p>
     {/if}
     
-    <GlassmorphismButton variant="primary" onClick={send} fullWidth={true}>
+    <GlassmorphismButton variant="primary" onClick={handleSubmit} fullWidth={true}>
       Drop Pin
     </GlassmorphismButton>
   </form>
@@ -238,36 +141,5 @@
     100% {
       background-position: 0% 50%;
     }
-  }
-
-  /* Scrollbar styles */
-  main {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
-  }
-
-  main::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-  }
-
-  main::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  main::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(10px);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  main::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
   }
 </style>

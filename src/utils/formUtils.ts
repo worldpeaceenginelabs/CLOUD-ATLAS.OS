@@ -1,9 +1,8 @@
 /**
  * Shared Form Utilities
- * Consolidates duplicate form validation and record creation functions across components
+ * Form validation and record creation for the pin drop UI.
  */
 
-import type { PinData } from '../types';
 import { LINK_PATTERNS } from '../types';
 
 /**
@@ -19,7 +18,6 @@ export interface FormRecord {
   latitude: string;
   category: string;
   height: number;
-  [key: string]: any; // For Trystero compatibility
 }
 
 /**
@@ -48,21 +46,4 @@ export function recordIsValid(rec: FormRecord): boolean {
   const isLinkValid = linkPattern.test(rec.link.trim());
   
   return isTitleValid && isLinkValid;
-}
-
-/**
- * Convert FormRecord to PinData for compatibility
- */
-export function formRecordToPinData(record: FormRecord): PinData {
-  return {
-    mapid: record.mapid,
-    timestamp: record.timestamp,
-    title: record.title,
-    text: record.text,
-    link: record.link,
-    longitude: record.longitude,
-    latitude: record.latitude,
-    category: record.category as any,
-    height: record.height,
-  };
 }
