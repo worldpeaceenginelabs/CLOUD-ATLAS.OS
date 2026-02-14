@@ -95,7 +95,7 @@ export const LINK_PATTERNS: Record<AppMenuCategory, RegExp> = {
   actionevent: /^(?:https?:\/\/)?(?:t\.me|telegram\.me|t\.dog|telegram\.dog)\/(?:joinchat\/|\+)?([\w-]+)$/i,
   brainstorming: /^https:\/\/(us05web\.)?zoom\.us\/j\/\d+/,
   crowdfunding: /^https:\/\/(www\.)?gofundme\.com\/f\/[a-zA-Z0-9-]+\/?$/,
-  petition: /^https:\/\/(www\.)?change\.org\/petitions\/[a-zA-Z0-9-]+\/?$/
+  petition: /^https:\/\/(www\.)?change\.org\/p\/[a-zA-Z0-9-]+\/?$/
 };
 
 // Placeholder text for different categories

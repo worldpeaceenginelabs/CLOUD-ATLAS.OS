@@ -51,16 +51,6 @@ export function recordIsValid(rec: FormRecord): boolean {
 }
 
 /**
- * Validate a record with a custom link pattern (for backward compatibility)
- */
-export function recordIsValidWithPattern(rec: FormRecord, customPattern: RegExp): boolean {
-  const isTitleValid = rec.title.trim() !== '';
-  const isLinkValid = customPattern.test(rec.link.trim());
-  
-  return isTitleValid && isLinkValid;
-}
-
-/**
  * Convert FormRecord to PinData for compatibility
  */
 export function formRecordToPinData(record: FormRecord): PinData {
