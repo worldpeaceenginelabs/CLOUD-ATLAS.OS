@@ -273,10 +273,6 @@ export class RoamingAnimationManager {
    * Update all roaming models
    */
   private updateAllModels(currentTime: number): void {
-    // Only log occasionally to reduce console spam
-    if (this.roamingModels.size > 0 && Math.random() < 0.01) { // 1% chance to log
-    }
-    
     for (const roamingModel of this.roamingModels.values()) {
       this.updateModelPosition(roamingModel, currentTime);
     }

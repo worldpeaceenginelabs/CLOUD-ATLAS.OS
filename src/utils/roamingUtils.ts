@@ -69,41 +69,6 @@ export function shouldStartRoaming(model: ModelData): boolean {
          model.roaming?.area !== null &&
          model.roaming?.speed > 0;
   
-  console.log('🎯 [ROAMING UTILS] shouldStartRoaming check:', {
-    name: model.name,
-    isEnabled: model.roaming?.isEnabled,
-    hasArea: model.roaming?.area !== null,
-    speed: model.roaming?.speed,
-    result
-  });
-  
   return result;
 }
 
-/**
- * Get the next roaming target for a model
- */
-export function getNextRoamingTarget(model: ModelData): { latitude: number; longitude: number; heading: number } | null {
-  if (!shouldStartRoaming(model) || !model.roaming?.area) {
-    return null;
-  }
-
-  const position = getRandomPositionInArea(model.roaming.area);
-  const heading = getRandomHeading();
-  
-  return {
-    latitude: position.latitude,
-    longitude: position.longitude,
-    heading: heading
-  };
-}
-
-/**
- * Validate roaming area bounds
- */
-export function validateRoamingArea(area: RoamingAreaBounds): boolean {
-  return area.north > area.south && 
-         area.east > area.west &&
-         Math.abs(area.north - area.south) > 0.0001 && // At least ~10 meters
-         Math.abs(area.east - area.west) > 0.0001;
-}

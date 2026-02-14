@@ -63,10 +63,8 @@
 
   function confirmArea() {
     if (areaBounds) {
-      console.log('🎯 [ROAMING] Confirming area bounds:', areaBounds);
       roamingAreaBounds.set(areaBounds);
       roamingArea = areaBounds; // Update the prop to pass to parent
-      console.log('🎯 [ROAMING] Updated roamingArea prop:', roamingArea);
     }
     stopPaintingArea();
   }

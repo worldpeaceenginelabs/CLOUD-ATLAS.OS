@@ -3,8 +3,7 @@
  * Provides unified modal state management, stacking, and history
  */
 
-import { writable, derived, type Writable } from 'svelte/store';
-import type { ModelData, PinData } from '../types';
+import { writable, derived, get, type Writable } from 'svelte/store';
 
 // Modal Types
 export type ModalType = 'default' | 'notification' | 'overlay' | 'card';
@@ -66,7 +65,8 @@ export const modalCount = derived(modalStack, $stack => $stack.filter(modal => m
 // Modal Manager Class
 class ModalManager {
   private static instance: ModalManager;
-  private eventListeners: Map<string, (() => void)[]> = new Map();
+  private eventListeners: Map<string, ((modalId: string) => void)[]> = new Map();
+  private handleKeyDown: ((event: KeyboardEvent) => void) | null = null;
 
   private constructor() {
     this.setupKeyboardHandlers();
@@ -125,6 +125,8 @@ class ModalManager {
 
       return newStack;
     });
+
+    this.emit('modalOpen', modalId);
   }
 
   /**
@@ -141,22 +143,21 @@ class ModalManager {
 
     // Remove from history
     this.removeFromHistory(modalId);
+
+    this.emit('modalClose', modalId);
   }
 
   /**
    * Toggle a modal
    */
   toggleModal(modalId: string, data?: any): void {
-    modalStack.update(stack => {
-      const existingModal = stack.find(modal => modal.id === modalId);
-      if (existingModal && existingModal.isVisible) {
-        this.hideModal(modalId);
-        return stack;
-      } else {
-        this.showModal(modalId, data);
-        return stack;
-      }
-    });
+    const stack = get(modalStack);
+    const existingModal = stack.find(modal => modal.id === modalId);
+    if (existingModal && existingModal.isVisible) {
+      this.hideModal(modalId);
+    } else {
+      this.showModal(modalId, data);
+    }
   }
 
   /**
@@ -167,6 +168,7 @@ class ModalManager {
       stack.map(modal => ({ ...modal, isVisible: false }))
     );
     this.clearHistory();
+    this.emit('allModalsClose', '');
   }
 
   /**
@@ -251,41 +253,37 @@ class ModalManager {
    * Navigate back in modal history
    */
   goBack(): void {
-    modalHistory.update(history => {
-      if (history.currentIndex > 0) {
-        const previousModalId = history.modals[history.currentIndex - 1];
-        this.showModal(previousModalId);
-        return {
-          ...history,
-          currentIndex: history.currentIndex - 1
-        };
-      }
-      return history;
-    });
+    const history = get(modalHistory);
+    if (history.currentIndex > 0) {
+      const previousModalId = history.modals[history.currentIndex - 1];
+      modalHistory.update(h => ({
+        ...h,
+        currentIndex: h.currentIndex - 1
+      }));
+      this.showModal(previousModalId);
+    }
   }
 
   /**
    * Navigate forward in modal history
    */
   goForward(): void {
-    modalHistory.update(history => {
-      if (history.currentIndex < history.modals.length - 1) {
-        const nextModalId = history.modals[history.currentIndex + 1];
-        this.showModal(nextModalId);
-        return {
-          ...history,
-          currentIndex: history.currentIndex + 1
-        };
-      }
-      return history;
-    });
+    const history = get(modalHistory);
+    if (history.currentIndex < history.modals.length - 1) {
+      const nextModalId = history.modals[history.currentIndex + 1];
+      modalHistory.update(h => ({
+        ...h,
+        currentIndex: h.currentIndex + 1
+      }));
+      this.showModal(nextModalId);
+    }
   }
 
   /**
    * Setup keyboard handlers
    */
   private setupKeyboardHandlers(): void {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    this.handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         this.closeTopModal();
       } else if (event.altKey && event.key === 'ArrowLeft') {
@@ -298,14 +296,14 @@ class ModalManager {
     };
 
     if (typeof window !== 'undefined') {
-      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keydown', this.handleKeyDown);
     }
   }
 
   /**
    * Add event listener for modal events
    */
-  on(event: string, callback: () => void): void {
+  on(event: string, callback: (modalId: string) => void): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
@@ -315,7 +313,7 @@ class ModalManager {
   /**
    * Remove event listener
    */
-  off(event: string, callback: () => void): void {
+  off(event: string, callback: (modalId: string) => void): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -328,10 +326,10 @@ class ModalManager {
   /**
    * Emit event
    */
-  private emit(event: string): void {
+  private emit(event: string, modalId: string): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
-      listeners.forEach(callback => callback());
+      listeners.forEach(callback => callback(modalId));
     }
   }
 
@@ -339,8 +337,8 @@ class ModalManager {
    * Cleanup
    */
   destroy(): void {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('keydown', this.setupKeyboardHandlers);
+    if (typeof window !== 'undefined' && this.handleKeyDown) {
+      window.removeEventListener('keydown', this.handleKeyDown);
     }
     this.eventListeners.clear();
   }

@@ -12,47 +12,33 @@
 
 {#if href}
 <a href="{href}" target="{target}">
-<div class='card' style:background-color={color}>
-	
-	<img class="avatar" src="{avatar}">
-
-	<h2>{title}</h2>
-	<p>{@html content}</p>
-	
-	<div class="category">
-	
-		{#if categorypic}
-		<img width="20px" height="20px" src="{categorypic}">
-		{/if}
-		
-		{#if categorytext}
-		<p style:font-weight="bold">{categorytext}</p>
-		{/if}
-	
-	</div>	
-
-</div>
+	<div class='card' style:background-color={color}>
+		<img class="avatar" src="{avatar}" alt="{title}">
+		<h2>{title}</h2>
+		<p>{@html content}</p>
+		<div class="category">
+			{#if categorypic}
+			<img width="20px" height="20px" src="{categorypic}" alt="{categorytext}">
+			{/if}
+			{#if categorytext}
+			<p style:font-weight="bold">{categorytext}</p>
+			{/if}
+		</div>
+	</div>
 </a>
 {:else}
 <div class='card' style:background-color={color}>
-	
-	<img class="avatar" src="{avatar}">
-
+	<img class="avatar" src="{avatar}" alt="{title}">
 	<h2>{title}</h2>
 	<p>{@html content}</p>
-	
 	<div class="category">
-	
 		{#if categorypic}
-		<img width="20px" height="20px" src="{categorypic}">
+		<img width="20px" height="20px" src="{categorypic}" alt="{categorytext}">
 		{/if}
-		
 		{#if categorytext}
 		<p style:font-weight="bold">{categorytext}</p>
 		{/if}
-	
-	</div>	
-
+	</div>
 </div>
 {/if}
 
@@ -109,9 +95,6 @@
         -moz-osx-font-smoothing: grayscale;
 	}
 
-	a:link { text-decoration: none; }
-	a:visited { text-decoration: none; }
-	a:hover { text-decoration:none; }
-	a:active { text-decoration: none; }
+	a { text-decoration: none; }
 
 </style>

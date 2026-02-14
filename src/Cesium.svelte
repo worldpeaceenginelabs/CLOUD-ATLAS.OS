@@ -27,8 +27,6 @@
 		models, 
 		pins, 
 		resetAllStores, 
-		cesiumActions,
-		cesiumReady,
 		viewer,
 		currentHeight,
 		is3DTilesetActive,
@@ -43,15 +41,14 @@
 	import type { ModelData, PinData } from './types';
 	import { dataManager } from './dataManager';
 	import { modalService } from './utils/modalService';
-import { addModel, updateModel, removeModel } from './utils/modelUtils';
 import { getCurrentTimeIso8601 } from './utils/timeUtils';
 import { logger } from './utils/logger';
 import { roamingAnimationManager } from './utils/roamingAnimation';
+import ScrollbarStyles from './components/ScrollbarStyles.svelte';
   
 // Global variables and states
 let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
-let dataLoadedFor3DTileset = false; // Track if data has been loaded for 3D tileset
 let pointEntity: Entity | null = null; // For coordinate picking
 let userLocationEntity: Entity | null = null; // For user location on map
 let userLocationInitialized = false; // Track if user location entity has been created
@@ -67,6 +64,13 @@ let cesiumViewer: any = null; // Global viewer reference
 let roamingAreaStart: { latitude: number; longitude: number } | null = null;
 let roamingAreaEntity: Entity | null = null;
 let roamingAreaRectangle: Entity | null = null;
+
+// Stored event handler references for proper cleanup
+let startRoamingHandler: (() => void) | null = null;
+let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
+
+// Track created object URLs for proper cleanup (item 5)
+let createdObjectURLs: string[] = [];
 
 // Roaming animation state
 let roamingAnimationFrameId: number | null = null;
@@ -103,12 +107,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 			// Update stores with loaded data
 			models.set(loadedModels);
 			pins.set(loadedPins);
-			
-			// Mark that initial loading is complete
-			modelsLoadedFromIndexedDB = true;
-			pinsLoadedFromIndexedDB = true;
-			previousModelCount = loadedModels.length;
-			previousPinCount = loadedPins.length;
 			
 			logger.dataLoaded('models', loadedModels.length);
 			logger.dataLoaded('pins', loadedPins.length);
@@ -345,14 +343,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 // Add 3D model to the scene
 function addModelToScene(modelData: ModelData) {
 	try {
-		console.log('🎯 [CESIUM] Adding model to scene:', {
-			id: modelData.id,
-			name: modelData.name,
-			scale: modelData.transform.scale,
-			height: modelData.transform.height,
-			coordinates: modelData.coordinates
-		});
-		
 		const position = Cartesian3.fromDegrees(
 			modelData.coordinates.longitude,
 			modelData.coordinates.latitude,
@@ -369,6 +359,7 @@ function addModelToScene(modelData: ModelData) {
 			// Check if file is a File object or a URL string (from IndexedDB)
 			if (modelData.file instanceof File) {
 				modelUri = URL.createObjectURL(modelData.file);
+				createdObjectURLs.push(modelUri);
 			} else {
 				// It's a URL string from IndexedDB
 				modelUri = modelData.file as string;
@@ -405,16 +396,12 @@ function addModelToScene(modelData: ModelData) {
 		
 		// Add to roaming animation if enabled
 		if (modelData.roaming?.isEnabled) {
-			console.log('🎯 [ROAMING] Adding model to roaming system:', modelData.name, modelData.roaming);
 			roamingAnimationManager.addModel(modelData);
 			
 			// Start roaming animation if not already running
 			if (!isRoamingAnimationActive) {
-				console.log('🎯 [ROAMING] Starting roaming animation');
 				startRoamingAnimation();
 			}
-		} else {
-			console.log('🎯 [ROAMING] Model does not have roaming enabled:', modelData.name, modelData.roaming);
 		}
 	} catch (error) {
 		console.error('Error adding model to scene:', error);
@@ -465,10 +452,6 @@ $: if (cesiumViewer && modelDataSource && $models.length >= 0) {
 		});
 	
 	if (modelsChanged) {
-		console.log('🎯 [CESIUM] Models store changed, reloading models:', {
-			modelCount: $models.length,
-			models: $models.map(m => ({ id: m.id, name: m.name, tempId: m.id.startsWith('temp_') }))
-		});
 		loadModelsFromStore();
 		previousModels = [...$models]; // Update previous models
 	}
@@ -476,18 +459,11 @@ $: if (cesiumViewer && modelDataSource && $models.length >= 0) {
 
 // Remove model from scene
 function removeModelFromScene(modelId: string) {
-	console.log('🎯 [CESIUM] Removing model from scene:', modelId);
 	if (modelDataSource) {
 		const entity = modelDataSource.entities.getById(modelId);
 		if (entity) {
-			console.log('🎯 [CESIUM] Found entity to remove:', entity.name);
 			modelDataSource.entities.remove(entity);
-			console.log('🎯 [CESIUM] Entity removed successfully');
-		} else {
-			console.log('🎯 [CESIUM] Entity not found for ID:', modelId);
 		}
-	} else {
-		console.log('🎯 [CESIUM] Model data source not available');
 	}
 	
 	// Remove from roaming animation if active
@@ -577,26 +553,15 @@ let currentPreviewModelId: string | null = null;
 
 // Add preview model to the scene (temporary, not saved to store)
 function addPreviewModelToScene(modelData: ModelData) {
-	console.log('🎯 [DEBUG] addPreviewModelToScene called - Starting preview model creation', {
-		modelId: modelData.id,
-		modelName: modelData.name,
-		source: modelData.source,
-		coordinates: modelData.coordinates,
-		transform: modelData.transform
-	});
-	
 	try {
 		// Remove existing preview model if any
-		console.log('🎯 [DEBUG] addPreviewModelToScene - Removing existing preview model');
 		removePreviewModelFromScene();
 		
 		// Hide the original model if it exists (for edit mode)
-		console.log('🎯 [DEBUG] addPreviewModelToScene - Hiding original model:', modelData.id);
 		hideOriginalModel(modelData.id);
 		
 		// Create preview data source if it doesn't exist
 		if (!previewModelDataSource) {
-			console.log('🎯 [DEBUG] addPreviewModelToScene - Creating preview data source');
 			previewModelDataSource = new CustomDataSource('previewModels');
 			if (cesiumViewer) {
 				cesiumViewer.dataSources.add(previewModelDataSource);
@@ -609,61 +574,30 @@ function addPreviewModelToScene(modelData: ModelData) {
 			modelData.transform.height
 		);
 
-		console.log('🎯 [DEBUG] addPreviewModelToScene - Position calculated:', {
-			longitude: modelData.coordinates.longitude,
-			latitude: modelData.coordinates.latitude,
-			height: modelData.transform.height
-		});
-
 		const heading = CesiumMath.toRadians(modelData.transform.heading);
 		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
 		const roll = CesiumMath.toRadians(modelData.transform.roll);
 
-		console.log('🎯 [DEBUG] addPreviewModelToScene - Orientation calculated:', {
-			heading: modelData.transform.heading,
-			pitch: modelData.transform.pitch,
-			roll: modelData.transform.roll,
-			headingRad: heading,
-			pitchRad: pitch,
-			rollRad: roll
-		});
-
 		// Create object URL for file uploads
 		let modelUri: string;
 		if (modelData.source === 'file' && modelData.file) {
-			// Check if file is a File object or a URL string (from IndexedDB)
 			if (modelData.file instanceof File) {
 				modelUri = URL.createObjectURL(modelData.file);
-				console.log('🎯 [DEBUG] addPreviewModelToScene - File source, created object URL:', modelUri);
+				createdObjectURLs.push(modelUri);
 			} else {
-				// It's a URL string from IndexedDB
 				modelUri = modelData.file as string;
-				console.log('🎯 [DEBUG] addPreviewModelToScene - File source from IndexedDB:', modelUri);
 			}
 		} else if (modelData.source === 'url' && modelData.url) {
 			modelUri = modelData.url;
-			console.log('🎯 [DEBUG] addPreviewModelToScene - URL source:', modelUri);
 		} else {
-			console.error('🎯 [DEBUG] addPreviewModelToScene - Invalid model source or missing URL/file for preview', {
-				source: modelData.source,
-				hasFile: !!modelData.file,
-				hasUrl: !!modelData.url
-			});
+			console.error('Invalid model source or missing URL/file for preview');
 			return;
 		}
 
 		// Create the preview model entity
 		if (!previewModelDataSource) {
-			console.error('🎯 [DEBUG] addPreviewModelToScene - Preview data source not available');
 			return;
 		}
-		
-		console.log('🎯 [DEBUG] addPreviewModelToScene - Creating preview entity:', {
-			id: modelData.id,
-			name: modelData.name + ' (Preview)',
-			uri: modelUri,
-			scale: modelData.transform.scale
-		});
 		
 		const entity = previewModelDataSource.entities.add({
 			id: modelData.id,
@@ -684,121 +618,54 @@ function addPreviewModelToScene(modelData: ModelData) {
 		});
 
 		currentPreviewModelId = modelData.id;
-		console.log('🎯 [DEBUG] addPreviewModelToScene - Preview model added successfully:', {
-			entityId: entity.id,
-			currentPreviewModelId,
-			entityName: entity.name
-		});
 		logger.info('Preview model added to scene: ' + modelData.name, { component: 'Cesium', operation: 'addPreviewModel' });
 	} catch (error) {
-		console.error('🎯 [DEBUG] addPreviewModelToScene - Error adding preview model to scene:', error);
+		console.error('Error adding preview model to scene:', error);
 	}
 }
 
 // Remove preview model from scene
 function removePreviewModelFromScene() {
-	console.log('🎯 [DEBUG] removePreviewModelFromScene called - Removing preview model from scene', {
-		hasPreviewDataSource: !!previewModelDataSource,
-		currentPreviewModelId
-	});
-	
 	if (previewModelDataSource && currentPreviewModelId) {
 		const entity = previewModelDataSource.entities.getById(currentPreviewModelId);
 		if (entity) {
-			console.log('🎯 [DEBUG] removePreviewModelFromScene - Found preview entity, removing it:', {
-				entityId: entity.id,
-				entityName: entity.name
-			});
 			previewModelDataSource.entities.remove(entity);
-		} else {
-			console.warn('🎯 [DEBUG] removePreviewModelFromScene - Preview entity not found:', currentPreviewModelId);
 		}
 		
 		// Show the original model again
-		console.log('🎯 [DEBUG] removePreviewModelFromScene - Showing original model again');
 		showOriginalModel(currentPreviewModelId);
 		
 		currentPreviewModelId = null;
-		console.log('🎯 [DEBUG] removePreviewModelFromScene - Preview model removed successfully');
 		logger.info('Preview model removed from scene', { component: 'Cesium', operation: 'removePreviewModel' });
-	} else {
-		console.log('🎯 [DEBUG] removePreviewModelFromScene - No preview model to remove', {
-			hasPreviewDataSource: !!previewModelDataSource,
-			currentPreviewModelId
-		});
 	}
 }
 
 // Hide original model when in preview mode
 function hideOriginalModel(modelId: string) {
-	console.log('🎯 [DEBUG] hideOriginalModel called - Hiding original model for preview', {
-		modelId,
-		hasModelDataSource: !!modelDataSource
-	});
-	
 	if (modelDataSource) {
 		const entity = modelDataSource.entities.getById(modelId);
 		if (entity && entity.model) {
-			console.log('🎯 [DEBUG] hideOriginalModel - Found original model entity, hiding it:', {
-				entityId: entity.id,
-				entityName: entity.name,
-				wasVisible: entity.model.show
-			});
 			entity.model.show = false;
 			logger.info('Original model hidden for preview: ' + modelId, { component: 'Cesium', operation: 'hideOriginalModel' });
-		} else {
-			console.warn('🎯 [DEBUG] hideOriginalModel - Original model entity not found or has no model property:', {
-				modelId,
-				entityFound: !!entity,
-				hasModel: !!(entity && entity.model)
-			});
 		}
-	} else {
-		console.warn('🎯 [DEBUG] hideOriginalModel - Model data source not available');
 	}
 }
 
 // Show original model when exiting preview mode
 function showOriginalModel(modelId: string) {
-	console.log('🎯 [DEBUG] showOriginalModel called - Showing original model after preview', {
-		modelId,
-		hasModelDataSource: !!modelDataSource
-	});
-	
 	if (modelDataSource) {
 		const entity = modelDataSource.entities.getById(modelId);
 		if (entity && entity.model) {
-			console.log('🎯 [DEBUG] showOriginalModel - Found original model entity, showing it:', {
-				entityId: entity.id,
-				entityName: entity.name,
-				wasVisible: entity.model.show
-			});
 			entity.model.show = true;
 			logger.info('Original model shown: ' + modelId, { component: 'Cesium', operation: 'showOriginalModel' });
-		} else {
-			console.warn('🎯 [DEBUG] showOriginalModel - Original model entity not found or has no model property:', {
-				modelId,
-				entityFound: !!entity,
-				hasModel: !!(entity && entity.model)
-			});
 		}
-	} else {
-		console.warn('🎯 [DEBUG] showOriginalModel - Model data source not available');
 	}
 }
 
 // Update preview model in scene
 function updatePreviewModelInScene(modelData: ModelData) {
-	console.log('🎯 [DEBUG] updatePreviewModelInScene called - Starting preview model update', {
-		modelId: modelData.id,
-		modelName: modelData.name,
-		currentPreviewModelId,
-		hasPreviewDataSource: !!previewModelDataSource
-	});
-	
 	try {
 		if (!previewModelDataSource || !currentPreviewModelId) {
-			console.log('🎯 [DEBUG] updatePreviewModelInScene - No existing preview model, adding new one');
 			// No existing preview model, add a new one
 			addPreviewModelToScene(modelData);
 			return;
@@ -807,16 +674,10 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		// Find the existing preview entity
 		const entity = previewModelDataSource.entities.getById(currentPreviewModelId);
 		if (!entity) {
-			console.log('🎯 [DEBUG] updatePreviewModelInScene - Entity not found, adding new one');
 			// Entity not found, add a new one
 			addPreviewModelToScene(modelData);
 			return;
 		}
-
-		console.log('🎯 [DEBUG] updatePreviewModelInScene - Found existing entity, updating properties:', {
-			entityId: entity.id,
-			entityName: entity.name
-		});
 
 		// Update the existing entity
 		const position = Cartesian3.fromDegrees(
@@ -825,52 +686,27 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			modelData.transform.height
 		);
 
-		console.log('🎯 [DEBUG] updatePreviewModelInScene - New position calculated:', {
-			longitude: modelData.coordinates.longitude,
-			latitude: modelData.coordinates.latitude,
-			height: modelData.transform.height
-		});
-
 		const heading = CesiumMath.toRadians(modelData.transform.heading);
 		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
 		const roll = CesiumMath.toRadians(modelData.transform.roll);
-
-		console.log('🎯 [DEBUG] updatePreviewModelInScene - New orientation calculated:', {
-			heading: modelData.transform.heading,
-			pitch: modelData.transform.pitch,
-			roll: modelData.transform.roll
-		});
 
 		// Create object URL for file uploads
 		let modelUri: string;
 		if (modelData.source === 'file' && modelData.file) {
 			if (modelData.file instanceof File) {
 				modelUri = URL.createObjectURL(modelData.file);
-				console.log('🎯 [DEBUG] updatePreviewModelInScene - File source, created object URL:', modelUri);
+				createdObjectURLs.push(modelUri);
 			} else {
 				modelUri = modelData.file as string;
-				console.log('🎯 [DEBUG] updatePreviewModelInScene - File source from IndexedDB:', modelUri);
 			}
 		} else if (modelData.source === 'url' && modelData.url) {
 			modelUri = modelData.url;
-			console.log('🎯 [DEBUG] updatePreviewModelInScene - URL source:', modelUri);
 		} else {
-			console.error('🎯 [DEBUG] updatePreviewModelInScene - Invalid model source or missing URL/file for preview update', {
-				source: modelData.source,
-				hasFile: !!modelData.file,
-				hasUrl: !!modelData.url
-			});
+			console.error('Invalid model source or missing URL/file for preview update');
 			return;
 		}
 
 		// Update entity properties
-		console.log('🎯 [DEBUG] updatePreviewModelInScene - Updating entity properties:', {
-			position: position,
-			name: modelData.name + ' (Preview)',
-			uri: modelUri,
-			scale: modelData.transform.scale
-		});
-
 		entity.position = position;
 		entity.name = modelData.name + ' (Preview)';
 		entity.description = modelData.description || '3D Model Preview';
@@ -885,61 +721,16 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			new HeadingPitchRoll(heading, pitch, roll)
 		);
 
-		console.log('🎯 [DEBUG] updatePreviewModelInScene - Preview model updated successfully');
 		logger.info('Preview model updated in scene: ' + modelData.name, { component: 'Cesium', operation: 'updatePreviewModel' });
 	} catch (error) {
-		console.error('🎯 [DEBUG] updatePreviewModelInScene - Error updating preview model in scene:', error);
+		console.error('Error updating preview model in scene:', error);
 		// Fallback to remove and re-add
-		console.log('🎯 [DEBUG] updatePreviewModelInScene - Falling back to remove and re-add');
 		removePreviewModelFromScene();
 		addPreviewModelToScene(modelData);
 	}
 }
 
 // Model operations now use centralized utilities from modelUtils.ts
-
-async function addPin(pinData: PinData) {
-	try {
-		await dataManager.addPin(pinData);
-		// Update store after successful IDB + scene operation
-		pins.update(currentPins => [...currentPins, pinData]);
-	} catch (error) {
-		console.error('Error adding pin:', error);
-		throw error;
-	}
-}
-
-async function removePin(mapid: string) {
-	try {
-		await dataManager.removePin(mapid);
-		// Update store after successful IDB + scene operation
-		pins.update(currentPins => currentPins.filter(p => p.mapid !== mapid));
-	} catch (error) {
-		console.error('Error removing pin:', error);
-		throw error;
-	}
-}
-
-
-  
-	// Record button text mapping - now handled by modal service
-	const getRecordButtonText = (category: string): string => {
-		const categoryMap: { [key: string]: string } = {
-			brainstorming: "Join Brainstorming",
-			actionevent: "Take Action Now",
-			petition: "Sign Now",
-			crowdfunding: "Back this Project",
-		};
-		return categoryMap[category] || "Go";
-	}
-
-	// Track if models have been initially loaded from IndexedDB
-	let modelsLoadedFromIndexedDB = false;
-	let previousModelCount = 0;
-
-	// Track if pins have been initially loaded from IndexedDB
-	let pinsLoadedFromIndexedDB = false;
-	let previousPinCount = 0;
 
 
 	// Function to load assets with progress tracking
@@ -1043,22 +834,22 @@ async function removePin(mapid: string) {
 
 	// Function to set up event handlers
 	function setupEventHandlers() {
-		if (!viewer) return;
+		if (!cesiumViewer) return;
 
 		// Listen for cancel painting mode event
 		window.addEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
 		
-		// Listen for start painting mode event
-		window.addEventListener('startRoamingAreaPainting', () => {
-			disableCameraControls();
-		});
+		// Listen for start painting mode event (store reference for cleanup)
+		startRoamingHandler = () => { disableCameraControls(); };
+		window.addEventListener('startRoamingAreaPainting', startRoamingHandler);
 		
-		// Listen for escape key to cancel painting
-		window.addEventListener('keydown', (event) => {
+		// Listen for escape key to cancel painting (store reference for cleanup)
+		escapeKeyHandler = (event: KeyboardEvent) => {
 			if (event.key === 'Escape' && $isRoamingAreaMode) {
 				cancelPaintingMode();
 			}
-		});
+		};
+		window.addEventListener('keydown', escapeKeyHandler);
 
 		// Debounce function to prevent multiple rapid touches
 		function debounce(func: Function, wait: number) {
@@ -1084,8 +875,8 @@ async function removePin(mapid: string) {
 			// If an object is picked, handle entity picking
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
 				if (pickedObject.id.id === "pickedPoint") {
-					// Do nothing or handle pickedPoint specific logic here if needed
-			} else if (pickedObject.id.id === "Your Location!") {
+					// Ignore clicks on the picked point marker
+				} else if (pickedObject.id.id === "Your Location!") {
 				// Open Gig Economy when user clicks the blue location dot
 				modalService.showGigEconomy();
 				// Fly camera to 2000m above the user's location
@@ -1340,7 +1131,6 @@ async function removePin(mapid: string) {
 		  return loadAllData();
 		})
 		.then(() => {
-		  dataLoadedFor3DTileset = true;
 		  console.log('Data loaded successfully in background');
 		})
 		.catch((error) => {
@@ -1500,8 +1290,14 @@ function handleCoordinatePick(result: any) {
 		
 		// Remove event listeners
 		window.removeEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
-		window.removeEventListener('startRoamingAreaPainting', () => {});
-		// Note: handleKeyDown was removed as modals are now in App.svelte
+		if (startRoamingHandler) {
+			window.removeEventListener('startRoamingAreaPainting', startRoamingHandler);
+			startRoamingHandler = null;
+		}
+		if (escapeKeyHandler) {
+			window.removeEventListener('keydown', escapeKeyHandler);
+			escapeKeyHandler = null;
+		}
 		
 		// Clean up Cesium viewer and resources
 		if (cesiumViewer) {
@@ -1540,12 +1336,9 @@ function handleCoordinatePick(result: any) {
 			(window as any).cityLabels = null;
 		}
 		
-		// Clean up object URLs to prevent memory leaks
-		$models.forEach(model => {
-			if (model.source === 'file' && model.file) {
-				URL.revokeObjectURL(URL.createObjectURL(model.file));
-			}
-		});
+		// Clean up tracked object URLs to prevent memory leaks
+		createdObjectURLs.forEach(url => URL.revokeObjectURL(url));
+		createdObjectURLs = [];
   
 		// Clear stores using the cleanup function
 		resetAllStores();
@@ -1570,6 +1363,7 @@ function handleCoordinatePick(result: any) {
   
 
   
+<ScrollbarStyles />
 <div style="width: 100%; display: flex; justify-content: center; align-items: center; position: relative;">
   <main id="cesiumContainer"></main>
   
@@ -1610,18 +1404,6 @@ function handleCoordinatePick(result: any) {
 	  display: flex;
 	  align-items: center;
 	  gap: 8px;
-	}
-
-	.height-label {
-	  color: rgba(255, 255, 255, 0.8);
-	  font-size: 14px;
-	  font-weight: 500;
-	}
-
-	.height-value {
-	  color: white;
-	  font-size: 16px;
-	  font-weight: 600;
 	}
 
 	.height-label {
@@ -1709,40 +1491,6 @@ function handleCoordinatePick(result: any) {
 }
 
 
-/* WebKit Scrollbar Styles */
- ::-webkit-scrollbar {
-      width: 12px;
-      height: 12px;
-    }
-
-    ::-webkit-scrollbar-track {
-      @apply scrollbar-track;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      @apply scrollbar-thumb;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
-
-    /* Firefox Scrollbar Styles */
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
-    }
-
-    *::-webkit-scrollbar-track {
-      @apply scrollbar-track;
-    }
-
-    *::-webkit-scrollbar-thumb {
-      @apply scrollbar-thumb;
-    }
-
-    *::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
+/* Scrollbar styles provided by ScrollbarStyles component */
 </style>
   

@@ -89,41 +89,22 @@ export class DataManager {
    * Add a new model: Store → IDB → Scene
    */
   async addModel(modelData: ModelData): Promise<void> {
-    console.log('🔍 [DEBUG] DataManager.addModel called with:', {
-      name: modelData.name,
-      hasFile: !!modelData.file,
-      hasRoaming: !!modelData.roaming,
-      isInitialized: this.isInitialized
-    });
-
     if (!this.isInitialized) {
-      console.error('🔍 [DEBUG] DataManager not initialized');
       throw new Error('DataManager not initialized');
     }
 
     try {
       // 1. Create serializable version for IDB (remove File objects)
-      console.log('🔍 [DEBUG] Creating serializable model data');
       const serializableModelData = this.createSerializableModelData(modelData);
-      console.log('🔍 [DEBUG] Serializable model data created:', {
-        name: serializableModelData.name,
-        hasFile: !!serializableModelData.file,
-        hasRoaming: !!serializableModelData.roaming
-      });
       
       // 2. Save to IDB (persistence layer)
-      console.log('🔍 [DEBUG] Saving to IndexedDB');
       await idb.saveModel(serializableModelData);
-      console.log('🔍 [DEBUG] Saved to IndexedDB successfully');
       
       // 3. Add to scene (rendering layer)
-      console.log('🔍 [DEBUG] Adding to scene');
       this.callbacks.addModelToScene(modelData);
-      console.log('🔍 [DEBUG] Added to scene successfully');
       
       console.log('Model added successfully:', modelData.name);
     } catch (error) {
-      console.error('🔍 [DEBUG] Error in DataManager.addModel:', error);
       console.error('Error adding model:', error);
       throw error;
     }
@@ -138,32 +119,18 @@ export class DataManager {
     }
 
     try {
-      console.log('🎯 [DATA MANAGER] Starting model update:', {
-        id: modelData.id,
-        name: modelData.name,
-        scale: modelData.transform.scale,
-        height: modelData.transform.height
-      });
-      
       // 1. Remove from scene
-      console.log('🎯 [DATA MANAGER] Removing model from scene:', modelData.id);
       this.callbacks.removeModelFromScene(modelData.id);
       
       // 2. Create serializable version for IDB (remove File objects)
       const serializableModelData = this.createSerializableModelData(modelData);
-      console.log('🎯 [DATA MANAGER] Created serializable model data:', serializableModelData);
       
       // 3. Update in IDB
-      console.log('🎯 [DATA MANAGER] Saving to IDB...');
       await idb.saveModel(serializableModelData);
       
       // 4. Add updated model to scene
-      console.log('🎯 [DATA MANAGER] Adding updated model to scene...');
       this.callbacks.addModelToScene(modelData);
-      
-      console.log('🎯 [DATA MANAGER] Model updated successfully:', modelData.name);
     } catch (error) {
-      console.error('🎯 [DATA MANAGER] Error updating model:', error);
       throw error;
     }
   }

@@ -136,22 +136,13 @@
 
     // Handle file selection with automatic loading
     function handleFileSelectAuto(event: Event) {
-      console.log('🎯 [MODEL_SETTINGS] handleFileSelectAuto called');
       const target = event.target as HTMLInputElement;
       const file = target.files?.[0];
-      console.log('🎯 [MODEL_SETTINGS] File from input:', file);
       if (file) {
         gltfFile = file;
-        console.log('🎯 [MODEL_SETTINGS] File selected, triggering automatic loading:', file.name);
-        // Trigger automatic preview update when file is selected
         if (onFileSelect) {
-          console.log('🎯 [MODEL_SETTINGS] Calling onFileSelect callback');
           onFileSelect(event);
-        } else {
-          console.warn('🎯 [MODEL_SETTINGS] onFileSelect callback is not defined');
         }
-      } else {
-        console.log('🎯 [MODEL_SETTINGS] No file selected');
       }
     }
   
@@ -165,13 +156,9 @@
   function handleUrlInput(event: Event) {
     const target = event.target as HTMLInputElement;
     gltfUrl = target.value;
-    console.log('🎯 [MODEL_SETTINGS] URL input detected, triggering automatic loading:', gltfUrl);
     // Trigger automatic preview update when URL is pasted or typed
     if (onUrlChange) {
-      console.log('🎯 [MODEL_SETTINGS] Calling onUrlChange callback');
       onUrlChange();
-    } else {
-      console.warn('🎯 [MODEL_SETTINGS] onUrlChange callback is not defined');
     }
   }
   
@@ -216,7 +203,6 @@
           }
           // Set the file directly and trigger automatic loading
           gltfFile = file;
-          console.log('🎯 [MODEL_SETTINGS] File dropped, triggering automatic loading:', file.name);
           if (onFileSelect) {
             // Create a synthetic event that matches the expected interface
             const syntheticEvent = {

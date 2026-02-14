@@ -38,22 +38,6 @@ export async function handleAsyncOperation<T>(
 }
 
 /**
- * Handle sync operations with standardized error handling
- */
-export function handleSyncOperation<T>(
-  operation: () => T,
-  context: ErrorContext,
-  fallback?: T
-): T | undefined {
-  try {
-    return operation();
-  } catch (error) {
-    logError(error, context);
-    return fallback;
-  }
-}
-
-/**
  * Create error context for common operations
  */
 export function createErrorContext(component: string, operation: string, additionalInfo?: string): ErrorContext {

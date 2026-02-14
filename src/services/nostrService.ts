@@ -156,6 +156,7 @@ export class NostrService {
       };
 
       ws.onclose = () => {
+        clearTimeout(timeout);
         this.sockets.delete(url);
         this.emitRelayCount();
         this.scheduleReconnect(url);

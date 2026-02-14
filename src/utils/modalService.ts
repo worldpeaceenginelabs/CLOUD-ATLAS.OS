@@ -166,7 +166,7 @@ export class ModalService {
     modalManager.on('modalClose', callback);
   }
 
-  onAllModalsClose(callback: () => void): void {
+  onAllModalsClose(callback: (modalId: string) => void): void {
     modalManager.on('allModalsClose', callback);
   }
 }

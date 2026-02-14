@@ -2,6 +2,7 @@
   import { slide } from 'svelte/transition';
   import { writable } from 'svelte/store';
     import LiveEdit from './LiveEdit.svelte';
+    import ScrollbarStyles from './ScrollbarStyles.svelte';
 
   export let isVisible = writable(true);
 
@@ -10,6 +11,7 @@
   }
 </script>
 
+<ScrollbarStyles />
 {#if $isVisible}
 <div class="main_div" transition:slide={{ duration: 500 }}>
 
@@ -419,51 +421,5 @@
 }
 
 
- /* WebKit Scrollbar Styles */
- ::-webkit-scrollbar {
-      width: 12px;
-      height: 12px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      backdrop-filter: blur(10px);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
-
-    /* Firefox Scrollbar Styles */
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
-    }
-
-    *::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    *::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-    }
-
-    *::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
+ /* Scrollbar styles provided by ScrollbarStyles component */
 </style>

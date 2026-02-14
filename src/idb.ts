@@ -70,6 +70,16 @@ export class IndexedDBManager {
   }
 
   /**
+   * Wrap an IDBRequest in a proper Promise
+   */
+  private wrapRequest<T = void>(request: IDBRequest<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
    * Ensure all required object stores exist
    * Note: This can only create stores during database upgrade, not in existing databases
    */
@@ -106,7 +116,7 @@ export class IndexedDBManager {
 
     const transaction = this.db.transaction('locationpins', 'readwrite');
     const objectStore = transaction.objectStore('locationpins');
-    await objectStore.put(pinData);
+    await this.wrapRequest(objectStore.put(pinData));
     console.log('Pin saved to IndexedDB:', pinData.mapid);
   }
 
@@ -155,7 +165,7 @@ export class IndexedDBManager {
 
     const transaction = this.db.transaction('locationpins', 'readwrite');
     const objectStore = transaction.objectStore('locationpins');
-    await objectStore.delete(mapid);
+    await this.wrapRequest(objectStore.delete(mapid));
     console.log('Pin deleted from IndexedDB:', mapid);
   }
 
@@ -163,35 +173,22 @@ export class IndexedDBManager {
    * Save model to IndexedDB
    */
   async saveModel(modelData: ModelData): Promise<void> {
-    console.log('🔍 [DEBUG] idb.saveModel called with:', {
-      name: modelData.name,
-      hasFile: !!modelData.file,
-      hasRoaming: !!modelData.roaming,
-      dbExists: !!this.db
-    });
-
     if (!this.db) {
-      console.error('🔍 [DEBUG] Database not initialized');
       throw new Error('Database not initialized');
     }
 
     if (!this.db.objectStoreNames.contains('models')) {
-      console.log('🔍 [DEBUG] Models object store not found, skipping model save');
       return;
     }
 
     try {
-      console.log('🔍 [DEBUG] Creating transaction');
       const transaction = this.db.transaction('models', 'readwrite');
       const objectStore = transaction.objectStore('models');
       
-      console.log('🔍 [DEBUG] Putting model data to IndexedDB');
-      await objectStore.put(modelData);
-      console.log('🔍 [DEBUG] Model data put to IndexedDB successfully');
+      await this.wrapRequest(objectStore.put(modelData));
       
       console.log('Model saved to IndexedDB:', modelData.name);
     } catch (error) {
-      console.error('🔍 [DEBUG] Error in idb.saveModel:', error);
       throw error;
     }
   }
@@ -241,7 +238,7 @@ export class IndexedDBManager {
 
     const transaction = this.db.transaction('models', 'readwrite');
     const objectStore = transaction.objectStore('models');
-    await objectStore.delete(modelId);
+    await this.wrapRequest(objectStore.delete(modelId));
     console.log('Model deleted from IndexedDB:', modelId);
   }
 
@@ -261,7 +258,7 @@ export class IndexedDBManager {
 
     const transaction = this.db.transaction('localpins', 'readwrite');
     const objectStore = transaction.objectStore('localpins');
-    await objectStore.put(pinData);
+    await this.wrapRequest(objectStore.put(pinData));
     console.log('Local pin saved to IndexedDB:', pinData.mapid);
   }
 
@@ -310,7 +307,7 @@ export class IndexedDBManager {
 
     const transaction = this.db.transaction('localpins', 'readwrite');
     const objectStore = transaction.objectStore('localpins');
-    await objectStore.delete(mapid);
+    await this.wrapRequest(objectStore.delete(mapid));
     console.log('Local pin deleted from IndexedDB:', mapid);
   }
 
