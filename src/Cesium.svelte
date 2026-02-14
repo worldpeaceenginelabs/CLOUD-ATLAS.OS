@@ -221,7 +221,11 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 
 		  if (!userLocationInitialized) {
 			userLocationInitialized = true;
-			const userPosition = Cartesian3.fromDegrees(longitude, latitude, 100);
+			// Sample terrain/tileset height at GPS coordinates (same approach as pickPosition for pins)
+			const cartographic = Cartographic.fromDegrees(longitude, latitude);
+			const sampledHeight = cesiumViewer!.scene.sampleHeight(cartographic);
+			const height = sampledHeight !== undefined ? sampledHeight : 0;
+			const userPosition = Cartesian3.fromDegrees(longitude, latitude, height);
 			userLocationEntity = createPulsatingPoint('Your Location!', userPosition, Cesium.Color.BLUE);
 			userLocationEntity.show = !silent;
 			cesiumViewer!.entities.add(userLocationEntity);
@@ -230,7 +234,11 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 
 		  // All subsequent updates: move the dot
 		  if (userLocationEntity && cesiumViewer) {
-			(userLocationEntity.position as any) = Cartesian3.fromDegrees(longitude, latitude, 100);
+			// Resample terrain/tileset height on each GPS update
+			const cartographic = Cartographic.fromDegrees(longitude, latitude);
+			const sampledHeight = cesiumViewer.scene.sampleHeight(cartographic);
+			const height = sampledHeight !== undefined ? sampledHeight : 0;
+			(userLocationEntity.position as any) = Cartesian3.fromDegrees(longitude, latitude, height);
 		  }
 		},
 		(error) => {

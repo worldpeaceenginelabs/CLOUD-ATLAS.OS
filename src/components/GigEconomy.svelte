@@ -130,13 +130,24 @@
     if (!$viewer) return;
     if ($viewer.entities.getById(`ride_${request.id}`)) return;
 
+    // Sample terrain/tileset height at start and destination (same approach as pickPosition for pins)
+    const startCartographic = Cesium.Cartographic.fromDegrees(
+      request.startLocation.longitude, request.startLocation.latitude
+    );
+    const startHeight = $viewer.scene.sampleHeight(startCartographic) ?? 0;
+
+    const destCartographic = Cesium.Cartographic.fromDegrees(
+      request.destination.longitude, request.destination.latitude
+    );
+    const destHeight = $viewer.scene.sampleHeight(destCartographic) ?? 0;
+
     // Blue point at start location
     const startEntity = $viewer.entities.add({
       id: `ride_${request.id}`,
       position: Cesium.Cartesian3.fromDegrees(
         request.startLocation.longitude,
         request.startLocation.latitude,
-        100
+        startHeight
       ),
       point: {
         pixelSize: 12,
@@ -165,7 +176,7 @@
       position: Cesium.Cartesian3.fromDegrees(
         request.destination.longitude,
         request.destination.latitude,
-        100
+        destHeight
       ),
       point: {
         pixelSize: 8,
@@ -185,12 +196,12 @@
           Cesium.Cartesian3.fromDegrees(
             request.startLocation.longitude,
             request.startLocation.latitude,
-            100
+            startHeight
           ),
           Cesium.Cartesian3.fromDegrees(
             request.destination.longitude,
             request.destination.latitude,
-            100
+            destHeight
           ),
         ],
         width: 2,
