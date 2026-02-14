@@ -64,6 +64,7 @@ let cesiumViewer: any = null; // Global viewer reference
 let roamingAreaStart: { latitude: number; longitude: number } | null = null;
 let roamingAreaEntity: Entity | null = null;
 let roamingAreaRectangle: Entity | null = null;
+let roamingAreaOutline: Entity | null = null;
 
 // Stored event handler references for proper cleanup
 let startRoamingHandler: (() => void) | null = null;
@@ -955,7 +956,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 					color: Cesium.Color.YELLOW,
 					outlineColor: Cesium.Color.BLACK,
 					outlineWidth: 2,
-					heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+					disableDepthTestDistance: Number.POSITIVE_INFINITY,
 				}
 			});
 		} else {
@@ -976,16 +977,30 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				roamingAreaEntity = null;
 			}
 			
-			// Create a rectangle entity to show the area
+			// Create a ground-draped rectangle fill
 			roamingAreaRectangle = cesiumViewer.entities.add({
 				rectangle: {
 					coordinates: Cesium.Rectangle.fromDegrees(
 						bounds.west, bounds.south, bounds.east, bounds.north
 					),
 					material: Cesium.Color.YELLOW.withAlpha(0.3),
-					outline: true,
-					outlineColor: Cesium.Color.YELLOW,
-					height: 0
+					classificationType: Cesium.ClassificationType.BOTH
+				}
+			});
+
+			// Create a separate polyline outline clamped to ground (ground-draped rectangles don't support outlines)
+			roamingAreaOutline = cesiumViewer.entities.add({
+				polyline: {
+					positions: Cesium.Cartesian3.fromDegreesArray([
+						bounds.west, bounds.south,
+						bounds.east, bounds.south,
+						bounds.east, bounds.north,
+						bounds.west, bounds.north,
+						bounds.west, bounds.south
+					]),
+					width: 2,
+					material: Cesium.Color.YELLOW,
+					clampToGround: true
 				}
 			});
 			
@@ -1356,6 +1371,7 @@ function handleCoordinatePick(result: any) {
 		roamingAreaStart = null;
 		roamingAreaEntity = null;
 		roamingAreaRectangle = null;
+		roamingAreaOutline = null;
 		pointEntity = null;
 		userLocationEntity = null;
 		userLocationInitialized = false;
