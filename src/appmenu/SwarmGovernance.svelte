@@ -1,8 +1,8 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { coordinates } from '../store';
-  import FormInput from './FormInput.svelte';
-  import GlassmorphismButton from './GlassmorphismButton.svelte';
+  import FormInput from '../components/FormInput.svelte';
+  import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import type { AppMenuCategory } from '../types';
   import { PLACEHOLDER_TEXT } from '../types';
   import { createEmptyRecord, recordIsValid } from '../utils/formUtils';

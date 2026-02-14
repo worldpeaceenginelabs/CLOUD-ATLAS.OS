@@ -213,14 +213,14 @@ It’s fully owned by <strong>you and everyone</strong>, working as a <strong>gl
 <br><br><br>
 
 # Decentralized Communication and Storage (Core)
-### Real-time WebRTC Signaling 🌐 (✅ working) 
+### Real-time peer to peer communication 🌐 (✅ working) 
 - **Peer-to-peer connections** happen via decentralized protocols:
-  - **BitTorrent 🌀**: Used for signaling and establishing connections between peers.
-  - **NOSTR 🔑**: A decentralized protocol for real-time messaging, used for signaling and establishing connections between peers.
+  - **BitTorrent 🌀**: Used for 3D-model, media, and asset transport.
+  - **NOSTR 🔑**: A decentralized protocol for real-time messaging, used for establishing connections between peers and coordination messages.
 - **No central server**: All signaling happens through these decentralized networks, ensuring seamless and secure connections.
 
 ### Local Data Storage 💾 (✅ working) 
-- **IndexedDB** stores data directly in the user's browser.
+- **IndexedDB** caches data directly in the user's browser.
 - **Private and fast access**, no external servers involved.
 
 ### Decentralized Data Replication 🔄 (❌ coming) 

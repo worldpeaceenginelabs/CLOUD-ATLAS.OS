@@ -2,11 +2,8 @@
   import { openModals } from '../utils/modalManager';
   import Modal from './Modal.svelte';
   import Editor from './Editor.svelte';
-  import Brainstorming from '../appmenu/Brainstorming.svelte';
+  import SwarmGovernance from '../appmenu/SwarmGovernance.svelte';
   import Simulation from '../appmenu/Simulation.svelte';
-  import ActionEvent from '../appmenu/ActionEvent.svelte';
-  import Petition from '../appmenu/Petition.svelte';
-  import Crowdfunding from '../appmenu/Crowdfunding.svelte';
   import GigEconomy from './GigEconomy.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
@@ -142,15 +139,15 @@
           </div>
         </div>
       {:else if modal.id === 'brainstorming'}
-        <Brainstorming />
+        <SwarmGovernance category="brainstorming" />
       {:else if modal.id === 'simulation'}
         <Simulation />
       {:else if modal.id === 'action-event'}
-        <ActionEvent />
+        <SwarmGovernance category="actionevent" />
       {:else if modal.id === 'petition'}
-        <Petition />
+        <SwarmGovernance category="petition" />
       {:else if modal.id === 'crowdfunding'}
-        <Crowdfunding />
+        <SwarmGovernance category="crowdfunding" />
       {:else if modal.id === 'coordinate-picker'}
         <p>Please pick coordinates on the map first — then you can add application pins.</p>
       {:else if modal.id === 'zoom-required'}
