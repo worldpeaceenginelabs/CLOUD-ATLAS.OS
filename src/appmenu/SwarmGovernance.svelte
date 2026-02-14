@@ -14,11 +14,11 @@
   let record = createEmptyRecord(category);
 
   // Sync coordinates from map clicks into the form record
-  coordinates.subscribe(value => {
-    record.latitude = value.latitude;
-    record.longitude = value.longitude;
-    record.height = value.height;
-  });
+  $: {
+    record.latitude = $coordinates.latitude;
+    record.longitude = $coordinates.longitude;
+    record.height = $coordinates.height;
+  }
 
   // Submit handler (ghost — backend not yet wired)
   function handleSubmit() {

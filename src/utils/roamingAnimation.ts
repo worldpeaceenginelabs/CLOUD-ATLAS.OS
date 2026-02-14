@@ -26,7 +26,6 @@ export interface RoamingModel {
   isMoving: boolean;
   startTime: number;
   travelTime: number;
-  animationId?: number;
 }
 
 export class RoamingAnimationManager {
@@ -86,10 +85,6 @@ export class RoamingAnimationManager {
    * Remove a model from the roaming system
    */
   removeModel(modelId: string): void {
-    const roamingModel = this.roamingModels.get(modelId);
-    if (roamingModel?.animationId) {
-      cancelAnimationFrame(roamingModel.animationId);
-    }
     this.roamingModels.delete(modelId);
   }
 

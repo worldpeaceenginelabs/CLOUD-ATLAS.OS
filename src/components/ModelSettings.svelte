@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate } from 'svelte';
+  import { afterUpdate, onDestroy } from 'svelte';
   import FormInput from './FormInput.svelte';
   import Roaming from './Roaming.svelte';
   import RoamingControls from './RoamingControls.svelte';
@@ -128,6 +128,8 @@
     }
   
     // Debounced toggle function to prevent race conditions
+    let toggleTimer: ReturnType<typeof setTimeout> | null = null;
+
     function handleToggleDropdown() {
       if (isToggling) return;
       
@@ -137,10 +139,15 @@
       }
       
       // Reset toggle lock after a short delay
-      setTimeout(() => {
+      toggleTimer = setTimeout(() => {
         isToggling = false;
+        toggleTimer = null;
       }, 150);
     }
+
+    onDestroy(() => {
+      if (toggleTimer) clearTimeout(toggleTimer);
+    });
   
     // Drag and drop handlers
     function handleDragOver(event: DragEvent) {

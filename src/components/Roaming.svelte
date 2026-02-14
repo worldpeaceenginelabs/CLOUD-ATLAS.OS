@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, afterUpdate } from 'svelte';
-  import { isRoamingAreaMode, roamingAreaBounds, coordinates } from '../store';
+  import { isRoamingAreaMode, roamingAreaBounds } from '../store';
   import FormInput from './FormInput.svelte';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
 

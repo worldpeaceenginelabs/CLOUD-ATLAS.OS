@@ -77,34 +77,6 @@ class Logger {
     this.info(`Model removed: ${modelId}`, { component: 'ModelManager', operation: 'removeModel' });
   }
 
-  recordSent(recordTitle: string): void {
-    this.info(`Record sent: ${recordTitle}`, { component: 'RecordManager', operation: 'sendRecord' });
-  }
-
-  recordReceived(recordTitle: string, peerId: string): void {
-    this.info(`Record received from peer ${peerId}: ${recordTitle}`, { 
-      component: 'RecordManager', 
-      operation: 'receiveRecord',
-      additionalInfo: peerId
-    });
-  }
-
-  peerJoined(peerId: string): void {
-    this.info(`Peer ${peerId} joined`, { component: 'Trystero', operation: 'peerJoin' });
-  }
-
-  peerLeft(peerId: string): void {
-    this.info(`Peer ${peerId} left`, { component: 'Trystero', operation: 'peerLeave' });
-  }
-
-  dataStored(store: string, itemId: string): void {
-    this.info(`Data stored in ${store}: ${itemId}`, { 
-      component: 'IndexedDB', 
-      operation: 'storeData',
-      additionalInfo: store
-    });
-  }
-
   dataLoaded(store: string, count: number): void {
     this.info(`Loaded ${count} items from ${store}`, { 
       component: 'IndexedDB', 

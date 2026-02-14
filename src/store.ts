@@ -164,30 +164,3 @@ export function resetAllStores() {
     setCamera: null
   });
 }
-
-// Individual store cleanup functions
-export function resetCoordinates() {
-  coordinates.set({
-    latitude: '',
-    longitude: '',
-    height: 0
-  });
-}
-
-export function resetModels() {
-  models.set([]);
-}
-
-// resetSelectedModel moved to modalManager
-
-export function resetPins() {
-  pins.set([]);
-}
-
-export function resetZoomModal() {
-  isZoomModalVisible.set(false);
-}
-
-export function resetLastTriggeredModal() {
-  lastTriggeredModal.set(null);
-}

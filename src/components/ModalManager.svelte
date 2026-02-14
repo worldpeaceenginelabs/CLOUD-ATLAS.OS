@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { openModals } from '../utils/modalManager';
+  import { openModals, modalManager } from '../utils/modalManager';
   import Modal from './Modal.svelte';
   import Editor from './Editor.svelte';
   import SwarmGovernance from '../appmenu/SwarmGovernance.svelte';
@@ -9,21 +9,18 @@
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
   import { modelEditorService } from '../utils/modelEditorService';
+  import { modalService } from '../utils/modalService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
   import ShareButton from './Sharebutton.svelte';
 
   // Handle modal close
   function handleModalClose(modalId: string) {
-    import('../utils/modalManager').then(({ modalManager }) => {
-      modalManager.hideModal(modalId);
-    });
+    modalManager.hideModal(modalId);
   }
 
   // Handle model edit
   function handleModelEdit(modelData: any) {
-    import('../utils/modalService').then(({ modalService }) => {
-      modalService.hideModelDetails();
-    });
+    modalService.hideModelDetails();
     modelEditorService.handleEditModel(modelData);
   }
 
@@ -31,7 +28,6 @@
   async function handleModelRemove(modelData: any) {
     try {
       await removeModel(modelData.id);
-      const { modalService } = await import('../utils/modalService');
       modalService.hideModelDetails();
       logger.info('Model removed successfully', { component: 'ModalManager', operation: 'removeModel' });
     } catch (error) {

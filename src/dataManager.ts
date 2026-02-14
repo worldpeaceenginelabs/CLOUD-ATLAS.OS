@@ -21,6 +21,7 @@ export interface DataManagerCallbacks {
 export class DataManager {
   public callbacks: DataManagerCallbacks;
   private isInitialized = false;
+  private objectUrls: Map<string, string> = new Map(); // Track object URLs for cleanup
 
   constructor(callbacks: DataManagerCallbacks) {
     this.callbacks = callbacks;
@@ -49,7 +50,13 @@ export class DataManager {
     
     // Convert File to URL if it exists
     if (file) {
+      // Revoke any previous object URL for this model to prevent leaks
+      const existingUrl = this.objectUrls.get(serializableData.id);
+      if (existingUrl) {
+        URL.revokeObjectURL(existingUrl);
+      }
       const fileUrl = URL.createObjectURL(file);
+      this.objectUrls.set(serializableData.id, fileUrl);
       return {
         ...serializableData,
         file: fileUrl
@@ -144,10 +151,17 @@ export class DataManager {
     }
 
     try {
-      // 1. Remove from IDB
+      // 1. Revoke any object URL for this model
+      const objectUrl = this.objectUrls.get(modelId);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        this.objectUrls.delete(modelId);
+      }
+
+      // 2. Remove from IDB
       await idb.deleteModel(modelId);
       
-      // 2. Remove from scene
+      // 3. Remove from scene
       this.callbacks.removeModelFromScene(modelId);
       
       console.log('Model removed successfully:', modelId);

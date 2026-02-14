@@ -15,15 +15,12 @@
 
   let inputElement: HTMLInputElement | HTMLTextAreaElement;
 
-  function handleInput(event: Event) {
-    const target = event.target as HTMLInputElement | HTMLTextAreaElement;
-    if (type === 'number') {
-      const numValue = parseFloat(target.value);
-      if (!isNaN(numValue)) {
-        value = numValue.toString();
-      }
-    } else {
-      value = target.value;
+  // Only needed for number inputs to ensure proper float parsing
+  function handleNumberInput(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const numValue = parseFloat(target.value);
+    if (!isNaN(numValue)) {
+      value = numValue.toString();
     }
   }
 </script>
@@ -42,7 +39,6 @@
       {disabled}
       {maxlength}
       {rows}
-      on:input={handleInput}
       class="form-input textarea"
       class:error={error}
     ></textarea>
@@ -58,7 +54,7 @@
       {min}
       {max}
       {step}
-      on:input={handleInput}
+      on:input={handleNumberInput}
       class="form-input"
       class:error={error}
     />
@@ -71,7 +67,6 @@
       {required}
       {disabled}
       {maxlength}
-      on:input={handleInput}
       class="form-input"
       class:error={error}
     />
@@ -84,7 +79,6 @@
       {required}
       {disabled}
       {maxlength}
-      on:input={handleInput}
       class="form-input"
       class:error={error}
     />
@@ -97,7 +91,6 @@
       {required}
       {disabled}
       {maxlength}
-      on:input={handleInput}
       class="form-input"
       class:error={error}
     />
@@ -110,7 +103,6 @@
       {required}
       {disabled}
       {maxlength}
-      on:input={handleInput}
       class="form-input"
       class:error={error}
     />

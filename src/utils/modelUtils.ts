@@ -6,7 +6,7 @@
 import { dataManager } from '../dataManager';
 import { models } from '../store';
 import type { ModelData } from '../types';
-import { handleAsyncOperation, CommonErrorContexts, logError } from './errorHandler';
+import { CommonErrorContexts, logError } from './errorHandler';
 
 /**
  * Add a new model to the system
@@ -197,7 +197,9 @@ export async function persistTemporaryModel(tempModelId: string): Promise<void> 
   // Create permanent model data with new ID
   const permanentModelData = {
     ...tempModelData,
-    id: tempModelData.id.replace('temp_', '') // Remove temp prefix
+    id: tempModelData.id.startsWith('temp_') 
+      ? tempModelData.id.slice(5) 
+      : `perm_${tempModelData.id}`
   };
   
   // Add to IDB and update store

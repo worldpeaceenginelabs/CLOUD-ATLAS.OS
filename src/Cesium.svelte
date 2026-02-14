@@ -437,7 +437,7 @@ function loadModelsFromStore() {
 let previousModels: ModelData[] = [];
 
 // Reactive statement to automatically load models when store changes
-$: if (cesiumViewer && modelDataSource && $models.length >= 0) {
+$: if (cesiumViewer && modelDataSource) {
 	// Only reload if the models array actually changed
 	const modelsChanged = $models.length !== previousModels.length || 
 		$models.some((model, index) => {
@@ -782,20 +782,18 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			tileset.loadSiblings = false; // Don't load sibling tiles
 			tileset.foveatedTimeDelay = 0.0; // Load tiles immediately during zoom
 			
-			// Mark tileset as loaded (simplified approach)
-			tilesetProgress.set(100);
-			isTilesetLoaded = true;
-			checkIfBothLoaded();
-			
-			// Simulate tileset loading progress with less frequent updates
+			// Simulate tileset loading progress, then mark as loaded
+			let simulatedProgress = 0;
 			const progressInterval = setInterval(() => {
-				if ($tilesetProgress < 100) {
-					tilesetProgress.set($tilesetProgress + Math.random() * 20); // Larger increments
-					if ($tilesetProgress > 100) tilesetProgress.set(100);
-				} else {
+				simulatedProgress += Math.random() * 20;
+				if (simulatedProgress >= 100) {
+					simulatedProgress = 100;
 					clearInterval(progressInterval);
+					isTilesetLoaded = true;
+					checkIfBothLoaded();
 				}
-			}, 250); // Reduced frequency from 150ms to 250ms
+				tilesetProgress.set(simulatedProgress);
+			}, 250);
 		} catch (error) {
 			console.log('Error loading tileset:', error);
 			tilesetProgress.set(100);

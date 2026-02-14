@@ -193,11 +193,8 @@ class ModalManager {
    * Get modal state
    */
   getModalState(modalId: string): ModalState | undefined {
-    let modalState: ModalState | undefined;
-    modalStack.subscribe(stack => {
-      modalState = stack.find(modal => modal.id === modalId);
-    })();
-    return modalState;
+    const stack = get(modalStack);
+    return stack.find(modal => modal.id === modalId);
   }
 
   /**
@@ -333,15 +330,6 @@ class ModalManager {
     }
   }
 
-  /**
-   * Cleanup
-   */
-  destroy(): void {
-    if (typeof window !== 'undefined' && this.handleKeyDown) {
-      window.removeEventListener('keydown', this.handleKeyDown);
-    }
-    this.eventListeners.clear();
-  }
 }
 
 // Export singleton instance

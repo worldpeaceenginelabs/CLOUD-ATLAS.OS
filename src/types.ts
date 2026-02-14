@@ -51,19 +51,7 @@ export interface PinData {
   link: string;
   timestamp: string;
   height: number;
-  [key: string]: any; // Add index signature for Trystero compatibility
-}
-
-export interface LocalPinData {
-  mapid: string;
-  latitude: string;
-  longitude: string;
-  category: string;
-  title: string;
-  text: string;
-  link: string;
-  timestamp: string;
-  height: number;
+  [key: string]: any;
 }
 
 // Gig Economy Types

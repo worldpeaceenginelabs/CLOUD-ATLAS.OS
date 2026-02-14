@@ -16,7 +16,6 @@
   let hoveredSubmenuItem = '';
   let showInfoPanel = false;
   let infoPanelContent = '';
-  let touchStartTime = 0;
 
   // Coordinate state
   let hasCoordinates = false;
@@ -162,11 +161,6 @@
     }
   }
 
-  // Close modals - now handled by modal service
-  function closeActionDropdown() {
-    showActionDropdown = false;
-  }
-
   // Handle action submenu clicks
   function handleActionClick(actionType: string) {
     // Close info panel when clicking on touch devices
@@ -196,11 +190,6 @@
     }
   }
 
-  // Close action modals - now handled by modal service
-
-
-  // Model operations now use centralized utilities from modelUtils.ts
-
   // Handle escape key
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
@@ -224,21 +213,8 @@
   });
 
   onDestroy(() => {
-    // Remove event listeners
-    window.removeEventListener('keydown', handleKeyDown);
-    
     // Clear pending timers
     if (coordinatePickerTimer) clearTimeout(coordinatePickerTimer);
-    
-    // Reset component state
-    isDropdownVisible = false;
-    hoveredItem = '';
-    hoveredSubmenuItem = '';
-    showInfoPanel = false;
-    infoPanelContent = '';
-    
-    // Reset modal states
-    showActionDropdown = false;
   });
 </script>
 

@@ -21,26 +21,9 @@ export function logError(error: unknown, context: ErrorContext): void {
 }
 
 /**
- * Handle async operations with standardized error handling
- */
-export async function handleAsyncOperation<T>(
-  operation: () => Promise<T>,
-  context: ErrorContext,
-  fallback?: T
-): Promise<T | undefined> {
-  try {
-    const result = await operation();
-    return result;
-  } catch (error) {
-    logError(error, context);
-    return fallback;
-  }
-}
-
-/**
  * Create error context for common operations
  */
-export function createErrorContext(component: string, operation: string, additionalInfo?: string): ErrorContext {
+function createErrorContext(component: string, operation: string, additionalInfo?: string): ErrorContext {
   return { component, operation, additionalInfo };
 }
 
@@ -57,7 +40,6 @@ export const CommonErrorContexts = {
   idb: {
     savePin: (pinId: string) => createErrorContext('IndexedDB', 'savePin', pinId),
     loadPins: () => createErrorContext('IndexedDB', 'loadPins'),
-    deleteOldRecords: () => createErrorContext('IndexedDB', 'deleteOldRecords'),
   },
   cesium: {
     addModelToScene: (modelId: string) => createErrorContext('Cesium', 'addModelToScene', modelId),

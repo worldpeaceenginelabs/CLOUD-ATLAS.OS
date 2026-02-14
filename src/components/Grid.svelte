@@ -108,12 +108,13 @@
       messageElement.style.transition = `opacity ${fadeDuration}s ease-in-out`;
       messageElement.style.opacity = '1';
 
+      if (showMessageTimeout) clearTimeout(showMessageTimeout);
       showMessageTimeout = setTimeout(() => {
         if (messageElement) {
           messageElement.style.opacity = '0';
         }
-        showMessageTimeout = setTimeout(showMessage, 5000); // wait for a short time before showing the next message
-      }, 10000); // show each message for x seconds
+        showMessageTimeout = setTimeout(showMessage, 5000);
+      }, 10000);
     }
   }
 
