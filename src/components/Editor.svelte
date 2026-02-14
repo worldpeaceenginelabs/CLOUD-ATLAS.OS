@@ -2,82 +2,44 @@
   import { onMount, onDestroy } from 'svelte';
   import ModelSettings from './ModelSettings.svelte';
   import { roamingAreaBounds, coordinates, isEditorOpen } from '../store';
-  import { modelEditorService } from '../utils/modelEditorService';
+  import {
+    modelEditorService,
+    formSelectedSource,
+    formGltfFile,
+    formGltfUrl,
+    formModelName,
+    formModelDescription,
+    formScale,
+    formHeight,
+    formHeightOffset,
+    formHeading,
+    formPitch,
+    formRoll,
+    formIsRoamingEnabled,
+    formRoamingSpeed,
+    formRoamingArea
+  } from '../utils/modelEditorService';
   
   // Props
   export let isEditMode = false;
-  export let modelData: any = null;
   
   // Component state
   export let selectedEditor: 'caos-editor' | 'playcanvas' = 'caos-editor';
   
   // Dropdown state for ModelSettings
   let showDropdown = false;
-  
-  // Local form state (bound to ModelSettings via bind:)
-  let selectedSource = 'url';
-  let gltfFile: File | null = null;
-  let gltfUrl = '';
-  let modelName = '';
-  let modelDescription = '';
-  let scale = 1.0;
-  let height = 0;
-  let heightOffset = 0.0;
-  let heading = 0;
-  let pitch = 0;
-  let roll = 0;
-  let isRoamingEnabled = false;
-  let roamingSpeed = 1.0;
-  let roamingArea: {
-    north: number;
-    south: number;
-    east: number;
-    west: number;
-  } | null = null;
 
-  // Sync roamingArea with store
+  // Sync roamingAreaBounds (from map painting) into the form store
   $: if ($roamingAreaBounds) {
-    roamingArea = $roamingAreaBounds;
+    formRoamingArea.set($roamingAreaBounds);
   }
 
-  // Track if form has been initially populated to prevent overwriting user changes
-  let hasBeenInitiallyPopulated = false;
-
-  // Populate form fields when modelData is provided (edit mode) - only once
-  $: if (modelData && isEditMode && !hasBeenInitiallyPopulated) {
-    modelEditorService.handleEditorOpened(true, modelData);
-
-    // Populate local form fields for ModelSettings binding
-    modelName = modelData.name || '';
-    modelDescription = modelData.description || '';
-    scale = modelData.transform?.scale || 1.0;
-    height = modelData.transform?.height || 0;
-    heightOffset = modelData.transform?.heightOffset || 0.0;
-    heading = modelData.transform?.heading || 0;
-    pitch = modelData.transform?.pitch || 0;
-    roll = modelData.transform?.roll || 0;
-
-    if (modelData.source === 'file' && modelData.file) {
-      selectedSource = 'file';
-      gltfFile = modelData.file instanceof File ? modelData.file : null;
-      gltfUrl = '';
-    } else {
-      selectedSource = 'url';
-      gltfUrl = modelData.url || '';
-      gltfFile = null;
-    }
-
-    isRoamingEnabled = modelData.roaming?.isEnabled || false;
-    roamingSpeed = modelData.roaming?.speed || 1.0;
-    roamingArea = modelData.roaming?.area || null;
-
-    hasBeenInitiallyPopulated = true;
-  }
-
-  // Handle add mode initialization
-  $: if (!isEditMode && !modelData) {
-    modelEditorService.handleEditorOpened(false, null);
-    hasBeenInitiallyPopulated = false;
+  // Watch for form store changes and update the preview model
+  $: {
+    $formSelectedSource; $formGltfFile; $formGltfUrl; $formModelName; $formModelDescription;
+    $formScale; $formHeight; $formHeightOffset; $formHeading; $formPitch; $formRoll;
+    $formIsRoamingEnabled; $formRoamingSpeed; $formRoamingArea;
+    modelEditorService.updatePreview();
   }
   
   function switchEditor(editor: 'caos-editor' | 'playcanvas') {
@@ -106,43 +68,10 @@
     modelEditorService.handleCancel();
   }
   
-  function handleClose() {
-    modelEditorService.handleCancel();
-  }
-  
   function handleToggleDropdown() {
     if ($isEditorOpen) {
       showDropdown = !showDropdown;
     }
-  }
-  
-  // Notify the service when form data changes (for preview model)
-  function syncFormDataToService() {
-    modelEditorService.handleFormDataChange({
-      selectedSource: selectedSource as 'url' | 'file',
-      gltfFile,
-      gltfUrl,
-      modelName,
-      modelDescription,
-      scale,
-      height,
-      heightOffset,
-      heading,
-      pitch,
-      roll,
-      isRoamingEnabled,
-      roamingSpeed,
-      roamingArea
-    });
-  }
-  
-  // Watch for form data changes and sync to service
-  $: {
-    // Touch all reactive variables to trigger on any change
-    selectedSource; gltfFile; gltfUrl; modelName; modelDescription;
-    scale; height; heightOffset; heading; pitch; roll;
-    isRoamingEnabled; roamingSpeed; roamingArea;
-    syncFormDataToService();
   }
 
   // Control dropdown state based on Editor visibility
@@ -168,7 +97,7 @@
       <h2 class="editor-title">
         {isEditMode ? 'Edit 3D Model' : 'Add 3D Model'}
       </h2>
-      <button class="close-button" on:click={handleClose} aria-label="Close editor">
+      <button class="close-button" on:click={handleCancel} aria-label="Close editor">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -218,25 +147,22 @@
   <!-- Model Settings Component -->
   <ModelSettings 
     coordinates={$coordinates}
-    bind:selectedSource
-    bind:gltfFile
-    bind:gltfUrl
-    bind:modelName
-    bind:modelDescription
-    bind:scale
-    bind:height
-    bind:heightOffset
-    bind:heading
-    bind:pitch
-    bind:roll
-    bind:isRoamingEnabled
-    bind:roamingSpeed
-    bind:roamingArea
+    bind:selectedSource={$formSelectedSource}
+    bind:gltfFile={$formGltfFile}
+    bind:gltfUrl={$formGltfUrl}
+    bind:modelName={$formModelName}
+    bind:modelDescription={$formModelDescription}
+    bind:scale={$formScale}
+    bind:height={$formHeight}
+    bind:heightOffset={$formHeightOffset}
+    bind:heading={$formHeading}
+    bind:pitch={$formPitch}
+    bind:roll={$formRoll}
+    bind:isRoamingEnabled={$formIsRoamingEnabled}
+    bind:roamingSpeed={$formRoamingSpeed}
+    bind:roamingArea={$formRoamingArea}
     bind:showDropdown
     onToggleDropdown={handleToggleDropdown}
-    onSourceChange={(source) => selectedSource = source}
-    onFileSelect={() => syncFormDataToService()}
-    onUrlChange={() => syncFormDataToService()}
   />
 </div>
 

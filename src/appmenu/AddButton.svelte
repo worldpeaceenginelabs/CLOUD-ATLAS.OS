@@ -1,27 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { fade, slide } from 'svelte/transition';
+  import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
-  import Brainstorming from './Brainstorming.svelte';
-  import Simulation from './Simulation.svelte';
-  import ActionEvent from './ActionEvent.svelte';
-  import Petition from './Petition.svelte';
-  import Crowdfunding from './Crowdfunding.svelte';
-  import Modal from '../components/Modal.svelte';
   
-  import { coordinates, isZoomModalVisible, lastTriggeredModal, models } from '../store';
-  import type { ModelData } from '../types';
-  import { dataManager } from '../dataManager';
-  import { addModel, updateModel } from '../utils/modelUtils';
+  import { coordinates, lastTriggeredModal } from '../store';
   import { modalService } from '../utils/modalService';
 
-  // Props - removed toggleModelUI as it's handled internally now
-  export const addPreviewModelToScene: ((modelData: any) => void) | undefined = undefined;
-  export const removePreviewModelFromScene: (() => void) | undefined = undefined;
-  export const updatePreviewModelInScene: ((modelData: any) => void) | undefined = undefined;
+  // Props
   export let onAddModel: (() => void) | undefined = undefined;
 
   // Component state
+  let coordinatePickerTimer: ReturnType<typeof setTimeout> | null = null;
   let isDropdownVisible = false;
   let hoveredItem = '';
   let hoveredSubmenuItem = '';
@@ -129,9 +118,12 @@
   function showCoordinatePickerMessage() {
     modalService.showCoordinatePicker();
     lastTriggeredModal.set('pick');
+    // Clear any existing timer before starting a new one
+    if (coordinatePickerTimer) clearTimeout(coordinatePickerTimer);
     // Auto-hide after 3 seconds
-    setTimeout(() => {
+    coordinatePickerTimer = setTimeout(() => {
       modalService.hideCoordinatePicker();
+      coordinatePickerTimer = null;
     }, 3000);
   }
 
@@ -234,6 +226,9 @@
   onDestroy(() => {
     // Remove event listeners
     window.removeEventListener('keydown', handleKeyDown);
+    
+    // Clear pending timers
+    if (coordinatePickerTimer) clearTimeout(coordinatePickerTimer);
     
     // Reset component state
     isDropdownVisible = false;

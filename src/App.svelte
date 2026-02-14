@@ -253,20 +253,10 @@
   }
 }
 
-  /* Specific fix for very small screens (under 400px) */
-@media (max-width: 400px) {
+  /* Very small screens (under 400px) */
+  @media (max-width: 400px) {
     .quote {
-      font-size: 1em; /* Reduce the font size further */
-      bottom: 10%; /* Adjust the position of the quote */
-      max-width: 90%; /* Make sure the quote is within bounds */
-    }
-    
-    .enter-text {
-      font-size: 30vw; /* Adjust font size of enter text for smaller screens */
-    }
-
-    .twpg-text.under-enter {
-      font-size: 7vw; /* Adjust font size for the secondary text */
+      font-size: 1em;
     }
   }
 

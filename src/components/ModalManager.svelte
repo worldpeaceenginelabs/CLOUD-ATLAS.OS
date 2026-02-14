@@ -56,7 +56,6 @@
       <div class="modal-card-container">
         <Editor 
           isEditMode={modal.config.data?.editMode || false}
-          modelData={modal.config.data?.modelData}
         />
       </div>
     {:else if modal.id === 'gig-economy'}

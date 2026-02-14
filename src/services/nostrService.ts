@@ -68,6 +68,7 @@ export class NostrService {
   private subscriptions = new Map<string, StoredSubscription>();
   private cachedEvents = new Map<string, string>();     // cacheKey → signed JSON msg
   private seenEventIds = new Set<string>();              // dedup across relays
+  private static readonly MAX_SEEN_IDS = 10000;         // cap to prevent unbounded growth
   private conversationKeys = new Map<string, Uint8Array>(); // pubkey → NIP-44 key
   private okResolvers = new Map<string, () => void>();   // eventId → resolve
   private reconnectAttempts = new Map<string, number>();
@@ -243,6 +244,12 @@ export class NostrService {
     // Deduplicate across relays
     if (this.seenEventIds.has(event.id)) return;
     this.seenEventIds.add(event.id);
+
+    // Evict oldest entries when cap is reached
+    if (this.seenEventIds.size > NostrService.MAX_SEEN_IDS) {
+      const iter = this.seenEventIds.values();
+      this.seenEventIds.delete(iter.next().value!);
+    }
 
     // Route to the subscription that matched
     const sub = this.subscriptions.get(subId);

@@ -108,14 +108,7 @@ class ModelEditorService {
 
   /** Open the editor in "add new model" mode */
   handleAddModel() {
-    editingModelId.set(null);
-
-    const tempId = get(temporaryModelId);
-    if (tempId) {
-      removeTemporaryModel(tempId);
-      temporaryModelId.set(null);
-    }
-
+    this.resetFormData();
     modalService.showModelEditor(false);
   }
 
@@ -219,45 +212,14 @@ class ModelEditorService {
     }
   }
 
-  // ─── Form Data Change Handler ──────────────────────────────────────
+  // ─── Preview Model Update ───────────────────────────────────────────
 
-  /** Called when Editor form fields change -- manages the temporary preview model */
-  handleFormDataChange(formData: {
-    selectedSource: 'url' | 'file';
-    gltfFile: File | null;
-    gltfUrl: string;
-    modelName: string;
-    modelDescription: string;
-    scale: number;
-    height: number;
-    heightOffset: number;
-    heading: number;
-    pitch: number;
-    roll: number;
-    isRoamingEnabled: boolean;
-    roamingSpeed: number;
-    roamingArea: { north: number; south: number; east: number; west: number } | null;
-  }) {
-    // Sync incoming form data into our stores
-    formSelectedSource.set(formData.selectedSource);
-    formGltfFile.set(formData.gltfFile);
-    formGltfUrl.set(formData.gltfUrl);
-    formModelName.set(formData.modelName);
-    formModelDescription.set(formData.modelDescription);
-    formScale.set(formData.scale);
-    formHeight.set(formData.height);
-    formHeightOffset.set(formData.heightOffset);
-    formHeading.set(formData.heading);
-    formPitch.set(formData.pitch);
-    formRoll.set(formData.roll);
-    formIsRoamingEnabled.set(formData.isRoamingEnabled);
-    formRoamingSpeed.set(formData.roamingSpeed);
-    formRoamingArea.set(formData.roamingArea);
-
-    // Create or update temporary preview model
+  /** Called reactively by Editor when form stores change -- manages the temporary preview model */
+  updatePreview() {
+    const form = this.getFormSnapshot();
     const hasSource =
-      (formData.selectedSource === 'url' && formData.gltfUrl) ||
-      (formData.selectedSource === 'file' && formData.gltfFile);
+      (form.selectedSource === 'url' && form.gltfUrl) ||
+      (form.selectedSource === 'file' && form.gltfFile);
 
     if (hasSource) {
       const tempId = get(temporaryModelId);
@@ -362,59 +324,8 @@ class ModelEditorService {
 
   /** Cancel editing -- clean up temporary model and close */
   handleCancel() {
-    const tempId = get(temporaryModelId);
-    if (tempId) {
-      removeTemporaryModel(tempId);
-      temporaryModelId.set(null);
-    }
-
     this.resetFormData();
     modalService.hideModelEditor();
-  }
-
-  /** Called when Editor component opens (handles edit-mode population) */
-  handleEditorOpened(editMode: boolean, modelData: any) {
-    if (editMode && modelData) {
-      editingModelId.set(modelData.id);
-
-      coordinates.set({
-        latitude: modelData.coordinates.latitude.toString(),
-        longitude: modelData.coordinates.longitude.toString(),
-        height: modelData.transform.height
-      });
-
-      formModelName.set(modelData.name);
-      formModelDescription.set(modelData.description || '');
-      formScale.set(modelData.transform.scale);
-      formHeight.set(modelData.transform.height);
-      formHeightOffset.set(modelData.transform.heightOffset || 0.0);
-      formHeading.set(modelData.transform.heading);
-      formPitch.set(modelData.transform.pitch);
-      formRoll.set(modelData.transform.roll);
-
-      if (modelData.source === 'file' && modelData.file) {
-        formSelectedSource.set('file');
-        formGltfFile.set(modelData.file);
-        formGltfUrl.set('');
-      } else {
-        formSelectedSource.set('url');
-        formGltfUrl.set(modelData.url || '');
-        formGltfFile.set(null);
-      }
-
-      formIsRoamingEnabled.set(modelData.roaming?.isEnabled || false);
-      formRoamingSpeed.set(modelData.roaming?.speed || 1.0);
-      formRoamingArea.set(modelData.roaming?.area || null);
-
-      const tempId = get(temporaryModelId);
-      if (tempId) {
-        removeTemporaryModel(tempId);
-        temporaryModelId.set(null);
-      }
-    } else {
-      editingModelId.set(null);
-      this.resetFormData();
-    }
   }
 
   /** Called when coordinates change while a temporary model exists */

@@ -38,9 +38,6 @@
     
     // Prevent rapid toggling
     let isToggling = false;
-    export let onSourceChange: ((source: string) => void) | undefined = undefined;
-    export let onFileSelect: ((event: Event) => void) | undefined = undefined;
-    export let onUrlChange: (() => void) | undefined = undefined;
   
     // File input reference
     let fileInput: HTMLInputElement;
@@ -121,46 +118,14 @@
   });
   
   
-    function handleSourceChange(event: Event) {
-      const target = event.target as HTMLInputElement;
-      if (onSourceChange) {
-        onSourceChange(target.value);
-      }
-    }
-  
-    function handleFileSelect(event: Event) {
-      if (onFileSelect) {
-        onFileSelect(event);
-      }
-    }
-
-    // Handle file selection with automatic loading
+    // Handle file selection from input
     function handleFileSelectAuto(event: Event) {
       const target = event.target as HTMLInputElement;
       const file = target.files?.[0];
       if (file) {
         gltfFile = file;
-        if (onFileSelect) {
-          onFileSelect(event);
-        }
       }
     }
-  
-  function handleUrlChange(event: Event) {
-    if (onUrlChange) {
-      onUrlChange();
-    }
-  }
-
-  // Handle URL input with automatic loading
-  function handleUrlInput(event: Event) {
-    const target = event.target as HTMLInputElement;
-    gltfUrl = target.value;
-    // Trigger automatic preview update when URL is pasted or typed
-    if (onUrlChange) {
-      onUrlChange();
-    }
-  }
   
     // Debounced toggle function to prevent race conditions
     function handleToggleDropdown() {
@@ -197,21 +162,9 @@
         const file = files[0];
         if (file.type === 'model/gltf-binary' || file.type === 'model/gltf+json' || 
             file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
-          // Switch to file mode and set the file
-          if (onSourceChange) {
-            onSourceChange('file');
-          }
-          // Set the file directly and trigger automatic loading
+          // Switch to file mode and set the file (bindings propagate to stores)
+          selectedSource = 'file';
           gltfFile = file;
-          if (onFileSelect) {
-            // Create a synthetic event that matches the expected interface
-            const syntheticEvent = {
-              target: { files: [file] },
-              preventDefault: () => {},
-              stopPropagation: () => {}
-            } as unknown as Event;
-            onFileSelect(syntheticEvent);
-          }
         }
       }
     }
@@ -251,7 +204,6 @@
                   name="source" 
                   value="url" 
                   bind:group={selectedSource}
-                  on:change={handleSourceChange}
                 />
                 <span>URL</span>
               </label>
@@ -261,7 +213,6 @@
                   name="source" 
                   value="file" 
                   bind:group={selectedSource}
-                  on:change={handleSourceChange}
                 />
                 <span>Upload File</span>
               </label>
@@ -297,8 +248,6 @@
                 id="gltfUrl"
                 type="url"
                 bind:value={gltfUrl}
-                on:input={handleUrlInput}
-                on:paste={handleUrlInput}
                 placeholder="https://example.com/model.glb"
                 class="text-input"
               />
@@ -430,20 +379,15 @@
       flex-direction: column;
       gap: 10px;
       margin-top: 10px;
+      width: 400px;
+      max-width: 90vw;
     }
-  
-  
-  
+
     /* Editor Model Settings Card positioning */
     .dropdown-container {
       width: 400px;
       max-width: 90vw;
       position: relative; /* Ensure proper positioning context */
-    }
-  
-    .main-container {
-      width: 400px;
-      max-width: 90vw;
     }
   
     .dropdown-trigger {
@@ -507,11 +451,6 @@
         transform: translateY(0);
       }
     }
-  
-    .model-settings-card {
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-  
   
     .model-settings-card.drag-over {
       border: 3px solid #4ade80;

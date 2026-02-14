@@ -1,4 +1,4 @@
-import { writable, derived, type Writable } from 'svelte/store';
+import { writable, type Writable } from 'svelte/store';
 import type { Coordinates, ModelData, PinData } from './types';
 
 export type { Coordinates, ModelData, PinData };
@@ -94,13 +94,6 @@ export const userLiveLocation: Writable<{ latitude: number; longitude: number } 
 export const userGigRole: Writable<'rider' | 'driver' | null> = writable(null);
 export const isGigPickingDestination: Writable<boolean> = writable(false);
 export const currentGeohash: Writable<string> = writable('');
-
-// Derived Stores
-export const currentCoords = derived(coordinates, $coords => ({
-  latitude: $coords.latitude || '',
-  longitude: $coords.longitude || '',
-  height: $coords.height || 0
-}));
 
 // Store cleanup functions
 export function resetAllStores() {

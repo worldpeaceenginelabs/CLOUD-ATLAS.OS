@@ -8,7 +8,7 @@
   import FormInput from './FormInput.svelte';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
   import type { AppMenuCategory, PinData } from '../types';
-  import { LINK_PATTERNS, PLACEHOLDER_TEXT } from '../types';
+  import { PLACEHOLDER_TEXT } from '../types';
   import { 
     deleteOldRecords, 
     deleteOldRecordsLocal, 

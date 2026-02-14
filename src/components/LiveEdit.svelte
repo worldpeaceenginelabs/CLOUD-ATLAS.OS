@@ -8,7 +8,7 @@
         );
 
         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-            alert('Das Popup wurde blockiert. Bitte deaktivieren Sie Ihren Popup-Blocker für diese Seite, um fortzufahren.');
+            alert('The popup was blocked. Please disable your popup blocker for this site to continue.');
         }
     }
 </script>

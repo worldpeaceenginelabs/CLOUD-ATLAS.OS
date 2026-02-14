@@ -342,16 +342,16 @@ export class IndexedDBManager {
   }
 
   /**
-   * Delete old records from locationpins store based on age
-   * @param maxAgeInDays - Maximum age of records to keep (default: 30 days)
+   * Generic helper to delete old records from any store based on age.
+   * Records must have a `mapid` key and a `timestamp` field.
    */
-  async deleteOldRecords(maxAgeInDays: number = 30): Promise<number> {
+  private async deleteOldFromStore(storeName: string, maxAgeInDays: number): Promise<number> {
     if (!this.db) {
       throw new Error('Database not initialized');
     }
 
-    if (!this.db.objectStoreNames.contains('locationpins')) {
-      console.log('Locationpins object store not found, skipping old record deletion');
+    if (!this.db.objectStoreNames.contains(storeName)) {
+      console.log(`${storeName} object store not found, skipping old record deletion`);
       return 0;
     }
 
@@ -360,24 +360,23 @@ export class IndexedDBManager {
     const cutoffTimestamp = cutoffDate.toISOString();
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction('locationpins', 'readwrite');
-      const objectStore = transaction.objectStore('locationpins');
+      const transaction = this.db!.transaction(storeName, 'readwrite');
+      const objectStore = transaction.objectStore(storeName);
       const request = objectStore.getAll();
 
       request.onsuccess = (event: Event) => {
         const records = (event.target as IDBRequest).result;
-        const recordsToDelete = records.filter((record: PinData) => 
+        const recordsToDelete = records.filter((record: any) => 
           record.timestamp && record.timestamp < cutoffTimestamp
         );
 
         if (recordsToDelete.length === 0) {
-          console.log('No old records found to delete from locationpins');
           resolve(0);
           return;
         }
 
         let deletedCount = 0;
-        const deletePromises = recordsToDelete.map((record: PinData) => 
+        const deletePromises = recordsToDelete.map((record: any) => 
           new Promise<void>((resolveDelete, rejectDelete) => {
             const deleteRequest = objectStore.delete(record.mapid);
             deleteRequest.onsuccess = () => {
@@ -385,7 +384,7 @@ export class IndexedDBManager {
               resolveDelete();
             };
             deleteRequest.onerror = () => {
-              console.error(`Error deleting record ${record.mapid}:`, deleteRequest.error);
+              console.error(`Error deleting record ${record.mapid} from ${storeName}:`, deleteRequest.error);
               rejectDelete(deleteRequest.error);
             };
           })
@@ -393,20 +392,28 @@ export class IndexedDBManager {
 
         Promise.all(deletePromises)
           .then(() => {
-            console.log(`Deleted ${deletedCount} old records from locationpins`);
+            console.log(`Deleted ${deletedCount} old records from ${storeName}`);
             resolve(deletedCount);
           })
           .catch((error) => {
-            console.error('Error deleting old records from locationpins:', error);
+            console.error(`Error deleting old records from ${storeName}:`, error);
             reject(error);
           });
       };
 
       request.onerror = (event: Event) => {
-        console.error('Error loading records for deletion from locationpins:', request.error);
+        console.error(`Error loading records for deletion from ${storeName}:`, request.error);
         reject(request.error);
       };
     });
+  }
+
+  /**
+   * Delete old records from locationpins store based on age
+   * @param maxAgeInDays - Maximum age of records to keep (default: 30 days)
+   */
+  async deleteOldRecords(maxAgeInDays: number = 30): Promise<number> {
+    return this.deleteOldFromStore('locationpins', maxAgeInDays);
   }
 
   /**
@@ -414,68 +421,7 @@ export class IndexedDBManager {
    * @param maxAgeInDays - Maximum age of records to keep (default: 30 days)
    */
   async deleteOldLocalRecords(maxAgeInDays: number = 30): Promise<number> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    if (!this.db.objectStoreNames.contains('localpins')) {
-      console.log('Localpins object store not found, skipping old local record deletion');
-      console.log('This is normal if the database hasn\'t been upgraded yet. The store will be created on next database upgrade.');
-      return 0;
-    }
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - maxAgeInDays);
-    const cutoffTimestamp = cutoffDate.toISOString();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction('localpins', 'readwrite');
-      const objectStore = transaction.objectStore('localpins');
-      const request = objectStore.getAll();
-
-      request.onsuccess = (event: Event) => {
-        const records = (event.target as IDBRequest).result;
-        const recordsToDelete = records.filter((record: LocalPinData) => 
-          record.timestamp && record.timestamp < cutoffTimestamp
-        );
-
-        if (recordsToDelete.length === 0) {
-          console.log('No old records found to delete from localpins');
-          resolve(0);
-          return;
-        }
-
-        let deletedCount = 0;
-        const deletePromises = recordsToDelete.map((record: LocalPinData) => 
-          new Promise<void>((resolveDelete, rejectDelete) => {
-            const deleteRequest = objectStore.delete(record.mapid);
-            deleteRequest.onsuccess = () => {
-              deletedCount++;
-              resolveDelete();
-            };
-            deleteRequest.onerror = () => {
-              console.error(`Error deleting local record ${record.mapid}:`, deleteRequest.error);
-              rejectDelete(deleteRequest.error);
-            };
-          })
-        );
-
-        Promise.all(deletePromises)
-          .then(() => {
-            console.log(`Deleted ${deletedCount} old records from localpins`);
-            resolve(deletedCount);
-          })
-          .catch((error) => {
-            console.error('Error deleting old records from localpins:', error);
-            reject(error);
-          });
-      };
-
-      request.onerror = (event: Event) => {
-        console.error('Error loading records for deletion from localpins:', request.error);
-        reject(request.error);
-      };
-    });
+    return this.deleteOldFromStore('localpins', maxAgeInDays);
   }
 }
 
