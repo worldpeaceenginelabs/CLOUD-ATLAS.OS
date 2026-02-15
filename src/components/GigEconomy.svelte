@@ -45,6 +45,25 @@
     if (errorTimeout) clearTimeout(errorTimeout);
   }
 
+  // ─── Heartbeat ─────────────────────────────────────────────
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      if (service && myRideRequest && myRideRequest.status === 'open') {
+        service.refreshRequest(myRideRequest);
+      }
+    }, 45_000);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+
   // ─── Cesium Entities ─────────────────────────────────────────
   let rideEntities: any[] = [];
   // ─── Service ─────────────────────────────────────────────────
@@ -114,6 +133,7 @@
     if (confirmedDriverPubkey === null) {
       // First driver wins — lock it in
       confirmedDriverPubkey = driverPubkey;
+      stopHeartbeat();
 
       // Update the public event: status → taken, embed the winner's pubkey
       service.confirmMatch(myRideRequest, driverPubkey);
@@ -289,6 +309,7 @@
     userGigRole.set('rider');
     addRideRequestToMap(request);
     currentView = 'pending';
+    startHeartbeat();
     registerBeforeUnload();
     logger.info('Ride request submitted', { component: 'GigEconomy', operation: 'submitRideRequest' });
   }
@@ -343,30 +364,31 @@
   }
 
   // ─── Cancel Flows ──────────────────────────────────────────
-  async function cancelRideRequest() {
+  function cancelRideRequest() {
     if (!myRideRequest || !service) return;
 
-    // Update the public event to 'cancelled' — all drivers see it
+    // Update the public event to 'cancelled' — all drivers see it instantly
     service.cancelRequest(myRideRequest);
 
     removeRideEntitiesFromMap(myRideRequest.id);
     myRideRequest = null;
     confirmedDriverPubkey = null;
+    stopHeartbeat();
 
-    await stopService();
+    stopService();
     userGigRole.set(null);
     currentView = 'menu';
     unregisterBeforeUnload();
     logger.info('Ride request cancelled', { component: 'GigEconomy', operation: 'cancelRideRequest' });
   }
 
-  async function cancelDriverOffer() {
+  function cancelDriverOffer() {
     matchedRequest = null;
     awaitingConfirmation = false;
     requestQueue = [];
     nearbyCount = 0;
 
-    await stopService();
+    stopService();
     userGigRole.set(null);
     currentView = 'menu';
     unregisterBeforeUnload();
@@ -387,7 +409,7 @@
     destinationLon = '';
   }
 
-  async function finishAndReset() {
+  function finishAndReset() {
     clearAllGigEntities();
     myRideRequest = null;
     matchedRequest = null;
@@ -397,8 +419,9 @@
     relayCount = 0;
     relayTotal = 0;
     requestQueue = [];
+    stopHeartbeat();
 
-    await stopService();
+    stopService();
     currentGeohash.set('');
     userGigRole.set(null);
     currentView = 'menu';
@@ -408,9 +431,9 @@
   }
 
   // ─── Service Cleanup ────────────────────────────────────────
-  async function stopService() {
+  function stopService() {
     if (service) {
-      await service.stop();
+      service.stop();
       service = null;
     }
     relayCount = 0;
@@ -422,7 +445,7 @@
   // ─── beforeunload Warning ──────────────────────────────────
   function onBeforeUnload(e: BeforeUnloadEvent) {
     e.preventDefault();
-    e.returnValue = 'Your ride request/offer will be deleted if you close this tab.';
+    e.returnValue = 'Your ride request/offer will expire if you close this tab.';
     if (service) {
       service.stop();
     }
@@ -456,6 +479,7 @@
   // ─── Lifecycle ──────────────────────────────────────────────
   onDestroy(() => {
     clearAllGigEntities();
+    stopHeartbeat();
     isGigPickingDestination.set(false);
     if (unsubCoords) unsubCoords();
     if (service) {

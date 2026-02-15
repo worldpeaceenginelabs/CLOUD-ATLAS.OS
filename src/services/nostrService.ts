@@ -3,7 +3,7 @@
  *
  * Provides Nostr primitives with no domain-specific logic:
  *   - WebSocket connections with auto-reconnect
- *   - NIP-33 replaceable event publishing
+ *   - NIP-33 replaceable event publishing (with NIP-40 expiration support)
  *   - NIP-44 encrypted direct messages
  *   - Subscription management with late-relay replay
  *   - Event deduplication and signature verification
@@ -11,7 +11,6 @@
  * Event Kinds used:
  *   30078 – NIP-33 parametrized replaceable events
  *   20004 – Ephemeral encrypted DMs (not persisted by relays)
- *   5     – NIP-09 event deletion
  */
 
 import {
@@ -33,7 +32,6 @@ export type { NostrEvent };
 
 export const REPLACEABLE_KIND = 30078;
 const DM_KIND = 20004;
-const DELETE_KIND = 5;
 
 /** Public Nostr relays – updated 2026-02-12. */
 const DEFAULT_RELAYS = [
@@ -70,7 +68,6 @@ export class NostrService {
   private seenEventIds = new Set<string>();              // dedup across relays
   private static readonly MAX_SEEN_IDS = 10000;         // cap to prevent unbounded growth
   private conversationKeys = new Map<string, Uint8Array>(); // pubkey → NIP-44 key
-  private okResolvers = new Map<string, () => void>();   // eventId → resolve
   private reconnectAttempts = new Map<string, number>();
   private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private relayCountCallback: ((connected: number, total: number) => void) | null = null;
@@ -215,16 +212,6 @@ export class NostrService {
 
       if (data[0] === 'EVENT' && data[1] && data[2]) {
         this.handleIncomingEvent(data[1] as string, data[2] as NostrEvent);
-      } else if (data[0] === 'OK') {
-        const eventId: string = data[1];
-        const accepted: boolean = data[2];
-        if (accepted && eventId) {
-          const resolver = this.okResolvers.get(eventId);
-          if (resolver) {
-            resolver();
-            this.okResolvers.delete(eventId);
-          }
-        }
       }
     } catch {
       // Malformed relay message — ignore
@@ -280,42 +267,6 @@ export class NostrService {
 
     logger.info(`Published replaceable event (d=${dTag})`, { component: 'NostrService', operation: 'publishReplaceable' });
     return event.id;
-  }
-
-  /**
-   * Delete a replaceable event from relays.
-   * Uses NIP-09 DELETE + empty replacement for broad compatibility.
-   * Waits for at least one relay to confirm, or times out after 3s.
-   */
-  async deleteReplaceable(dTag: string, eventId?: string): Promise<void> {
-    // 1. NIP-09 DELETE (best-effort, some relays may ignore)
-    if (eventId) {
-      const del: EventTemplate = {
-        kind: DELETE_KIND,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [['e', eventId]],
-        content: 'deleted',
-      };
-      this.broadcast(JSON.stringify(['EVENT', finalizeEvent(del, this.sk)]));
-    }
-
-    // 2. Empty replacement (overwrites on NIP-33 relays)
-    const replace: EventTemplate = {
-      kind: REPLACEABLE_KIND,
-      created_at: Math.floor(Date.now() / 1000) + 1,
-      tags: [['d', dTag]],
-      content: '',
-    };
-    const event = finalizeEvent(replace, this.sk);
-    const confirmed = await this.broadcastAndWaitForOk(event, 3000);
-
-    this.cachedEvents.delete(`rep:${dTag}`);
-
-    if (confirmed) {
-      logger.info(`Deleted replaceable event (d=${dTag})`, { component: 'NostrService', operation: 'deleteReplaceable' });
-    } else {
-      logger.warn(`Delete not confirmed (d=${dTag}), proceeding anyway`, { component: 'NostrService', operation: 'deleteReplaceable' });
-    }
   }
 
   // ─── Subscriptions ─────────────────────────────────────────
@@ -389,26 +340,6 @@ export class NostrService {
         ws.send(msg);
       }
     }
-  }
-
-  /**
-   * Broadcast an event and wait for at least one relay OK.
-   * Returns true if confirmed, false if timed out.
-   */
-  private broadcastAndWaitForOk(event: NostrEvent, timeoutMs: number): Promise<boolean> {
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        this.okResolvers.delete(event.id);
-        resolve(false);
-      }, timeoutMs);
-
-      this.okResolvers.set(event.id, () => {
-        clearTimeout(timer);
-        resolve(true);
-      });
-
-      this.broadcast(JSON.stringify(['EVENT', event]));
-    });
   }
 
   /**
