@@ -167,9 +167,11 @@
 
   .gig-economy-panel {
     position: fixed;
-    top: 80px;
+    top: 50%;
     left: 10px;
+    transform: translateY(-50%);
     z-index: 50;
+    width: fit-content;
     background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -207,8 +209,11 @@
     .gig-economy-panel {
       top: auto;
       bottom: 10px;
-      left: 10px;
-      right: 10px;
+      left: 50%;
+      right: auto;
+      width: calc(100% - 20px);
+      max-width: 360px;
+      transform: translateX(-50%);
       max-height: 50vh;
     }
   }

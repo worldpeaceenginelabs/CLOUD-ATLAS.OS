@@ -683,7 +683,7 @@
     padding: 1rem;
     color: white;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    max-width: 320px;
+    max-width: 360px;
   }
 
   /* ── Error Banner ── */
@@ -1011,7 +1011,7 @@
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .gig-economy {
-      max-width: 280px;
+      max-width: none;
       padding: 0.75rem;
     }
 
