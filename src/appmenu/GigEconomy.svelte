@@ -7,8 +7,8 @@
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
-  import GlassmorphismButton from './GlassmorphismButton.svelte';
-  import RelayStatus from './RelayStatus.svelte';
+  import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
+  import RelayStatus from '../components/RelayStatus.svelte';
   import * as Cesium from 'cesium';
 
   // ─── View State ──────────────────────────────────────────────

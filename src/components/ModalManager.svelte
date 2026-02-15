@@ -4,7 +4,7 @@
   import Editor from './Editor.svelte';
   import SwarmGovernance from '../appmenu/SwarmGovernance.svelte';
   import Simulation from '../appmenu/Simulation.svelte';
-  import GigEconomy from './GigEconomy.svelte';
+  import GigEconomy from '../appmenu/GigEconomy.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
