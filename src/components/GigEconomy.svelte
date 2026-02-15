@@ -442,21 +442,29 @@
     clearAllGigEntities();
   }
 
-  // ─── beforeunload Warning ──────────────────────────────────
+  // ─── beforeunload Warning & unload Cleanup ────────────────
   function onBeforeUnload(e: BeforeUnloadEvent) {
     e.preventDefault();
     e.returnValue = 'Your ride request/offer will expire if you close this tab.';
+  }
+
+  /** Fires only after the user confirms "Leave" — page is definitely closing. */
+  function onUnload() {
+    stopHeartbeat();
     if (service) {
       service.stop();
+      service = null;
     }
   }
 
   function registerBeforeUnload() {
     window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('unload', onUnload);
   }
 
   function unregisterBeforeUnload() {
     window.removeEventListener('beforeunload', onBeforeUnload);
+    window.removeEventListener('unload', onUnload);
   }
 
   // ─── Destination Picking ────────────────────────────────────
