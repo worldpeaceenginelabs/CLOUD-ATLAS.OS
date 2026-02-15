@@ -127,15 +127,10 @@ export class NostrService {
   private connectRelay(url: string): void {
     if (this.closed) return;
 
-    const timeout = setTimeout(() => {
-      logger.warn(`Timeout connecting to ${url}`, { component: 'NostrService', operation: 'connectRelay' });
-    }, 5000);
-
     try {
       const ws = new WebSocket(url);
 
       ws.onopen = () => {
-        clearTimeout(timeout);
         if (this.closed) { ws.close(); return; }
         this.sockets.set(url, ws);
         this.reconnectAttempts.delete(url);
@@ -154,19 +149,15 @@ export class NostrService {
       };
 
       ws.onclose = () => {
-        clearTimeout(timeout);
         this.sockets.delete(url);
         this.emitRelayCount();
         this.scheduleReconnect(url);
       };
 
-      ws.onerror = () => {
-        clearTimeout(timeout);
-      };
+      ws.onerror = () => {};
 
       ws.onmessage = (msg) => this.handleMessage(msg.data);
     } catch {
-      clearTimeout(timeout);
       this.scheduleReconnect(url);
     }
   }
@@ -294,13 +285,13 @@ export class NostrService {
    * Decrypts automatically and passes the plaintext payload to the callback.
    * Returns the subscription ID.
    */
-  subscribeDMs(onMessage: (fromPubkey: string, payload: unknown) => void): string {
+  subscribeDMs(lookbackSecs: number, onMessage: (fromPubkey: string, payload: unknown) => void): string {
     const subId = `dm-${Date.now()}`;
 
     this.subscribe(subId, {
       kinds: [DM_KIND],
       '#p': [this.pk],
-      since: Math.floor(Date.now() / 1000) - 120,
+      since: Math.floor(Date.now() / 1000) - lookbackSecs,
     }, (event: NostrEvent) => {
       try {
         const key = this.getConversationKey(event.pubkey);

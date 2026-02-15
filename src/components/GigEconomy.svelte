@@ -8,6 +8,7 @@
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
+  import RelayStatus from './RelayStatus.svelte';
   import * as Cesium from 'cesium';
 
   // ─── View State ──────────────────────────────────────────────
@@ -83,15 +84,19 @@
     logger.info('Own ride request expired', { component: 'GigEconomy', operation: 'handleOwnRequestExpired' });
   }
 
-  /** Driver: own availability event expired or disappeared from relay. */
-  function handleOwnAvailExpired() {
+  /** Reset all driver-side local state. */
+  function resetDriverState() {
     matchedRequest = null;
     awaitingConfirmation = false;
     requestQueue = [];
     nearbyCount = 0;
-
     stopService();
     userGigRole.set(null);
+  }
+
+  /** Driver: own availability event expired or disappeared from relay. */
+  function handleOwnAvailExpired() {
+    resetDriverState();
     currentView = 'offer-ride';
     showError('Your driver offer expired. Please start again.');
     logger.info('Own driver availability expired', { component: 'GigEconomy', operation: 'handleOwnAvailExpired' });
@@ -283,28 +288,31 @@
     isGigPickingDestination.set(true);
   }
 
-  function submitRideRequest() {
+  /** Shared preamble for both submit flows: GPS guard, geohash, service init. */
+  function prepareService(): { geohash: string; location: { latitude: number; longitude: number } } | null {
     if (!$userLiveLocation) {
       showError('GPS location not available. Please enable location services and try again.');
-      return;
+      return null;
     }
+    const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
+    currentGeohash.set(geohash);
+    service = createService();
+    return { geohash, location: { latitude: $userLiveLocation.latitude, longitude: $userLiveLocation.longitude } };
+  }
+
+  function submitRideRequest() {
     if (!destinationLat || !destinationLon) {
       showError('Please pick a destination on the map first.');
       return;
     }
 
-    const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
-    currentGeohash.set(geohash);
-
-    service = createService();
+    const ctx = prepareService();
+    if (!ctx) return;
 
     const request: RideRequest = {
       id: crypto.randomUUID(),
-      pubkey: service.pubkey,
-      startLocation: {
-        latitude: $userLiveLocation.latitude,
-        longitude: $userLiveLocation.longitude,
-      },
+      pubkey: service!.pubkey,
+      startLocation: ctx.location,
       destination: {
         latitude: parseFloat(destinationLat),
         longitude: parseFloat(destinationLon),
@@ -313,10 +321,10 @@
       status: 'open',
       matchedDriverPubkey: null,
       timestamp: getCurrentTimeIso8601(),
-      geohash,
+      geohash: ctx.geohash,
     };
 
-    service.startAsRider(geohash, request);
+    service!.startAsRider(ctx.geohash, request);
     myRideRequest = request;
     confirmedDriverPubkey = null;
     userGigRole.set('rider');
@@ -326,20 +334,10 @@
   }
 
   function submitDriverOffer() {
-    if (!$userLiveLocation) {
-      showError('GPS location not available. Please enable location services and try again.');
-      return;
-    }
+    const ctx = prepareService();
+    if (!ctx) return;
 
-    const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
-    currentGeohash.set(geohash);
-
-    service = createService();
-    service.startAsDriver(geohash, {
-      latitude: $userLiveLocation.latitude,
-      longitude: $userLiveLocation.longitude,
-    });
-
+    service!.startAsDriver(ctx.geohash, ctx.location);
     userGigRole.set('driver');
     currentView = 'pending';
     logger.info('Driver offer submitted', { component: 'GigEconomy', operation: 'submitDriverOffer' });
@@ -392,13 +390,7 @@
   }
 
   function cancelDriverOffer() {
-    matchedRequest = null;
-    awaitingConfirmation = false;
-    requestQueue = [];
-    nearbyCount = 0;
-
-    stopService();
-    userGigRole.set(null);
+    resetDriverState();
     currentView = 'menu';
     logger.info('Driver offer cancelled', { component: 'GigEconomy', operation: 'cancelDriverOffer' });
   }
@@ -418,19 +410,9 @@
   }
 
   function finishAndReset() {
-    clearAllGigEntities();
     myRideRequest = null;
-    matchedRequest = null;
-    awaitingConfirmation = false;
     confirmedDriverPubkey = null;
-    nearbyCount = 0;
-    relayCount = 0;
-    relayTotal = 0;
-    requestQueue = [];
-
-    stopService();
-    currentGeohash.set('');
-    userGigRole.set(null);
+    resetDriverState();
     currentView = 'menu';
     destinationLat = '';
     destinationLon = '';
@@ -467,14 +449,10 @@
 
   // ─── Lifecycle ──────────────────────────────────────────────
   onDestroy(() => {
-    clearAllGigEntities();
+    stopService();
     gigCanClose.set(true);
     isGigPickingDestination.set(false);
     if (unsubCoords) unsubCoords();
-    if (service) {
-      service.stop();
-      service = null;
-    }
     clearError();
   });
 </script>
@@ -626,16 +604,7 @@
       <!-- ── Rider pending ── -->
       {#if myRideRequest && $userGigRole === 'rider'}
         <h3 class="gig-title">Waiting for Driver</h3>
-        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0 && relayTotal > 0} class:failed={relayCount === 0 && relayTotal === 0}>
-          <span class="relay-dot"></span>
-          {#if relayCount > 0}
-            {relayCount}/{relayTotal} relays
-          {:else if relayTotal > 0}
-            Connecting to relays...
-          {:else}
-            No relays available
-          {/if}
-        </div>
+        <RelayStatus connected={relayCount} total={relayTotal} />
         <div class="status-indicator">
           <div class="pulse-dot"></div>
           <span>
@@ -662,16 +631,7 @@
       <!-- ── Driver pending ── -->
       {:else if $userGigRole === 'driver'}
         <h3 class="gig-title">Offering Rides</h3>
-        <div class="relay-status" class:connected={relayCount > 0} class:connecting={relayCount === 0 && relayTotal > 0} class:failed={relayCount === 0 && relayTotal === 0}>
-          <span class="relay-dot"></span>
-          {#if relayCount > 0}
-            {relayCount}/{relayTotal} relays
-          {:else if relayTotal > 0}
-            Connecting to relays...
-          {:else}
-            No relays available
-          {/if}
-        </div>
+        <RelayStatus connected={relayCount} total={relayTotal} />
         <div class="status-indicator">
           <div class="pulse-dot driver"></div>
           <span>
@@ -1009,51 +969,6 @@
     color: rgba(255, 255, 255, 0.35);
     margin: 0;
     font-family: monospace;
-  }
-
-  .relay-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.7rem;
-    padding: 2px 10px;
-    border-radius: 12px;
-    margin-bottom: 8px;
-    font-family: monospace;
-    transition: all 0.3s ease;
-  }
-  .relay-status.connected {
-    color: rgba(100, 255, 160, 0.85);
-    background: rgba(100, 255, 160, 0.08);
-  }
-  .relay-status.connecting {
-    color: rgba(255, 200, 100, 0.85);
-    background: rgba(255, 200, 100, 0.08);
-  }
-  .relay-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-  .relay-status.connected .relay-dot {
-    background: rgba(100, 255, 160, 0.9);
-    box-shadow: 0 0 4px rgba(100, 255, 160, 0.5);
-  }
-  .relay-status.connecting .relay-dot {
-    background: rgba(255, 200, 100, 0.9);
-    animation: relay-blink 1s ease-in-out infinite;
-  }
-  .relay-status.failed {
-    color: rgba(252, 165, 165, 0.85);
-    background: rgba(239, 68, 68, 0.08);
-  }
-  .relay-status.failed .relay-dot {
-    background: rgba(239, 68, 68, 0.9);
-  }
-  @keyframes relay-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
   }
 
   .cancel-section {
