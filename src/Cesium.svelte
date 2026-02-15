@@ -1080,7 +1080,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
   
 	// Initialization on mount
 	onMount(async () => {
-	(window as any).CESIUM_BASE_URL = './';
 	Ion.defaultAccessToken = import.meta.env.VITE_ION_ACCESS_TOKEN;
 	// FOR LIVE EDIT: Ion.defaultAccessToken = 'yourtoken';
 	// TO USE THE GLOBE IN LIVE EDIT GET A FREE API KEY AT https://ion.cesium.com/
