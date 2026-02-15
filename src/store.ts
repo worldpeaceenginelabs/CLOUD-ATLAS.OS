@@ -94,6 +94,8 @@ export const userLiveLocation: Writable<{ latitude: number; longitude: number } 
 export const userGigRole: Writable<'rider' | 'driver' | null> = writable(null);
 export const isGigPickingDestination: Writable<boolean> = writable(false);
 export const currentGeohash: Writable<string> = writable('');
+/** Whether the gig economy panel can be closed via the X button */
+export const gigCanClose: Writable<boolean> = writable(true);
 
 // Store cleanup functions
 export function resetAllStores() {
@@ -148,6 +150,7 @@ export function resetAllStores() {
   userGigRole.set(null);
   isGigPickingDestination.set(false);
   currentGeohash.set('');
+  gigCanClose.set(true);
   
   // Cesium Actions
   cesiumActions.set({

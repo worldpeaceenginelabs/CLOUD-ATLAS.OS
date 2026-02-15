@@ -219,23 +219,25 @@ export class NostrService {
   }
 
   private handleIncomingEvent(subId: string, event: NostrEvent): void {
-    // Ignore own events
-    if (event.pubkey === this.pk) return;
+    const isOwn = event.pubkey === this.pk;
 
-    // Verify event signature
-    if (!verifyEvent(event)) {
+    // Verify signature (skip for own events — we signed them)
+    if (!isOwn && !verifyEvent(event)) {
       logger.warn(`Rejected event with invalid signature: ${event.id?.slice(0, 8)}`, { component: 'NostrService', operation: 'handleIncomingEvent' });
       return;
     }
 
-    // Deduplicate across relays
-    if (this.seenEventIds.has(event.id)) return;
-    this.seenEventIds.add(event.id);
+    // Deduplicate across relays (skip for own events — self-subscriptions
+    // need every echo so the heartbeat timer can resync with relay state)
+    if (!isOwn) {
+      if (this.seenEventIds.has(event.id)) return;
+      this.seenEventIds.add(event.id);
 
-    // Evict oldest entries when cap is reached
-    if (this.seenEventIds.size > NostrService.MAX_SEEN_IDS) {
-      const iter = this.seenEventIds.values();
-      this.seenEventIds.delete(iter.next().value!);
+      // Evict oldest entries when cap is reached
+      if (this.seenEventIds.size > NostrService.MAX_SEEN_IDS) {
+        const iter = this.seenEventIds.values();
+        this.seenEventIds.delete(iter.next().value!);
+      }
     }
 
     // Route to the subscription that matched

@@ -12,6 +12,7 @@
   import { modalService } from '../utils/modalService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
   import ShareButton from './Sharebutton.svelte';
+  import { gigCanClose } from '../store';
 
   // Handle modal close
   function handleModalClose(modalId: string) {
@@ -53,11 +54,13 @@
       </div>
     {:else if modal.id === 'gig-economy'}
       <div class="gig-economy-panel">
-        <button class="gig-close-btn" on:click={() => handleModalClose(modal.id)} aria-label="Close">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M18 6L6 18M6 6l12 12"/>
-          </svg>
-        </button>
+        {#if $gigCanClose}
+          <button class="gig-close-btn" on:click={() => handleModalClose(modal.id)} aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        {/if}
         <GigEconomy />
       </div>
     {/if}

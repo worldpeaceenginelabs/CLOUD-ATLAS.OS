@@ -2,22 +2,24 @@
  * Gig Economy Service
  *
  * Domain layer for ride matching over Nostr.
- * The rider's request event is the single source of truth.
+ * Events on the relay are the single source of truth — both rider and
+ * driver subscribe to their own events and derive state from them.
  *
  * Protocol:
  *   1. Rider publishes ride request event (status: 'open', NIP-40 TTL 60 s)
- *   2. Rider heartbeats every 45 s — re-publishes with fresh expiration
+ *   2. Rider self-subscribes; heartbeat fires 20 s before expiration
  *   3. Drivers subscribe to ride requests in their geohash cell
- *   4. Driver sends encrypted 'accept' DM to rider
- *   5. Rider picks winner, updates event (status: 'taken', matchedDriverPubkey)
- *   6. All drivers see the update — winner matches, losers move on
- *   7. If the rider crashes, heartbeats stop and the event expires on relays
+ *   4. Driver publishes availability event (NIP-40 TTL 60 s, same heartbeat)
+ *   5. Driver sends encrypted 'accept' DM to rider
+ *   6. Rider picks winner, updates event (status: 'taken', matchedDriverPubkey)
+ *   7. All drivers see the update — winner matches, losers move on
+ *   8. If either side crashes, heartbeats stop and the event expires on relays
  *
  * Event lifecycle (NIP-40):
- *   Every ride request event carries an ['expiration', unix] tag.
+ *   Every published event carries an ['expiration', unix] tag.
  *   Relays that support NIP-40 automatically stop serving expired events.
- *   The driver side also runs a local timer per request — when it fires,
- *   the request is treated as gone (same path as cancelled/taken).
+ *   Both sides also run local expiration timers as a fallback.
+ *   Self-subscriptions resync heartbeat timing with the relay's actual state.
  *
  * Messages:
  *   Public events:  ride request (open → taken/cancelled), driver availability
@@ -33,6 +35,12 @@ import type { RideRequest } from '../types';
 /** NIP-40 expiration: seconds from now until the event expires on relays. */
 const REQUEST_TTL_SECS = 60;
 
+/** Heartbeat fires this many seconds before the event's expiration. */
+const HEARTBEAT_LEAD_SECS = 20;
+
+/** If remaining TTL drops below this, treat the event as expired. */
+const MIN_VIABLE_TTL_SECS = 15;
+
 // ─── Types ───────────────────────────────────────────────────
 
 export interface GigCallbacks {
@@ -46,6 +54,10 @@ export interface GigCallbacks {
   onDriverAccepted: (driverPubkey: string, requestId: string) => void;
   /** Rider: number of available drivers in the cell changed. */
   onDriverCount?: (count: number) => void;
+  /** Rider: own ride request expired or disappeared from relays. */
+  onOwnRequestExpired?: () => void;
+  /** Driver: own availability event expired or disappeared from relays. */
+  onOwnAvailExpired?: () => void;
 }
 
 /** The only DM type in the protocol. */
@@ -63,7 +75,14 @@ export class GigService {
   private knownRequests = new Set<string>();            // requestIds we've delivered to the component
   private knownDrivers = new Set<string>();             // driver pubkeys seen in the cell (for rider count)
   private myRequestId: string | null = null;            // rider's own request ID (to filter DMs)
+  private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private driverExpirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  // Stored for heartbeat re-publish
+  private myRequest: RideRequest | null = null;
+  private myGeohash: string | null = null;
+  private myDriverLocation: { latitude: number; longitude: number } | null = null;
 
   constructor(callbacks: GigCallbacks) {
     this.nostr = new NostrService();
@@ -78,11 +97,14 @@ export class GigService {
   // ─── Rider ─────────────────────────────────────────────────
 
   /**
-   * Start as a rider. Publishes the ride request event and
-   * subscribes to accept DMs from drivers.
+   * Start as a rider. Publishes the ride request event,
+   * self-subscribes for lifecycle management, and subscribes
+   * to accept DMs and driver availability.
    */
   startAsRider(geohash: string, request: RideRequest): void {
     this.myRequestId = request.id;
+    this.myRequest = request;
+    this.myGeohash = geohash;
 
     // Wire up relay status
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
@@ -93,6 +115,16 @@ export class GigService {
       ['t', 'ride-request'],
       ['expiration', String(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS)],
     ], JSON.stringify(request));
+
+    // Schedule first heartbeat (we just published, so full TTL from now)
+    this.scheduleHeartbeat(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS);
+
+    // Self-subscribe to own ride request — relay echo drives heartbeat timing
+    this.nostr.subscribe('self-request', {
+      kinds: [REPLACEABLE_KIND],
+      authors: [this.nostr.pubkey],
+      '#d': [request.id],
+    }, (event: NostrEvent) => this.handleOwnRequestEvent(event));
 
     // Subscribe to incoming accept DMs
     this.nostr.subscribeDMs((fromPubkey: string, payload: unknown) => {
@@ -117,25 +149,13 @@ export class GigService {
   }
 
   /**
-   * Rider heartbeat — re-publishes the open request with a fresh
-   * created_at and expiration so it stays alive on relays.
-   */
-  refreshRequest(request: RideRequest): void {
-    this.nostr.publishReplaceable(request.id, [
-      ['g', request.geohash],
-      ['t', 'ride-request'],
-      ['expiration', String(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS)],
-    ], JSON.stringify(request));
-
-    logger.info('Heartbeat: refreshed ride request', { component: 'GigService', operation: 'refreshRequest' });
-  }
-
-  /**
    * Rider confirms the winning driver.
    * Updates the ride request event with status 'taken' and the winner's pubkey.
    * Every driver in the cell sees this through their subscription.
    */
   confirmMatch(request: RideRequest, driverPubkey: string): void {
+    this.clearHeartbeat();
+
     const updated: RideRequest = {
       ...request,
       status: 'taken',
@@ -153,6 +173,8 @@ export class GigService {
 
   /** Rider cancels their request. Updates event status to 'cancelled'. */
   cancelRequest(request: RideRequest): void {
+    this.clearHeartbeat();
+
     const updated: RideRequest = {
       ...request,
       status: 'cancelled',
@@ -171,18 +193,33 @@ export class GigService {
   // ─── Driver ────────────────────────────────────────────────
 
   /**
-   * Start as a driver. Publishes availability and subscribes to
-   * ride requests in the cell + accept DMs.
+   * Start as a driver. Publishes availability with NIP-40 TTL,
+   * self-subscribes for lifecycle management, and subscribes to
+   * ride requests in the cell.
    */
   startAsDriver(geohash: string, location: { latitude: number; longitude: number }): void {
+    this.myGeohash = geohash;
+    this.myDriverLocation = location;
+
     // Wire up relay status
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
-    // Publish driver availability as a public replaceable event
+    // Publish driver availability with NIP-40 TTL
     this.nostr.publishReplaceable('driver-avail', [
       ['g', geohash],
       ['t', 'driver-avail'],
+      ['expiration', String(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS)],
     ], JSON.stringify({ location }));
+
+    // Schedule first heartbeat (we just published, so full TTL from now)
+    this.scheduleHeartbeat(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS);
+
+    // Self-subscribe to own driver-avail event — relay echo drives heartbeat timing
+    this.nostr.subscribe('self-avail', {
+      kinds: [REPLACEABLE_KIND],
+      authors: [this.nostr.pubkey],
+      '#d': ['driver-avail'],
+    }, (event: NostrEvent) => this.handleOwnAvailEvent(event));
 
     // Subscribe to ride requests in this cell
     this.nostr.subscribe('ride-requests', {
@@ -218,10 +255,122 @@ export class GigService {
     }
   }
 
+  // ─── Heartbeat ────────────────────────────────────────────
+
+  /**
+   * Schedule the next heartbeat based on an event's expiration timestamp.
+   * Fires HEARTBEAT_LEAD_SECS before expiration to re-publish with fresh TTL.
+   */
+  private scheduleHeartbeat(expiration: number): void {
+    this.clearHeartbeat();
+
+    const now = Date.now() / 1000;
+    const remaining = expiration - now;
+
+    if (remaining < MIN_VIABLE_TTL_SECS) {
+      // Too late to recover — treat as expired
+      this.handleExpired();
+      return;
+    }
+
+    const delayMs = Math.max(0, (remaining - HEARTBEAT_LEAD_SECS) * 1000);
+
+    this.heartbeatTimer = setTimeout(() => {
+      this.heartbeatTimer = null;
+      this.fireHeartbeat();
+    }, delayMs);
+  }
+
+  /** Re-publish the current event with a fresh TTL. */
+  private fireHeartbeat(): void {
+    if (this.myRequest && this.myGeohash && this.myRequest.status === 'open') {
+      // Rider heartbeat
+      this.nostr.publishReplaceable(this.myRequest.id, [
+        ['g', this.myGeohash],
+        ['t', 'ride-request'],
+        ['expiration', String(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS)],
+      ], JSON.stringify(this.myRequest));
+
+      // Schedule next heartbeat (fresh TTL from now)
+      this.scheduleHeartbeat(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS);
+
+      logger.info('Heartbeat: refreshed ride request', { component: 'GigService', operation: 'heartbeat' });
+    } else if (this.myDriverLocation && this.myGeohash) {
+      // Driver heartbeat
+      this.nostr.publishReplaceable('driver-avail', [
+        ['g', this.myGeohash],
+        ['t', 'driver-avail'],
+        ['expiration', String(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS)],
+      ], JSON.stringify({ location: this.myDriverLocation }));
+
+      // Schedule next heartbeat (fresh TTL from now)
+      this.scheduleHeartbeat(Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS);
+
+      logger.info('Heartbeat: refreshed driver availability', { component: 'GigService', operation: 'heartbeat' });
+    }
+  }
+
+  private clearHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearTimeout(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  /** Called when the event's TTL is below MIN_VIABLE_TTL_SECS or gone from relay. */
+  private handleExpired(): void {
+    this.clearHeartbeat();
+    if (this.myRequest) {
+      this.callbacks.onOwnRequestExpired?.();
+    } else if (this.myDriverLocation) {
+      this.callbacks.onOwnAvailExpired?.();
+    }
+  }
+
+  // ─── Self-Subscription Handlers ───────────────────────────
+
+  /**
+   * Handle our own ride request echoed back from a relay.
+   * Resyncs the heartbeat to the event's actual expiration.
+   */
+  private handleOwnRequestEvent(event: NostrEvent): void {
+    const expiration = this.getExpiration(event);
+    if (!expiration) return;
+
+    const remaining = expiration - Date.now() / 1000;
+
+    if (remaining < MIN_VIABLE_TTL_SECS) {
+      this.handleExpired();
+      return;
+    }
+
+    // Resync heartbeat to the relay's actual expiration
+    this.scheduleHeartbeat(expiration);
+  }
+
+  /**
+   * Handle our own driver-avail event echoed back from a relay.
+   * Resyncs the heartbeat to the event's actual expiration.
+   */
+  private handleOwnAvailEvent(event: NostrEvent): void {
+    const expiration = this.getExpiration(event);
+    if (!expiration) return;
+
+    const remaining = expiration - Date.now() / 1000;
+
+    if (remaining < MIN_VIABLE_TTL_SECS) {
+      this.handleExpired();
+      return;
+    }
+
+    // Resync heartbeat to the relay's actual expiration
+    this.scheduleHeartbeat(expiration);
+  }
+
   // ─── Event Handling ────────────────────────────────────────
 
   /**
-   * Handle an incoming ride request event.
+   * Handle an incoming ride request event (driver side).
    * Differentiates between new requests, heartbeats, status updates,
    * and expired events.
    */
@@ -274,20 +423,41 @@ export class GigService {
   }
 
   /**
-   * Handle a driver availability event.
-   * Tracks driver pubkeys and fires onDriverCount when the count changes.
+   * Handle a driver availability event (rider side).
+   * Tracks driver pubkeys with expiration timers and fires onDriverCount.
    */
   private handleDriverAvailEvent(event: NostrEvent): void {
     if (!event.content) {
       // Empty content = driver went offline — remove them
-      if (this.knownDrivers.delete(event.pubkey)) {
-        this.callbacks.onDriverCount?.(this.knownDrivers.size);
-      }
+      this.removeDriver(event.pubkey);
+      return;
+    }
+
+    // Extract NIP-40 expiration from event tags
+    const expiration = this.getExpiration(event);
+
+    // Check if expired
+    if (expiration && Date.now() / 1000 > expiration) {
+      // Expired driver — remove if known
+      this.removeDriver(event.pubkey);
       return;
     }
 
     if (!this.knownDrivers.has(event.pubkey)) {
       this.knownDrivers.add(event.pubkey);
+      this.callbacks.onDriverCount?.(this.knownDrivers.size);
+    }
+
+    // Start or reset expiration timer for this driver
+    if (expiration) {
+      this.startDriverExpirationTimer(event.pubkey, expiration);
+    }
+  }
+
+  /** Remove a driver from tracking and update the count. */
+  private removeDriver(pubkey: string): void {
+    this.clearDriverExpirationTimer(pubkey);
+    if (this.knownDrivers.delete(pubkey)) {
       this.callbacks.onDriverCount?.(this.knownDrivers.size);
     }
   }
@@ -301,7 +471,7 @@ export class GigService {
   }
 
   /**
-   * Start (or reset) a local expiration timer for a request.
+   * Start (or reset) a local expiration timer for a ride request.
    * When it fires, the request is treated as gone.
    */
   private startExpirationTimer(requestId: string, expiration: number): void {
@@ -318,12 +488,36 @@ export class GigService {
     }, delayMs));
   }
 
-  /** Clear a pending expiration timer for a request. */
+  /** Clear a pending expiration timer for a ride request. */
   private clearExpirationTimer(requestId: string): void {
     const timer = this.expirationTimers.get(requestId);
     if (timer) {
       clearTimeout(timer);
       this.expirationTimers.delete(requestId);
+    }
+  }
+
+  /**
+   * Start (or reset) a local expiration timer for a driver availability event.
+   * When it fires, the driver is removed from tracking.
+   */
+  private startDriverExpirationTimer(pubkey: string, expiration: number): void {
+    this.clearDriverExpirationTimer(pubkey);
+    const delayMs = Math.max(0, (expiration - Date.now() / 1000) * 1000);
+
+    this.driverExpirationTimers.set(pubkey, setTimeout(() => {
+      this.driverExpirationTimers.delete(pubkey);
+      this.removeDriver(pubkey);
+      logger.info(`Driver ${pubkey.slice(0, 8)} expired locally`, { component: 'GigService', operation: 'driverExpirationTimer' });
+    }, delayMs));
+  }
+
+  /** Clear a pending expiration timer for a driver. */
+  private clearDriverExpirationTimer(pubkey: string): void {
+    const timer = this.driverExpirationTimers.get(pubkey);
+    if (timer) {
+      clearTimeout(timer);
+      this.driverExpirationTimers.delete(pubkey);
     }
   }
 
@@ -334,13 +528,20 @@ export class GigService {
    * Events expire on relays via NIP-40 TTL — no deletion needed.
    */
   stop(): void {
-    for (const timer of this.expirationTimers.values()) {
-      clearTimeout(timer);
-    }
+    this.clearHeartbeat();
+
+    for (const timer of this.expirationTimers.values()) clearTimeout(timer);
     this.expirationTimers.clear();
+
+    for (const timer of this.driverExpirationTimers.values()) clearTimeout(timer);
+    this.driverExpirationTimers.clear();
+
     this.knownRequests.clear();
     this.knownDrivers.clear();
     this.myRequestId = null;
+    this.myRequest = null;
+    this.myGeohash = null;
+    this.myDriverLocation = null;
     this.nostr.disconnect();
 
     logger.info('GigService stopped', { component: 'GigService', operation: 'stop' });

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
-  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash } from '../store';
+  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose } from '../store';
   import type { RideRequest, RideType } from '../types';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
@@ -13,6 +13,9 @@
   // ─── View State ──────────────────────────────────────────────
   type GigView = 'menu' | 'need-ride' | 'offer-ride' | 'pending' | 'matched';
   let currentView: GigView = 'menu';
+
+  // Allow the close button only on views that have no active service
+  $: gigCanClose.set(currentView === 'menu' || currentView === 'need-ride' || currentView === 'offer-ride');
 
   // ─── Form State ─────────────────────────────────────────────
   let rideType: RideType = 'person';
@@ -45,25 +48,6 @@
     if (errorTimeout) clearTimeout(errorTimeout);
   }
 
-  // ─── Heartbeat ─────────────────────────────────────────────
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-
-  function startHeartbeat() {
-    stopHeartbeat();
-    heartbeatTimer = setInterval(() => {
-      if (service && myRideRequest && myRideRequest.status === 'open') {
-        service.refreshRequest(myRideRequest);
-      }
-    }, 45_000);
-  }
-
-  function stopHeartbeat() {
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = null;
-    }
-  }
-
   // ─── Cesium Entities ─────────────────────────────────────────
   let rideEntities: any[] = [];
   // ─── Service ─────────────────────────────────────────────────
@@ -81,7 +65,36 @@
       onDriverCount: (count: number) => {
         nearbyCount = count;
       },
+      onOwnRequestExpired: handleOwnRequestExpired,
+      onOwnAvailExpired: handleOwnAvailExpired,
     });
+  }
+
+  /** Rider: own ride request expired or disappeared from relay. */
+  function handleOwnRequestExpired() {
+    removeRideEntitiesFromMap(myRideRequest?.id ?? '');
+    myRideRequest = null;
+    confirmedDriverPubkey = null;
+
+    stopService();
+    userGigRole.set(null);
+    currentView = 'need-ride';
+    showError('Your ride request expired. Please submit again.');
+    logger.info('Own ride request expired', { component: 'GigEconomy', operation: 'handleOwnRequestExpired' });
+  }
+
+  /** Driver: own availability event expired or disappeared from relay. */
+  function handleOwnAvailExpired() {
+    matchedRequest = null;
+    awaitingConfirmation = false;
+    requestQueue = [];
+    nearbyCount = 0;
+
+    stopService();
+    userGigRole.set(null);
+    currentView = 'offer-ride';
+    showError('Your driver offer expired. Please start again.');
+    logger.info('Own driver availability expired', { component: 'GigEconomy', operation: 'handleOwnAvailExpired' });
   }
 
   // ─── Service Callbacks ──────────────────────────────────────
@@ -133,9 +146,9 @@
     if (confirmedDriverPubkey === null) {
       // First driver wins — lock it in
       confirmedDriverPubkey = driverPubkey;
-      stopHeartbeat();
 
       // Update the public event: status → taken, embed the winner's pubkey
+      // (GigService clears the heartbeat internally)
       service.confirmMatch(myRideRequest, driverPubkey);
       myRideRequest = { ...myRideRequest, status: 'taken', matchedDriverPubkey: driverPubkey };
 
@@ -309,8 +322,6 @@
     userGigRole.set('rider');
     addRideRequestToMap(request);
     currentView = 'pending';
-    startHeartbeat();
-    registerBeforeUnload();
     logger.info('Ride request submitted', { component: 'GigEconomy', operation: 'submitRideRequest' });
   }
 
@@ -331,7 +342,6 @@
 
     userGigRole.set('driver');
     currentView = 'pending';
-    registerBeforeUnload();
     logger.info('Driver offer submitted', { component: 'GigEconomy', operation: 'submitDriverOffer' });
   }
 
@@ -368,17 +378,16 @@
     if (!myRideRequest || !service) return;
 
     // Update the public event to 'cancelled' — all drivers see it instantly
+    // (GigService clears the heartbeat internally)
     service.cancelRequest(myRideRequest);
 
     removeRideEntitiesFromMap(myRideRequest.id);
     myRideRequest = null;
     confirmedDriverPubkey = null;
-    stopHeartbeat();
 
     stopService();
     userGigRole.set(null);
     currentView = 'menu';
-    unregisterBeforeUnload();
     logger.info('Ride request cancelled', { component: 'GigEconomy', operation: 'cancelRideRequest' });
   }
 
@@ -391,7 +400,6 @@
     stopService();
     userGigRole.set(null);
     currentView = 'menu';
-    unregisterBeforeUnload();
     logger.info('Driver offer cancelled', { component: 'GigEconomy', operation: 'cancelDriverOffer' });
   }
 
@@ -419,7 +427,6 @@
     relayCount = 0;
     relayTotal = 0;
     requestQueue = [];
-    stopHeartbeat();
 
     stopService();
     currentGeohash.set('');
@@ -427,7 +434,6 @@
     currentView = 'menu';
     destinationLat = '';
     destinationLon = '';
-    unregisterBeforeUnload();
   }
 
   // ─── Service Cleanup ────────────────────────────────────────
@@ -440,31 +446,6 @@
     relayTotal = 0;
     currentGeohash.set('');
     clearAllGigEntities();
-  }
-
-  // ─── beforeunload Warning & unload Cleanup ────────────────
-  function onBeforeUnload(e: BeforeUnloadEvent) {
-    e.preventDefault();
-    e.returnValue = 'Your ride request/offer will expire if you close this tab.';
-  }
-
-  /** Fires only after the user confirms "Leave" — page is definitely closing. */
-  function onUnload() {
-    stopHeartbeat();
-    if (service) {
-      service.stop();
-      service = null;
-    }
-  }
-
-  function registerBeforeUnload() {
-    window.addEventListener('beforeunload', onBeforeUnload);
-    window.addEventListener('unload', onUnload);
-  }
-
-  function unregisterBeforeUnload() {
-    window.removeEventListener('beforeunload', onBeforeUnload);
-    window.removeEventListener('unload', onUnload);
   }
 
   // ─── Destination Picking ────────────────────────────────────
@@ -487,14 +468,13 @@
   // ─── Lifecycle ──────────────────────────────────────────────
   onDestroy(() => {
     clearAllGigEntities();
-    stopHeartbeat();
+    gigCanClose.set(true);
     isGigPickingDestination.set(false);
     if (unsubCoords) unsubCoords();
     if (service) {
       service.stop();
       service = null;
     }
-    unregisterBeforeUnload();
     clearError();
   });
 </script>
