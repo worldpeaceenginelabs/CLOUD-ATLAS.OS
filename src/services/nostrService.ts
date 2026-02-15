@@ -107,13 +107,7 @@ export class NostrService {
     this.reconnectTimers.clear();
     this.reconnectAttempts.clear();
 
-    // Close subscriptions on relays
     for (const ws of this.sockets.values()) {
-      if (ws.readyState === WebSocket.OPEN) {
-        for (const sub of this.subscriptions.values()) {
-          ws.send(JSON.stringify(['CLOSE', sub.id]));
-        }
-      }
       ws.close();
     }
 
