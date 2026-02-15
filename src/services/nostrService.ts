@@ -41,7 +41,6 @@ const DEFAULT_RELAYS = [
   'wss://relay.nostromo.social',
   'wss://nostr.data.haus',
   'wss://relay.fountain.fm',
-  'wss://relay.verified-nostr.com',
   'wss://nostr.vulpem.com',
 ];
 
