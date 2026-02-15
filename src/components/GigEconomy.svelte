@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
   import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose } from '../store';
-  import type { RideRequest, RideType } from '../types';
+  import type { RideRequest } from '../types';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
@@ -19,7 +19,6 @@
   $: gigCanClose.set(currentView === 'menu' || currentView === 'need-ride' || currentView === 'offer-ride');
 
   // ─── Form State ─────────────────────────────────────────────
-  let rideType: RideType = 'person';
   let destinationLat = '';
   let destinationLon = '';
   let isPickingDestination = false;
@@ -195,7 +194,7 @@
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
-        text: request.rideType === 'person' ? 'Ride' : 'Delivery',
+        text: 'Ride',
         font: '12px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
@@ -317,7 +316,7 @@
         latitude: parseFloat(destinationLat),
         longitude: parseFloat(destinationLon),
       },
-      rideType,
+      rideType: 'person',
       status: 'open',
       matchedDriverPubkey: null,
       timestamp: getCurrentTimeIso8601(),
@@ -482,7 +481,7 @@
           </svg>
           <div class="action-text">
             <span class="action-label">I need a Ride</span>
-            <span class="action-desc">Person or delivery</span>
+            <span class="action-desc">Request a ride in your area</span>
           </div>
         </button>
 
@@ -532,26 +531,6 @@
             {isPickingDestination ? 'Click on the map...' : 'Pick Destination on Map'}
           </GlassmorphismButton>
         {/if}
-      </div>
-
-      <div class="form-group">
-        <span class="field-label">Type</span>
-        <div class="ride-type-toggle">
-          <button
-            class="type-btn"
-            class:active={rideType === 'person'}
-            on:click={() => (rideType = 'person')}
-          >
-            Person
-          </button>
-          <button
-            class="type-btn"
-            class:active={rideType === 'delivery'}
-            on:click={() => (rideType = 'delivery')}
-          >
-            Delivery
-          </button>
-        </div>
       </div>
 
       <GlassmorphismButton
@@ -615,9 +594,7 @@
             {/if}
           </span>
         </div>
-        <p class="ride-info">
-          {myRideRequest.rideType === 'person' ? 'Passenger' : 'Delivery'} ride
-        </p>
+        <p class="ride-info">Passenger ride</p>
         {#if $currentGeohash}
           <p class="cell-info">Cell: {$currentGeohash}</p>
         {/if}
@@ -659,9 +636,7 @@
         {:else if matchedRequest}
           <div class="match-card">
             <h4>New Request!</h4>
-            <p class="match-type">
-              {matchedRequest.rideType === 'person' ? 'Passenger' : 'Delivery'}
-            </p>
+            <p class="match-type">Passenger</p>
             <p class="match-detail">From rider in your cell</p>
             <div class="match-actions">
               <GlassmorphismButton variant="success" size="small" onClick={acceptMatch}>
@@ -887,35 +862,6 @@
 
   .pick-again-btn:hover {
     color: rgba(66, 133, 244, 1);
-  }
-
-  .ride-type-toggle {
-    display: flex;
-    gap: 0;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .type-btn {
-    flex: 1;
-    padding: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: none;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .type-btn.active {
-    background: rgba(66, 133, 244, 0.3);
-    color: white;
-  }
-
-  .type-btn:first-child {
-    border-right: 1px solid rgba(255, 255, 255, 0.15);
   }
 
   .hint {
