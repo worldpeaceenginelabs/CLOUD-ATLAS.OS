@@ -13,10 +13,11 @@
   import GigOfferForm from '../gig/GigOfferForm.svelte';
   import GigPending from '../gig/GigPending.svelte';
   import GigMatched from '../gig/GigMatched.svelte';
+  import GigHelpouts from '../gig/GigHelpouts.svelte';
   import * as Cesium from 'cesium';
 
   // ─── View State ──────────────────────────────────────────────
-  type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched';
+  type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts';
   let currentView: GigView = 'verticals';
   let config: VerticalConfig | null = null;
 
@@ -24,7 +25,8 @@
     currentView === 'verticals' ||
     currentView === 'menu' ||
     currentView === 'need' ||
-    currentView === 'offer'
+    currentView === 'offer' ||
+    currentView === 'helpouts'
   );
 
   // ─── Form State ─────────────────────────────────────────────
@@ -85,7 +87,7 @@
   function selectVertical(vertical: GigVertical) {
     config = VERTICALS[vertical];
     activeGigVertical.set(vertical);
-    currentView = 'menu';
+    currentView = config.mode === 'listing' ? 'helpouts' : 'menu';
     logger.info(`Selected vertical: ${vertical}`, { component: 'GigEconomy', operation: 'selectVertical' });
   }
 
@@ -94,7 +96,7 @@
   function handleOffer() { currentView = 'offer'; }
 
   function goBack() {
-    if (currentView === 'menu') {
+    if (currentView === 'menu' || currentView === 'helpouts') {
       currentView = 'verticals';
       config = null;
       activeGigVertical.set(null);
@@ -105,6 +107,12 @@
       destinationLat = '';
       destinationLon = '';
     }
+  }
+
+  function goBackToVerticals() {
+    currentView = 'verticals';
+    config = null;
+    activeGigVertical.set(null);
   }
 
   // ─── Service Callbacks ──────────────────────────────────────
@@ -473,6 +481,10 @@
   <!-- ═══════════════ VERTICAL SELECTOR ═══════════════ -->
   {#if currentView === 'verticals'}
     <GigVerticalSelector onSelect={selectVertical} />
+
+  <!-- ═══════════════ HELPOUTS (LISTING MODE) ═════════ -->
+  {:else if currentView === 'helpouts' && config}
+    <GigHelpouts {config} onBack={goBackToVerticals} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && config}

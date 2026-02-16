@@ -2,11 +2,11 @@
  * Gig Economy Vertical Configurations
  *
  * Each vertical defines labels, form fields, Nostr tags, and map styles.
- * The matching protocol is identical across verticals — only the UI and
- * event tags differ.
+ * Matching verticals use the real-time need/offer protocol.
+ * Listing verticals use a publish-only model with longer TTL.
  */
 
-import type { GigVertical } from '../types';
+import type { GigVertical, HelpoutCategory } from '../types';
 
 // ─── Form Field Definition ─────────────────────────────────────
 
@@ -25,7 +25,10 @@ export interface VerticalConfig {
   name: string;
   color: string;
 
-  // Menu labels
+  /** 'matching' = real-time need/offer protocol; 'listing' = publish-only with long TTL */
+  mode: 'matching' | 'listing';
+
+  // Menu labels (used by matching verticals for the need/offer menu)
   needLabel: string;
   needDesc: string;
   offerLabel: string;
@@ -60,6 +63,20 @@ export interface VerticalConfig {
   mapLabel: string;
 }
 
+// ─── Helpout Categories ─────────────────────────────────────────
+
+export const HELPOUT_CATEGORIES: HelpoutCategory[] = [
+  { id: 'art-music', name: 'Art & Music', description: 'Instruments, singing, painting, photography' },
+  { id: 'cooking', name: 'Cooking & Nutrition', description: 'Recipes, dietary guidance, baking, special diets' },
+  { id: 'computers', name: 'Computers & Electronics', description: 'Software, programming, web design, IT support' },
+  { id: 'business', name: 'Business & Career', description: 'Career coaching, communication, planning, marketing' },
+  { id: 'finance', name: 'Finance & Legal', description: 'Taxes, investment advice, basic legal guidance' },
+  { id: 'health', name: 'Health & Fitness', description: 'Yoga, meditation, workouts, nutrition, coaching' },
+  { id: 'languages', name: 'Languages & Learning', description: 'Language lessons, exam prep, learning strategies' },
+  { id: 'lifestyle', name: 'Lifestyle & Hobbies', description: 'DIY, crafting, travel, fashion, pets, gardening' },
+  { id: 'other', name: 'Other / Specialty Skills', description: 'Everything else that doesn\'t fit standard categories' },
+];
+
 // ─── Vertical Definitions ───────────────────────────────────────
 
 export const VERTICALS: Record<GigVertical, VerticalConfig> = {
@@ -67,6 +84,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     id: 'rides',
     name: 'Rides',
     color: '#4285F4',
+    mode: 'matching',
     needLabel: 'I need a Ride',
     needDesc: 'Request a ride in your area',
     offerLabel: 'I offer Rides',
@@ -91,6 +109,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     id: 'delivery',
     name: 'Delivery',
     color: '#FF6D00',
+    mode: 'matching',
     needLabel: 'I need a Delivery',
     needDesc: 'Get something picked up & delivered',
     offerLabel: 'I deliver',
@@ -113,70 +132,36 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     mapLabel: 'Delivery',
   },
 
-  stays: {
-    id: 'stays',
-    name: 'Stays',
-    color: '#E91E63',
-    needLabel: 'I need a Place',
-    needDesc: 'Find a place to stay nearby',
-    offerLabel: 'I host a Place',
-    offerDesc: 'Offer your space to guests',
-    hasDestination: false,
-    reverseLocations: false,
-    gpsLocationLabel: 'Your Location',
-    mapPickLabel: 'Destination',
-    needFields: [
-      { key: 'guests', label: 'Guests', type: 'text', placeholder: 'Number of guests', required: true },
-      { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Any preferences or requirements...', required: false },
-    ],
-    offerFields: [
-      { key: 'capacity', label: 'Capacity', type: 'text', placeholder: 'Max number of guests', required: true },
-      { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Describe your space...', required: true },
-    ],
-    requesterNoun: 'guest',
-    providerNoun: 'host',
-    requestNoun: 'stay',
-    matchTitle: 'Stay Matched!',
-    matchMessage: 'You have been connected with a host.',
-    mapColor: '#E91E63',
-    mapDestColor: '#E91E63',
-    mapLabel: 'Stay',
-  },
-
-  services: {
-    id: 'services',
-    name: 'Services',
+  helpouts: {
+    id: 'helpouts',
+    name: 'Helpouts',
     color: '#00BCD4',
-    needLabel: 'I need a Service',
-    needDesc: 'Find someone to help with a task',
-    offerLabel: 'I offer Services',
-    offerDesc: 'Offer your skills nearby',
+    mode: 'listing',
+    needLabel: '',
+    needDesc: '',
+    offerLabel: 'I can Help',
+    offerDesc: 'Offer your expertise to others',
     hasDestination: false,
     reverseLocations: false,
-    gpsLocationLabel: 'Your Location',
-    mapPickLabel: 'Destination',
-    needFields: [
-      { key: 'category', label: 'Category', type: 'text', placeholder: 'e.g. Plumbing, Tutoring, Design...', required: true },
-      { key: 'description', label: 'What you need', type: 'textarea', placeholder: 'Describe the task...', required: true },
-    ],
-    offerFields: [
-      { key: 'category', label: 'Specialty', type: 'text', placeholder: 'e.g. Plumbing, Tutoring, Design...', required: true },
-      { key: 'description', label: 'About', type: 'textarea', placeholder: 'Describe what you offer...', required: true },
-    ],
-    requesterNoun: 'client',
-    providerNoun: 'freelancer',
-    requestNoun: 'service request',
-    matchTitle: 'Service Matched!',
-    matchMessage: 'You have been matched with a provider.',
+    gpsLocationLabel: '',
+    mapPickLabel: '',
+    needFields: [],
+    offerFields: [],
+    requesterNoun: 'learner',
+    providerNoun: 'helper',
+    requestNoun: 'help request',
+    matchTitle: 'Helper Found!',
+    matchMessage: 'You\'ve been connected with a helper.',
     mapColor: '#00BCD4',
     mapDestColor: '#00BCD4',
-    mapLabel: 'Service',
+    mapLabel: 'Helpout',
   },
 
   social: {
     id: 'social',
     name: 'Meet',
     color: '#FF4081',
+    mode: 'matching',
     needLabel: 'I want to Meet',
     needDesc: 'Find people to connect with nearby',
     offerLabel: "I'm open to Meet",
@@ -205,4 +190,4 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
 };
 
 /** Ordered list of verticals for the selector UI. */
-export const VERTICAL_LIST: GigVertical[] = ['rides', 'delivery', 'stays', 'services', 'social'];
+export const VERTICAL_LIST: GigVertical[] = ['rides', 'delivery', 'helpouts', 'social'];

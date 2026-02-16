@@ -55,7 +55,32 @@ export interface PinData {
 }
 
 // Gig Economy Types
-export type GigVertical = 'rides' | 'delivery' | 'stays' | 'services' | 'social';
+export type GigVertical = 'rides' | 'delivery' | 'helpouts' | 'social';
+
+// Helpouts listing types
+export type HelpoutMode = 'in-person' | 'online' | 'both';
+
+export interface HelpoutCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface HelpoutListing {
+  id: string;
+  pubkey: string;
+  mode: HelpoutMode;
+  category: string;
+  description: string;
+  messengerLink: string;
+  sessionLink?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  timestamp: string;
+  geohash?: string;
+}
 
 export interface GigRequest {
   id: string;
