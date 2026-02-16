@@ -313,22 +313,27 @@
     if (!config) return;
 
     if (config.hasDestination && (!destinationLat || !destinationLon)) {
-      showError('Please pick a destination on the map first.');
+      showError(`Please pick a ${config.mapPickLabel.toLowerCase()} on the map first.`);
       return;
     }
 
     const ctx = prepareService();
     if (!ctx) return;
 
+    const mapPickLocation = config.hasDestination ? {
+      latitude: parseFloat(destinationLat),
+      longitude: parseFloat(destinationLon),
+    } : undefined;
+
+    // Reverse: map-pick is the start (pickup), GPS is the destination (dropoff)
     const request: GigRequest = {
       id: crypto.randomUUID(),
       pubkey: service!.pubkey,
       vertical: config.id,
-      startLocation: ctx.location,
-      destination: config.hasDestination ? {
-        latitude: parseFloat(destinationLat),
-        longitude: parseFloat(destinationLon),
-      } : undefined,
+      startLocation: config.reverseLocations && mapPickLocation ? mapPickLocation : ctx.location,
+      destination: config.hasDestination
+        ? (config.reverseLocations ? ctx.location : mapPickLocation)
+        : undefined,
       status: 'open',
       matchedProviderPubkey: null,
       timestamp: getCurrentTimeIso8601(),

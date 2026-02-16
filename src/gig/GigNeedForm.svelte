@@ -43,9 +43,9 @@
   <button class="back-btn" on:click={onBack}>&larr; Back</button>
   <h3 class="form-title">{config.needLabel}</h3>
 
-  <!-- Start Location (always shown) -->
+  <!-- GPS Location (always shown) -->
   <div class="form-group">
-    <span class="field-label">Your Location <span class="live-badge">LIVE</span></span>
+    <span class="field-label">{config.gpsLocationLabel} <span class="live-badge">LIVE</span></span>
     <p class="location-display">
       {#if userLiveLocation}
         {userLiveLocation.latitude.toFixed(5)}, {userLiveLocation.longitude.toFixed(5)}
@@ -55,10 +55,10 @@
     </p>
   </div>
 
-  <!-- Destination (if vertical uses it) -->
+  <!-- Map-pick location (if vertical uses it) -->
   {#if config.hasDestination}
     <div class="form-group">
-      <span class="field-label">Destination</span>
+      <span class="field-label">{config.mapPickLabel}</span>
       {#if destinationLat && destinationLon}
         <p class="location-display">
           {parseFloat(destinationLat).toFixed(5)}, {parseFloat(destinationLon).toFixed(5)}
@@ -66,7 +66,7 @@
         <button class="pick-again-btn" on:click={onPickDestination}>Pick again</button>
       {:else}
         <GlassmorphismButton variant="secondary" size="small" onClick={onPickDestination}>
-          {isPickingDestination ? 'Click on the map...' : 'Pick Destination on Map'}
+          {isPickingDestination ? 'Click on the map...' : `Pick ${config.mapPickLabel} on Map`}
         </GlassmorphismButton>
       {/if}
     </div>

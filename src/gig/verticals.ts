@@ -31,8 +31,15 @@ export interface VerticalConfig {
   offerLabel: string;
   offerDesc: string;
 
-  // Whether the "need" form includes a destination map-pick
+  // Whether the "need" form includes a map-pick for a second location
   hasDestination: boolean;
+
+  // When true, the map-pick is the start (pickup) and GPS is the destination (dropoff)
+  reverseLocations: boolean;
+
+  // Labels for the two location fields in the need form
+  gpsLocationLabel: string;
+  mapPickLabel: string;
 
   // Extra form fields beyond GPS location (+ optional destination)
   needFields: GigFormField[];
@@ -65,6 +72,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     offerLabel: 'I offer Rides',
     offerDesc: 'Drive people in your area',
     hasDestination: true,
+    reverseLocations: false,
+    gpsLocationLabel: 'Your Location',
+    mapPickLabel: 'Destination',
     needFields: [],
     offerFields: [],
     requesterNoun: 'rider',
@@ -86,6 +96,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     offerLabel: 'I deliver',
     offerDesc: 'Deliver items in your area',
     hasDestination: true,
+    reverseLocations: true,
+    gpsLocationLabel: 'Deliver to (Your Location)',
+    mapPickLabel: 'Pickup Location',
     needFields: [
       { key: 'item', label: 'Item Description', type: 'text', placeholder: 'What needs to be delivered?', required: true },
     ],
@@ -109,6 +122,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     offerLabel: 'I host a Place',
     offerDesc: 'Offer your space to guests',
     hasDestination: false,
+    reverseLocations: false,
+    gpsLocationLabel: 'Your Location',
+    mapPickLabel: 'Destination',
     needFields: [
       { key: 'guests', label: 'Guests', type: 'text', placeholder: 'Number of guests', required: true },
       { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Any preferences or requirements...', required: false },
@@ -136,6 +152,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     offerLabel: 'I offer Services',
     offerDesc: 'Offer your skills nearby',
     hasDestination: false,
+    reverseLocations: false,
+    gpsLocationLabel: 'Your Location',
+    mapPickLabel: 'Destination',
     needFields: [
       { key: 'category', label: 'Category', type: 'text', placeholder: 'e.g. Plumbing, Tutoring, Design...', required: true },
       { key: 'description', label: 'What you need', type: 'textarea', placeholder: 'Describe the task...', required: true },
@@ -163,6 +182,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     offerLabel: "I'm open to Meet",
     offerDesc: 'Let others know you want to connect',
     hasDestination: false,
+    reverseLocations: false,
+    gpsLocationLabel: 'Your Location',
+    mapPickLabel: 'Destination',
     needFields: [
       { key: 'interests', label: 'Interests', type: 'text', placeholder: 'e.g. Coffee, Hiking, Tech...', required: false },
       { key: 'bio', label: 'About you', type: 'textarea', placeholder: 'A short intro...', required: false },
