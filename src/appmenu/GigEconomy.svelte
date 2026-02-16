@@ -1,22 +1,31 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
-  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose } from '../store';
-  import type { RideRequest } from '../types';
+  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose, activeGigVertical } from '../store';
+  import type { GigRequest, GigVertical } from '../types';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
-  import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
-  import RelayStatus from '../components/RelayStatus.svelte';
+  import { VERTICALS, type VerticalConfig } from '../gig/verticals';
+  import GigVerticalSelector from '../gig/GigVerticalSelector.svelte';
+  import GigNeedForm from '../gig/GigNeedForm.svelte';
+  import GigOfferForm from '../gig/GigOfferForm.svelte';
+  import GigPending from '../gig/GigPending.svelte';
+  import GigMatched from '../gig/GigMatched.svelte';
   import * as Cesium from 'cesium';
 
   // ─── View State ──────────────────────────────────────────────
-  type GigView = 'menu' | 'need-ride' | 'offer-ride' | 'pending' | 'matched';
-  let currentView: GigView = 'menu';
+  type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched';
+  let currentView: GigView = 'verticals';
+  let config: VerticalConfig | null = null;
 
-  // Allow the close button only on views that have no active service
-  $: gigCanClose.set(currentView === 'menu' || currentView === 'need-ride' || currentView === 'offer-ride');
+  $: gigCanClose.set(
+    currentView === 'verticals' ||
+    currentView === 'menu' ||
+    currentView === 'need' ||
+    currentView === 'offer'
+  );
 
   // ─── Form State ─────────────────────────────────────────────
   let destinationLat = '';
@@ -24,14 +33,14 @@
   let isPickingDestination = false;
 
   // ─── User State ─────────────────────────────────────────────
-  let myRideRequest: RideRequest | null = null;
-  let matchedRequest: RideRequest | null = null;
+  let myRequest: GigRequest | null = null;
+  let matchedRequest: GigRequest | null = null;
   let awaitingConfirmation = false;
   let nearbyCount = 0;
   let relayCount = 0;
   let relayTotal = 0;
-  let confirmedDriverPubkey: string | null = null;
-  let requestQueue: RideRequest[] = [];
+  let confirmedProviderPubkey: string | null = null;
+  let requestQueue: GigRequest[] = [];
 
   // ─── Error State ────────────────────────────────────────────
   let errorMessage: string | null = null;
@@ -49,42 +58,69 @@
   }
 
   // ─── Cesium Entities ─────────────────────────────────────────
-  let rideEntities: any[] = [];
+  let gigEntities: any[] = [];
+
   // ─── Service ─────────────────────────────────────────────────
   let service: GigService | null = null;
 
   function createService(): GigService {
-    return new GigService({
+    if (!config) throw new Error('No vertical selected');
+    return new GigService(config.id, {
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
       },
-      onRideRequest: handleRideRequest,
-      onRideRequestGone: handleRideRequestGone,
-      onDriverAccepted: handleDriverAccepted,
-      onDriverCount: (count: number) => {
+      onRequest: handleRequest,
+      onRequestGone: handleRequestGone,
+      onProviderAccepted: handleProviderAccepted,
+      onProviderCount: (count: number) => {
         nearbyCount = count;
       },
       onOwnRequestExpired: handleOwnRequestExpired,
-      onOwnAvailExpired: handleOwnAvailExpired,
+      onOwnOfferExpired: handleOwnOfferExpired,
     });
   }
 
-  /** Rider: own ride request expired or disappeared from relay. */
-  function handleOwnRequestExpired() {
-    removeRideEntitiesFromMap(myRideRequest?.id ?? '');
-    myRideRequest = null;
-    confirmedDriverPubkey = null;
-
-    stopService();
-    userGigRole.set(null);
-    currentView = 'need-ride';
-    showError('Your ride request expired. Please submit again.');
-    logger.info('Own ride request expired', { component: 'GigEconomy', operation: 'handleOwnRequestExpired' });
+  // ─── Vertical Selection ─────────────────────────────────────
+  function selectVertical(vertical: GigVertical) {
+    config = VERTICALS[vertical];
+    activeGigVertical.set(vertical);
+    currentView = 'menu';
+    logger.info(`Selected vertical: ${vertical}`, { component: 'GigEconomy', operation: 'selectVertical' });
   }
 
-  /** Reset all driver-side local state. */
-  function resetDriverState() {
+  // ─── View Navigation ───────────────────────────────────────
+  function handleNeed() { currentView = 'need'; }
+  function handleOffer() { currentView = 'offer'; }
+
+  function goBack() {
+    if (currentView === 'menu') {
+      currentView = 'verticals';
+      config = null;
+      activeGigVertical.set(null);
+    } else if (currentView === 'need' || currentView === 'offer') {
+      currentView = 'menu';
+      isPickingDestination = false;
+      isGigPickingDestination.set(false);
+      destinationLat = '';
+      destinationLon = '';
+    }
+  }
+
+  // ─── Service Callbacks ──────────────────────────────────────
+
+  function handleOwnRequestExpired() {
+    removeGigEntitiesFromMap(myRequest?.id ?? '');
+    myRequest = null;
+    confirmedProviderPubkey = null;
+    stopService();
+    userGigRole.set(null);
+    currentView = 'need';
+    showError(`Your ${config?.requestNoun ?? 'request'} expired. Please submit again.`);
+    logger.info('Own request expired', { component: 'GigEconomy', operation: 'handleOwnRequestExpired' });
+  }
+
+  function resetProviderState() {
     matchedRequest = null;
     awaitingConfirmation = false;
     requestQueue = [];
@@ -93,39 +129,30 @@
     userGigRole.set(null);
   }
 
-  /** Driver: own availability event expired or disappeared from relay. */
-  function handleOwnAvailExpired() {
-    resetDriverState();
-    currentView = 'offer-ride';
-    showError('Your driver offer expired. Please start again.');
-    logger.info('Own driver availability expired', { component: 'GigEconomy', operation: 'handleOwnAvailExpired' });
+  function handleOwnOfferExpired() {
+    resetProviderState();
+    currentView = 'offer';
+    showError('Your offer expired. Please start again.');
+    logger.info('Own offer expired', { component: 'GigEconomy', operation: 'handleOwnOfferExpired' });
   }
 
-  // ─── Service Callbacks ──────────────────────────────────────
-
-  /** Driver: a new open ride request appeared in the cell. */
-  function handleRideRequest(request: RideRequest) {
+  function handleRequest(request: GigRequest) {
     requestQueue = [...requestQueue, request];
-    addRideRequestToMap(request);
+    addRequestToMap(request);
     nearbyCount = requestQueue.length;
-
-    // Show as match card if we don't already have one
     if (!matchedRequest && !awaitingConfirmation) {
       matchedRequest = request;
     }
   }
 
-  /** Driver: a ride request was taken or cancelled. */
-  function handleRideRequestGone(requestId: string, matchedDriverPubkey: string | null) {
-    // Check if WE are the winning driver
-    if (matchedDriverPubkey && matchedDriverPubkey === service?.pubkey) {
+  function handleRequestGone(requestId: string, matchedPubkey: string | null) {
+    if (matchedPubkey && matchedPubkey === service?.pubkey) {
       awaitingConfirmation = false;
       currentView = 'matched';
-      logger.info('We won the match!', { component: 'GigEconomy', operation: 'handleRideRequestGone' });
+      logger.info('We won the match!', { component: 'GigEconomy', operation: 'handleRequestGone' });
       return;
     }
 
-    // We lost or it was cancelled — clean up
     const wasShowing = matchedRequest?.id === requestId;
     if (wasShowing) {
       matchedRequest = null;
@@ -133,54 +160,40 @@
     }
 
     requestQueue = requestQueue.filter(r => r.id !== requestId);
-    removeRideEntitiesFromMap(requestId);
+    removeGigEntitiesFromMap(requestId);
     nearbyCount = requestQueue.length;
 
-    // Promote next request if we just cleared the card
     if (wasShowing && requestQueue.length > 0) {
       matchedRequest = requestQueue[0];
     }
   }
 
-  /** Rider: a driver accepted our request — ARBITER LOGIC. */
-  function handleDriverAccepted(driverPubkey: string, requestId: string) {
-    if (!myRideRequest || !service) return;
-    if (requestId !== myRideRequest.id) return;
+  function handleProviderAccepted(providerPubkey: string, requestId: string) {
+    if (!myRequest || !service) return;
+    if (requestId !== myRequest.id) return;
 
-    if (confirmedDriverPubkey === null) {
-      // First driver wins — lock it in
-      confirmedDriverPubkey = driverPubkey;
-
-      // Update the public event: status → taken, embed the winner's pubkey
-      // (GigService clears the heartbeat internally)
-      service.confirmMatch(myRideRequest, driverPubkey);
-      myRideRequest = { ...myRideRequest, status: 'taken', matchedDriverPubkey: driverPubkey };
-
+    if (confirmedProviderPubkey === null) {
+      confirmedProviderPubkey = providerPubkey;
+      service.confirmMatch(myRequest, providerPubkey);
+      myRequest = { ...myRequest, status: 'taken', matchedProviderPubkey: providerPubkey };
       currentView = 'matched';
-      logger.info(`Confirmed driver ${driverPubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'handleDriverAccepted' });
+      logger.info(`Confirmed provider ${providerPubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'handleProviderAccepted' });
     }
-    // Late accepts are ignored — drivers see the 'taken' event update themselves
   }
 
   // ─── Cesium Visualization ────────────────────────────────────
-  function addRideRequestToMap(request: RideRequest) {
-    if (!$viewer) return;
-    if ($viewer.entities.getById(`ride_${request.id}`)) return;
 
-    // Sample terrain/tileset height at start and destination (same approach as pickPosition for pins)
+  function addRequestToMap(request: GigRequest) {
+    if (!$viewer || !config) return;
+    if ($viewer.entities.getById(`gig_${request.id}`)) return;
+
     const startCartographic = Cesium.Cartographic.fromDegrees(
       request.startLocation.longitude, request.startLocation.latitude
     );
     const startHeight = $viewer.scene.sampleHeight(startCartographic) ?? 0;
 
-    const destCartographic = Cesium.Cartographic.fromDegrees(
-      request.destination.longitude, request.destination.latitude
-    );
-    const destHeight = $viewer.scene.sampleHeight(destCartographic) ?? 0;
-
-    // Blue point at start location
     const startEntity = $viewer.entities.add({
-      id: `ride_${request.id}`,
+      id: `gig_${request.id}`,
       position: Cesium.Cartesian3.fromDegrees(
         request.startLocation.longitude,
         request.startLocation.latitude,
@@ -188,13 +201,13 @@
       ),
       point: {
         pixelSize: 12,
-        color: Cesium.Color.fromCssColorString('#4285F4'),
+        color: Cesium.Color.fromCssColorString(config.mapColor),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
-        text: 'Ride',
+        text: config.mapLabel,
         font: '12px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
@@ -205,58 +218,63 @@
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
-    rideEntities.push(startEntity);
+    gigEntities.push(startEntity);
 
-    // Green point at destination
-    const destEntity = $viewer.entities.add({
-      id: `ride_dest_${request.id}`,
-      position: Cesium.Cartesian3.fromDegrees(
-        request.destination.longitude,
-        request.destination.latitude,
-        destHeight
-      ),
-      point: {
-        pixelSize: 8,
-        color: Cesium.Color.fromCssColorString('#34A853'),
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 1,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-    });
-    rideEntities.push(destEntity);
+    if (request.destination) {
+      const destCartographic = Cesium.Cartographic.fromDegrees(
+        request.destination.longitude, request.destination.latitude
+      );
+      const destHeight = $viewer.scene.sampleHeight(destCartographic) ?? 0;
 
-    // Line from start → destination
-    const lineEntity = $viewer.entities.add({
-      id: `ride_line_${request.id}`,
-      polyline: {
-        positions: [
-          Cesium.Cartesian3.fromDegrees(
-            request.startLocation.longitude,
-            request.startLocation.latitude,
-            startHeight
-          ),
-          Cesium.Cartesian3.fromDegrees(
-            request.destination.longitude,
-            request.destination.latitude,
-            destHeight
-          ),
-        ],
-        width: 2,
-        material: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.6),
-        clampToGround: true,
-      },
-    });
-    rideEntities.push(lineEntity);
+      const destEntity = $viewer.entities.add({
+        id: `gig_dest_${request.id}`,
+        position: Cesium.Cartesian3.fromDegrees(
+          request.destination.longitude,
+          request.destination.latitude,
+          destHeight
+        ),
+        point: {
+          pixelSize: 8,
+          color: Cesium.Color.fromCssColorString(config.mapDestColor),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 1,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+      gigEntities.push(destEntity);
+
+      const lineEntity = $viewer.entities.add({
+        id: `gig_line_${request.id}`,
+        polyline: {
+          positions: [
+            Cesium.Cartesian3.fromDegrees(
+              request.startLocation.longitude,
+              request.startLocation.latitude,
+              startHeight
+            ),
+            Cesium.Cartesian3.fromDegrees(
+              request.destination.longitude,
+              request.destination.latitude,
+              destHeight
+            ),
+          ],
+          width: 2,
+          material: Cesium.Color.fromCssColorString(config.mapColor).withAlpha(0.6),
+          clampToGround: true,
+        },
+      });
+      gigEntities.push(lineEntity);
+    }
   }
 
-  function removeRideEntitiesFromMap(requestId: string) {
+  function removeGigEntitiesFromMap(requestId: string) {
     if (!$viewer) return;
     const idsToRemove = [
-      `ride_${requestId}`,
-      `ride_dest_${requestId}`,
-      `ride_line_${requestId}`,
+      `gig_${requestId}`,
+      `gig_dest_${requestId}`,
+      `gig_line_${requestId}`,
     ];
-    rideEntities = rideEntities.filter(entity => {
+    gigEntities = gigEntities.filter(entity => {
       if (entity.id && idsToRemove.includes(entity.id)) {
         $viewer.entities.remove(entity);
         return false;
@@ -267,27 +285,19 @@
 
   function clearAllGigEntities() {
     if (!$viewer) return;
-    rideEntities.forEach(entity => {
+    gigEntities.forEach(entity => {
       try { $viewer.entities.remove(entity); } catch (_) { /* already removed */ }
     });
-    rideEntities = [];
+    gigEntities = [];
   }
 
   // ─── User Actions ────────────────────────────────────────────
-  function handleNeedRide() {
-    currentView = 'need-ride';
-  }
-
-  function handleOfferRide() {
-    currentView = 'offer-ride';
-  }
 
   function handlePickDestination() {
     isPickingDestination = true;
     isGigPickingDestination.set(true);
   }
 
-  /** Shared preamble for both submit flows: GPS guard, geohash, service init. */
   function prepareService(): { geohash: string; location: { latitude: number; longitude: number } } | null {
     if (!$userLiveLocation) {
       showError('GPS location not available. Please enable location services and try again.');
@@ -299,8 +309,10 @@
     return { geohash, location: { latitude: $userLiveLocation.latitude, longitude: $userLiveLocation.longitude } };
   }
 
-  function submitRideRequest() {
-    if (!destinationLat || !destinationLon) {
+  function submitRequest(details: Record<string, string>) {
+    if (!config) return;
+
+    if (config.hasDestination && (!destinationLat || !destinationLon)) {
       showError('Please pick a destination on the map first.');
       return;
     }
@@ -308,47 +320,49 @@
     const ctx = prepareService();
     if (!ctx) return;
 
-    const request: RideRequest = {
+    const request: GigRequest = {
       id: crypto.randomUUID(),
       pubkey: service!.pubkey,
+      vertical: config.id,
       startLocation: ctx.location,
-      destination: {
+      destination: config.hasDestination ? {
         latitude: parseFloat(destinationLat),
         longitude: parseFloat(destinationLon),
-      },
-      rideType: 'person',
+      } : undefined,
       status: 'open',
-      matchedDriverPubkey: null,
+      matchedProviderPubkey: null,
       timestamp: getCurrentTimeIso8601(),
       geohash: ctx.geohash,
+      details,
     };
 
-    service!.startAsRider(ctx.geohash, request);
-    myRideRequest = request;
-    confirmedDriverPubkey = null;
+    service!.startAsRequester(ctx.geohash, request);
+    myRequest = request;
+    confirmedProviderPubkey = null;
     userGigRole.set('rider');
-    addRideRequestToMap(request);
+    addRequestToMap(request);
     currentView = 'pending';
-    logger.info('Ride request submitted', { component: 'GigEconomy', operation: 'submitRideRequest' });
+    logger.info('Request submitted', { component: 'GigEconomy', operation: 'submitRequest' });
   }
 
-  function submitDriverOffer() {
+  function submitOffer(details: Record<string, string>) {
+    if (!config) return;
+
     const ctx = prepareService();
     if (!ctx) return;
 
-    service!.startAsDriver(ctx.geohash, ctx.location);
+    service!.startAsProvider(ctx.geohash, ctx.location, details);
     userGigRole.set('driver');
     currentView = 'pending';
-    logger.info('Driver offer submitted', { component: 'GigEconomy', operation: 'submitDriverOffer' });
+    logger.info('Offer submitted', { component: 'GigEconomy', operation: 'submitOffer' });
   }
 
-  // ─── Driver: Accept / Reject ────────────────────────────────
   function acceptMatch() {
     if (!matchedRequest || !service) return;
     const sent = service.acceptRequest(matchedRequest.pubkey, matchedRequest.id);
     if (sent) {
       awaitingConfirmation = true;
-      logger.info('Sent accept, awaiting rider confirmation', { component: 'GigEconomy', operation: 'acceptMatch' });
+      logger.info('Sent accept, awaiting confirmation', { component: 'GigEconomy', operation: 'acceptMatch' });
     } else {
       showError('Failed to send accept. Check your connection.');
     }
@@ -363,56 +377,39 @@
     requestQueue = requestQueue.filter(r => r.id !== rejectedId);
     nearbyCount = requestQueue.length;
 
-    // Promote next request
     if (requestQueue.length > 0) {
       matchedRequest = requestQueue[0];
     }
-    logger.info('Rejected ride request', { component: 'GigEconomy', operation: 'rejectMatch' });
+    logger.info('Rejected request', { component: 'GigEconomy', operation: 'rejectMatch' });
   }
 
-  // ─── Cancel Flows ──────────────────────────────────────────
-  function cancelRideRequest() {
-    if (!myRideRequest || !service) return;
+  function cancelRequest() {
+    if (!myRequest || !service) return;
 
-    // Update the public event to 'cancelled' — all drivers see it instantly
-    // (GigService clears the heartbeat internally)
-    service.cancelRequest(myRideRequest);
-
-    removeRideEntitiesFromMap(myRideRequest.id);
-    myRideRequest = null;
-    confirmedDriverPubkey = null;
+    service.cancelRequest(myRequest);
+    removeGigEntitiesFromMap(myRequest.id);
+    myRequest = null;
+    confirmedProviderPubkey = null;
 
     stopService();
     userGigRole.set(null);
     currentView = 'menu';
-    logger.info('Ride request cancelled', { component: 'GigEconomy', operation: 'cancelRideRequest' });
+    logger.info('Request cancelled', { component: 'GigEconomy', operation: 'cancelRequest' });
   }
 
-  function cancelDriverOffer() {
-    resetDriverState();
+  function cancelOffer() {
+    resetProviderState();
     currentView = 'menu';
-    logger.info('Driver offer cancelled', { component: 'GigEconomy', operation: 'cancelDriverOffer' });
-  }
-
-  function goBack() {
-    if (myRideRequest) {
-      cancelRideRequest();
-    } else if ($userGigRole === 'driver') {
-      cancelDriverOffer();
-    } else {
-      currentView = 'menu';
-    }
-    isPickingDestination = false;
-    isGigPickingDestination.set(false);
-    destinationLat = '';
-    destinationLon = '';
+    logger.info('Offer cancelled', { component: 'GigEconomy', operation: 'cancelOffer' });
   }
 
   function finishAndReset() {
-    myRideRequest = null;
-    confirmedDriverPubkey = null;
-    resetDriverState();
-    currentView = 'menu';
+    myRequest = null;
+    confirmedProviderPubkey = null;
+    resetProviderState();
+    currentView = 'verticals';
+    config = null;
+    activeGigVertical.set(null);
     destinationLat = '';
     destinationLon = '';
   }
@@ -451,6 +448,7 @@
     stopService();
     gigCanClose.set(true);
     isGigPickingDestination.set(false);
+    activeGigVertical.set(null);
     if (unsubCoords) unsubCoords();
     clearError();
   });
@@ -467,214 +465,91 @@
     </div>
   {/if}
 
-  <!-- ═══════════════════════ MENU VIEW ═══════════════════════ -->
-  {#if currentView === 'menu'}
+  <!-- ═══════════════ VERTICAL SELECTOR ═══════════════ -->
+  {#if currentView === 'verticals'}
+    <GigVerticalSelector onSelect={selectVertical} />
+
+  <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
+  {:else if currentView === 'menu' && config}
     <div class="gig-menu" transition:slide={{ duration: 300 }}>
-      <h3 class="gig-title">Gig Economy</h3>
-      <p class="gig-subtitle">What would you like to do?</p>
+      <button class="back-btn" on:click={goBack}>&larr; Back</button>
+
+      <div class="vertical-badge">
+        <span class="badge-dot" style="background: {config.color}"></span>
+        <span class="badge-label">{config.name}</span>
+      </div>
+
+      <h3 class="gig-title">What would you like to do?</h3>
 
       <div class="gig-actions">
-        <button class="gig-action-btn need-ride" on:click={handleNeedRide}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-          </svg>
+        <button
+          class="gig-action-btn"
+          style="--hover-border: {config.color}"
+          on:click={handleNeed}
+        >
+          <div class="action-accent" style="background: {config.color}"></div>
           <div class="action-text">
-            <span class="action-label">I need a Ride</span>
-            <span class="action-desc">Request a ride in your area</span>
+            <span class="action-label">{config.needLabel}</span>
+            <span class="action-desc">{config.needDesc}</span>
           </div>
         </button>
 
-        <button class="gig-action-btn offer-ride" on:click={handleOfferRide}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 6v6l4 2"/>
-          </svg>
+        <button
+          class="gig-action-btn"
+          style="--hover-border: {config.color}"
+          on:click={handleOffer}
+        >
+          <div class="action-accent" style="background: {config.color}; opacity: 0.6"></div>
           <div class="action-text">
-            <span class="action-label">I offer a Ride</span>
-            <span class="action-desc">Offer rides in your area</span>
+            <span class="action-label">{config.offerLabel}</span>
+            <span class="action-desc">{config.offerDesc}</span>
           </div>
         </button>
       </div>
     </div>
 
-  <!-- ═══════════════════ NEED RIDE FORM ═══════════════════ -->
-  {:else if currentView === 'need-ride'}
-    <div class="gig-form" transition:slide={{ duration: 300 }}>
-      <button class="back-btn" on:click={goBack}>&larr; Back</button>
-      <h3 class="gig-title">Request a Ride</h3>
+  <!-- ═══════════════ NEED FORM ═══════════════════════ -->
+  {:else if currentView === 'need' && config}
+    <GigNeedForm
+      {config}
+      userLiveLocation={$userLiveLocation}
+      {destinationLat}
+      {destinationLon}
+      {isPickingDestination}
+      onBack={goBack}
+      onPickDestination={handlePickDestination}
+      onSubmit={submitRequest}
+    />
 
-      <div class="form-group">
-        <span class="field-label">Start Location <span class="live-badge">LIVE</span></span>
-        <p class="location-display">
-          {#if $userLiveLocation}
-            {$userLiveLocation.latitude.toFixed(5)}, {$userLiveLocation.longitude.toFixed(5)}
-          {:else}
-            <span class="location-hint">Waiting for GPS... Enable location services if this persists.</span>
-          {/if}
-        </p>
-      </div>
+  <!-- ═══════════════ OFFER FORM ═════════════════════ -->
+  {:else if currentView === 'offer' && config}
+    <GigOfferForm
+      {config}
+      userLiveLocation={$userLiveLocation}
+      onBack={goBack}
+      onSubmit={submitOffer}
+    />
 
-      <div class="form-group">
-        <span class="field-label">Destination</span>
-        {#if destinationLat && destinationLon}
-          <p class="location-display">
-            {parseFloat(destinationLat).toFixed(5)}, {parseFloat(destinationLon).toFixed(5)}
-          </p>
-          <button class="pick-again-btn" on:click={handlePickDestination}>Pick again</button>
-        {:else}
-          <GlassmorphismButton
-            variant="secondary"
-            size="small"
-            onClick={handlePickDestination}
-          >
-            {isPickingDestination ? 'Click on the map...' : 'Pick Destination on Map'}
-          </GlassmorphismButton>
-        {/if}
-      </div>
+  <!-- ═══════════════ PENDING VIEW ═══════════════════ -->
+  {:else if currentView === 'pending' && config}
+    <GigPending
+      {config}
+      role={$userGigRole}
+      {relayCount}
+      {relayTotal}
+      {nearbyCount}
+      currentGeohash={$currentGeohash}
+      hasOwnRequest={!!myRequest}
+      {matchedRequest}
+      {awaitingConfirmation}
+      onCancel={myRequest ? cancelRequest : cancelOffer}
+      onAccept={acceptMatch}
+      onReject={rejectMatch}
+    />
 
-      <GlassmorphismButton
-        variant="primary"
-        fullWidth={true}
-        onClick={submitRideRequest}
-        disabled={!$userLiveLocation || !destinationLat}
-      >
-        Request Ride
-      </GlassmorphismButton>
-    </div>
-
-  <!-- ═══════════════════ OFFER RIDE FORM ══════════════════ -->
-  {:else if currentView === 'offer-ride'}
-    <div class="gig-form" transition:slide={{ duration: 300 }}>
-      <button class="back-btn" on:click={goBack}>&larr; Back</button>
-      <h3 class="gig-title">Offer a Ride</h3>
-
-      <div class="form-group">
-        <span class="field-label">Your Location <span class="live-badge">LIVE</span></span>
-        <p class="location-display">
-          {#if $userLiveLocation}
-            {$userLiveLocation.latitude.toFixed(5)}, {$userLiveLocation.longitude.toFixed(5)}
-          {:else}
-            <span class="location-hint">Waiting for GPS... Enable location services if this persists.</span>
-          {/if}
-        </p>
-      </div>
-
-      <p class="hint">
-        You'll be matched with riders in your geohash cell
-        (~1.2 km × 0.6 km area around your location).
-        Discovery and matching happen fully peer-to-peer.
-      </p>
-
-      <GlassmorphismButton
-        variant="primary"
-        fullWidth={true}
-        onClick={submitDriverOffer}
-        disabled={!$userLiveLocation}
-      >
-        Start Offering
-      </GlassmorphismButton>
-    </div>
-
-  <!-- ═══════════════════ PENDING VIEW ═════════════════════ -->
-  {:else if currentView === 'pending'}
-    <div class="gig-pending" transition:slide={{ duration: 300 }}>
-
-      <!-- ── Rider pending ── -->
-      {#if myRideRequest && $userGigRole === 'rider'}
-        <h3 class="gig-title">Waiting for Driver</h3>
-        <RelayStatus connected={relayCount} total={relayTotal} />
-        <div class="status-indicator">
-          <div class="pulse-dot"></div>
-          <span>
-            {#if nearbyCount > 0}
-              Found {nearbyCount} driver{nearbyCount !== 1 ? 's' : ''} nearby...
-            {:else}
-              Searching for nearby drivers...
-            {/if}
-          </span>
-        </div>
-        <p class="ride-info">Passenger ride</p>
-        {#if $currentGeohash}
-          <p class="cell-info">Cell: {$currentGeohash}</p>
-        {/if}
-
-        <div class="cancel-section">
-          <GlassmorphismButton variant="danger" fullWidth={true} onClick={cancelRideRequest}>
-            Cancel Request
-          </GlassmorphismButton>
-        </div>
-
-      <!-- ── Driver pending ── -->
-      {:else if $userGigRole === 'driver'}
-        <h3 class="gig-title">Offering Rides</h3>
-        <RelayStatus connected={relayCount} total={relayTotal} />
-        <div class="status-indicator">
-          <div class="pulse-dot driver"></div>
-          <span>
-            {#if nearbyCount > 0}
-              Found {nearbyCount} rider{nearbyCount !== 1 ? 's' : ''} nearby...
-            {:else}
-              Listening for riders in your cell...
-            {/if}
-          </span>
-        </div>
-        {#if $currentGeohash}
-          <p class="cell-info">Cell: {$currentGeohash}</p>
-        {/if}
-
-        <!-- Awaiting rider confirmation after clicking Accept -->
-        {#if awaitingConfirmation}
-          <div class="confirming-card">
-            <div class="status-indicator">
-              <div class="pulse-dot"></div>
-              <span>Confirming with rider...</span>
-            </div>
-          </div>
-
-        <!-- New match available to accept/reject -->
-        {:else if matchedRequest}
-          <div class="match-card">
-            <h4>New Request!</h4>
-            <p class="match-type">Passenger</p>
-            <p class="match-detail">From rider in your cell</p>
-            <div class="match-actions">
-              <GlassmorphismButton variant="success" size="small" onClick={acceptMatch}>
-                Accept
-              </GlassmorphismButton>
-              <GlassmorphismButton variant="danger" size="small" onClick={rejectMatch}>
-                Decline
-              </GlassmorphismButton>
-            </div>
-          </div>
-        {/if}
-
-        <div class="cancel-section">
-          <GlassmorphismButton variant="danger" fullWidth={true} onClick={cancelDriverOffer}>
-            Stop Offering
-          </GlassmorphismButton>
-        </div>
-      {/if}
-    </div>
-
-  <!-- ═══════════════════ MATCHED VIEW ═════════════════════ -->
-  {:else if currentView === 'matched'}
-    <div class="gig-matched" transition:slide={{ duration: 300 }}>
-      <h3 class="gig-title">Ride Matched!</h3>
-      <div class="match-success">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-          <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-        <p>Your ride has been confirmed.</p>
-        <p class="match-peer-info">
-          Connected directly via P2P
-        </p>
-      </div>
-      <GlassmorphismButton variant="secondary" fullWidth={true} onClick={finishAndReset}>
-        Done
-      </GlassmorphismButton>
-    </div>
+  <!-- ═══════════════ MATCHED VIEW ═══════════════════ -->
+  {:else if currentView === 'matched' && config}
+    <GigMatched {config} onDone={finishAndReset} />
   {/if}
 </div>
 
@@ -732,19 +607,36 @@
     color: rgba(252, 165, 165, 1);
   }
 
+  /* ── Vertical Badge ── */
+  .vertical-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0.25rem;
+  }
+
+  .badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .badge-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Menu ── */
   .gig-title {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.2rem;
+    margin: 0 0 0.75rem 0;
+    font-size: 1.1rem;
     font-weight: 700;
   }
 
-  .gig-subtitle {
-    margin: 0 0 1rem 0;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  /* ── Actions Menu ── */
   .gig-actions {
     display: flex;
     flex-direction: column;
@@ -771,14 +663,14 @@
     background: rgba(255, 255, 255, 0.15);
     transform: translateX(-4px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border-color: var(--hover-border, rgba(255, 255, 255, 0.3));
   }
 
-  .gig-action-btn.need-ride:hover {
-    border-color: rgba(66, 133, 244, 0.5);
-  }
-
-  .gig-action-btn.offer-ride:hover {
-    border-color: rgba(251, 188, 4, 0.5);
+  .action-accent {
+    width: 4px;
+    height: 32px;
+    border-radius: 2px;
+    flex-shrink: 0;
   }
 
   .action-text {
@@ -812,200 +704,6 @@
 
   .back-btn:hover {
     color: white;
-  }
-
-  /* ── Form ── */
-  .gig-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .form-group .field-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .location-display {
-    margin: 0;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    font-size: 0.85rem;
-    color: rgba(74, 222, 128, 1);
-    font-family: monospace;
-  }
-
-  .location-hint {
-    color: rgba(255, 255, 255, 0.4);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-
-  .pick-again-btn {
-    background: none;
-    border: none;
-    color: rgba(66, 133, 244, 0.8);
-    font-size: 0.78rem;
-    cursor: pointer;
-    padding: 2px 0;
-    text-align: left;
-    text-decoration: underline;
-  }
-
-  .pick-again-btn:hover {
-    color: rgba(66, 133, 244, 1);
-  }
-
-  .hint {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
-    margin: 0;
-    line-height: 1.4;
-  }
-
-  /* ── Pending View ── */
-  .gig-pending {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .status-indicator {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .pulse-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #4285F4;
-    animation: gig-pulse 1.5s ease-in-out infinite;
-    flex-shrink: 0;
-  }
-
-  .pulse-dot.driver {
-    background: #FBBC04;
-  }
-
-  @keyframes gig-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.3); }
-  }
-
-  .ride-info {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin: 0;
-  }
-
-  .cell-info {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.35);
-    margin: 0;
-    font-family: monospace;
-  }
-
-  .cancel-section {
-    margin-top: 0.5rem;
-  }
-
-  /* ── Match Card ── */
-  .match-card {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(74, 222, 128, 0.3);
-    border-radius: 12px;
-    padding: 1rem;
-  }
-
-  .match-card h4 {
-    margin: 0 0 0.5rem 0;
-    color: #4ade80;
-    font-size: 1rem;
-  }
-
-  .match-type {
-    margin: 0.25rem 0;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .match-detail {
-    margin: 0.25rem 0;
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  .match-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-  }
-
-  .confirming-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(66, 133, 244, 0.3);
-    border-radius: 12px;
-    padding: 1rem;
-  }
-
-  /* ── Matched View ── */
-  .gig-matched {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    text-align: center;
-  }
-
-  .match-success {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem 0;
-  }
-
-  .match-success p {
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0;
-  }
-
-  .match-peer-info {
-    font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.4) !important;
-  }
-
-  /* ── Live Badge ── */
-  .live-badge {
-    display: inline-block;
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: #34a853;
-    background: rgba(52, 168, 83, 0.15);
-    border: 1px solid rgba(52, 168, 83, 0.3);
-    border-radius: 4px;
-    padding: 1px 5px;
-    margin-left: 4px;
-    vertical-align: middle;
-    animation: livePulse 2s ease-in-out infinite;
-  }
-
-  @keyframes livePulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
   }
 
   /* ── Responsive ── */

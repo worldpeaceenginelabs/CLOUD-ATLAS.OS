@@ -1,18 +1,18 @@
 /**
  * Gig Economy Service
  *
- * Domain layer for ride matching over Nostr.
- * Events on the relay are the single source of truth — both rider and
- * driver subscribe to their own events and derive state from them.
+ * Domain layer for P2P matching over Nostr, parameterized by vertical.
+ * Events on the relay are the single source of truth — both requester and
+ * provider subscribe to their own events and derive state from them.
  *
- * Protocol:
- *   1. Rider publishes ride request event (status: 'open', NIP-40 TTL 60 s)
- *   2. Rider self-subscribes; heartbeat fires 20 s before expiration
- *   3. Drivers subscribe to ride requests in their geohash cell
- *   4. Driver publishes availability event (NIP-40 TTL 60 s, same heartbeat)
- *   5. Driver sends encrypted 'accept' DM to rider
- *   6. Rider picks winner, updates event (status: 'taken', matchedDriverPubkey)
- *   7. All drivers see the update — winner matches, losers move on
+ * Protocol (identical across all verticals):
+ *   1. Requester publishes request event (status: 'open', NIP-40 TTL 60 s)
+ *   2. Requester self-subscribes; heartbeat fires 20 s before expiration
+ *   3. Providers subscribe to requests in their geohash cell
+ *   4. Provider publishes availability event (NIP-40 TTL 60 s, same heartbeat)
+ *   5. Provider sends encrypted 'accept' DM to requester
+ *   6. Requester picks winner, updates event (status: 'taken', matchedProviderPubkey)
+ *   7. All providers see the update — winner matches, losers move on
  *   8. If either side crashes, heartbeats stop and the event expires on relays
  *
  * Event lifecycle (NIP-40):
@@ -22,13 +22,17 @@
  *   Self-subscriptions resync heartbeat timing with the relay's actual state.
  *
  * Messages:
- *   Public events:  ride request (open → taken/cancelled), driver availability
- *   Encrypted DMs:  accept (driver → rider) — the only DM in the protocol
+ *   Public events:  request (open → taken/cancelled), provider availability
+ *   Encrypted DMs:  accept (provider → requester) — the only DM in the protocol
+ *
+ * Vertical separation:
+ *   Each vertical uses distinct Nostr '#t' tags (e.g. 'need-rides', 'offer-rides')
+ *   so events from different verticals never interfere.
  */
 
 import { NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
-import type { RideRequest } from '../types';
+import type { GigRequest, GigVertical } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -45,7 +49,7 @@ const MIN_VIABLE_TTL_SECS = 15;
 const freshExpiration = (): number => Math.floor(Date.now() / 1000) + REQUEST_TTL_SECS;
 
 /** Build the standard NIP-33 tag set for a gig event. */
-const buildTags = (geohash: string, type: 'ride-request' | 'driver-avail'): string[][] => [
+const buildTags = (geohash: string, type: string): string[][] => [
   ['g', geohash],
   ['t', type],
   ['expiration', String(freshExpiration())],
@@ -56,25 +60,25 @@ const buildTags = (geohash: string, type: 'ride-request' | 'driver-avail'): stri
 export interface GigCallbacks {
   /** Relay connection count changed. */
   onRelayStatus: (connected: number, total: number) => void;
-  /** Driver: a new open ride request appeared in the cell. */
-  onRideRequest: (request: RideRequest) => void;
-  /** Driver: a ride request was taken, cancelled, or expired. */
-  onRideRequestGone: (requestId: string, matchedDriverPubkey: string | null) => void;
-  /** Rider: a driver sent an accept for our request. */
-  onDriverAccepted: (driverPubkey: string, requestId: string) => void;
-  /** Rider: number of available drivers in the cell changed. */
-  onDriverCount?: (count: number) => void;
-  /** Rider: own ride request expired or disappeared from relays. */
+  /** Provider: a new open request appeared in the cell. */
+  onRequest: (request: GigRequest) => void;
+  /** Provider: a request was taken, cancelled, or expired. */
+  onRequestGone: (requestId: string, matchedProviderPubkey: string | null) => void;
+  /** Requester: a provider sent an accept for our request. */
+  onProviderAccepted: (providerPubkey: string, requestId: string) => void;
+  /** Requester: number of available providers in the cell changed. */
+  onProviderCount?: (count: number) => void;
+  /** Requester: own request expired or disappeared from relays. */
   onOwnRequestExpired?: () => void;
-  /** Driver: own availability event expired or disappeared from relays. */
-  onOwnAvailExpired?: () => void;
+  /** Provider: own availability event expired or disappeared from relays. */
+  onOwnOfferExpired?: () => void;
 }
 
 /** The only DM type in the protocol. */
 interface AcceptDM {
   type: 'accept';
   requestId: string;
-  driverPubkey: string;
+  providerPubkey: string;
 }
 
 // ─── Service ─────────────────────────────────────────────────
@@ -82,19 +86,26 @@ interface AcceptDM {
 export class GigService {
   private nostr: NostrService;
   private callbacks: GigCallbacks;
-  private knownRequests = new Set<string>();            // requestIds we've delivered to the component
-  private knownDrivers = new Set<string>();             // driver pubkeys seen in the cell (for rider count)
+  private vertical: GigVertical;
+  private needTag: string;
+  private offerTag: string;
+  private knownRequests = new Set<string>();
+  private knownProviders = new Set<string>();
   private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   // Stored for heartbeat re-publish
-  private myRequest: RideRequest | null = null;
+  private myRequest: GigRequest | null = null;
   private myGeohash: string | null = null;
-  private myDriverLocation: { latitude: number; longitude: number } | null = null;
+  private myProviderLocation: { latitude: number; longitude: number } | null = null;
+  private myProviderDetails: Record<string, string> = {};
 
-  constructor(callbacks: GigCallbacks) {
+  constructor(vertical: GigVertical, callbacks: GigCallbacks) {
     this.nostr = new NostrService();
     this.callbacks = callbacks;
+    this.vertical = vertical;
+    this.needTag = `need-${vertical}`;
+    this.offerTag = `offer-${vertical}`;
   }
 
   /** Our Nostr public key. */
@@ -102,27 +113,23 @@ export class GigService {
     return this.nostr.pubkey;
   }
 
-  // ─── Rider ─────────────────────────────────────────────────
+  // ─── Requester ──────────────────────────────────────────────
 
   /**
-   * Start as a rider. Publishes the ride request event,
+   * Start as a requester. Publishes the request event,
    * self-subscribes for lifecycle management, and subscribes
-   * to accept DMs and driver availability.
+   * to accept DMs and provider availability.
    */
-  startAsRider(geohash: string, request: RideRequest): void {
+  startAsRequester(geohash: string, request: GigRequest): void {
     this.myRequest = request;
     this.myGeohash = geohash;
 
-    // Wire up relay status
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
-    // Publish ride request as a public replaceable event with NIP-40 TTL
-    this.nostr.publishReplaceable(request.id, buildTags(geohash, 'ride-request'), JSON.stringify(request));
-
-    // Schedule first heartbeat (we just published, so full TTL from now)
+    this.nostr.publishReplaceable(request.id, buildTags(geohash, this.needTag), JSON.stringify(request));
     this.scheduleHeartbeat(freshExpiration());
 
-    // Self-subscribe to own ride request — relay echo drives heartbeat timing
+    // Self-subscribe to own request — relay echo drives heartbeat timing
     this.nostr.subscribe('self-request', {
       kinds: [REPLACEABLE_KIND],
       authors: [this.nostr.pubkey],
@@ -133,112 +140,114 @@ export class GigService {
     this.nostr.subscribeDMs(REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
       const dm = payload as AcceptDM;
       if (dm?.type === 'accept' && dm.requestId === this.myRequest?.id) {
-        this.callbacks.onDriverAccepted(fromPubkey, dm.requestId);
+        this.callbacks.onProviderAccepted(fromPubkey, dm.requestId);
       }
     });
 
-    // Subscribe to driver availability events to show count
-    this.nostr.subscribe('driver-avail', {
+    // Subscribe to provider availability events to show count
+    this.nostr.subscribe('provider-avail', {
       kinds: [REPLACEABLE_KIND],
       '#g': [geohash],
-      '#t': ['driver-avail'],
+      '#t': [this.offerTag],
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
-    }, (event: NostrEvent) => this.handleDriverAvailEvent(event));
+    }, (event: NostrEvent) => this.handleProviderAvailEvent(event));
 
-    // Connect to relays in the background
     this.nostr.connectInBackground();
 
-    logger.info(`Rider started in cell ${geohash}`, { component: 'GigService', operation: 'startAsRider' });
+    logger.info(`Requester started in cell ${geohash} [${this.vertical}]`, { component: 'GigService', operation: 'startAsRequester' });
   }
 
   /**
-   * Rider confirms the winning driver.
-   * Updates the ride request event with status 'taken' and the winner's pubkey.
-   * Every driver in the cell sees this through their subscription.
+   * Requester confirms the winning provider.
+   * Updates the request event with status 'taken' and the winner's pubkey.
    */
-  confirmMatch(request: RideRequest, driverPubkey: string): void {
+  confirmMatch(request: GigRequest, providerPubkey: string): void {
     this.clearHeartbeat();
 
-    const updated: RideRequest = {
+    const updated: GigRequest = {
       ...request,
       status: 'taken',
-      matchedDriverPubkey: driverPubkey,
+      matchedProviderPubkey: providerPubkey,
     };
 
-    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, 'ride-request'), JSON.stringify(updated));
+    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
 
-    logger.info(`Match confirmed with driver ${driverPubkey.slice(0, 8)}`, { component: 'GigService', operation: 'confirmMatch' });
+    logger.info(`Match confirmed with provider ${providerPubkey.slice(0, 8)}`, { component: 'GigService', operation: 'confirmMatch' });
   }
 
-  /** Rider cancels their request. Updates event status to 'cancelled'. */
-  cancelRequest(request: RideRequest): void {
+  /** Requester cancels their request. Updates event status to 'cancelled'. */
+  cancelRequest(request: GigRequest): void {
     this.clearHeartbeat();
 
-    const updated: RideRequest = {
+    const updated: GigRequest = {
       ...request,
       status: 'cancelled',
-      matchedDriverPubkey: null,
+      matchedProviderPubkey: null,
     };
 
-    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, 'ride-request'), JSON.stringify(updated));
+    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
 
-    logger.info('Ride request cancelled', { component: 'GigService', operation: 'cancelRequest' });
+    logger.info('Request cancelled', { component: 'GigService', operation: 'cancelRequest' });
   }
 
-  // ─── Driver ────────────────────────────────────────────────
+  // ─── Provider ────────────────────────────────────────────────
 
   /**
-   * Start as a driver. Publishes availability with NIP-40 TTL,
+   * Start as a provider. Publishes availability with NIP-40 TTL,
    * self-subscribes for lifecycle management, and subscribes to
-   * ride requests in the cell.
+   * requests in the cell.
    */
-  startAsDriver(geohash: string, location: { latitude: number; longitude: number }): void {
+  startAsProvider(
+    geohash: string,
+    location: { latitude: number; longitude: number },
+    details: Record<string, string> = {},
+  ): void {
     this.myGeohash = geohash;
-    this.myDriverLocation = location;
+    this.myProviderLocation = location;
+    this.myProviderDetails = details;
 
-    // Wire up relay status
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
-    // Publish driver availability with NIP-40 TTL
-    this.nostr.publishReplaceable('driver-avail', buildTags(geohash, 'driver-avail'), JSON.stringify({ location }));
-
-    // Schedule first heartbeat (we just published, so full TTL from now)
+    this.nostr.publishReplaceable(
+      this.offerTag,
+      buildTags(geohash, this.offerTag),
+      JSON.stringify({ location, details }),
+    );
     this.scheduleHeartbeat(freshExpiration());
 
-    // Self-subscribe to own driver-avail event — relay echo drives heartbeat timing
+    // Self-subscribe to own availability event
     this.nostr.subscribe('self-avail', {
       kinds: [REPLACEABLE_KIND],
       authors: [this.nostr.pubkey],
-      '#d': ['driver-avail'],
+      '#d': [this.offerTag],
     }, (event: NostrEvent) => this.handleOwnEvent(event));
 
-    // Subscribe to ride requests in this cell
-    this.nostr.subscribe('ride-requests', {
+    // Subscribe to requests in this cell
+    this.nostr.subscribe('need-requests', {
       kinds: [REPLACEABLE_KIND],
       '#g': [geohash],
-      '#t': ['ride-request'],
+      '#t': [this.needTag],
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
-    }, (event: NostrEvent) => this.handleRideRequestEvent(event));
+    }, (event: NostrEvent) => this.handleRequestEvent(event));
 
-    // Connect to relays in the background
     this.nostr.connectInBackground();
 
-    logger.info(`Driver started in cell ${geohash}`, { component: 'GigService', operation: 'startAsDriver' });
+    logger.info(`Provider started in cell ${geohash} [${this.vertical}]`, { component: 'GigService', operation: 'startAsProvider' });
   }
 
   /**
-   * Driver accepts a ride request.
-   * Sends an encrypted DM to the rider.
+   * Provider accepts a request.
+   * Sends an encrypted DM to the requester.
    * Returns true if sent, false on error.
    */
-  acceptRequest(riderPubkey: string, requestId: string): boolean {
+  acceptRequest(requesterPubkey: string, requestId: string): boolean {
     try {
       const dm: AcceptDM = {
         type: 'accept',
         requestId,
-        driverPubkey: this.pubkey,
+        providerPubkey: this.pubkey,
       };
-      this.nostr.sendDM(riderPubkey, dm);
+      this.nostr.sendDM(requesterPubkey, dm);
       return true;
     } catch (e) {
       logger.error(`Failed to send accept DM: ${e}`, { component: 'GigService', operation: 'acceptRequest' });
@@ -259,7 +268,6 @@ export class GigService {
     const remaining = expiration - now;
 
     if (remaining < MIN_VIABLE_TTL_SECS) {
-      // Too late to recover — treat as expired
       this.handleExpired();
       return;
     }
@@ -275,12 +283,14 @@ export class GigService {
   /** Re-publish the current event with a fresh TTL. */
   private fireHeartbeat(): void {
     if (this.myRequest && this.myGeohash && this.myRequest.status === 'open') {
-      // Rider heartbeat
-      this.nostr.publishReplaceable(this.myRequest.id, buildTags(this.myGeohash, 'ride-request'), JSON.stringify(this.myRequest));
+      this.nostr.publishReplaceable(this.myRequest.id, buildTags(this.myGeohash, this.needTag), JSON.stringify(this.myRequest));
       this.scheduleHeartbeat(freshExpiration());
-    } else if (this.myDriverLocation && this.myGeohash) {
-      // Driver heartbeat
-      this.nostr.publishReplaceable('driver-avail', buildTags(this.myGeohash, 'driver-avail'), JSON.stringify({ location: this.myDriverLocation }));
+    } else if (this.myProviderLocation && this.myGeohash) {
+      this.nostr.publishReplaceable(
+        this.offerTag,
+        buildTags(this.myGeohash, this.offerTag),
+        JSON.stringify({ location: this.myProviderLocation, details: this.myProviderDetails }),
+      );
       this.scheduleHeartbeat(freshExpiration());
     }
   }
@@ -297,8 +307,8 @@ export class GigService {
     this.clearHeartbeat();
     if (this.myRequest) {
       this.callbacks.onOwnRequestExpired?.();
-    } else if (this.myDriverLocation) {
-      this.callbacks.onOwnAvailExpired?.();
+    } else if (this.myProviderLocation) {
+      this.callbacks.onOwnOfferExpired?.();
     }
   }
 
@@ -313,98 +323,83 @@ export class GigService {
   // ─── Event Handling ────────────────────────────────────────
 
   /**
-   * Handle an incoming ride request event (driver side).
+   * Handle an incoming request event (provider side).
    * Differentiates between new requests, heartbeats, status updates,
    * and expired events.
    */
-  private handleRideRequestEvent(event: NostrEvent): void {
-    // Ignore empty events (deleted/replaced with no content)
+  private handleRequestEvent(event: NostrEvent): void {
     if (!event.content) return;
 
     try {
-      const request: RideRequest = JSON.parse(event.content);
-      // Ensure pubkey matches the event author (tamper-proof)
+      const request: GigRequest = JSON.parse(event.content);
       request.pubkey = event.pubkey;
 
-      // Extract NIP-40 expiration from event tags
       const expiration = this.getExpiration(event);
 
-      // Check if expired
       if (expiration && Date.now() / 1000 > expiration) {
         if (this.knownRequests.has(request.id)) {
-          // Known request expired — treat as gone
           this.knownRequests.delete(request.id);
           this.clearExpirationTimer(`req:${request.id}`);
-          this.callbacks.onRideRequestGone(request.id, null);
+          this.callbacks.onRequestGone(request.id, null);
         }
-        // Unknown expired request — ignore
         return;
       }
 
       if (this.knownRequests.has(request.id)) {
         if (request.status === 'taken' || request.status === 'cancelled') {
-          // Status changed — gone
           this.knownRequests.delete(request.id);
           this.clearExpirationTimer(`req:${request.id}`);
-          this.callbacks.onRideRequestGone(request.id, request.matchedDriverPubkey);
+          this.callbacks.onRequestGone(request.id, request.matchedProviderPubkey);
         } else if (request.status === 'open' && expiration) {
-          // Heartbeat — reset expiration timer
           this.setRequestExpirationTimer(request.id, expiration);
         }
       } else if (request.status === 'open') {
-        // New open request
         this.knownRequests.add(request.id);
         if (expiration) {
           this.setRequestExpirationTimer(request.id, expiration);
         }
-        this.callbacks.onRideRequest(request);
+        this.callbacks.onRequest(request);
       }
-      // Ignore historical taken/cancelled events we never saw as open
     } catch {
-      logger.warn('Malformed ride request event', { component: 'GigService', operation: 'handleRideRequestEvent' });
+      logger.warn('Malformed request event', { component: 'GigService', operation: 'handleRequestEvent' });
     }
   }
 
   /**
-   * Handle a driver availability event (rider side).
-   * Tracks driver pubkeys with expiration timers and fires onDriverCount.
+   * Handle a provider availability event (requester side).
+   * Tracks provider pubkeys with expiration timers and fires onProviderCount.
    */
-  private handleDriverAvailEvent(event: NostrEvent): void {
+  private handleProviderAvailEvent(event: NostrEvent): void {
     if (!event.content) {
-      // Empty content = driver went offline — remove them
-      this.removeDriver(event.pubkey);
+      this.removeProvider(event.pubkey);
       return;
     }
 
-    // Extract NIP-40 expiration from event tags
     const expiration = this.getExpiration(event);
 
-    // Check if expired
     if (expiration && Date.now() / 1000 > expiration) {
-      // Expired driver — remove if known
-      this.removeDriver(event.pubkey);
+      this.removeProvider(event.pubkey);
       return;
     }
 
-    if (!this.knownDrivers.has(event.pubkey)) {
-      this.knownDrivers.add(event.pubkey);
-      this.callbacks.onDriverCount?.(this.knownDrivers.size);
+    if (!this.knownProviders.has(event.pubkey)) {
+      this.knownProviders.add(event.pubkey);
+      this.callbacks.onProviderCount?.(this.knownProviders.size);
     }
 
-    // Start or reset expiration timer for this driver
     if (expiration) {
-      this.setExpirationTimer(`drv:${event.pubkey}`, expiration, () => {
-        this.removeDriver(event.pubkey);
-        logger.info(`Driver ${event.pubkey.slice(0, 8)} expired locally`, { component: 'GigService', operation: 'expirationTimer' });
+      this.setExpirationTimer(`prv:${event.pubkey}`, expiration, () => {
+        this.removeProvider(event.pubkey);
+        logger.info(`Provider ${event.pubkey.slice(0, 8)} expired locally`, { component: 'GigService', operation: 'expirationTimer' });
       });
     }
   }
 
-  /** Remove a driver from tracking and update the count. */
-  private removeDriver(pubkey: string): void {
-    this.clearExpirationTimer(`drv:${pubkey}`);
-    if (this.knownDrivers.delete(pubkey)) {
-      this.callbacks.onDriverCount?.(this.knownDrivers.size);
+  /** Remove a provider from tracking and update the count. */
+  private removeProvider(pubkey: string): void {
+    this.clearExpirationTimer(`prv:${pubkey}`);
+    if (this.knownProviders.delete(pubkey)) {
+      this.callbacks.onProviderCount?.(this.knownProviders.size);
     }
   }
 
@@ -439,12 +434,12 @@ export class GigService {
     }
   }
 
-  /** Convenience: set a ride-request expiration timer with standard cleanup. */
+  /** Convenience: set a request expiration timer with standard cleanup. */
   private setRequestExpirationTimer(requestId: string, expiration: number): void {
     this.setExpirationTimer(`req:${requestId}`, expiration, () => {
       if (this.knownRequests.has(requestId)) {
         this.knownRequests.delete(requestId);
-        this.callbacks.onRideRequestGone(requestId, null);
+        this.callbacks.onRequestGone(requestId, null);
         logger.info(`Request ${requestId.slice(0, 8)} expired locally`, { component: 'GigService', operation: 'expirationTimer' });
       }
     });
@@ -463,10 +458,11 @@ export class GigService {
     this.expirationTimers.clear();
 
     this.knownRequests.clear();
-    this.knownDrivers.clear();
+    this.knownProviders.clear();
     this.myRequest = null;
     this.myGeohash = null;
-    this.myDriverLocation = null;
+    this.myProviderLocation = null;
+    this.myProviderDetails = {};
     this.nostr.disconnect();
 
     logger.info('GigService stopped', { component: 'GigService', operation: 'stop' });

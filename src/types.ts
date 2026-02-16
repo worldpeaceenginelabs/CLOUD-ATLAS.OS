@@ -55,24 +55,26 @@ export interface PinData {
 }
 
 // Gig Economy Types
-export type RideType = 'person' | 'delivery';
+export type GigVertical = 'rides' | 'delivery' | 'stays' | 'services' | 'social';
 
-export interface RideRequest {
+export interface GigRequest {
   id: string;
   pubkey: string;
+  vertical: GigVertical;
   startLocation: {
     latitude: number;
     longitude: number;
   };
-  destination: {
+  destination?: {
     latitude: number;
     longitude: number;
   };
-  rideType: RideType;
   status: 'open' | 'taken' | 'cancelled';
-  matchedDriverPubkey: string | null;
+  matchedProviderPubkey: string | null;
   timestamp: string;
   geohash: string;
+  /** Vertical-specific form data (item description, guest count, etc.) */
+  details: Record<string, string>;
 }
 
 // App Menu Categories
