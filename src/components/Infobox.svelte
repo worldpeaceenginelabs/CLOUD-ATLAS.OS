@@ -139,7 +139,7 @@
       <img class="bottomicons" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
   </a>
  
-    <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyskxoh5pjh7dortjkosrse99psyfj6rnxi6qyygzh7fnjs4siswpn3ckc5iwao6qu88o74gbsrdfh5uj479tfg3j7bat77ydrjeyhx1eyedsyrto9tmow9pftuus1ejpn8pujwja" target="_blank">
+    <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyspuj43rxynu6yk68759erbex9txpag8fbwrobgrjkwwz5tz8dpyabr8yoq7paqw4ryi9a5973qmu5qz458iitgce3mxwekm9rpa6smoyedsyrto9tmowno15sqjmbd7wsgqq4jy" target="_blank">
         <img class="bottomicons" src="chat-icon.svg" alt="" title="Developer Chat on Keet" height="30" width="30">
     </a>
     
