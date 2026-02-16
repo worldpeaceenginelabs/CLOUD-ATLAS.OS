@@ -3,12 +3,12 @@
  * Centralized IndexedDB initialization and management
  */
 
-import type { PinData, ModelData } from './types';
+import type { PinData, ModelData, HelpoutListing } from './types';
 
 export class IndexedDBManager {
   private db: IDBDatabase | null = null;
   private dbName = 'indexeddbstore';
-  private version = 4; // Incremented to ensure localpins store is created
+  private version = 5; // Incremented to add helpouts store
 
   /**
    * Initialize IndexedDB connection
@@ -42,6 +42,12 @@ export class IndexedDBManager {
         if (!db.objectStoreNames.contains('localpins')) {
           db.createObjectStore('localpins', { keyPath: 'mapid' });
           console.log('Created object store: localpins');
+        }
+
+        // Create helpouts cache store (keyed by geohash-4 cell)
+        if (!db.objectStoreNames.contains('helpouts')) {
+          db.createObjectStore('helpouts', { keyPath: 'cell' });
+          console.log('Created object store: helpouts');
         }
       };
 
@@ -212,6 +218,33 @@ export class IndexedDBManager {
     console.log('Model deleted from IndexedDB:', modelId);
   }
 
+  // ─── Helpout Cache ──────────────────────────────────────────
+
+  /**
+   * Save helpout listings for a geohash-4 cell
+   */
+  async saveHelpouts(cell: string, listings: HelpoutListing[]): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    if (!this.db.objectStoreNames.contains('helpouts')) return;
+
+    const transaction = this.db.transaction('helpouts', 'readwrite');
+    const store = transaction.objectStore('helpouts');
+    await this.wrapRequest(store.put({ cell, listings }));
+  }
+
+  /**
+   * Load cached helpout listings for a geohash-4 cell.
+   * Returns null on cache miss.
+   */
+  async loadHelpouts(cell: string): Promise<HelpoutListing[] | null> {
+    if (!this.db) throw new Error('Database not initialized');
+    if (!this.db.objectStoreNames.contains('helpouts')) return null;
+
+    const transaction = this.db.transaction('helpouts', 'readonly');
+    const store = transaction.objectStore('helpouts');
+    const result = await this.wrapRequest(store.get(cell));
+    return result ? result.listings : null;
+  }
 }
 
 // Create and export a singleton instance

@@ -45,6 +45,9 @@ import { getCurrentTimeIso8601 } from './utils/timeUtils';
 import { logger } from './utils/logger';
 import { roamingAnimationManager } from './utils/roamingAnimation';
 import ScrollbarStyles from './components/ScrollbarStyles.svelte';
+import MapLayersMenu from './components/MapLayersMenu.svelte';
+import HelpoutDetail from './gig/HelpoutDetail.svelte';
+import type { HelpoutListing } from './types';
   
 // Global variables and states
 let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
@@ -59,6 +62,10 @@ let tileset: Cesium3DTileset | null = null; // Global tileset reference
 let isBasemapLoaded = false; // Local variable for basemap loading state
 let isTilesetLoaded = false; // Local variable for tileset loading state
 let cesiumViewer: any = null; // Global viewer reference
+
+// Helpout map layer state
+let helpoutEntities: Entity[] = [];
+let selectedHelpout: HelpoutListing | null = null;
 
 // Roaming area painting state
 let roamingAreaStart: { latitude: number; longitude: number } | null = null;
@@ -901,6 +908,12 @@ function updatePreviewModelInScene(modelData: ModelData) {
 						),
 					});
 				}
+				} else if (pickedObject.id && pickedObject.id.id.startsWith('helpout_')) {
+				// Handle helpout marker click
+				const props = pickedObject.id.properties;
+				if (props && props.helpoutListing) {
+					selectedHelpout = props.helpoutListing.getValue(JulianDate.now());
+				}
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
 					// Handle 3D model click
 					const modelId = pickedObject.id.id;
@@ -1252,6 +1265,67 @@ async function handleEntityPick(pickedFeature: any) {
   }
 }
 
+// ─── Helpout Map Layer ──────────────────────────────────────
+
+/** Add helpout listing markers to the Cesium globe. */
+function renderHelpoutMarkers(listings: HelpoutListing[]) {
+  removeHelpoutMarkers();
+  if (!cesiumViewer) return;
+
+  for (const listing of listings) {
+    if (!listing.location) continue;
+    const position = Cartesian3.fromDegrees(
+      listing.location.longitude,
+      listing.location.latitude,
+      0
+    );
+
+    const entity = cesiumViewer.entities.add({
+      id: `helpout_${listing.id}`,
+      position,
+      point: {
+        pixelSize: 10,
+        color: Color.fromCssColorString('#00BCD4'),
+        outlineColor: Color.WHITE,
+        outlineWidth: 1.5,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      },
+      label: {
+        text: '?',
+        font: 'bold 12px sans-serif',
+        fillColor: Color.WHITE,
+        outlineColor: Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cartesian2(0, -12),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      properties: { helpoutListing: listing },
+    });
+    helpoutEntities.push(entity);
+  }
+}
+
+/** Remove all helpout markers from the globe. */
+function removeHelpoutMarkers() {
+  if (!cesiumViewer) return;
+  for (const entity of helpoutEntities) {
+    cesiumViewer.entities.remove(entity);
+  }
+  helpoutEntities = [];
+}
+
+/** Handle MapLayersMenu callback. */
+function onHelpoutsChanged(listings: HelpoutListing[]) {
+  if (listings.length === 0) {
+    removeHelpoutMarkers();
+    return;
+  }
+  renderHelpoutMarkers(listings);
+}
+
 // Function to handle coordinate picking
 
 function handleCoordinatePick(result: any) {
@@ -1395,6 +1469,7 @@ function handleCoordinatePick(result: any) {
 		pointEntity = null;
 		userLocationEntity = null;
 		userLocationInitialized = false;
+		removeHelpoutMarkers();
 		stopUserLocationTracking();
 		isMonitoringCamera = false;
 		animationFrameId = null;
@@ -1415,7 +1490,15 @@ function handleCoordinatePick(result: any) {
     <div class="height-label">Height:</div>
     <div class="height-value">{Math.round($currentHeight / 1000)}km</div>
   </div>
-</div>  
+
+  <!-- Map Layers Menu (bottom right) -->
+  <MapLayersMenu {onHelpoutsChanged} />
+</div>
+
+<!-- Helpout Detail Overlay (shown on marker click) -->
+{#if selectedHelpout}
+  <HelpoutDetail listing={selectedHelpout} onClose={() => selectedHelpout = null} />
+{/if}  
 
 
 

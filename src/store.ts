@@ -99,6 +99,10 @@ export const gigCanClose: Writable<boolean> = writable(true);
 /** Which gig vertical is currently active (null when on the selector screen) */
 export const activeGigVertical: Writable<GigVertical | null> = writable(null);
 
+// Map Layer Stores
+/** Set of currently active map layer IDs (e.g. 'helpouts') */
+export const activeMapLayers: Writable<Set<string>> = writable(new Set());
+
 // Store cleanup functions
 export function resetAllStores() {
   // UI State
@@ -154,6 +158,9 @@ export function resetAllStores() {
   currentGeohash.set('');
   gigCanClose.set(true);
   activeGigVertical.set(null);
+  
+  // Map Layers
+  activeMapLayers.set(new Set());
   
   // Cesium Actions
   cesiumActions.set({
