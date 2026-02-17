@@ -227,29 +227,29 @@ export class IndexedDBManager {
   // ─── Helpout Cache ──────────────────────────────────────────
 
   /**
-   * Save helpout listings for a geohash-4 cell
+   * Save helpout listings for a geohash-4 cell with a fetch timestamp.
    */
-  async saveHelpouts(cell: string, listings: HelpoutListing[]): Promise<void> {
+  async saveHelpouts(cell: string, listings: HelpoutListing[], fetchedAt: number): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
     if (!this.db.objectStoreNames.contains('helpouts')) return;
 
     const transaction = this.db.transaction('helpouts', 'readwrite');
     const store = transaction.objectStore('helpouts');
-    await this.wrapRequest(store.put({ cell, listings }));
+    await this.wrapRequest(store.put({ cell, listings, fetchedAt }));
   }
 
   /**
    * Load cached helpout listings for a geohash-4 cell.
-   * Returns null on cache miss.
+   * Returns { listings, fetchedAt } or null on cache miss.
    */
-  async loadHelpouts(cell: string): Promise<HelpoutListing[] | null> {
+  async loadHelpouts(cell: string): Promise<{ listings: HelpoutListing[]; fetchedAt: number } | null> {
     if (!this.db) throw new Error('Database not initialized');
     if (!this.db.objectStoreNames.contains('helpouts')) return null;
 
     const transaction = this.db.transaction('helpouts', 'readonly');
     const store = transaction.objectStore('helpouts');
     const result = await this.wrapRequest(store.get(cell));
-    return result ? result.listings : null;
+    return result ? { listings: result.listings, fetchedAt: result.fetchedAt ?? 0 } : null;
   }
   // ─── Nostr Keypair ─────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { activeMapLayers, userLiveLocation } from '../store';
+  import { activeMapLayers, userLiveLocation, helpoutLayerRefresh } from '../store';
   import { encode as geohashEncode } from '../utils/geohash';
   import { HelpoutLayerService } from '../services/helpoutLayerService';
   import { getKeypair } from '../services/keyManager';
@@ -13,8 +13,36 @@
   let layerError = '';
   let layerService: HelpoutLayerService | null = null;
 
+  // In-memory cache of last fetched mappable listings
+  let cachedListings: HelpoutListing[] = [];
+
   function toggle() {
     isOpen = !isOpen;
+  }
+
+  async function ensureService(): Promise<boolean> {
+    if (layerService) return true;
+    try {
+      const { sk } = await getKeypair();
+      layerService = new HelpoutLayerService(sk);
+      return true;
+    } catch {
+      layerError = 'Storage unavailable';
+      return false;
+    }
+  }
+
+  async function fetchAndRender(forceRefresh = false) {
+    const loc = $userLiveLocation;
+    if (!loc || !layerService) return;
+
+    isLoading = true;
+    const cell = geohashEncode(loc.latitude, loc.longitude, 4);
+    const listings = await layerService.fetchListings(cell, forceRefresh);
+
+    cachedListings = listings.filter(l => l.location);
+    onHelpoutsChanged(cachedListings);
+    isLoading = false;
   }
 
   async function toggleHelpouts() {
@@ -29,37 +57,32 @@
       return;
     }
 
-    // Turn on — fetch listings for user's geohash-4 cell
+    // Turn on
     layers.add('helpouts');
     activeMapLayers.set(new Set(layers));
-    isLoading = true;
 
-    const loc = $userLiveLocation;
-    if (!loc) {
-      isLoading = false;
+    // If we have in-memory listings, show them instantly
+    if (cachedListings.length > 0) {
+      onHelpoutsChanged(cachedListings);
+    }
+
+    if (!(await ensureService())) {
+      layers.delete('helpouts');
+      activeMapLayers.set(new Set(layers));
       return;
     }
 
-    if (!layerService) {
-      try {
-        const { sk } = await getKeypair();
-        layerService = new HelpoutLayerService(sk);
-      } catch {
-        layers.delete('helpouts');
-        activeMapLayers.set(new Set(layers));
-        isLoading = false;
-        layerError = 'Storage unavailable';
-        return;
-      }
+    // Fetch (service handles cache staleness internally)
+    await fetchAndRender();
+  }
+
+  // Subscribe to refresh trigger (e.g. after publishing a helpout)
+  let lastRefresh = $helpoutLayerRefresh;
+  $: if ($helpoutLayerRefresh !== lastRefresh) {
+    lastRefresh = $helpoutLayerRefresh;
+    if ($activeMapLayers.has('helpouts') && layerService) {
+      fetchAndRender(true);
     }
-
-    const cell = geohashEncode(loc.latitude, loc.longitude, 4);
-    const listings = await layerService.fetchListings(cell);
-
-    // Only keep listings that have a map-renderable location
-    const mappable = listings.filter(l => l.location);
-    onHelpoutsChanged(mappable);
-    isLoading = false;
   }
 
   $: helpoutsOn = $activeMapLayers.has('helpouts');

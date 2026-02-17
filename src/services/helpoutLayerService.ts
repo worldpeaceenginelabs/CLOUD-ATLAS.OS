@@ -4,9 +4,11 @@
  * Fetches helpout listings from Nostr relays for a geohash-4 cell,
  * caches them in IndexedDB, and returns them for map rendering.
  *
- * Cache strategy: simple put/get keyed by geohash-4.
- * On layer toggle-on, always fetch fresh from relay and update cache.
- * Cache is used as fallback if relay fetch fails.
+ * Cache strategy:
+ *   - First fetch: relay → IDB (with timestamp)
+ *   - Subsequent fetches within 30 min: return from IDB
+ *   - After 30 min or forceRefresh: relay → IDB
+ *   - On relay failure: fall back to IDB cache regardless of age
  */
 
 import { NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
@@ -16,6 +18,9 @@ import type { HelpoutListing } from '../types';
 
 /** How long to wait for relay events before resolving (ms). */
 const FETCH_TIMEOUT_MS = 5000;
+
+/** Cache is considered fresh for 30 minutes. */
+const CACHE_TTL_MS = 30 * 60 * 1000;
 
 export class HelpoutLayerService {
   private nostr: NostrService | null = null;
@@ -27,22 +32,39 @@ export class HelpoutLayerService {
 
   /**
    * Fetch helpout listings for a geohash-4 cell.
-   * Tries relay first, falls back to IDB cache.
+   * Uses IDB cache if fresh (< 30 min), otherwise fetches from relay.
+   * Pass forceRefresh=true to bypass staleness check (e.g. after publishing).
    */
-  async fetchListings(geohash4: string): Promise<HelpoutListing[]> {
+  async fetchListings(geohash4: string, forceRefresh = false): Promise<HelpoutListing[]> {
+    // Check cache first (unless forced)
+    if (!forceRefresh) {
+      try {
+        const cached = await idb.loadHelpouts(geohash4);
+        if (cached && (Date.now() - cached.fetchedAt) < CACHE_TTL_MS) {
+          return cached.listings;
+        }
+      } catch {
+        // IDB read failed, proceed to relay
+      }
+    }
+
+    // Fetch from relay
     try {
       const listings = await this.fetchFromRelay(geohash4);
-      // Cache the fresh results
-      await idb.saveHelpouts(geohash4, listings);
+      await idb.saveHelpouts(geohash4, listings, Date.now());
       return listings;
     } catch (e) {
       logger.warn(`Relay fetch failed for cell ${geohash4}, trying cache`, {
         component: 'HelpoutLayerService',
         operation: 'fetchListings',
       });
-      // Fall back to cache
-      const cached = await idb.loadHelpouts(geohash4);
-      return cached ?? [];
+      // Fall back to cache regardless of age
+      try {
+        const cached = await idb.loadHelpouts(geohash4);
+        return cached?.listings ?? [];
+      } catch {
+        return [];
+      }
     }
   }
 

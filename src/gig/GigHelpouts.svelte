@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { coordinates, viewer, isGigPickingDestination, userLiveLocation, gigCanClose } from '../store';
+  import { coordinates, viewer, isGigPickingDestination, userLiveLocation, gigCanClose, helpoutLayerRefresh } from '../store';
   import type { HelpoutListing, HelpoutMode } from '../types';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
@@ -111,6 +111,12 @@
     publishedListing = listing;
 
     logger.info('Helpout listing submitted', { component: 'GigHelpouts', operation: 'submitListing' });
+  }
+
+  function handleDone() {
+    // Trigger a force-refresh of the helpouts map layer so the new listing appears
+    helpoutLayerRefresh.update(n => n + 1);
+    onBack();
   }
 
   function cleanup() {
@@ -291,7 +297,7 @@
     </p>
 
     <div class="live-actions">
-      <GlassmorphismButton variant="secondary" fullWidth={true} onClick={onBack}>
+      <GlassmorphismButton variant="secondary" fullWidth={true} onClick={handleDone}>
         Done
       </GlassmorphismButton>
     </div>
