@@ -189,7 +189,7 @@
         on:click={toggleSocial}
       >
         <span class="layer-dot" style="background: #FF4081"></span>
-        <span class="layer-name">Meet</span>
+        <span class="layer-name">Spontaneous Contacts</span>
         {#if socialLoading}
           <span class="layer-spinner"></span>
         {:else}

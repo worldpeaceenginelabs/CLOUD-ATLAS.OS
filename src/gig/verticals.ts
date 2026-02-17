@@ -173,7 +173,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
 
   social: {
     id: 'social',
-    name: 'Meet',
+    name: 'Spontaneous Contacts',
     color: '#FF4081',
     mode: 'listing',
     needLabel: '',
@@ -193,7 +193,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     matchMessage: '',
     mapColor: '#FF4081',
     mapDestColor: '#FF4081',
-    mapLabel: 'Meet',
+    mapLabel: 'Social',
   },
 };
 
