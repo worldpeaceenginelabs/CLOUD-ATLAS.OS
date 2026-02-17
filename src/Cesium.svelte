@@ -47,8 +47,9 @@ import { roamingAnimationManager } from './utils/roamingAnimation';
 import ScrollbarStyles from './components/ScrollbarStyles.svelte';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
+import SocialDetail from './gig/SocialDetail.svelte';
 import { getSharedNostr } from './services/nostrPool';
-import type { HelpoutListing } from './types';
+import type { Listing } from './types';
   
 // Global variables and states
 let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
@@ -64,9 +65,11 @@ let isBasemapLoaded = false; // Local variable for basemap loading state
 let isTilesetLoaded = false; // Local variable for tileset loading state
 let cesiumViewer: any = null; // Global viewer reference
 
-// Helpout map layer state
+// Map layer state
 let helpoutEntities: Entity[] = [];
-let selectedHelpout: HelpoutListing | null = null;
+let socialEntities: Entity[] = [];
+let selectedHelpout: Listing | null = null;
+let selectedSocial: Listing | null = null;
 let myNostrPk = '';
 
 // Roaming area painting state
@@ -916,6 +919,12 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				if (props && props.helpoutListing) {
 					selectedHelpout = props.helpoutListing.getValue(JulianDate.now());
 				}
+			} else if (pickedObject.id && pickedObject.id.id.startsWith('social_')) {
+				// Handle social marker click
+				const props = pickedObject.id.properties;
+				if (props && props.socialListing) {
+					selectedSocial = props.socialListing.getValue(JulianDate.now());
+				}
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
 					// Handle 3D model click
 					const modelId = pickedObject.id.id;
@@ -1270,7 +1279,7 @@ async function handleEntityPick(pickedFeature: any) {
 // ─── Helpout Map Layer ──────────────────────────────────────
 
 /** Add helpout listing markers to the Cesium globe. */
-function renderHelpoutMarkers(listings: HelpoutListing[]) {
+function renderHelpoutMarkers(listings: Listing[]) {
   removeHelpoutMarkers();
   if (!cesiumViewer) return;
 
@@ -1319,19 +1328,13 @@ function removeHelpoutMarkers() {
   helpoutEntities = [];
 }
 
-/** Handle MapLayersMenu callback. */
-async function onHelpoutsChanged(listings: HelpoutListing[]) {
+/** Handle MapLayersMenu callback for helpouts. */
+async function onHelpoutsChanged(listings: Listing[]) {
   if (listings.length === 0) {
     removeHelpoutMarkers();
     return;
   }
-  // Load pk from shared pool (already connected by MapLayersMenu)
-  if (!myNostrPk) {
-    try {
-      const nostr = await getSharedNostr();
-      myNostrPk = nostr.pubkey;
-    } catch { /* non-critical here */ }
-  }
+  await ensureMyPk();
   renderHelpoutMarkers(listings);
 }
 
@@ -1343,6 +1346,89 @@ function handleHelpoutTakenDown(listingId: string) {
   if (idx !== -1) {
     cesiumViewer.entities.remove(helpoutEntities[idx]);
     helpoutEntities.splice(idx, 1);
+  }
+}
+
+// ─── Social Map Layer ───────────────────────────────────────
+
+/** Add social listing markers to the Cesium globe. */
+function renderSocialMarkers(listings: Listing[]) {
+  removeSocialMarkers();
+  if (!cesiumViewer) return;
+
+  for (const listing of listings) {
+    if (!listing.location) continue;
+    const position = Cartesian3.fromDegrees(
+      listing.location.longitude,
+      listing.location.latitude,
+      0
+    );
+
+    const entity = cesiumViewer.entities.add({
+      id: `social_${listing.id}`,
+      position,
+      point: {
+        pixelSize: 10,
+        color: Color.fromCssColorString('#FF4081'),
+        outlineColor: Color.WHITE,
+        outlineWidth: 1.5,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      },
+      label: {
+        text: listing.title || '★',
+        font: 'bold 12px sans-serif',
+        fillColor: Color.WHITE,
+        outlineColor: Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cartesian2(0, -12),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      properties: { socialListing: listing },
+    });
+    socialEntities.push(entity);
+  }
+}
+
+/** Remove all social markers from the globe. */
+function removeSocialMarkers() {
+  if (!cesiumViewer) return;
+  for (const entity of socialEntities) {
+    cesiumViewer.entities.remove(entity);
+  }
+  socialEntities = [];
+}
+
+/** Handle MapLayersMenu callback for social. */
+async function onSocialChanged(listings: Listing[]) {
+  if (listings.length === 0) {
+    removeSocialMarkers();
+    return;
+  }
+  await ensureMyPk();
+  renderSocialMarkers(listings);
+}
+
+/** Remove a single social marker by listing ID (after take-down). */
+function handleSocialTakenDown(listingId: string) {
+  if (!cesiumViewer) return;
+  const entityId = `social_${listingId}`;
+  const idx = socialEntities.findIndex(e => e.id === entityId);
+  if (idx !== -1) {
+    cesiumViewer.entities.remove(socialEntities[idx]);
+    socialEntities.splice(idx, 1);
+  }
+}
+
+/** Ensure we have the user's Nostr public key for ownership checks. */
+async function ensureMyPk() {
+  if (!myNostrPk) {
+    try {
+      const nostr = await getSharedNostr();
+      myNostrPk = nostr.pubkey;
+    } catch { /* non-critical here */ }
   }
 }
 
@@ -1512,7 +1598,7 @@ function handleCoordinatePick(result: any) {
   </div>
 
   <!-- Map Layers Menu (bottom right) -->
-  <MapLayersMenu {onHelpoutsChanged} />
+  <MapLayersMenu {onHelpoutsChanged} {onSocialChanged} />
 </div>
 
 <!-- Helpout Detail Overlay (shown on marker click) -->
@@ -1522,6 +1608,16 @@ function handleCoordinatePick(result: any) {
     myPk={myNostrPk}
     onClose={() => selectedHelpout = null}
     onTakenDown={handleHelpoutTakenDown}
+  />
+{/if}
+
+<!-- Social Detail Overlay (shown on marker click) -->
+{#if selectedSocial}
+  <SocialDetail
+    listing={selectedSocial}
+    myPk={myNostrPk}
+    onClose={() => selectedSocial = null}
+    onTakenDown={handleSocialTakenDown}
   />
 {/if}  
 

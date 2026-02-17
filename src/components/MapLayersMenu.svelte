@@ -1,21 +1,28 @@
 <script lang="ts">
-  import { activeMapLayers, userLiveLocation, helpoutLayerRefresh } from '../store';
+  import { activeMapLayers, userLiveLocation, helpoutLayerRefresh, socialLayerRefresh } from '../store';
   import { encode as geohashEncode } from '../utils/geohash';
-  import { HelpoutLayerService } from '../services/helpoutLayerService';
+  import { ListingLayerService } from '../services/listingLayerService';
   import { getSharedNostr } from '../services/nostrPool';
-  import type { HelpoutListing } from '../types';
+  import type { Listing } from '../types';
 
   /** Called when helpout listings change (add / remove from map). */
-  export let onHelpoutsChanged: (listings: HelpoutListing[]) => void;
+  export let onHelpoutsChanged: (listings: Listing[]) => void;
+  /** Called when social listings change (add / remove from map). */
+  export let onSocialChanged: (listings: Listing[]) => void;
 
   let isOpen = false;
-  let isLoading = false;
   let layerError = '';
-  let layerService: HelpoutLayerService | null = null;
 
-  // In-memory cache of last fetched mappable listings
-  let cachedListings: HelpoutListing[] = [];
-  let cachedAt = 0;
+  // ─── Per-layer state ──────────────────────────────────────
+  let helpoutService: ListingLayerService | null = null;
+  let helpoutCache: Listing[] = [];
+  let helpoutCachedAt = 0;
+  let helpoutLoading = false;
+
+  let socialService: ListingLayerService | null = null;
+  let socialCache: Listing[] = [];
+  let socialCachedAt = 0;
+  let socialLoading = false;
 
   const CACHE_TTL_MS = 30 * 60 * 1000;
 
@@ -23,30 +30,32 @@
     isOpen = !isOpen;
   }
 
-  async function ensureService(): Promise<boolean> {
-    if (layerService) return true;
+  // ─── Shared helpers ───────────────────────────────────────
+
+  async function ensureLayerService(tag: string): Promise<ListingLayerService | null> {
     try {
       const nostr = await getSharedNostr();
-      layerService = new HelpoutLayerService(nostr);
-      return true;
+      return new ListingLayerService(nostr, tag);
     } catch {
       layerError = 'Storage unavailable';
-      return false;
+      return null;
     }
   }
 
-  async function fetchAndRender(forceRefresh = false) {
+  // ─── Helpouts layer ───────────────────────────────────────
+
+  async function fetchHelpouts(forceRefresh = false) {
     const loc = $userLiveLocation;
-    if (!loc || !layerService) return;
+    if (!loc || !helpoutService) return;
 
-    isLoading = true;
+    helpoutLoading = true;
     const cell = geohashEncode(loc.latitude, loc.longitude, 4);
-    const listings = await layerService.fetchListings(cell, forceRefresh);
+    const listings = await helpoutService.fetchListings(cell, forceRefresh);
 
-    cachedListings = listings.filter(l => l.location);
-    cachedAt = Date.now();
-    onHelpoutsChanged(cachedListings);
-    isLoading = false;
+    helpoutCache = listings.filter(l => l.location);
+    helpoutCachedAt = Date.now();
+    onHelpoutsChanged(helpoutCache);
+    helpoutLoading = false;
   }
 
   async function toggleHelpouts() {
@@ -61,35 +70,91 @@
       return;
     }
 
-    // Turn on
     layers.add('helpouts');
     activeMapLayers.set(new Set(layers));
 
-    // If we have fresh in-memory listings, show them instantly
-    if (cachedListings.length > 0 && (Date.now() - cachedAt) < CACHE_TTL_MS) {
-      onHelpoutsChanged(cachedListings);
+    if (helpoutCache.length > 0 && (Date.now() - helpoutCachedAt) < CACHE_TTL_MS) {
+      onHelpoutsChanged(helpoutCache);
     }
 
-    if (!(await ensureService())) {
-      layers.delete('helpouts');
+    if (!helpoutService) {
+      helpoutService = await ensureLayerService('listing-helpouts');
+      if (!helpoutService) {
+        layers.delete('helpouts');
+        activeMapLayers.set(new Set(layers));
+        return;
+      }
+    }
+
+    await fetchHelpouts();
+  }
+
+  let lastHelpoutRefresh = $helpoutLayerRefresh;
+  $: if ($helpoutLayerRefresh !== lastHelpoutRefresh) {
+    lastHelpoutRefresh = $helpoutLayerRefresh;
+    if ($activeMapLayers.has('helpouts') && helpoutService) {
+      fetchHelpouts(true);
+    }
+  }
+
+  // ─── Social layer ─────────────────────────────────────────
+
+  async function fetchSocial(forceRefresh = false) {
+    const loc = $userLiveLocation;
+    if (!loc || !socialService) return;
+
+    socialLoading = true;
+    const cell = geohashEncode(loc.latitude, loc.longitude, 4);
+    const listings = await socialService.fetchListings(cell, forceRefresh);
+
+    socialCache = listings.filter(l => l.location);
+    socialCachedAt = Date.now();
+    onSocialChanged(socialCache);
+    socialLoading = false;
+  }
+
+  async function toggleSocial() {
+    layerError = '';
+    const layers = $activeMapLayers;
+    const wasOn = layers.has('social');
+
+    if (wasOn) {
+      layers.delete('social');
       activeMapLayers.set(new Set(layers));
+      onSocialChanged([]);
       return;
     }
 
-    // Fetch (service handles cache staleness internally)
-    await fetchAndRender();
+    layers.add('social');
+    activeMapLayers.set(new Set(layers));
+
+    if (socialCache.length > 0 && (Date.now() - socialCachedAt) < CACHE_TTL_MS) {
+      onSocialChanged(socialCache);
+    }
+
+    if (!socialService) {
+      socialService = await ensureLayerService('listing-social');
+      if (!socialService) {
+        layers.delete('social');
+        activeMapLayers.set(new Set(layers));
+        return;
+      }
+    }
+
+    await fetchSocial();
   }
 
-  // Subscribe to refresh trigger (e.g. after publishing a helpout)
-  let lastRefresh = $helpoutLayerRefresh;
-  $: if ($helpoutLayerRefresh !== lastRefresh) {
-    lastRefresh = $helpoutLayerRefresh;
-    if ($activeMapLayers.has('helpouts') && layerService) {
-      fetchAndRender(true);
+  let lastSocialRefresh = $socialLayerRefresh;
+  $: if ($socialLayerRefresh !== lastSocialRefresh) {
+    lastSocialRefresh = $socialLayerRefresh;
+    if ($activeMapLayers.has('social') && socialService) {
+      fetchSocial(true);
     }
   }
 
+  // ─── Reactive helpers ─────────────────────────────────────
   $: helpoutsOn = $activeMapLayers.has('helpouts');
+  $: socialOn = $activeMapLayers.has('social');
 </script>
 
 <!-- Wrench toggle button (bottom-right) -->
@@ -111,10 +176,24 @@
       >
         <span class="layer-dot" style="background: #00BCD4"></span>
         <span class="layer-name">Helpouts</span>
-        {#if isLoading}
+        {#if helpoutLoading}
           <span class="layer-spinner"></span>
         {:else}
           <span class="layer-check">{helpoutsOn ? '✓' : ''}</span>
+        {/if}
+      </button>
+
+      <button
+        class="layer-row"
+        class:active={socialOn}
+        on:click={toggleSocial}
+      >
+        <span class="layer-dot" style="background: #FF4081"></span>
+        <span class="layer-name">Meet</span>
+        {#if socialLoading}
+          <span class="layer-spinner"></span>
+        {:else}
+          <span class="layer-check">{socialOn ? '✓' : ''}</span>
         {/if}
       </button>
 

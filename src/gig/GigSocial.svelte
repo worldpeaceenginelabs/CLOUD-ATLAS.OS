@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { coordinates, isGigPickingDestination, userLiveLocation, gigCanClose, helpoutLayerRefresh } from '../store';
+  import { coordinates, isGigPickingDestination, gigCanClose, socialLayerRefresh } from '../store';
   import type { Listing, ListingMode } from '../types';
   import type { NostrService } from '../services/nostrService';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
   import { ListingService } from '../services/listingService';
-  import { HELPOUT_CATEGORIES, type VerticalConfig } from './verticals';
+  import { SOCIAL_CATEGORIES, type VerticalConfig } from './verticals';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import RelayStatus from '../components/RelayStatus.svelte';
 
@@ -17,14 +17,16 @@
   export let onBack: () => void;
 
   // ─── View State ──────────────────────────────────────────────
-  type HelpoutView = 'form' | 'publishing' | 'live';
-  let currentView: HelpoutView = 'form';
+  type SocialView = 'form' | 'publishing' | 'live';
+  let currentView: SocialView = 'form';
 
   $: gigCanClose.set(currentView === 'form');
 
   // ─── Form State ─────────────────────────────────────────────
-  let helpoutMode: ListingMode = 'in-person';
+  let eventMode: ListingMode = 'in-person';
+  let title = '';
   let selectedCategory = '';
+  let eventDate = '';
   let description = '';
   let contact = '';
 
@@ -40,9 +42,10 @@
   let publishedListing: Listing | null = null;
 
   // ─── Validation ─────────────────────────────────────────────
-  $: needsLocation = helpoutMode === 'in-person' || helpoutMode === 'both';
+  $: needsLocation = eventMode === 'in-person' || eventMode === 'both';
 
   $: canSubmit =
+    title.trim() &&
     selectedCategory &&
     description.trim() &&
     contact.trim() &&
@@ -86,7 +89,7 @@
       ? geohashEncode(location.latitude, location.longitude, 4)
       : undefined;
 
-    listingService = new ListingService(nostr, 'listing-helpouts', {
+    listingService = new ListingService(nostr, 'listing-social', {
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
@@ -99,9 +102,11 @@
     const listing: Listing = {
       id: crypto.randomUUID(),
       pubkey: listingService.pubkey,
-      type: 'helpouts',
-      mode: helpoutMode,
+      type: 'social',
+      mode: eventMode,
+      title: title.trim(),
       category: selectedCategory,
+      eventDate: eventDate || undefined,
       description: description.trim(),
       contact: contact.trim(),
       location,
@@ -112,13 +117,12 @@
     listingService.publishListing(listing);
     publishedListing = listing;
 
-    logger.info('Helpout listing submitted', { component: 'GigHelpouts', operation: 'submitListing' });
+    logger.info('Social listing submitted', { component: 'GigSocial', operation: 'submitListing' });
   }
 
   function handleDone() {
     cleanup();
-    // Trigger a force-refresh of the helpouts map layer so the new listing appears
-    helpoutLayerRefresh.update(n => n + 1);
+    socialLayerRefresh.update(n => n + 1);
     onBack();
   }
 
@@ -141,35 +145,49 @@
 
   // ─── Helpers ────────────────────────────────────────────────
   function getCategoryName(id: string): string {
-    return HELPOUT_CATEGORIES.find(c => c.id === id)?.name ?? id;
+    return SOCIAL_CATEGORIES.find(c => c.id === id)?.name ?? id;
   }
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 
 {#if currentView === 'form'}
-  <div class="helpout-form" transition:slide={{ duration: 300 }}>
+  <div class="social-form" transition:slide={{ duration: 300 }}>
     <button class="back-btn" on:click={onBack}>&larr; Back</button>
-    <h3 class="form-title">Offer a Helpout</h3>
-    <p class="form-subtitle">Share your expertise with people nearby</p>
+    <h3 class="form-title">Host an Event</h3>
+    <p class="form-subtitle">Organize a meetup or activity for people nearby</p>
 
     <!-- Mode Selector -->
     <div class="mode-selector">
       <button
         class="mode-btn"
-        class:active={helpoutMode === 'in-person'}
-        on:click={() => helpoutMode = 'in-person'}
+        class:active={eventMode === 'in-person'}
+        on:click={() => eventMode = 'in-person'}
       >In-Person</button>
       <button
         class="mode-btn"
-        class:active={helpoutMode === 'online'}
-        on:click={() => helpoutMode = 'online'}
+        class:active={eventMode === 'online'}
+        on:click={() => eventMode = 'online'}
       >Online</button>
       <button
         class="mode-btn"
-        class:active={helpoutMode === 'both'}
-        on:click={() => helpoutMode = 'both'}
+        class:active={eventMode === 'both'}
+        on:click={() => eventMode = 'both'}
       >Both</button>
+    </div>
+
+    <!-- Title -->
+    <div class="form-group">
+      <label class="field-label" for="event-title">
+        Event Title <span class="required">*</span>
+      </label>
+      <input
+        id="event-title"
+        class="field-input"
+        type="text"
+        placeholder="e.g. Saturday Morning Run, Board Game Night..."
+        bind:value={title}
+      />
     </div>
 
     <!-- Location (in-person or both) -->
@@ -195,7 +213,7 @@
         Category <span class="required">*</span>
       </label>
       <div class="category-grid">
-        {#each HELPOUT_CATEGORIES as cat}
+        {#each SOCIAL_CATEGORIES as cat}
           <button
             class="category-chip"
             class:selected={selectedCategory === cat.id}
@@ -208,20 +226,34 @@
       </div>
       {#if selectedCategory}
         <p class="category-desc">
-          {HELPOUT_CATEGORIES.find(c => c.id === selectedCategory)?.description}
+          {SOCIAL_CATEGORIES.find(c => c.id === selectedCategory)?.description}
         </p>
       {/if}
     </div>
 
+    <!-- Event Date (optional) -->
+    <div class="form-group">
+      <label class="field-label" for="event-date">
+        Date & Time
+      </label>
+      <input
+        id="event-date"
+        class="field-input"
+        type="datetime-local"
+        bind:value={eventDate}
+      />
+      <span class="field-hint">Optional — leave empty for recurring or open-ended events</span>
+    </div>
+
     <!-- Description -->
     <div class="form-group">
-      <label class="field-label" for="helpout-desc">
+      <label class="field-label" for="event-desc">
         Description <span class="required">*</span>
       </label>
       <textarea
-        id="helpout-desc"
+        id="event-desc"
         class="field-input textarea"
-        placeholder="What can you help with? Describe your expertise..."
+        placeholder="What's the plan? Describe the activity..."
         bind:value={description}
         rows="3"
       ></textarea>
@@ -239,7 +271,7 @@
         placeholder="e.g. https://t.me/you, https://wa.me/123..."
         bind:value={contact}
       />
-      <span class="field-hint">Telegram, WhatsApp, Signal, Zoom, or any link</span>
+      <span class="field-hint">Telegram, WhatsApp, Signal, or any link for attendees to reach you</span>
     </div>
 
     <!-- Submit -->
@@ -249,14 +281,14 @@
       onClick={submitListing}
       disabled={!canSubmit}
     >
-      Publish Listing
+      Publish Event
     </GlassmorphismButton>
   </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 
 {:else if currentView === 'publishing'}
-  <div class="helpout-status" transition:slide={{ duration: 300 }}>
+  <div class="social-status" transition:slide={{ duration: 300 }}>
     <h3 class="form-title">Publishing...</h3>
     <div class="status-indicator">
       <div class="pulse-dot" style="background: {config.color}"></div>
@@ -268,8 +300,8 @@
 <!-- ═══════════════════════════════════════════════════════════ -->
 
 {:else if currentView === 'live'}
-  <div class="helpout-live" transition:slide={{ duration: 300 }}>
-    <h3 class="form-title">Your Listing is Live!</h3>
+  <div class="social-live" transition:slide={{ duration: 300 }}>
+    <h3 class="form-title">Your Event is Live!</h3>
 
     <div class="live-success">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={config.color} stroke-width="2">
@@ -282,8 +314,12 @@
 
     <div class="listing-summary">
       <div class="summary-row">
+        <span class="summary-label">Title</span>
+        <span class="summary-value">{title}</span>
+      </div>
+      <div class="summary-row">
         <span class="summary-label">Mode</span>
-        <span class="summary-value">{helpoutMode === 'in-person' ? 'In-Person' : helpoutMode === 'online' ? 'Online' : 'In-Person & Online'}</span>
+        <span class="summary-value">{eventMode === 'in-person' ? 'In-Person' : eventMode === 'online' ? 'Online' : 'In-Person & Online'}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Category</span>
@@ -296,7 +332,7 @@
     </div>
 
     <p class="live-hint">
-      Your helpout will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.
+      Your event will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.
     </p>
 
     <div class="live-actions">
@@ -339,9 +375,9 @@
     color: rgba(255, 255, 255, 0.5);
   }
 
-  .helpout-form,
-  .helpout-status,
-  .helpout-live {
+  .social-form,
+  .social-status,
+  .social-live {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -414,6 +450,7 @@
     font-family: inherit;
     outline: none;
     transition: border-color 0.2s;
+    color-scheme: dark;
   }
 
   .field-input::placeholder {
@@ -483,9 +520,9 @@
   }
 
   .category-chip.selected {
-    background: rgba(0, 188, 212, 0.2);
-    border-color: rgba(0, 188, 212, 0.5);
-    color: #00BCD4;
+    background: rgba(255, 64, 129, 0.2);
+    border-color: rgba(255, 64, 129, 0.5);
+    color: #FF4081;
     font-weight: 600;
   }
 

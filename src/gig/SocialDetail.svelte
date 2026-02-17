@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
   import type { Listing } from '../types';
-  import { HELPOUT_CATEGORIES } from './verticals';
+  import { SOCIAL_CATEGORIES } from './verticals';
   import { getSharedNostr } from '../services/nostrPool';
 
   export let listing: Listing;
@@ -14,11 +14,15 @@
 
   $: isOwner = listing.pubkey === myPk;
 
-  $: categoryName = HELPOUT_CATEGORIES.find(c => c.id === listing.category)?.name ?? listing.category;
+  $: categoryName = SOCIAL_CATEGORIES.find(c => c.id === listing.category)?.name ?? listing.category;
 
   $: modeLabel =
     listing.mode === 'in-person' ? 'In-Person' :
     listing.mode === 'online' ? 'Online' : 'In-Person & Online';
+
+  $: formattedDate = listing.eventDate
+    ? new Date(listing.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    : null;
 
   /** Ensure URL has a protocol so window.open doesn't treat it as relative. */
   function ensureProtocol(url: string): string {
@@ -38,14 +42,13 @@
       // Publish a replacement event with 1-second TTL
       const expiration = String(Math.floor(Date.now() / 1000) + 1);
       const tags: string[][] = [
-        ['t', 'listing-helpouts'],
+        ['t', 'listing-social'],
         ['expiration', expiration],
       ];
       if (listing.geohash) tags.push(['g', listing.geohash]);
 
       nostr.publishReplaceable(listing.id, tags, JSON.stringify(listing));
 
-      // Connections are already established — event is broadcast instantly
       onTakenDown?.(listing.id);
       onClose();
     } catch {
@@ -54,27 +57,42 @@
   }
 </script>
 
-<div class="helpout-detail-overlay" on:click|self={onClose} on:keydown={undefined} role="presentation">
-  <div class="helpout-detail" transition:fly={{ y: 40, duration: 250 }}>
+<div class="social-detail-overlay" on:click|self={onClose} on:keydown={undefined} role="presentation">
+  <div class="social-detail" transition:fly={{ y: 40, duration: 250 }}>
 
     <!-- Header -->
     <div class="detail-header">
-      <div class="detail-badge" style="background: rgba(0, 188, 212, 0.15); color: #00BCD4">
+      <div class="detail-badge">
         {categoryName}
       </div>
       <button class="close-btn" on:click={onClose}>&times;</button>
     </div>
 
-    <!-- Mode -->
-    <div class="detail-mode">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        {#if listing.mode === 'online'}
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-        {:else}
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-        {/if}
-      </svg>
-      <span>{modeLabel}</span>
+    <!-- Title -->
+    {#if listing.title}
+      <h3 class="detail-title">{listing.title}</h3>
+    {/if}
+
+    <!-- Mode & Date -->
+    <div class="detail-meta">
+      <div class="meta-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          {#if listing.mode === 'online'}
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+          {:else}
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          {/if}
+        </svg>
+        <span>{modeLabel}</span>
+      </div>
+      {#if formattedDate}
+        <div class="meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span>{formattedDate}</span>
+        </div>
+      {/if}
     </div>
 
     <!-- Description -->
@@ -83,7 +101,7 @@
     <!-- Actions -->
     <div class="detail-actions">
       <button class="action-btn primary" on:click={openContact}>
-        Contact
+        Contact Host
       </button>
 
       {#if isOwner}
@@ -92,7 +110,7 @@
           on:click={takeDown}
           disabled={isTakingDown}
         >
-          {isTakingDown ? 'Taking down...' : 'Take Down Listing'}
+          {isTakingDown ? 'Taking down...' : 'Take Down Event'}
         </button>
       {/if}
     </div>
@@ -104,7 +122,7 @@
 </div>
 
 <style>
-  .helpout-detail-overlay {
+  .social-detail-overlay {
     position: fixed;
     inset: 0;
     z-index: 2000;
@@ -115,7 +133,7 @@
     background: rgba(0, 0, 0, 0.3);
   }
 
-  .helpout-detail {
+  .social-detail {
     width: 100%;
     max-width: 380px;
     background: rgba(15, 15, 25, 0.92);
@@ -140,6 +158,8 @@
     border-radius: 20px;
     font-size: 0.78rem;
     font-weight: 600;
+    background: rgba(255, 64, 129, 0.15);
+    color: #FF4081;
   }
 
   .close-btn {
@@ -157,7 +177,21 @@
     color: white;
   }
 
-  .detail-mode {
+  .detail-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: white;
+    line-height: 1.3;
+  }
+
+  .detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .meta-item {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -196,13 +230,13 @@
   }
 
   .action-btn.primary {
-    background: rgba(0, 188, 212, 0.2);
-    color: #00BCD4;
-    border: 1px solid rgba(0, 188, 212, 0.35);
+    background: rgba(255, 64, 129, 0.2);
+    color: #FF4081;
+    border: 1px solid rgba(255, 64, 129, 0.35);
   }
 
   .action-btn.primary:hover:not(:disabled) {
-    background: rgba(0, 188, 212, 0.3);
+    background: rgba(255, 64, 129, 0.3);
   }
 
   .action-btn.danger {

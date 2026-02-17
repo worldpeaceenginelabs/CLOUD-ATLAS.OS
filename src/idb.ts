@@ -3,7 +3,7 @@
  * Centralized IndexedDB initialization and management
  */
 
-import type { PinData, ModelData, HelpoutListing } from './types';
+import type { PinData, ModelData, Listing } from './types';
 
 export class IndexedDBManager {
   private db: IDBDatabase | null = null;
@@ -224,31 +224,34 @@ export class IndexedDBManager {
     console.log('Model deleted from IndexedDB:', modelId);
   }
 
-  // ─── Helpout Cache ──────────────────────────────────────────
+  // ─── Listing Cache (Helpouts, Social, etc.) ─────────────────
 
   /**
-   * Save helpout listings for a geohash-4 cell with a fetch timestamp.
+   * Save listings for a type + geohash-4 cell with a fetch timestamp.
+   * Key format: "helpouts:u33d" or "social:u33d"
    */
-  async saveHelpouts(cell: string, listings: HelpoutListing[], fetchedAt: number): Promise<void> {
+  async saveListings(type: string, cell: string, listings: Listing[], fetchedAt: number): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
     if (!this.db.objectStoreNames.contains('helpouts')) return;
 
+    const key = `${type}:${cell}`;
     const transaction = this.db.transaction('helpouts', 'readwrite');
     const store = transaction.objectStore('helpouts');
-    await this.wrapRequest(store.put({ cell, listings, fetchedAt }));
+    await this.wrapRequest(store.put({ cell: key, listings, fetchedAt }));
   }
 
   /**
-   * Load cached helpout listings for a geohash-4 cell.
+   * Load cached listings for a type + geohash-4 cell.
    * Returns { listings, fetchedAt } or null on cache miss.
    */
-  async loadHelpouts(cell: string): Promise<{ listings: HelpoutListing[]; fetchedAt: number } | null> {
+  async loadListings(type: string, cell: string): Promise<{ listings: Listing[]; fetchedAt: number } | null> {
     if (!this.db) throw new Error('Database not initialized');
     if (!this.db.objectStoreNames.contains('helpouts')) return null;
 
+    const key = `${type}:${cell}`;
     const transaction = this.db.transaction('helpouts', 'readonly');
     const store = transaction.objectStore('helpouts');
-    const result = await this.wrapRequest(store.get(cell));
+    const result = await this.wrapRequest(store.get(key));
     return result ? { listings: result.listings, fetchedAt: result.fetchedAt ?? 0 } : null;
   }
   // ─── Nostr Keypair ─────────────────────────────────────────

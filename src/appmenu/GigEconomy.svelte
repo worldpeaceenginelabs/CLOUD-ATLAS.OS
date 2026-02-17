@@ -16,6 +16,7 @@
   import GigPending from '../gig/GigPending.svelte';
   import GigMatched from '../gig/GigMatched.svelte';
   import GigHelpouts from '../gig/GigHelpouts.svelte';
+  import GigSocial from '../gig/GigSocial.svelte';
   import * as Cesium from 'cesium';
 
   // ─── Shared Nostr (loaded once on mount) ─────────────────
@@ -31,7 +32,7 @@
   })();
 
   // ─── View State ──────────────────────────────────────────────
-  type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts';
+  type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts' | 'social';
   let currentView: GigView = 'verticals';
   let config: VerticalConfig | null = null;
 
@@ -40,7 +41,8 @@
     currentView === 'menu' ||
     currentView === 'need' ||
     currentView === 'offer' ||
-    currentView === 'helpouts'
+    currentView === 'helpouts' ||
+    currentView === 'social'
   );
 
   // ─── Form State ─────────────────────────────────────────────
@@ -102,7 +104,11 @@
   function selectVertical(vertical: GigVertical) {
     config = VERTICALS[vertical];
     activeGigVertical.set(vertical);
-    currentView = config.mode === 'listing' ? 'helpouts' : 'menu';
+    if (config.mode === 'listing') {
+      currentView = vertical === 'social' ? 'social' : 'helpouts';
+    } else {
+      currentView = 'menu';
+    }
     logger.info(`Selected vertical: ${vertical}`, { component: 'GigEconomy', operation: 'selectVertical' });
   }
 
@@ -514,6 +520,10 @@
   <!-- ═══════════════ HELPOUTS (LISTING MODE) ═════════ -->
   {:else if currentView === 'helpouts' && config}
     <GigHelpouts {config} nostr={sharedNostr} onBack={goBackToVerticals} />
+
+  <!-- ═══════════════ SOCIAL (LISTING MODE) ═══════════ -->
+  {:else if currentView === 'social' && config}
+    <GigSocial {config} nostr={sharedNostr} onBack={goBackToVerticals} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && config}

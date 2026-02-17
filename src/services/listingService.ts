@@ -1,20 +1,22 @@
 /**
  * Listing Service
  *
- * Publish-only service for long-lived listings (Helpouts, etc.).
+ * Publish-only service for long-lived listings (Helpouts, Social, etc.).
  * No matching protocol — listings are published with a 14-day TTL
  * and discovered via map layers.
+ *
+ * Parameterized by listing tag so one class serves all listing verticals.
  *
  * Uses the shared Nostr connection pool. Protocol:
  *   - Publish-only (no subscriptions needed for the publisher)
  *   - 14-day NIP-40 TTL (no heartbeat)
  *   - Single replaceable event per listing
- *   - Take-down via 1-second TTL replacement (handled in HelpoutDetail)
+ *   - Take-down via 1-second TTL replacement (handled in detail cards)
  */
 
 import type { NostrService } from './nostrService';
 import { logger } from '../utils/logger';
-import type { HelpoutListing } from '../types';
+import type { Listing } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -25,9 +27,9 @@ const LISTING_TTL_SECS = 14 * 24 * 60 * 60;
 const freshExpiration = (): number => Math.floor(Date.now() / 1000) + LISTING_TTL_SECS;
 
 /** Build the standard NIP-33 tag set for a listing event. */
-const buildTags = (type: string, geohash?: string): string[][] => {
+const buildTags = (listingTag: string, geohash?: string): string[][] => {
   const tags: string[][] = [
-    ['t', type],
+    ['t', listingTag],
     ['expiration', String(freshExpiration())],
   ];
   if (geohash) {
@@ -48,9 +50,16 @@ export interface ListingCallbacks {
 export class ListingService {
   private nostr: NostrService;
   private callbacks: ListingCallbacks;
+  private listingTag: string;
 
-  constructor(nostr: NostrService, callbacks: ListingCallbacks) {
+  /**
+   * @param nostr       Shared NostrService instance
+   * @param listingTag  Nostr '#t' tag, e.g. 'listing-helpouts' or 'listing-social'
+   * @param callbacks   Relay status callbacks
+   */
+  constructor(nostr: NostrService, listingTag: string, callbacks: ListingCallbacks) {
     this.nostr = nostr;
+    this.listingTag = listingTag;
     this.callbacks = callbacks;
   }
 
@@ -60,13 +69,13 @@ export class ListingService {
   }
 
   /**
-   * Publish a helpout listing with 14-day TTL.
+   * Publish a listing with 14-day TTL.
    * Uses a stable d-tag so re-publishing replaces the previous listing.
    */
-  publishListing(listing: HelpoutListing): void {
+  publishListing(listing: Listing): void {
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
-    const tags = buildTags('listing-helpouts', listing.geohash);
+    const tags = buildTags(this.listingTag, listing.geohash);
 
     // Add category tag for filtering
     tags.push(['c', listing.category]);
@@ -77,7 +86,7 @@ export class ListingService {
       JSON.stringify(listing),
     );
 
-    logger.info(`Helpout listing published (${listing.category})`, {
+    logger.info(`Listing published (${this.listingTag}: ${listing.category})`, {
       component: 'ListingService',
       operation: 'publishListing',
     });

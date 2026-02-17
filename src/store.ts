@@ -104,6 +104,8 @@ export const activeGigVertical: Writable<GigVertical | null> = writable(null);
 export const activeMapLayers: Writable<Set<string>> = writable(new Set());
 /** Increment to trigger a force-refresh of the helpouts map layer */
 export const helpoutLayerRefresh: Writable<number> = writable(0);
+/** Increment to trigger a force-refresh of the social map layer */
+export const socialLayerRefresh: Writable<number> = writable(0);
 
 // Store cleanup functions
 export function resetAllStores() {
@@ -164,6 +166,7 @@ export function resetAllStores() {
   // Map Layers
   activeMapLayers.set(new Set());
   helpoutLayerRefresh.set(0);
+  socialLayerRefresh.set(0);
   
   // Cesium Actions
   cesiumActions.set({

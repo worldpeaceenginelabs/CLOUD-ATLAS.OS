@@ -6,7 +6,7 @@
  * Listing verticals use a publish-only model with longer TTL.
  */
 
-import type { GigVertical, HelpoutCategory } from '../types';
+import type { GigVertical, ListingCategory } from '../types';
 
 // ─── Form Field Definition ─────────────────────────────────────
 
@@ -65,7 +65,7 @@ export interface VerticalConfig {
 
 // ─── Helpout Categories ─────────────────────────────────────────
 
-export const HELPOUT_CATEGORIES: HelpoutCategory[] = [
+export const HELPOUT_CATEGORIES: ListingCategory[] = [
   { id: 'art-music', name: 'Art & Music', description: 'Instruments, singing, painting, photography' },
   { id: 'cooking', name: 'Cooking & Nutrition', description: 'Recipes, dietary guidance, baking, special diets' },
   { id: 'computers', name: 'Computers & Electronics', description: 'Software, programming, web design, IT support' },
@@ -75,6 +75,20 @@ export const HELPOUT_CATEGORIES: HelpoutCategory[] = [
   { id: 'languages', name: 'Languages & Learning', description: 'Language lessons, exam prep, learning strategies' },
   { id: 'lifestyle', name: 'Lifestyle & Hobbies', description: 'DIY, crafting, travel, fashion, pets, gardening' },
   { id: 'other', name: 'Other / Specialty Skills', description: 'Everything else that doesn\'t fit standard categories' },
+];
+
+export const SOCIAL_CATEGORIES: ListingCategory[] = [
+  { id: 'sports', name: 'Sports & Fitness', description: 'Running, cycling, football, tennis, yoga, workouts, swimming' },
+  { id: 'outdoors', name: 'Outdoors & Nature', description: 'Hiking, nature walks, camping, picnics, climbing' },
+  { id: 'games', name: 'Games & Fun', description: 'Board games, card games, e-gaming, trivia nights' },
+  { id: 'nightlife', name: 'Social & Nightlife', description: 'Parties, bar groups, dinner groups, community hangouts' },
+  { id: 'culture', name: 'Culture & Entertainment', description: 'Movies, concerts, theatre, art exhibitions, museums' },
+  { id: 'food', name: 'Food & Drink', description: 'Group dinners, cooking together, food tasting, cafe meetups' },
+  { id: 'learning', name: 'Learning & Skills', description: 'Language exchanges, workshops, study groups' },
+  { id: 'travel', name: 'Travel & Excursions', description: 'Weekend trips, sightseeing tours, travel companions' },
+  { id: 'family', name: 'Family & Kids', description: 'Activities for parents and children, family outings' },
+  { id: 'creative', name: 'Creative & Arts', description: 'Music jamming, singing, drawing, painting groups' },
+  { id: 'community', name: 'Other Community', description: 'Book clubs, photography walks, volunteering, hobby groups' },
 ];
 
 // ─── Vertical Definitions ───────────────────────────────────────
@@ -161,28 +175,22 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     id: 'social',
     name: 'Meet',
     color: '#FF4081',
-    mode: 'matching',
-    needLabel: 'I want to Meet',
-    needDesc: 'Find people to connect with nearby',
-    offerLabel: "I'm open to Meet",
-    offerDesc: 'Let others know you want to connect',
+    mode: 'listing',
+    needLabel: '',
+    needDesc: '',
+    offerLabel: 'Host an Event',
+    offerDesc: 'Organize a meetup or activity',
     hasDestination: false,
     reverseLocations: false,
-    gpsLocationLabel: 'Your Location',
-    mapPickLabel: 'Destination',
-    needFields: [
-      { key: 'interests', label: 'Interests', type: 'text', placeholder: 'e.g. Coffee, Hiking, Tech...', required: false },
-      { key: 'bio', label: 'About you', type: 'textarea', placeholder: 'A short intro...', required: false },
-    ],
-    offerFields: [
-      { key: 'interests', label: 'Interests', type: 'text', placeholder: 'e.g. Coffee, Hiking, Tech...', required: false },
-      { key: 'bio', label: 'About you', type: 'textarea', placeholder: 'A short intro...', required: false },
-    ],
-    requesterNoun: 'person',
-    providerNoun: 'person',
-    requestNoun: 'meetup',
-    matchTitle: "It's a Match!",
-    matchMessage: 'You have been connected with someone nearby.',
+    gpsLocationLabel: '',
+    mapPickLabel: '',
+    needFields: [],
+    offerFields: [],
+    requesterNoun: 'attendee',
+    providerNoun: 'host',
+    requestNoun: 'event',
+    matchTitle: '',
+    matchMessage: '',
     mapColor: '#FF4081',
     mapDestColor: '#FF4081',
     mapLabel: 'Meet',
