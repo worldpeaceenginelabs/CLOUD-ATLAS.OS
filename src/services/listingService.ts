@@ -51,8 +51,8 @@ export class ListingService {
   private callbacks: ListingCallbacks;
   private listingId: string | null = null;
 
-  constructor(callbacks: ListingCallbacks) {
-    this.nostr = new NostrService();
+  constructor(sk: Uint8Array, callbacks: ListingCallbacks) {
+    this.nostr = new NostrService(sk);
     this.callbacks = callbacks;
   }
 

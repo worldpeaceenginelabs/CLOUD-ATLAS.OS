@@ -19,6 +19,11 @@ const FETCH_TIMEOUT_MS = 5000;
 
 export class HelpoutLayerService {
   private nostr: NostrService | null = null;
+  private sk: Uint8Array;
+
+  constructor(sk: Uint8Array) {
+    this.sk = sk;
+  }
 
   /**
    * Fetch helpout listings for a geohash-4 cell.
@@ -50,7 +55,7 @@ export class HelpoutLayerService {
       const listings: HelpoutListing[] = [];
       const seen = new Set<string>();
 
-      this.nostr = new NostrService();
+      this.nostr = new NostrService(this.sk);
 
       this.nostr.subscribe('helpout-layer', {
         kinds: [REPLACEABLE_KIND],

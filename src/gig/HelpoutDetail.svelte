@@ -2,9 +2,18 @@
   import { fly } from 'svelte/transition';
   import type { HelpoutListing } from '../types';
   import { HELPOUT_CATEGORIES } from './verticals';
+  import { getKeypair } from '../services/keyManager';
+  import { NostrService } from '../services/nostrService';
 
   export let listing: HelpoutListing;
+  export let myPk: string;
   export let onClose: () => void;
+  /** Called after the publisher takes down their listing. */
+  export let onTakenDown: ((listingId: string) => void) | undefined = undefined;
+
+  let isTakingDown = false;
+
+  $: isOwner = listing.pubkey === myPk;
 
   $: categoryName = HELPOUT_CATEGORIES.find(c => c.id === listing.category)?.name ?? listing.category;
 
@@ -12,13 +21,41 @@
     listing.mode === 'in-person' ? 'In-Person' :
     listing.mode === 'online' ? 'Online' : 'In-Person & Online';
 
-  function openMessenger() {
-    window.open(listing.messengerLink, '_blank', 'noopener');
+  /** Ensure URL has a protocol so window.open doesn't treat it as relative. */
+  function ensureProtocol(url: string): string {
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) return url;
+    return 'https://' + url;
   }
 
-  function openSession() {
-    if (listing.sessionLink) {
-      window.open(listing.sessionLink, '_blank', 'noopener');
+  function openContact() {
+    window.open(ensureProtocol(listing.contact), '_blank', 'noopener');
+  }
+
+  async function takeDown() {
+    isTakingDown = true;
+    try {
+      const { sk } = await getKeypair();
+      const nostr = new NostrService(sk);
+
+      // Publish a replacement event with 1-second TTL
+      const expiration = String(Math.floor(Date.now() / 1000) + 1);
+      const tags: string[][] = [
+        ['t', 'listing-helpouts'],
+        ['expiration', expiration],
+      ];
+      if (listing.geohash) tags.push(['g', listing.geohash]);
+
+      nostr.publishReplaceable(listing.id, tags, JSON.stringify(listing));
+      nostr.connectInBackground();
+
+      // Give relays a moment to receive the event, then disconnect
+      setTimeout(() => {
+        nostr.disconnect();
+        onTakenDown?.(listing.id);
+        onClose();
+      }, 3000);
+    } catch {
+      isTakingDown = false;
     }
   }
 </script>
@@ -51,12 +88,17 @@
 
     <!-- Actions -->
     <div class="detail-actions">
-      <button class="action-btn primary" on:click={openMessenger}>
-        Contact via Messenger
+      <button class="action-btn primary" on:click={openContact}>
+        Contact
       </button>
-      {#if listing.sessionLink}
-        <button class="action-btn secondary" on:click={openSession}>
-          Join Session
+
+      {#if isOwner}
+        <button
+          class="action-btn danger"
+          on:click={takeDown}
+          disabled={isTakingDown}
+        >
+          {isTakingDown ? 'Taking down...' : 'Take Down Listing'}
         </button>
       {/if}
     </div>
@@ -154,24 +196,29 @@
     transition: all 0.15s;
   }
 
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .action-btn.primary {
     background: rgba(0, 188, 212, 0.2);
     color: #00BCD4;
     border: 1px solid rgba(0, 188, 212, 0.35);
   }
 
-  .action-btn.primary:hover {
+  .action-btn.primary:hover:not(:disabled) {
     background: rgba(0, 188, 212, 0.3);
   }
 
-  .action-btn.secondary {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+  .action-btn.danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: rgba(239, 68, 68, 0.85);
+    border: 1px solid rgba(239, 68, 68, 0.25);
   }
 
-  .action-btn.secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
+  .action-btn.danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
   }
 
   .detail-hint {

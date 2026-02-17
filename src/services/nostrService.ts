@@ -72,8 +72,8 @@ export class NostrService {
   private relayCountCallback: ((connected: number, total: number) => void) | null = null;
   private closed = false;
 
-  constructor(relays?: string[]) {
-    this.sk = generateSecretKey();
+  constructor(sk: Uint8Array, relays?: string[]) {
+    this.sk = sk;
     this.pk = getPublicKey(this.sk);
     this.relays = relays ?? DEFAULT_RELAYS;
     logger.info('NostrService created', { component: 'NostrService', operation: 'constructor' });

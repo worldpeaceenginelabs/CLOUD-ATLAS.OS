@@ -72,8 +72,7 @@ export interface HelpoutListing {
   mode: HelpoutMode;
   category: string;
   description: string;
-  messengerLink: string;
-  sessionLink?: string;
+  contact: string;
   location?: {
     latitude: number;
     longitude: number;

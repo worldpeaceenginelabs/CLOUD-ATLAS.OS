@@ -7,6 +7,7 @@
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
+  import { getKeypair } from '../services/keyManager';
   import { VERTICALS, type VerticalConfig } from '../gig/verticals';
   import GigVerticalSelector from '../gig/GigVerticalSelector.svelte';
   import GigNeedForm from '../gig/GigNeedForm.svelte';
@@ -15,6 +16,19 @@
   import GigMatched from '../gig/GigMatched.svelte';
   import GigHelpouts from '../gig/GigHelpouts.svelte';
   import * as Cesium from 'cesium';
+
+  // ─── Keypair (loaded once on mount) ────────────────────────
+  let keypairSk: Uint8Array | null = null;
+  let keypairError = false;
+
+  (async () => {
+    try {
+      const kp = await getKeypair();
+      keypairSk = kp.sk;
+    } catch {
+      keypairError = true;
+    }
+  })();
 
   // ─── View State ──────────────────────────────────────────────
   type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts';
@@ -67,7 +81,8 @@
 
   function createService(): GigService {
     if (!config) throw new Error('No vertical selected');
-    return new GigService(config.id, {
+    if (!keypairSk) throw new Error('Keypair not loaded');
+    return new GigService(keypairSk, config.id, {
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
@@ -478,13 +493,27 @@
     </div>
   {/if}
 
+  <!-- ═══════════════ STORAGE ERROR ═════════════════════ -->
+  {#if keypairError}
+    <div class="storage-error" transition:slide={{ duration: 300 }}>
+      <span class="storage-error-icon">⚠</span>
+      <p class="storage-error-text">Storage unavailable — gig features require browser storage to be enabled.</p>
+    </div>
+
+  <!-- ═══════════════ LOADING KEYPAIR ═════════════════ -->
+  {:else if !keypairSk}
+    <div class="loading-keys" transition:slide={{ duration: 300 }}>
+      <div class="pulse-dot" style="background: rgba(255,255,255,0.5)"></div>
+      <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Loading...</span>
+    </div>
+
   <!-- ═══════════════ VERTICAL SELECTOR ═══════════════ -->
-  {#if currentView === 'verticals'}
+  {:else if currentView === 'verticals'}
     <GigVerticalSelector onSelect={selectVertical} />
 
   <!-- ═══════════════ HELPOUTS (LISTING MODE) ═════════ -->
   {:else if currentView === 'helpouts' && config}
-    <GigHelpouts {config} onBack={goBackToVerticals} />
+    <GigHelpouts {config} sk={keypairSk} onBack={goBackToVerticals} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && config}
@@ -622,6 +651,35 @@
 
   .error-dismiss:hover {
     color: rgba(252, 165, 165, 1);
+  }
+
+  /* ── Storage Error ── */
+  .storage-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 16px;
+    text-align: center;
+  }
+
+  .storage-error-icon {
+    font-size: 2rem;
+  }
+
+  .storage-error-text {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(252, 165, 165, 1);
+    line-height: 1.5;
+  }
+
+  .loading-keys {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 24px;
   }
 
   /* ── Vertical Badge ── */

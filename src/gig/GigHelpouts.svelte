@@ -12,6 +12,7 @@
   import RelayStatus from '../components/RelayStatus.svelte';
 
   export let config: VerticalConfig;
+  export let sk: Uint8Array;
   export let onBack: () => void;
 
   // ─── View State ──────────────────────────────────────────────
@@ -24,8 +25,7 @@
   let helpoutMode: HelpoutMode = 'in-person';
   let selectedCategory = '';
   let description = '';
-  let messengerLink = '';
-  let sessionLink = '';
+  let contact = '';
 
   // Map-pick location (for in-person / both)
   let locationLat = '';
@@ -40,14 +40,12 @@
 
   // ─── Validation ─────────────────────────────────────────────
   $: needsLocation = helpoutMode === 'in-person' || helpoutMode === 'both';
-  $: needsSessionLink = helpoutMode === 'online' || helpoutMode === 'both';
 
   $: canSubmit =
     selectedCategory &&
     description.trim() &&
-    messengerLink.trim() &&
-    (!needsLocation || (locationLat && locationLon)) &&
-    (!needsSessionLink || sessionLink.trim());
+    contact.trim() &&
+    (!needsLocation || (locationLat && locationLon));
 
   // ─── Location Picking ──────────────────────────────────────
   let unsubCoords: (() => void) | null = null;
@@ -87,7 +85,7 @@
       ? geohashEncode(location.latitude, location.longitude, 4)
       : undefined;
 
-    listingService = new ListingService({
+    listingService = new ListingService(sk, {
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
@@ -103,8 +101,7 @@
       mode: helpoutMode,
       category: selectedCategory,
       description: description.trim(),
-      messengerLink: messengerLink.trim(),
-      sessionLink: needsSessionLink ? sessionLink.trim() : undefined,
+      contact: contact.trim(),
       location,
       timestamp: getCurrentTimeIso8601(),
       geohash,
@@ -114,15 +111,6 @@
     publishedListing = listing;
 
     logger.info('Helpout listing submitted', { component: 'GigHelpouts', operation: 'submitListing' });
-  }
-
-  // ─── Unpublish ──────────────────────────────────────────────
-  function unpublishListing() {
-    if (publishedListing && listingService) {
-      listingService.unpublishListing(publishedListing.id, publishedListing.geohash);
-    }
-    cleanup();
-    onBack();
   }
 
   function cleanup() {
@@ -192,22 +180,6 @@
       </div>
     {/if}
 
-    <!-- Session Link (online or both) -->
-    {#if needsSessionLink}
-      <div class="form-group">
-        <label class="field-label" for="session-link">
-          Session Link <span class="required">*</span>
-        </label>
-        <input
-          id="session-link"
-          class="field-input"
-          type="text"
-          placeholder="e.g. https://zoom.us/j/... or Google Meet link"
-          bind:value={sessionLink}
-        />
-      </div>
-    {/if}
-
     <!-- Category -->
     <div class="form-group">
       <label class="field-label" for="category">
@@ -246,19 +218,19 @@
       ></textarea>
     </div>
 
-    <!-- Messenger Link -->
+    <!-- Contact -->
     <div class="form-group">
-      <label class="field-label" for="messenger-link">
-        Messenger Link <span class="required">*</span>
+      <label class="field-label" for="contact-link">
+        Contact Link <span class="required">*</span>
       </label>
       <input
-        id="messenger-link"
+        id="contact-link"
         class="field-input"
         type="text"
         placeholder="e.g. https://t.me/you, https://wa.me/123..."
-        bind:value={messengerLink}
+        bind:value={contact}
       />
-      <span class="field-hint">Telegram, WhatsApp, Signal, or any messenger</span>
+      <span class="field-hint">Telegram, WhatsApp, Signal, Zoom, or any link</span>
     </div>
 
     <!-- Submit -->
@@ -315,13 +287,10 @@
     </div>
 
     <p class="live-hint">
-      Your helpout will appear on the map for 14 days. People can contact you directly via your messenger link.
+      Your helpout will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.
     </p>
 
     <div class="live-actions">
-      <GlassmorphismButton variant="danger" fullWidth={true} onClick={unpublishListing}>
-        Take Down Listing
-      </GlassmorphismButton>
       <GlassmorphismButton variant="secondary" fullWidth={true} onClick={onBack}>
         Done
       </GlassmorphismButton>

@@ -100,8 +100,8 @@ export class GigService {
   private myProviderLocation: { latitude: number; longitude: number } | null = null;
   private myProviderDetails: Record<string, string> = {};
 
-  constructor(vertical: GigVertical, callbacks: GigCallbacks) {
-    this.nostr = new NostrService();
+  constructor(sk: Uint8Array, vertical: GigVertical, callbacks: GigCallbacks) {
+    this.nostr = new NostrService(sk);
     this.callbacks = callbacks;
     this.vertical = vertical;
     this.needTag = `need-${vertical}`;

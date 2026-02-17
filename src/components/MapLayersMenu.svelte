@@ -2,6 +2,7 @@
   import { activeMapLayers, userLiveLocation } from '../store';
   import { encode as geohashEncode } from '../utils/geohash';
   import { HelpoutLayerService } from '../services/helpoutLayerService';
+  import { getKeypair } from '../services/keyManager';
   import type { HelpoutListing } from '../types';
 
   /** Called when helpout listings change (add / remove from map). */
@@ -9,14 +10,15 @@
 
   let isOpen = false;
   let isLoading = false;
-
-  const layerService = new HelpoutLayerService();
+  let layerError = '';
+  let layerService: HelpoutLayerService | null = null;
 
   function toggle() {
     isOpen = !isOpen;
   }
 
   async function toggleHelpouts() {
+    layerError = '';
     const layers = $activeMapLayers;
     const wasOn = layers.has('helpouts');
 
@@ -36,6 +38,19 @@
     if (!loc) {
       isLoading = false;
       return;
+    }
+
+    if (!layerService) {
+      try {
+        const { sk } = await getKeypair();
+        layerService = new HelpoutLayerService(sk);
+      } catch {
+        layers.delete('helpouts');
+        activeMapLayers.set(new Set(layers));
+        isLoading = false;
+        layerError = 'Storage unavailable';
+        return;
+      }
     }
 
     const cell = geohashEncode(loc.latitude, loc.longitude, 4);
@@ -75,6 +90,10 @@
           <span class="layer-check">{helpoutsOn ? '✓' : ''}</span>
         {/if}
       </button>
+
+      {#if layerError}
+        <div class="layer-error">{layerError}</div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -187,5 +206,11 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  .layer-error {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    color: rgba(252, 165, 165, 0.9);
   }
 </style>

@@ -47,6 +47,7 @@ import { roamingAnimationManager } from './utils/roamingAnimation';
 import ScrollbarStyles from './components/ScrollbarStyles.svelte';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
+import { getKeypair } from './services/keyManager';
 import type { HelpoutListing } from './types';
   
 // Global variables and states
@@ -66,6 +67,7 @@ let cesiumViewer: any = null; // Global viewer reference
 // Helpout map layer state
 let helpoutEntities: Entity[] = [];
 let selectedHelpout: HelpoutListing | null = null;
+let myNostrPk = '';
 
 // Roaming area painting state
 let roamingAreaStart: { latitude: number; longitude: number } | null = null;
@@ -1318,12 +1320,30 @@ function removeHelpoutMarkers() {
 }
 
 /** Handle MapLayersMenu callback. */
-function onHelpoutsChanged(listings: HelpoutListing[]) {
+async function onHelpoutsChanged(listings: HelpoutListing[]) {
   if (listings.length === 0) {
     removeHelpoutMarkers();
     return;
   }
+  // Load pk from cache (already loaded by MapLayersMenu)
+  if (!myNostrPk) {
+    try {
+      const kp = await getKeypair();
+      myNostrPk = kp.pk;
+    } catch { /* non-critical here */ }
+  }
   renderHelpoutMarkers(listings);
+}
+
+/** Remove a single helpout marker by listing ID (after take-down). */
+function handleHelpoutTakenDown(listingId: string) {
+  if (!cesiumViewer) return;
+  const entityId = `helpout_${listingId}`;
+  const idx = helpoutEntities.findIndex(e => e.id === entityId);
+  if (idx !== -1) {
+    cesiumViewer.entities.remove(helpoutEntities[idx]);
+    helpoutEntities.splice(idx, 1);
+  }
 }
 
 // Function to handle coordinate picking
@@ -1497,7 +1517,12 @@ function handleCoordinatePick(result: any) {
 
 <!-- Helpout Detail Overlay (shown on marker click) -->
 {#if selectedHelpout}
-  <HelpoutDetail listing={selectedHelpout} onClose={() => selectedHelpout = null} />
+  <HelpoutDetail
+    listing={selectedHelpout}
+    myPk={myNostrPk}
+    onClose={() => selectedHelpout = null}
+    onTakenDown={handleHelpoutTakenDown}
+  />
 {/if}  
 
 

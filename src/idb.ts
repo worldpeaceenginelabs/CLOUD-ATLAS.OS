@@ -8,7 +8,7 @@ import type { PinData, ModelData, HelpoutListing } from './types';
 export class IndexedDBManager {
   private db: IDBDatabase | null = null;
   private dbName = 'indexeddbstore';
-  private version = 5; // Incremented to add helpouts store
+  private version = 6; // Incremented to add nostrkeys store
 
   /**
    * Initialize IndexedDB connection
@@ -48,6 +48,12 @@ export class IndexedDBManager {
         if (!db.objectStoreNames.contains('helpouts')) {
           db.createObjectStore('helpouts', { keyPath: 'cell' });
           console.log('Created object store: helpouts');
+        }
+
+        // Create nostrkeys store (single persistent keypair)
+        if (!db.objectStoreNames.contains('nostrkeys')) {
+          db.createObjectStore('nostrkeys', { keyPath: 'id' });
+          console.log('Created object store: nostrkeys');
         }
       };
 
@@ -244,6 +250,36 @@ export class IndexedDBManager {
     const store = transaction.objectStore('helpouts');
     const result = await this.wrapRequest(store.get(cell));
     return result ? result.listings : null;
+  }
+  // ─── Nostr Keypair ─────────────────────────────────────────
+
+  /**
+   * Save the Nostr keypair to IDB.
+   * sk is stored as a plain Array (Uint8Array is not directly serializable in IDB on all browsers).
+   */
+  async saveKeypair(sk: Uint8Array, pk: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    if (!this.db.objectStoreNames.contains('nostrkeys')) return;
+
+    const transaction = this.db.transaction('nostrkeys', 'readwrite');
+    const store = transaction.objectStore('nostrkeys');
+    await this.wrapRequest(store.put({ id: 'primary', sk: Array.from(sk), pk }));
+    console.log('Nostr keypair saved to IndexedDB');
+  }
+
+  /**
+   * Load the Nostr keypair from IDB.
+   * Returns null if no keypair exists yet.
+   */
+  async loadKeypair(): Promise<{ sk: Uint8Array; pk: string } | null> {
+    if (!this.db) throw new Error('Database not initialized');
+    if (!this.db.objectStoreNames.contains('nostrkeys')) return null;
+
+    const transaction = this.db.transaction('nostrkeys', 'readonly');
+    const store = transaction.objectStore('nostrkeys');
+    const result = await this.wrapRequest(store.get('primary'));
+    if (!result) return null;
+    return { sk: new Uint8Array(result.sk), pk: result.pk };
   }
 }
 
