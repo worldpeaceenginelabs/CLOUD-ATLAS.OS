@@ -84,7 +84,7 @@
     } : undefined;
 
     const geohash = location
-      ? geohashEncode(location.latitude, location.longitude, 6)
+      ? geohashEncode(location.latitude, location.longitude, 4)
       : undefined;
 
     listingService = new ListingService({
