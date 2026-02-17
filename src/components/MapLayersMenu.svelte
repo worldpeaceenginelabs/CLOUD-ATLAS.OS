@@ -2,7 +2,7 @@
   import { activeMapLayers, userLiveLocation, helpoutLayerRefresh } from '../store';
   import { encode as geohashEncode } from '../utils/geohash';
   import { HelpoutLayerService } from '../services/helpoutLayerService';
-  import { getKeypair } from '../services/keyManager';
+  import { getSharedNostr } from '../services/nostrPool';
   import type { HelpoutListing } from '../types';
 
   /** Called when helpout listings change (add / remove from map). */
@@ -15,6 +15,9 @@
 
   // In-memory cache of last fetched mappable listings
   let cachedListings: HelpoutListing[] = [];
+  let cachedAt = 0;
+
+  const CACHE_TTL_MS = 30 * 60 * 1000;
 
   function toggle() {
     isOpen = !isOpen;
@@ -23,8 +26,8 @@
   async function ensureService(): Promise<boolean> {
     if (layerService) return true;
     try {
-      const { sk } = await getKeypair();
-      layerService = new HelpoutLayerService(sk);
+      const nostr = await getSharedNostr();
+      layerService = new HelpoutLayerService(nostr);
       return true;
     } catch {
       layerError = 'Storage unavailable';
@@ -41,6 +44,7 @@
     const listings = await layerService.fetchListings(cell, forceRefresh);
 
     cachedListings = listings.filter(l => l.location);
+    cachedAt = Date.now();
     onHelpoutsChanged(cachedListings);
     isLoading = false;
   }
@@ -61,8 +65,8 @@
     layers.add('helpouts');
     activeMapLayers.set(new Set(layers));
 
-    // If we have in-memory listings, show them instantly
-    if (cachedListings.length > 0) {
+    // If we have fresh in-memory listings, show them instantly
+    if (cachedListings.length > 0 && (Date.now() - cachedAt) < CACHE_TTL_MS) {
       onHelpoutsChanged(cachedListings);
     }
 

@@ -5,15 +5,14 @@
  * No matching protocol — listings are published with a 14-day TTL
  * and discovered via map layers.
  *
- * Uses the same Nostr relay infrastructure as GigService but with
- * a fundamentally different protocol:
+ * Uses the shared Nostr connection pool. Protocol:
  *   - Publish-only (no subscriptions needed for the publisher)
  *   - 14-day NIP-40 TTL (no heartbeat)
  *   - Single replaceable event per listing
- *   - Unpublish by replacing with empty content
+ *   - Take-down via 1-second TTL replacement (handled in HelpoutDetail)
  */
 
-import { NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
+import type { NostrService } from './nostrService';
 import { logger } from '../utils/logger';
 import type { HelpoutListing } from '../types';
 
@@ -49,10 +48,9 @@ export interface ListingCallbacks {
 export class ListingService {
   private nostr: NostrService;
   private callbacks: ListingCallbacks;
-  private listingId: string | null = null;
 
-  constructor(sk: Uint8Array, callbacks: ListingCallbacks) {
-    this.nostr = new NostrService(sk);
+  constructor(nostr: NostrService, callbacks: ListingCallbacks) {
+    this.nostr = nostr;
     this.callbacks = callbacks;
   }
 
@@ -66,8 +64,6 @@ export class ListingService {
    * Uses a stable d-tag so re-publishing replaces the previous listing.
    */
   publishListing(listing: HelpoutListing): void {
-    this.listingId = listing.id;
-
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
     const tags = buildTags('listing-helpouts', listing.geohash);
@@ -81,33 +77,14 @@ export class ListingService {
       JSON.stringify(listing),
     );
 
-    this.nostr.connectInBackground();
-
     logger.info(`Helpout listing published (${listing.category})`, {
       component: 'ListingService',
       operation: 'publishListing',
     });
   }
 
-  /**
-   * Unpublish the listing by replacing the event with empty content.
-   * Relays will serve the empty replacement; NIP-40 TTL will eventually
-   * clean it up even if we don't explicitly delete.
-   */
-  unpublishListing(listingId: string, geohash?: string): void {
-    const tags = buildTags('listing-helpouts', geohash);
-    this.nostr.publishReplaceable(listingId, tags, '');
-
-    logger.info('Helpout listing unpublished', {
-      component: 'ListingService',
-      operation: 'unpublishListing',
-    });
-  }
-
-  /** Disconnect from relays and clean up. */
+  /** Clean up. Shared NostrService connections remain open. */
   stop(): void {
-    this.nostr.disconnect();
-    this.listingId = null;
     logger.info('ListingService stopped', { component: 'ListingService', operation: 'stop' });
   }
 }

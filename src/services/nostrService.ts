@@ -15,7 +15,6 @@
 
 import {
   finalizeEvent,
-  generateSecretKey,
   getPublicKey,
   verifyEvent,
   type EventTemplate,
@@ -53,6 +52,7 @@ interface StoredSubscription {
   id: string;
   filter: object;
   onEvent: (event: NostrEvent) => void;
+  onEose?: () => void;
 }
 
 // ─── Service ─────────────────────────────────────────────────
@@ -196,6 +196,9 @@ export class NostrService {
 
       if (data[0] === 'EVENT' && data[1] && data[2]) {
         this.handleIncomingEvent(data[1] as string, data[2] as NostrEvent);
+      } else if (data[0] === 'EOSE' && data[1]) {
+        const sub = this.subscriptions.get(data[1] as string);
+        if (sub?.onEose) sub.onEose();
       }
     } catch {
       // Malformed relay message — ignore
@@ -260,13 +263,26 @@ export class NostrService {
   /**
    * Subscribe to events matching a filter.
    * Stored and replayed to late-connecting relays.
+   * Optional onEose fires when the relay sends EOSE (end of stored events).
    */
-  subscribe(id: string, filter: object, onEvent: (event: NostrEvent) => void): void {
-    this.subscriptions.set(id, { id, filter, onEvent });
+  subscribe(id: string, filter: object, onEvent: (event: NostrEvent) => void, onEose?: () => void): void {
+    this.subscriptions.set(id, { id, filter, onEvent, onEose });
 
     for (const ws of this.sockets.values()) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(['REQ', id, filter]));
+      }
+    }
+  }
+
+  /**
+   * Remove a subscription and send CLOSE to all connected relays.
+   */
+  unsubscribe(id: string): void {
+    this.subscriptions.delete(id);
+    for (const ws of this.sockets.values()) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(['CLOSE', id]));
       }
     }
   }

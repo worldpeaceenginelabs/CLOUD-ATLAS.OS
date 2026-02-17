@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { coordinates, viewer, isGigPickingDestination, userLiveLocation, gigCanClose, helpoutLayerRefresh } from '../store';
+  import { coordinates, isGigPickingDestination, userLiveLocation, gigCanClose, helpoutLayerRefresh } from '../store';
   import type { HelpoutListing, HelpoutMode } from '../types';
+  import type { NostrService } from '../services/nostrService';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
@@ -12,7 +13,7 @@
   import RelayStatus from '../components/RelayStatus.svelte';
 
   export let config: VerticalConfig;
-  export let sk: Uint8Array;
+  export let nostr: NostrService;
   export let onBack: () => void;
 
   // ─── View State ──────────────────────────────────────────────
@@ -85,7 +86,7 @@
       ? geohashEncode(location.latitude, location.longitude, 4)
       : undefined;
 
-    listingService = new ListingService(sk, {
+    listingService = new ListingService(nostr, {
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
@@ -114,6 +115,7 @@
   }
 
   function handleDone() {
+    cleanup();
     // Trigger a force-refresh of the helpouts map layer so the new listing appears
     helpoutLayerRefresh.update(n => n + 1);
     onBack();

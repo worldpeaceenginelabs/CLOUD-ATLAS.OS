@@ -7,7 +7,8 @@
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
-  import { getKeypair } from '../services/keyManager';
+  import { getSharedNostr } from '../services/nostrPool';
+  import type { NostrService } from '../services/nostrService';
   import { VERTICALS, type VerticalConfig } from '../gig/verticals';
   import GigVerticalSelector from '../gig/GigVerticalSelector.svelte';
   import GigNeedForm from '../gig/GigNeedForm.svelte';
@@ -17,16 +18,15 @@
   import GigHelpouts from '../gig/GigHelpouts.svelte';
   import * as Cesium from 'cesium';
 
-  // ─── Keypair (loaded once on mount) ────────────────────────
-  let keypairSk: Uint8Array | null = null;
-  let keypairError = false;
+  // ─── Shared Nostr (loaded once on mount) ─────────────────
+  let sharedNostr: NostrService | null = null;
+  let nostrError = false;
 
   (async () => {
     try {
-      const kp = await getKeypair();
-      keypairSk = kp.sk;
+      sharedNostr = await getSharedNostr();
     } catch {
-      keypairError = true;
+      nostrError = true;
     }
   })();
 
@@ -81,8 +81,8 @@
 
   function createService(): GigService {
     if (!config) throw new Error('No vertical selected');
-    if (!keypairSk) throw new Error('Keypair not loaded');
-    return new GigService(keypairSk, config.id, {
+    if (!sharedNostr) throw new Error('Nostr not connected');
+    return new GigService(sharedNostr, config.id, {
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
@@ -494,14 +494,14 @@
   {/if}
 
   <!-- ═══════════════ STORAGE ERROR ═════════════════════ -->
-  {#if keypairError}
+  {#if nostrError}
     <div class="storage-error" transition:slide={{ duration: 300 }}>
       <span class="storage-error-icon">⚠</span>
       <p class="storage-error-text">Storage unavailable — gig features require browser storage to be enabled.</p>
     </div>
 
-  <!-- ═══════════════ LOADING KEYPAIR ═════════════════ -->
-  {:else if !keypairSk}
+  <!-- ═══════════════ LOADING / CONNECTING ═════════════ -->
+  {:else if !sharedNostr}
     <div class="loading-keys" transition:slide={{ duration: 300 }}>
       <div class="pulse-dot" style="background: rgba(255,255,255,0.5)"></div>
       <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Loading...</span>
@@ -513,7 +513,7 @@
 
   <!-- ═══════════════ HELPOUTS (LISTING MODE) ═════════ -->
   {:else if currentView === 'helpouts' && config}
-    <GigHelpouts {config} sk={keypairSk} onBack={goBackToVerticals} />
+    <GigHelpouts {config} nostr={sharedNostr} onBack={goBackToVerticals} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && config}

@@ -2,8 +2,7 @@
   import { fly } from 'svelte/transition';
   import type { HelpoutListing } from '../types';
   import { HELPOUT_CATEGORIES } from './verticals';
-  import { getKeypair } from '../services/keyManager';
-  import { NostrService } from '../services/nostrService';
+  import { getSharedNostr } from '../services/nostrPool';
 
   export let listing: HelpoutListing;
   export let myPk: string;
@@ -34,8 +33,7 @@
   async function takeDown() {
     isTakingDown = true;
     try {
-      const { sk } = await getKeypair();
-      const nostr = new NostrService(sk);
+      const nostr = await getSharedNostr();
 
       // Publish a replacement event with 1-second TTL
       const expiration = String(Math.floor(Date.now() / 1000) + 1);
@@ -46,14 +44,10 @@
       if (listing.geohash) tags.push(['g', listing.geohash]);
 
       nostr.publishReplaceable(listing.id, tags, JSON.stringify(listing));
-      nostr.connectInBackground();
 
-      // Give relays a moment to receive the event, then disconnect
-      setTimeout(() => {
-        nostr.disconnect();
-        onTakenDown?.(listing.id);
-        onClose();
-      }, 3000);
+      // Connections are already established — event is broadcast instantly
+      onTakenDown?.(listing.id);
+      onClose();
     } catch {
       isTakingDown = false;
     }

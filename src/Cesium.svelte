@@ -47,7 +47,7 @@ import { roamingAnimationManager } from './utils/roamingAnimation';
 import ScrollbarStyles from './components/ScrollbarStyles.svelte';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
-import { getKeypair } from './services/keyManager';
+import { getSharedNostr } from './services/nostrPool';
 import type { HelpoutListing } from './types';
   
 // Global variables and states
@@ -1325,11 +1325,11 @@ async function onHelpoutsChanged(listings: HelpoutListing[]) {
     removeHelpoutMarkers();
     return;
   }
-  // Load pk from cache (already loaded by MapLayersMenu)
+  // Load pk from shared pool (already connected by MapLayersMenu)
   if (!myNostrPk) {
     try {
-      const kp = await getKeypair();
-      myNostrPk = kp.pk;
+      const nostr = await getSharedNostr();
+      myNostrPk = nostr.pubkey;
     } catch { /* non-critical here */ }
   }
   renderHelpoutMarkers(listings);

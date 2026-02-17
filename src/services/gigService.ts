@@ -30,7 +30,7 @@
  *   so events from different verticals never interfere.
  */
 
-import { NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
+import { type NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
 import type { GigRequest, GigVertical } from '../types';
 
@@ -93,6 +93,7 @@ export class GigService {
   private knownProviders = new Set<string>();
   private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private dmSubId: string | null = null;
 
   // Stored for heartbeat re-publish
   private myRequest: GigRequest | null = null;
@@ -100,8 +101,8 @@ export class GigService {
   private myProviderLocation: { latitude: number; longitude: number } | null = null;
   private myProviderDetails: Record<string, string> = {};
 
-  constructor(sk: Uint8Array, vertical: GigVertical, callbacks: GigCallbacks) {
-    this.nostr = new NostrService(sk);
+  constructor(nostr: NostrService, vertical: GigVertical, callbacks: GigCallbacks) {
+    this.nostr = nostr;
     this.callbacks = callbacks;
     this.vertical = vertical;
     this.needTag = `need-${vertical}`;
@@ -137,7 +138,7 @@ export class GigService {
     }, (event: NostrEvent) => this.handleOwnEvent(event));
 
     // Subscribe to incoming accept DMs
-    this.nostr.subscribeDMs(REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
+    this.dmSubId = this.nostr.subscribeDMs(REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
       const dm = payload as AcceptDM;
       if (dm?.type === 'accept' && dm.requestId === this.myRequest?.id) {
         this.callbacks.onProviderAccepted(fromPubkey, dm.requestId);
@@ -151,8 +152,6 @@ export class GigService {
       '#t': [this.offerTag],
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
     }, (event: NostrEvent) => this.handleProviderAvailEvent(event));
-
-    this.nostr.connectInBackground();
 
     logger.info(`Requester started in cell ${geohash} [${this.vertical}]`, { component: 'GigService', operation: 'startAsRequester' });
   }
@@ -229,8 +228,6 @@ export class GigService {
       '#t': [this.needTag],
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
     }, (event: NostrEvent) => this.handleRequestEvent(event));
-
-    this.nostr.connectInBackground();
 
     logger.info(`Provider started in cell ${geohash} [${this.vertical}]`, { component: 'GigService', operation: 'startAsProvider' });
   }
@@ -448,8 +445,9 @@ export class GigService {
   // ─── Cleanup ───────────────────────────────────────────────
 
   /**
-   * Stop the service. Clears local state and disconnects.
+   * Stop the service. Clears local state and removes subscriptions.
    * Events expire on relays via NIP-40 TTL — no deletion needed.
+   * Shared NostrService connections remain open for other consumers.
    */
   stop(): void {
     this.clearHeartbeat();
@@ -457,13 +455,20 @@ export class GigService {
     for (const timer of this.expirationTimers.values()) clearTimeout(timer);
     this.expirationTimers.clear();
 
+    // Remove our subscriptions from the shared NostrService
+    this.nostr.unsubscribe('self-request');
+    this.nostr.unsubscribe('self-avail');
+    this.nostr.unsubscribe('need-requests');
+    this.nostr.unsubscribe('provider-avail');
+    if (this.dmSubId) this.nostr.unsubscribe(this.dmSubId);
+
     this.knownRequests.clear();
     this.knownProviders.clear();
     this.myRequest = null;
     this.myGeohash = null;
     this.myProviderLocation = null;
     this.myProviderDetails = {};
-    this.nostr.disconnect();
+    this.dmSubId = null;
 
     logger.info('GigService stopped', { component: 'GigService', operation: 'stop' });
   }
