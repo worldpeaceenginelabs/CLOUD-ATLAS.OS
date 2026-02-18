@@ -192,9 +192,11 @@
 
   function toggleAbout() {
     isVisible.update(v => !v);
+    closeMenu();
   }
 
   function openLiveEdit() {
+    closeMenu();
     const newWindow = window.open(
       'https://stackblitz.com/github/worldpeaceenginelabs/CLOUD-ATLAS-OS/tree/main?file=src/DAPPS/HomeScreen.svelte:L294',
       '_blank',
