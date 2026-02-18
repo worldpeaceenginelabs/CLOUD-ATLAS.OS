@@ -417,6 +417,18 @@
     isGigPickingDestination.set(true);
   }
 
+  function handleDestinationSelected(lat: string, lon: string, _displayName?: string) {
+    destinationLat = lat;
+    destinationLon = lon;
+    isPickingDestination = false;
+    isGigPickingDestination.set(false);
+  }
+
+  function handleDestinationClear() {
+    destinationLat = '';
+    destinationLon = '';
+  }
+
   function prepareService(): { geohash: string; location: { latitude: number; longitude: number } } | null {
     if (!$userLiveLocation) {
       showError('GPS location not available. Please enable location services and try again.');
@@ -659,6 +671,8 @@
       {isPickingDestination}
       onBack={goBack}
       onPickDestination={handlePickDestination}
+      onDestinationSelected={handleDestinationSelected}
+      onDestinationClear={handleDestinationClear}
       onSubmit={submitRequest}
     />
 

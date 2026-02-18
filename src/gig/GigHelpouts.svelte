@@ -11,6 +11,7 @@
   import { HELPOUT_CATEGORIES, type VerticalConfig } from './verticals';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import RelayStatus from '../components/RelayStatus.svelte';
+  import LocationPicker from '../components/LocationPicker.svelte';
 
   export let config: VerticalConfig;
   export let nostr: NostrService;
@@ -28,9 +29,10 @@
   let description = '';
   let contact = '';
 
-  // Map-pick location (for in-person / both)
+  // Location (map-pick or address search)
   let locationLat = '';
   let locationLon = '';
+  let locationAddress = '';
   let isPickingLocation = false;
 
   // ─── Service State ──────────────────────────────────────────
@@ -53,6 +55,20 @@
   function handlePickLocation() {
     isPickingLocation = true;
     isGigPickingDestination.set(true);
+  }
+
+  function handleLocationSelected(lat: string, lon: string, displayName?: string) {
+    locationLat = lat;
+    locationLon = lon;
+    locationAddress = displayName ?? '';
+    isPickingLocation = false;
+    isGigPickingDestination.set(false);
+  }
+
+  function handleLocationClear() {
+    locationLat = '';
+    locationLon = '';
+    locationAddress = '';
   }
 
   $: if (isPickingLocation) {
@@ -103,6 +119,7 @@
       description: description.trim(),
       contact: contact.trim(),
       location,
+      address: locationAddress || undefined,
       timestamp: getCurrentTimeIso8601(),
       geohash,
     };
@@ -170,19 +187,15 @@
 
     <!-- Location (in-person or both) -->
     {#if needsLocation}
-      <div class="form-group">
-        <span class="field-label">Location</span>
-        {#if locationLat && locationLon}
-          <p class="location-display">
-            {parseFloat(locationLat).toFixed(5)}, {parseFloat(locationLon).toFixed(5)}
-          </p>
-          <button class="pick-again-btn" on:click={handlePickLocation}>Pick again</button>
-        {:else}
-          <GlassmorphismButton variant="secondary" size="small" onClick={handlePickLocation}>
-            {isPickingLocation ? 'Click on the map...' : 'Pick Location on Map'}
-          </GlassmorphismButton>
-        {/if}
-      </div>
+      <LocationPicker
+        lat={locationLat}
+        lon={locationLon}
+        label="Location"
+        isPickingOnMap={isPickingLocation}
+        onPickOnMap={handlePickLocation}
+        onLocationSelected={handleLocationSelected}
+        onClear={handleLocationClear}
+      />
     {/if}
 
     <!-- Category -->
@@ -423,33 +436,6 @@
   .field-input.textarea {
     resize: vertical;
     min-height: 60px;
-  }
-
-  /* ── Location ── */
-  .location-display {
-    margin: 0;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    font-size: 0.85rem;
-    color: rgba(74, 222, 128, 1);
-    font-family: monospace;
-  }
-
-  .pick-again-btn {
-    background: none;
-    border: none;
-    color: rgba(66, 133, 244, 0.8);
-    font-size: 0.78rem;
-    cursor: pointer;
-    padding: 2px 0;
-    text-align: left;
-    text-decoration: underline;
-  }
-
-  .pick-again-btn:hover {
-    color: rgba(66, 133, 244, 1);
   }
 
   /* ── Category Grid ── */

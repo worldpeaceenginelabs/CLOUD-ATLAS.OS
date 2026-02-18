@@ -101,6 +101,9 @@ export const preselectedGigVertical: Writable<GigVertical | null> = writable(nul
 /** Signal Cesium to reopen the radial gig menu (set by back buttons) */
 export const showRadialGigMenu: Writable<boolean> = writable(false);
 
+// Fly-to store: set to trigger Cesium camera fly to a location (e.g. from address search)
+export const flyToLocation: Writable<{ lat: number; lon: number } | null> = writable(null);
+
 // Map Layer Stores
 /** Set of currently active map layer IDs (e.g. 'helpouts') */
 export const activeMapLayers: Writable<Set<string>> = writable(new Set());
@@ -165,6 +168,9 @@ export function resetAllStores() {
   gigCanClose.set(true);
   preselectedGigVertical.set(null);
   showRadialGigMenu.set(false);
+  
+  // Fly-to
+  flyToLocation.set(null);
   
   // Map Layers
   activeMapLayers.set(new Set());

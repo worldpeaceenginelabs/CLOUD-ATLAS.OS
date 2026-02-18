@@ -79,6 +79,7 @@ export interface Listing {
     latitude: number;
     longitude: number;
   };
+  address?: string;     // human-readable address from Nominatim
   timestamp: string;
   geohash?: string;
 }

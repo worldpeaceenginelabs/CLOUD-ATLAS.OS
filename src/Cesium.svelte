@@ -33,7 +33,8 @@
 		isRoamingAreaMode,
 		roamingAreaBounds,
 		isGigPickingDestination,
-		userLiveLocation
+		userLiveLocation,
+		flyToLocation
 	} from './store';
 	import type { ModelData, PinData } from './types';
 	import { dataManager } from './dataManager';
@@ -1148,6 +1149,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 
   
+	let unsubFlyTo: (() => void) | null = null;
+
 	// Initialization on mount
 	onMount(async () => {
 	Ion.defaultAccessToken = import.meta.env.VITE_ION_ACCESS_TOKEN;
@@ -1275,6 +1278,17 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	  // Set up event handlers for user interactions
 	  setupEventHandlers();
+
+	  // Fly camera to location when set from address search
+	  unsubFlyTo = flyToLocation.subscribe(loc => {
+	    if (loc && cesiumViewer) {
+	      cesiumViewer.camera.flyTo({
+	        destination: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 5000),
+	        duration: 1.5,
+	      });
+	      flyToLocation.set(null);
+	    }
+	  });
 
 	  // Load city data from local JSON with optimized performance for all 1200 cities
 	  try {
@@ -1577,6 +1591,9 @@ function handleCoordinatePick(result: any) {
 
 
 	onDestroy(() => {
+		// Unsubscribe flyToLocation
+		if (unsubFlyTo) unsubFlyTo();
+
 		// Stop camera monitoring
 		stopCameraMonitoring();
 		

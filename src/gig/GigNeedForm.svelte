@@ -2,6 +2,7 @@
   import { slide } from 'svelte/transition';
   import type { MatchingVerticalConfig } from './verticals';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
+  import LocationPicker from '../components/LocationPicker.svelte';
 
   export let config: MatchingVerticalConfig;
   export let userLiveLocation: { latitude: number; longitude: number } | null;
@@ -10,6 +11,8 @@
   export let isPickingDestination: boolean;
   export let onBack: () => void;
   export let onPickDestination: () => void;
+  export let onDestinationSelected: (lat: string, lon: string, displayName?: string) => void;
+  export let onDestinationClear: () => void;
   export let onSubmit: (details: Record<string, string>) => void;
 
   // Local state for extra form fields
@@ -55,21 +58,17 @@
     </p>
   </div>
 
-  <!-- Map-pick location (if vertical uses it) -->
+  <!-- Destination (if vertical uses it) -->
   {#if config.hasDestination}
-    <div class="form-group">
-      <span class="field-label">{config.mapPickLabel}</span>
-      {#if destinationLat && destinationLon}
-        <p class="location-display">
-          {parseFloat(destinationLat).toFixed(5)}, {parseFloat(destinationLon).toFixed(5)}
-        </p>
-        <button class="pick-again-btn" on:click={onPickDestination}>Pick again</button>
-      {:else}
-        <GlassmorphismButton variant="secondary" size="small" onClick={onPickDestination}>
-          {isPickingDestination ? 'Click on the map...' : `Pick ${config.mapPickLabel} on Map`}
-        </GlassmorphismButton>
-      {/if}
-    </div>
+    <LocationPicker
+      lat={destinationLat}
+      lon={destinationLon}
+      label={config.mapPickLabel}
+      isPickingOnMap={isPickingDestination}
+      onPickOnMap={onPickDestination}
+      onLocationSelected={onDestinationSelected}
+      onClear={onDestinationClear}
+    />
   {/if}
 
   <!-- Extra fields from vertical config -->
@@ -154,37 +153,6 @@
   .required {
     color: rgba(239, 68, 68, 0.8);
     margin-left: 2px;
-  }
-
-  .location-display {
-    margin: 0;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    font-size: 0.85rem;
-    color: rgba(74, 222, 128, 1);
-    font-family: monospace;
-  }
-
-  .location-hint {
-    color: rgba(255, 255, 255, 0.4);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-
-  .pick-again-btn {
-    background: none;
-    border: none;
-    color: rgba(66, 133, 244, 0.8);
-    font-size: 0.78rem;
-    cursor: pointer;
-    padding: 2px 0;
-    text-align: left;
-    text-decoration: underline;
-  }
-
-  .pick-again-btn:hover {
-    color: rgba(66, 133, 244, 1);
   }
 
   .field-input {
