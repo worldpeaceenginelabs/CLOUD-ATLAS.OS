@@ -928,6 +928,14 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner")) {
 				const entityPos = userLocationEntity?.position?.getValue(JulianDate.now());
 				if (entityPos && cesiumViewer) {
+					const screenPos = Cesium.SceneTransforms.worldToWindowCoordinates(
+						cesiumViewer.scene, entityPos
+					);
+					if (screenPos) {
+						radialScreenX = screenPos.x;
+						radialScreenY = screenPos.y;
+						showRadialMenu = true;
+					}
 					const cartographic = Cartographic.fromCartesian(entityPos);
 					cesiumViewer.camera.flyTo({
 						destination: Cartesian3.fromDegrees(
@@ -935,17 +943,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 							CesiumMath.toDegrees(cartographic.latitude),
 							2000
 						),
-						complete: () => {
-							if (!cesiumViewer || !entityPos) return;
-							const screenPos = Cesium.SceneTransforms.worldToWindowCoordinates(
-								cesiumViewer.scene, entityPos
-							);
-							if (screenPos) {
-								radialScreenX = screenPos.x;
-								radialScreenY = screenPos.y;
-								showRadialMenu = true;
-							}
-						},
 					});
 				}
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('helpout_')) {
