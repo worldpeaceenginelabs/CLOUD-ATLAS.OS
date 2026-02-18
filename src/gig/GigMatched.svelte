@@ -17,6 +17,20 @@
     <p class="message">{config.matchMessage}</p>
     <p class="peer-info">Connected directly via P2P</p>
   </div>
+
+  {#if config.id === 'rides'}
+    <div class="safety-instructions">
+      <p class="warning">⚠️ For your safety and transparency, both driver and passenger must download the <strong>Droid Dashcam</strong> app on Android or iOS. In the app settings under "Record Settings," set private storage and choose a PIN.</p>
+      <ol>
+        <li>Each person shows their ID and face to the other using the Dashcam app.</li>
+        <li>Both confirm that the app is recording.</li>
+        <li>Keep the recording on for the entire duration of the ride.</li>
+        <li>After arriving at the destination, both parties delete the recording together.</li>
+      </ol>
+      <p class="warning">⚠️ If at any point you feel threatened, call the police immediately and put your phone on speaker.</p>
+    </div>
+  {/if}
+
   <GlassmorphismButton variant="secondary" fullWidth={true} onClick={onDone}>
     Done
   </GlassmorphismButton>
@@ -56,5 +70,37 @@
     font-size: 0.78rem;
     color: rgba(255, 255, 255, 0.4);
     margin: 0;
+  }
+
+  .safety-instructions {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 204, 0, 0.2);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.5;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .safety-instructions ol {
+    margin: 0.75rem 0;
+    padding-left: 1.25rem;
+  }
+
+  .safety-instructions li {
+    margin-bottom: 0.4rem;
+  }
+
+  .safety-instructions .warning {
+    margin: 0;
+    color: #ffcc00;
+    font-weight: 600;
+  }
+
+  .safety-instructions :global(strong) {
+    color: white;
   }
 </style>
