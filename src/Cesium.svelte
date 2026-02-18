@@ -9,9 +9,6 @@
 	  Color,
 	  Entity,
 	  JulianDate,
-	  SampledProperty,
-	  ClockRange,
-	  HermitePolynomialApproximation,
 	  Cesium3DTileset,
 	  CustomDataSource,
 	  ModelGraphics,
@@ -48,16 +45,24 @@ import ScrollbarStyles from './components/ScrollbarStyles.svelte';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
 import SocialDetail from './gig/SocialDetail.svelte';
+import RadialGigMenu from './components/RadialGigMenu.svelte';
+import { preselectedGigVertical } from './store';
 import { getSharedNostr } from './services/nostrPool';
 import { REPLACEABLE_KIND } from './services/nostrService';
-import type { Listing } from './types';
+import type { Listing, GigVertical } from './types';
   
 // Global variables and states
 let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
 let pointEntity: Entity | null = null; // For coordinate picking
-let userLocationEntity: Entity | null = null; // For user location on map
+let userLocationEntity: Entity | null = null; // For user location on map (center dot, click target)
+let userRingEntities: Entity[] = []; // All double-ring entities for user location
 let userLocationInitialized = false; // Track if user location entity has been created
+
+// Radial menu state
+let showRadialMenu = false;
+let radialScreenX = 0;
+let radialScreenY = 0;
 let geoWatchId: number | null = null; // For watchPosition cleanup
 let isMonitoringCamera = false; // Track if camera monitoring is active
 let animationFrameId: number | null = null; // For requestAnimationFrame
@@ -187,40 +192,57 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		}
 	};
   
-	// Create a pulsating point entity
-	const createPulsatingPoint = (pointId: string, userDestination: Cartesian3, color: Color): Entity => {
-	  if (!cesiumViewer) return new Entity();
-	  
-	  const start = JulianDate.now();
-	  const mid = JulianDate.addSeconds(start, 0.5, new JulianDate());
-	  const stop = JulianDate.addSeconds(start, 2, new JulianDate());
-  
-	  cesiumViewer.clock.startTime = start;
-	  cesiumViewer.clock.currentTime = start;
-	  cesiumViewer.clock.stopTime = stop;
-	  cesiumViewer.clock.clockRange = ClockRange.LOOP_STOP;
-  
-	  const pulseProperty = new SampledProperty(Number);
-	  pulseProperty.setInterpolationOptions({
-		interpolationDegree: 3,
-		interpolationAlgorithm: HermitePolynomialApproximation,
-	  });
-  
-	  pulseProperty.addSample(start, 7.0);
-	  pulseProperty.addSample(mid, 15.0);
-	  pulseProperty.addSample(stop, 7.0);
-  
-	  return new Entity({
-		id: pointId,
-		position: userDestination,
+	// Create a double-ring pulsating indicator (outer blue, inner orange, offset timing)
+	const createDoubleRing = (pointId: string, position: Cartesian3): Entity[] => {
+	  if (!cesiumViewer) return [];
+
+	  const t0 = Date.now();
+
+	  const outerPulse = new Cesium.CallbackProperty(() => {
+		const t = (Date.now() - t0) / 1000;
+		return 22 + 4 * Math.sin((2 * Math.PI * t) / 4);
+	  }, false);
+
+	  const innerPulse = new Cesium.CallbackProperty(() => {
+		const t = (Date.now() - t0) / 1000 - 0.7;
+		return 13 + 3 * Math.sin((2 * Math.PI * t) / 4);
+	  }, false);
+
+	  const outer = new Entity({
+		id: `${pointId}_outer`,
+		position,
 		point: {
-		  pixelSize: pulseProperty,
-		  color: Cesium.Color.fromCssColorString('#4285F4'),
-		  outlineColor: Cesium.Color.WHITE,
-		  outlineWidth: 1,
+		  pixelSize: outerPulse,
+		  color: new Cesium.Color(0.26, 0.52, 0.96, 0.04),
+		  outlineColor: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.7),
+		  outlineWidth: 2,
 		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
 		},
 	  });
+
+	  const inner = new Entity({
+		id: `${pointId}_inner`,
+		position,
+		point: {
+		  pixelSize: innerPulse,
+		  color: new Cesium.Color(1.0, 0.43, 0.0, 0.04),
+		  outlineColor: Cesium.Color.fromCssColorString('#FF6D00').withAlpha(0.7),
+		  outlineWidth: 2,
+		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+		},
+	  });
+
+	  const center = new Entity({
+		id: pointId,
+		position,
+		point: {
+		  pixelSize: 4,
+		  color: Cesium.Color.WHITE.withAlpha(0.85),
+		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+		},
+	  });
+
+	  return [outer, inner, center];
 	};
   
 	// Start user location tracking (single watchPosition handles both initial placement and live updates)
@@ -235,24 +257,28 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 
 		  if (!userLocationInitialized) {
 			userLocationInitialized = true;
-			// Sample terrain/tileset height at GPS coordinates (same approach as pickPosition for pins)
 			const cartographic = Cartographic.fromDegrees(longitude, latitude);
 			const sampledHeight = cesiumViewer!.scene.sampleHeight(cartographic);
 			const height = sampledHeight !== undefined ? sampledHeight : 0;
 			const userPosition = Cartesian3.fromDegrees(longitude, latitude, height);
-			userLocationEntity = createPulsatingPoint('Your Location!', userPosition, Cesium.Color.BLUE);
-			userLocationEntity.show = !silent;
-			cesiumViewer!.entities.add(userLocationEntity);
+			const entities = createDoubleRing('Your Location!', userPosition);
+			entities.forEach(e => {
+			  e.show = !silent;
+			  cesiumViewer!.entities.add(e);
+			});
+			userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
+			userRingEntities = entities;
 			return;
 		  }
 
-		  // All subsequent updates: move the dot
-		  if (userLocationEntity && cesiumViewer) {
-			// Resample terrain/tileset height on each GPS update
+		  if (userRingEntities.length > 0 && cesiumViewer) {
 			const cartographic = Cartographic.fromDegrees(longitude, latitude);
 			const sampledHeight = cesiumViewer.scene.sampleHeight(cartographic);
 			const height = sampledHeight !== undefined ? sampledHeight : 0;
-			(userLocationEntity.position as any) = Cartesian3.fromDegrees(longitude, latitude, height);
+			const newPos = Cartesian3.fromDegrees(longitude, latitude, height);
+			userRingEntities.forEach(e => {
+			  (e.position as any) = newPos;
+			});
 		  }
 		},
 		(error) => {
@@ -268,9 +294,9 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 
 	// Show the user location entity and fly to it
 	const showUserLocation = () => {
-	  if (userLocationEntity && cesiumViewer) {
-		userLocationEntity.show = true;
-		const position = userLocationEntity.position?.getValue(JulianDate.now());
+	  if (userRingEntities.length > 0 && cesiumViewer) {
+		userRingEntities.forEach(e => { e.show = true; });
+		const position = userLocationEntity?.position?.getValue(JulianDate.now());
 		if (position) {
 		  cesiumViewer.camera.flyTo({
 			destination: Cartesian3.fromDegrees(
@@ -899,20 +925,18 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
 				if (pickedObject.id.id === "pickedPoint") {
 					// Ignore clicks on the picked point marker
-				} else if (pickedObject.id.id === "Your Location!") {
-				// Open Gig Economy when user clicks the blue location dot
-				modalService.showGigEconomy();
-				// Fly camera to 2000m above the user's location
-				const position = pickedObject.id.position?.getValue(JulianDate.now());
-				if (position && cesiumViewer) {
-					const cartographic = Cartographic.fromCartesian(position);
-					cesiumViewer.camera.flyTo({
-						destination: Cartesian3.fromDegrees(
-							CesiumMath.toDegrees(cartographic.longitude),
-							CesiumMath.toDegrees(cartographic.latitude),
-							2000
-						),
-					});
+				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner")) {
+				// Show radial menu at the entity's screen position
+				const entityPos = userLocationEntity?.position?.getValue(JulianDate.now());
+				if (entityPos && cesiumViewer) {
+					const screenPos = Cesium.SceneTransforms.worldToWindowCoordinates(
+						cesiumViewer.scene, entityPos
+					);
+					if (screenPos) {
+						radialScreenX = screenPos.x;
+						radialScreenY = screenPos.y;
+						showRadialMenu = true;
+					}
 				}
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('helpout_')) {
 				// Handle helpout marker click
@@ -1438,6 +1462,17 @@ function handleSocialTakenDown(listingId: string) {
   }
 }
 
+/** Handle radial menu category selection → open gig panel to that vertical. */
+function handleRadialSelect(vertical: GigVertical) {
+  showRadialMenu = false;
+  preselectedGigVertical.set(vertical);
+  modalService.showGigEconomy();
+}
+
+function handleRadialClose() {
+  showRadialMenu = false;
+}
+
 /** Ensure we have the user's Nostr public key for ownership checks. */
 async function ensureMyPk() {
   if (!myNostrPk) {
@@ -1590,7 +1625,9 @@ function handleCoordinatePick(result: any) {
 		roamingAreaOutline = null;
 		pointEntity = null;
 		userLocationEntity = null;
+		userRingEntities = [];
 		userLocationInitialized = false;
+		showRadialMenu = false;
 		removeHelpoutMarkers();
 		stopUserLocationTracking();
 		isMonitoringCamera = false;
@@ -1635,7 +1672,17 @@ function handleCoordinatePick(result: any) {
     onClose={() => selectedSocial = null}
     onTakenDown={handleSocialTakenDown}
   />
-{/if}  
+{/if}
+
+<!-- Radial Gig Menu (shown on user location ring tap) -->
+{#if showRadialMenu}
+  <RadialGigMenu
+    screenX={radialScreenX}
+    screenY={radialScreenY}
+    onSelect={handleRadialSelect}
+    onClose={handleRadialClose}
+  />
+{/if}
 
 
 

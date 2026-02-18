@@ -103,7 +103,7 @@ export const SOCIAL_CATEGORIES: ListingCategory[] = [
 export const VERTICALS: Record<GigVertical, VerticalConfig> = {
   rides: {
     id: 'rides',
-    name: 'Rides',
+    name: 'Rideshare',
     color: '#4285F4',
     mode: 'matching',
     needLabel: 'I need a Ride',
@@ -155,7 +155,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
 
   helpouts: {
     id: 'helpouts',
-    name: 'Helpouts',
+    name: 'Helpout',
     color: '#00BCD4',
     mode: 'listing',
   },

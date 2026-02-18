@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
-  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose } from '../store';
+  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical } from '../store';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
@@ -192,6 +192,13 @@
       currentView = 'menu';
     }
     logger.info(`Selected vertical: ${vertical}`, { component: 'GigEconomy', operation: 'selectVertical' });
+  }
+
+  // Auto-navigate when a vertical was preselected via the radial menu
+  $: if ($preselectedGigVertical && sharedNostr && !recovering) {
+    const v = $preselectedGigVertical;
+    preselectedGigVertical.set(null);
+    selectVertical(v);
   }
 
   // ─── View Navigation ───────────────────────────────────────

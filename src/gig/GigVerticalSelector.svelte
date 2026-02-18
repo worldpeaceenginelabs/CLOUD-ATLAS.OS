@@ -7,7 +7,7 @@
 </script>
 
 <div class="vertical-selector" transition:slide={{ duration: 300 }}>
-  <h3 class="title">Gig Economy</h3>
+  <h3 class="title">Me</h3>
   <p class="subtitle">Choose a category</p>
 
   <div class="grid">
