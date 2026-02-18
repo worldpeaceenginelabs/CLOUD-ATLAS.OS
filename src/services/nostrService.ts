@@ -89,6 +89,7 @@ export class NostrService {
   /** Register a callback for relay connection count changes. */
   onRelayCountChange(cb: (connected: number, total: number) => void): void {
     this.relayCountCallback = cb;
+    this.emitRelayCount();
   }
 
   /** Start connecting to all relays in the background (non-blocking). */
