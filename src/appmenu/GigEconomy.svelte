@@ -7,7 +7,7 @@
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
   import { getSharedNostr } from '../services/nostrPool';
-  import type { NostrService } from '../services/nostrService';
+  import { REPLACEABLE_KIND, type NostrService, type NostrEvent } from '../services/nostrService';
   import { VERTICALS, type VerticalConfig } from '../gig/verticals';
   import GigVerticalSelector from '../gig/GigVerticalSelector.svelte';
   import GigNeedForm from '../gig/GigNeedForm.svelte';
@@ -21,12 +21,16 @@
   // ─── Shared Nostr (loaded once on mount) ─────────────────
   let sharedNostr: NostrService | null = null;
   let nostrError = false;
+  let recovering = true;
 
   (async () => {
     try {
       sharedNostr = await getSharedNostr();
+      await attemptRecovery();
     } catch {
       nostrError = true;
+    } finally {
+      recovering = false;
     }
   })();
 
@@ -99,6 +103,84 @@
       onOwnRequestExpired: handleOwnRequestExpired,
       onOwnOfferExpired: handleOwnOfferExpired,
     });
+  }
+
+  // ─── Session Recovery (relay is source of truth) ────────────
+  function attemptRecovery(): Promise<void> {
+    if (!sharedNostr) return Promise.resolve();
+
+    return new Promise<void>((resolve) => {
+      const events: NostrEvent[] = [];
+      const subId = `recovery-${Date.now()}`;
+      const timeout = setTimeout(() => { cleanup(); resolve(); }, 5000);
+
+      function cleanup() {
+        clearTimeout(timeout);
+        sharedNostr!.unsubscribe(subId);
+      }
+
+      sharedNostr!.subscribe(subId, {
+        kinds: [REPLACEABLE_KIND],
+        authors: [sharedNostr!.pubkey],
+        since: Math.floor(Date.now() / 1000) - 120,
+      }, (event: NostrEvent) => {
+        events.push(event);
+      }, () => {
+        cleanup();
+        bootstrapFromEvents(events);
+        resolve();
+      });
+    });
+  }
+
+  function bootstrapFromEvents(events: NostrEvent[]): void {
+    for (const event of events) {
+      const tTag = event.tags?.find((t: string[]) => t[0] === 't')?.[1];
+      const gTag = event.tags?.find((t: string[]) => t[0] === 'g')?.[1];
+      if (!tTag || !gTag) continue;
+
+      const isNeed = tTag.startsWith('need-');
+      const isOffer = tTag.startsWith('offer-');
+      if (!isNeed && !isOffer) continue;
+
+      const verticalId = tTag.replace(/^(need|offer)-/, '') as GigVertical;
+      const verticalConfig = VERTICALS[verticalId];
+      if (!verticalConfig || verticalConfig.mode !== 'matching') continue;
+
+      config = verticalConfig;
+
+      try {
+        if (isNeed) {
+          const request: GigRequest = JSON.parse(event.content);
+          request.pubkey = event.pubkey;
+
+          if (request.status === 'taken') {
+            userGigRole.set('requester');
+            myRequest = request;
+            confirmedProviderPubkey = request.matchedProviderPubkey;
+            currentView = 'matched';
+          } else if (request.status === 'open') {
+            currentGeohash.set(gTag);
+            service = createService();
+            service.startAsRequester(gTag, request);
+            myRequest = request;
+            userGigRole.set('requester');
+            currentView = 'pending';
+          }
+        } else {
+          const data = JSON.parse(event.content);
+          currentGeohash.set(gTag);
+          service = createService();
+          service.startAsProvider(gTag, data.location, data.details || {});
+          userGigRole.set('provider');
+          currentView = 'pending';
+        }
+        logger.info(`Recovered ${isNeed ? 'requester' : 'provider'} session [${verticalId}]`, { component: 'GigEconomy', operation: 'bootstrapFromEvents' });
+        return;
+      } catch {
+        logger.warn('Failed to parse recovery event', { component: 'GigEconomy', operation: 'bootstrapFromEvents' });
+      }
+    }
   }
 
   // ─── Vertical Selection ─────────────────────────────────────
@@ -368,7 +450,7 @@
     service!.startAsRequester(ctx.geohash, request);
     myRequest = request;
     confirmedProviderPubkey = null;
-    userGigRole.set('rider');
+    userGigRole.set('requester');
     addRequestToMap(request);
     currentView = 'pending';
     logger.info('Request submitted', { component: 'GigEconomy', operation: 'submitRequest' });
@@ -381,7 +463,7 @@
     if (!ctx) return;
 
     service!.startAsProvider(ctx.geohash, ctx.location, details);
-    userGigRole.set('driver');
+    userGigRole.set('provider');
     currentView = 'pending';
     logger.info('Offer submitted', { component: 'GigEconomy', operation: 'submitOffer' });
   }
@@ -499,11 +581,11 @@
       <p class="storage-error-text">Storage unavailable — gig features require browser storage to be enabled.</p>
     </div>
 
-  <!-- ═══════════════ LOADING / CONNECTING ═════════════ -->
-  {:else if !sharedNostr}
+  <!-- ═══════════════ LOADING / CONNECTING / RECOVERING ═ -->
+  {:else if !sharedNostr || recovering}
     <div class="loading-keys" transition:slide={{ duration: 300 }}>
       <div class="pulse-dot" style="background: rgba(255,255,255,0.5)"></div>
-      <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Loading...</span>
+      <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">{recovering ? 'Reconnecting...' : 'Loading...'}</span>
     </div>
 
   <!-- ═══════════════ VERTICAL SELECTOR ═══════════════ -->

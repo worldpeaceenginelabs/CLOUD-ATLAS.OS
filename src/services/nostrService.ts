@@ -10,7 +10,7 @@
  *
  * Event Kinds used:
  *   30078 – NIP-33 parametrized replaceable events
- *   20004 – Ephemeral encrypted DMs (not persisted by relays)
+ *   14    – NIP-44 encrypted DMs (stored by relays, with optional NIP-40 expiration)
  */
 
 import {
@@ -30,7 +30,7 @@ export type { NostrEvent };
 // ─── Constants ───────────────────────────────────────────────
 
 export const REPLACEABLE_KIND = 30078;
-const DM_KIND = 20004;
+const DM_KIND = 14;
 
 /** Public Nostr relays – updated 2026-02-12. */
 const DEFAULT_RELAYS = [
@@ -317,15 +317,20 @@ export class NostrService {
   }
 
   /** Send a NIP-44 encrypted DM to a specific pubkey. */
-  sendDM(toPubkey: string, payload: unknown): void {
+  sendDM(toPubkey: string, payload: unknown, expirationSecs?: number): void {
     const plaintext = JSON.stringify(payload);
     const key = this.getConversationKey(toPubkey);
     const ciphertext = nip44.encrypt(plaintext, key);
 
+    const tags: string[][] = [['p', toPubkey]];
+    if (expirationSecs !== undefined) {
+      tags.push(['expiration', String(Math.floor(Date.now() / 1000) + expirationSecs)]);
+    }
+
     const template: EventTemplate = {
       kind: DM_KIND,
       created_at: Math.floor(Date.now() / 1000),
-      tags: [['p', toPubkey]],
+      tags,
       content: ciphertext,
     };
 

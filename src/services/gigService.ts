@@ -10,7 +10,7 @@
  *   2. Requester self-subscribes; heartbeat fires 20 s before expiration
  *   3. Providers subscribe to requests in their geohash cell
  *   4. Provider publishes availability event (NIP-40 TTL 60 s, same heartbeat)
- *   5. Provider sends encrypted 'accept' DM to requester
+ *   5. Provider sends stored encrypted 'accept' DM to requester (NIP-40 TTL 60 s)
  *   6. Requester picks winner, updates event (status: 'taken', matchedProviderPubkey)
  *   7. All providers see the update — winner matches, losers move on
  *   8. If either side crashes, heartbeats stop and the event expires on relays
@@ -23,7 +23,7 @@
  *
  * Messages:
  *   Public events:  request (open → taken/cancelled), provider availability
- *   Encrypted DMs:  accept (provider → requester) — the only DM in the protocol
+ *   Encrypted DMs:  accept (provider → requester, NIP-40 TTL 60 s) — the only DM in the protocol
  *
  * Vertical separation:
  *   Each vertical uses distinct Nostr '#t' tags (e.g. 'need-rides', 'offer-rides')
@@ -242,7 +242,7 @@ export class GigService {
         requestId,
         providerPubkey: this.pubkey,
       };
-      this.nostr.sendDM(requesterPubkey, dm);
+      this.nostr.sendDM(requesterPubkey, dm, REQUEST_TTL_SECS);
       return true;
     } catch (e) {
       logger.error(`Failed to send accept DM: ${e}`, { component: 'GigService', operation: 'acceptRequest' });

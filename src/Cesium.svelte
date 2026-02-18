@@ -49,6 +49,7 @@ import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
 import SocialDetail from './gig/SocialDetail.svelte';
 import { getSharedNostr } from './services/nostrPool';
+import { REPLACEABLE_KIND } from './services/nostrService';
 import type { Listing } from './types';
   
 // Global variables and states
@@ -1202,6 +1203,21 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		});
 	  
   
+	  // Check for active gig session on relay — auto-open panel if found
+	  getSharedNostr().then(nostr => {
+	    const subId = `gig-recovery-${Date.now()}`;
+	    let found = false;
+	    nostr.subscribe(subId, {
+	      kinds: [REPLACEABLE_KIND],
+	      authors: [nostr.pubkey],
+	      since: Math.floor(Date.now() / 1000) - 120,
+	    }, () => {
+	      if (!found) { found = true; modalService.showGigEconomy(); }
+	    }, () => {
+	      nostr.unsubscribe(subId);
+	    });
+	  }).catch(() => {});
+
 	  // Set up clustering for the custom data source
 	  if (customDataSource) {
 		  customDataSource.clustering.enabled = true;
