@@ -18,46 +18,6 @@
   import GigSocial from '../gig/GigSocial.svelte';
   import * as Cesium from 'cesium';
 
-  // ─── Session Persistence ─────────────────────────────────
-  const GIG_SESSION_KEY = 'gigSession';
-  const SESSION_MAX_AGE_MS = 60_000;
-
-  interface GigSession {
-    role: 'requester' | 'provider';
-    vertical: GigVertical;
-    view: 'pending' | 'matched';
-    geohash: string;
-    request?: GigRequest;
-    providerLocation?: { latitude: number; longitude: number };
-    providerDetails?: Record<string, string>;
-    matchedPubkey?: string;
-    timestamp: number;
-  }
-
-  function saveGigSession(session: GigSession) {
-    try { localStorage.setItem(GIG_SESSION_KEY, JSON.stringify(session)); } catch { /* storage unavailable */ }
-  }
-
-  export function clearGigSession() {
-    try { localStorage.removeItem(GIG_SESSION_KEY); } catch { /* storage unavailable */ }
-  }
-
-  function loadGigSession(): GigSession | null {
-    try {
-      const raw = localStorage.getItem(GIG_SESSION_KEY);
-      if (!raw) return null;
-      const session: GigSession = JSON.parse(raw);
-      if (Date.now() - session.timestamp > SESSION_MAX_AGE_MS) {
-        clearGigSession();
-        return null;
-      }
-      return session;
-    } catch {
-      clearGigSession();
-      return null;
-    }
-  }
-
   // ─── Shared Nostr (loaded once on mount) ─────────────────
   let sharedNostr: NostrService | null = null;
   let nostrError = false;
@@ -65,7 +25,6 @@
   (async () => {
     try {
       sharedNostr = await getSharedNostr();
-      attemptSessionRecovery();
     } catch {
       nostrError = true;
     }
@@ -142,47 +101,6 @@
     });
   }
 
-  // ─── Session Recovery ───────────────────────────────────────
-  function attemptSessionRecovery() {
-    const session = loadGigSession();
-    if (!session || !sharedNostr) return;
-
-    const verticalConfig = VERTICALS[session.vertical];
-    if (!verticalConfig || verticalConfig.mode !== 'matching') {
-      clearGigSession();
-      return;
-    }
-
-    config = verticalConfig;
-
-    if (session.view === 'matched') {
-      userGigRole.set(session.role);
-      if (session.matchedPubkey) confirmedProviderPubkey = session.matchedPubkey;
-      if (session.request) myRequest = session.request;
-      currentView = 'matched';
-      logger.info('Recovered matched session', { component: 'GigEconomy', operation: 'attemptSessionRecovery' });
-      return;
-    }
-
-    currentGeohash.set(session.geohash);
-    service = createService();
-
-    if (session.role === 'requester' && session.request) {
-      service.startAsRequester(session.geohash, session.request);
-      myRequest = session.request;
-      userGigRole.set('requester');
-      currentView = 'pending';
-      logger.info('Recovered requester session', { component: 'GigEconomy', operation: 'attemptSessionRecovery' });
-    } else if (session.role === 'provider' && session.providerLocation) {
-      service.startAsProvider(session.geohash, session.providerLocation, session.providerDetails ?? {});
-      userGigRole.set('provider');
-      currentView = 'pending';
-      logger.info('Recovered provider session', { component: 'GigEconomy', operation: 'attemptSessionRecovery' });
-    } else {
-      clearGigSession();
-    }
-  }
-
   // ─── Vertical Selection ─────────────────────────────────────
   function selectVertical(vertical: GigVertical) {
     config = VERTICALS[vertical];
@@ -219,7 +137,6 @@
   // ─── Service Callbacks ──────────────────────────────────────
 
   function handleOwnRequestExpired() {
-    clearGigSession();
     removeGigEntitiesFromMap(myRequest?.id ?? '');
     myRequest = null;
     confirmedProviderPubkey = null;
@@ -240,7 +157,6 @@
   }
 
   function handleOwnOfferExpired() {
-    clearGigSession();
     resetProviderState();
     currentView = 'offer';
     showError('Your offer expired. Please start again.');
@@ -260,7 +176,6 @@
     if (matchedPubkey && matchedPubkey === service?.pubkey) {
       awaitingConfirmation = false;
       currentView = 'matched';
-      saveGigSession({ role: 'provider', vertical: matchingConfig!.id, view: 'matched', geohash: $currentGeohash, matchedPubkey, timestamp: Date.now() });
       logger.info('We won the match!', { component: 'GigEconomy', operation: 'handleRequestGone' });
       return;
     }
@@ -289,7 +204,6 @@
       service.confirmMatch(myRequest, providerPubkey);
       myRequest = { ...myRequest, status: 'taken', matchedProviderPubkey: providerPubkey };
       currentView = 'matched';
-      saveGigSession({ role: 'requester', vertical: matchingConfig!.id, view: 'matched', geohash: $currentGeohash, request: myRequest, matchedPubkey: providerPubkey, timestamp: Date.now() });
       logger.info(`Confirmed provider ${providerPubkey.slice(0, 8)}`, { component: 'GigEconomy', operation: 'handleProviderAccepted' });
     }
   }
@@ -454,10 +368,9 @@
     service!.startAsRequester(ctx.geohash, request);
     myRequest = request;
     confirmedProviderPubkey = null;
-    userGigRole.set('requester');
+    userGigRole.set('rider');
     addRequestToMap(request);
     currentView = 'pending';
-    saveGigSession({ role: 'requester', vertical: matchingConfig!.id, view: 'pending', geohash: ctx.geohash, request, timestamp: Date.now() });
     logger.info('Request submitted', { component: 'GigEconomy', operation: 'submitRequest' });
   }
 
@@ -468,9 +381,8 @@
     if (!ctx) return;
 
     service!.startAsProvider(ctx.geohash, ctx.location, details);
-    userGigRole.set('provider');
+    userGigRole.set('driver');
     currentView = 'pending';
-    saveGigSession({ role: 'provider', vertical: matchingConfig!.id, view: 'pending', geohash: ctx.geohash, providerLocation: ctx.location, providerDetails: details, timestamp: Date.now() });
     logger.info('Offer submitted', { component: 'GigEconomy', operation: 'submitOffer' });
   }
 
@@ -503,7 +415,6 @@
   function cancelRequest() {
     if (!myRequest || !service) return;
 
-    clearGigSession();
     service.cancelRequest(myRequest);
     removeGigEntitiesFromMap(myRequest.id);
     myRequest = null;
@@ -516,14 +427,12 @@
   }
 
   function cancelOffer() {
-    clearGigSession();
     resetProviderState();
     currentView = 'menu';
     logger.info('Offer cancelled', { component: 'GigEconomy', operation: 'cancelOffer' });
   }
 
   function finishAndReset() {
-    clearGigSession();
     myRequest = null;
     confirmedProviderPubkey = null;
     resetProviderState();

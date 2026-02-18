@@ -6,7 +6,7 @@
   import RelayStatus from '../components/RelayStatus.svelte';
 
   export let config: MatchingVerticalConfig;
-  export let role: 'requester' | 'provider' | null;
+  export let role: 'rider' | 'driver' | null;
   export let relayCount: number;
   export let relayTotal: number;
   export let nearbyCount: number;
@@ -22,7 +22,7 @@
 <div class="pending" transition:slide={{ duration: 300 }}>
 
   <!-- ── Requester pending ── -->
-  {#if hasOwnRequest && role === 'requester'}
+  {#if hasOwnRequest && role === 'rider'}
     <h3 class="title">Waiting for {config.providerNoun}</h3>
     <RelayStatus connected={relayCount} total={relayTotal} />
     <div class="status-indicator">
@@ -46,7 +46,7 @@
     </div>
 
   <!-- ── Provider pending ── -->
-  {:else if role === 'provider'}
+  {:else if role === 'driver'}
     <h3 class="title">Offering {config.name}</h3>
     <RelayStatus connected={relayCount} total={relayTotal} />
     <div class="status-indicator">

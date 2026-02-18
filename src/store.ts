@@ -3,19 +3,8 @@ import type { Coordinates, ModelData, PinData } from './types';
 
 export type { Coordinates, ModelData, PinData };
 
-function hasActiveGigSession(): boolean {
-  try {
-    const raw = localStorage.getItem('gigSession');
-    if (!raw) return false;
-    const session = JSON.parse(raw);
-    return Date.now() - session.timestamp < 60_000;
-  } catch {
-    return false;
-  }
-}
-
 // UI State Stores
-export const showPicture = writable(!hasActiveGigSession());
+export const showPicture = writable(true);
 export const gridReady = writable(false);
 export const isVisible = writable(false);
 export const isEditorOpen = writable(false);
@@ -102,7 +91,7 @@ export const temporaryModelId: Writable<string | null> = writable(null);
 export const userLiveLocation: Writable<{ latitude: number; longitude: number } | null> = writable(null);
 
 // Gig Economy Stores
-export const userGigRole: Writable<'requester' | 'provider' | null> = writable(null);
+export const userGigRole: Writable<'rider' | 'driver' | null> = writable(null);
 export const isGigPickingDestination: Writable<boolean> = writable(false);
 export const currentGeohash: Writable<string> = writable('');
 /** Whether the gig economy panel can be closed via the X button */
