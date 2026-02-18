@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { fly, fade } from 'svelte/transition';
+  import CloseButton from './CloseButton.svelte';
   import { activeMapLayers, userLiveLocation, helpoutLayerRefresh, socialLayerRefresh } from '../store';
   import { encode as geohashEncode } from '../utils/geohash';
   import { ListingLayerService } from '../services/listingLayerService';
@@ -28,6 +30,10 @@
 
   function toggle() {
     isOpen = !isOpen;
+  }
+
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && isOpen) toggle();
   }
 
   // ─── Shared helpers ───────────────────────────────────────
@@ -157,66 +163,84 @@
   $: socialOn = $activeMapLayers.has('social');
 </script>
 
-<!-- Wrench toggle button (bottom-right) -->
-<div class="map-layers-container">
-  <button class="layers-toggle" on:click={toggle} title="Map Layers">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-    </svg>
-  </button>
+<svelte:window on:keydown={onKeydown} />
 
-  {#if isOpen}
-    <div class="layers-menu">
-      <div class="menu-title">Map Layers</div>
+<!-- Toggle button (bottom-right, always visible) -->
+<button class="layers-toggle" on:click={toggle} title="Map Layers">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>
+</button>
 
+<!-- Bottom sheet overlay -->
+{#if isOpen}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <div class="sheet-backdrop" on:click={toggle} transition:fade={{ duration: 200 }}></div>
+
+  <div class="sheet" transition:fly={{ y: 600, duration: 300 }}>
+    <!-- Drag handle -->
+    <div class="sheet-handle-bar"><div class="sheet-handle"></div></div>
+
+    <div class="sheet-header">
+      <span class="sheet-title">Map Layers</span>
+      <CloseButton onClose={toggle} position="relative" top="0" right="0" />
+    </div>
+
+    <div class="sheet-body">
       <button
-        class="layer-row"
+        class="layer-card"
         class:active={helpoutsOn}
         on:click={toggleHelpouts}
       >
-        <span class="layer-dot" style="background: #00BCD4"></span>
-        <span class="layer-name">Helpouts</span>
-        {#if helpoutLoading}
-          <span class="layer-spinner"></span>
-        {:else}
-          <span class="layer-check">{helpoutsOn ? '✓' : ''}</span>
+        <div class="layer-icon" style="background: #00BCD4">
+          {#if helpoutLoading}
+            <span class="layer-spinner"></span>
+          {:else}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          {/if}
+        </div>
+        <span class="layer-label">Helpouts</span>
+        {#if helpoutsOn}
+          <span class="layer-badge">ON</span>
         {/if}
       </button>
 
       <button
-        class="layer-row"
+        class="layer-card"
         class:active={socialOn}
         on:click={toggleSocial}
       >
-        <span class="layer-dot" style="background: #FF4081"></span>
-        <span class="layer-name">Spontaneous Contacts</span>
-        {#if socialLoading}
-          <span class="layer-spinner"></span>
-        {:else}
-          <span class="layer-check">{socialOn ? '✓' : ''}</span>
+        <div class="layer-icon" style="background: #FF4081">
+          {#if socialLoading}
+            <span class="layer-spinner"></span>
+          {:else}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          {/if}
+        </div>
+        <span class="layer-label">Spontaneous Contacts</span>
+        {#if socialOn}
+          <span class="layer-badge">ON</span>
         {/if}
       </button>
-
-      {#if layerError}
-        <div class="layer-error">{layerError}</div>
-      {/if}
     </div>
-  {/if}
-</div>
+
+    {#if layerError}
+      <div class="layer-error">{layerError}</div>
+    {/if}
+  </div>
+{/if}
 
 <style>
-  .map-layers-container {
+  /* ─── Toggle button (bottom-right of map) ─── */
+  .layers-toggle {
     position: absolute;
     bottom: 20px;
     right: 10px;
     z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-  }
-
-  .layers-toggle {
     width: 40px;
     height: 40px;
     border-radius: 8px;
@@ -237,75 +261,129 @@
     border-color: rgba(255, 255, 255, 0.35);
   }
 
-  .layers-menu {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-    backdrop-filter: blur(12px);
-    padding: 8px;
-    min-width: 160px;
+  /* ─── Backdrop ─── */
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1999;
   }
 
-  .menu-title {
-    font-size: 0.7rem;
+  /* ─── Bottom sheet ─── */
+  .sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 75vh;
+    z-index: 2000;
+    background: rgba(18, 18, 22, 0.97);
+    backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px 20px 0 0;
+    padding: 0 20px 32px;
+    overflow-y: auto;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .sheet-handle-bar {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0 4px;
+  }
+
+  .sheet-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0 16px;
+  }
+
+  .sheet-title {
+    font-size: 1.1rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 4px 8px 6px;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 0.2px;
   }
 
-  .layer-row {
+  /* ─── Layer cards grid ─── */
+  .sheet-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .layer-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 12px 18px;
+    border-radius: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  .layer-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .layer-card.active {
+    border-color: rgba(79, 195, 247, 0.5);
+    background: rgba(79, 195, 247, 0.08);
+    color: white;
+  }
+
+  .layer-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 8px;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.82rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: left;
-  }
-
-  .layer-row:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: white;
-  }
-
-  .layer-row.active {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: white;
-  }
-
-  .layer-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+    justify-content: center;
     flex-shrink: 0;
   }
 
-  .layer-name {
-    flex: 1;
+  .layer-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
   }
 
-  .layer-check {
-    font-size: 0.85rem;
+  .layer-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(74, 222, 128, 0.2);
     color: rgba(74, 222, 128, 1);
-    width: 16px;
-    text-align: center;
   }
 
   .layer-spinner {
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    border-top-color: rgba(255, 255, 255, 0.8);
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid rgba(255, 255, 255, 0.25);
+    border-top-color: white;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
@@ -315,8 +393,9 @@
   }
 
   .layer-error {
-    padding: 4px 8px;
-    font-size: 0.7rem;
+    padding: 12px 4px 0;
+    font-size: 0.78rem;
     color: rgba(252, 165, 165, 0.9);
+    text-align: center;
   }
 </style>
