@@ -1,7 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
   import { writable } from 'svelte/store';
-    import LiveEdit from './LiveEdit.svelte';
     import ScrollbarStyles from './ScrollbarStyles.svelte';
 
   export let isVisible = writable(true);
@@ -156,13 +155,6 @@
 
 
 </div>
-{:else}
-<div class="toggle-bar-hidden" on:click={toggleInfobox}>
-    <h5>About</h5>
-    <div class="liveeditcontainer" on:click|stopPropagation>
-      <LiveEdit/>
-    </div>
-  </div>
 {/if}
 
 <style>
@@ -185,17 +177,6 @@
     color: #abd6ff;
   }
 
-  h5 {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-  'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: white;
-  font-weight: normal;
-  margin: 0; /* Added to remove default margin */
-  padding: 0; /* Added to remove default padding */
-  display: inline-block; /* Added */
-}
 
   h4 {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -222,40 +203,6 @@
     text-align: center;
   }
 
-  .toggle-bar-hidden {
-  height: 15px;
-  background: #ccc;
-  color: black;
-  cursor: pointer;
-  z-index: 20;
-  position: fixed;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 95%;
-  max-width: 800px;
-  backdrop-filter: blur(10px);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  padding: 5px;
-  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-  background-size: 400% 400%;
-  animation: gradientBG 15s ease infinite;
-  display: flex; /* Added */
-  align-items: center; /* Added */
-  justify-content: center; /* Added */
-}
-
-  .toggle-bar-hidden:hover {
-    background: #abd6ff;
-  }
-
-  .liveeditcontainer {
-    position: absolute;
-    right: 0.3em;
-    z-index: 1;
-  }
 
 
   .main_div {

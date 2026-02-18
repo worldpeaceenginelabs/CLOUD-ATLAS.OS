@@ -3,7 +3,7 @@
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
   
-  import { coordinates, lastTriggeredModal } from '../store';
+  import { coordinates, lastTriggeredModal, isVisible } from '../store';
   import { modalService } from '../utils/modalService';
 
   // Props
@@ -187,6 +187,21 @@
         modalService.showCrowdfunding();
         // Don't close submenu - let user decide when to close it
         break;
+    }
+  }
+
+  function toggleAbout() {
+    isVisible.update(v => !v);
+  }
+
+  function openLiveEdit() {
+    const newWindow = window.open(
+      'https://stackblitz.com/github/worldpeaceenginelabs/CLOUD-ATLAS-OS/tree/main?file=src/DAPPS/HomeScreen.svelte:L294',
+      '_blank',
+      `width=${window.screen.width},height=${window.screen.height}`
+    );
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      alert('The popup was blocked. Please disable your popup blocker for this site to continue.');
     }
   }
 
@@ -463,6 +478,38 @@
           </div>
         </div>
       {/if}
+
+      <!-- Separator + Utility Items -->
+      <div class="utility-menu">
+        <div 
+          class="dropdown-item"
+          role="button"
+          tabindex="0"
+          on:click={toggleAbout}
+          on:keydown={(e) => e.key === 'Enter' && toggleAbout()}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span class="item-text">About</span>
+        </div>
+
+        <div 
+          class="dropdown-item"
+          role="button"
+          tabindex="0"
+          on:click={openLiveEdit}
+          on:keydown={(e) => e.key === 'Enter' && openLiveEdit()}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="item-text">Live Edit</span>
+        </div>
+      </div>
     </div>
   {/if}
 
@@ -664,6 +711,16 @@
   }
 
   .action-dropdown {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    min-width: 250px;
+  }
+
+  .utility-menu {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
