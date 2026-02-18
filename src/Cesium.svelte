@@ -926,17 +926,27 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				if (pickedObject.id.id === "pickedPoint") {
 					// Ignore clicks on the picked point marker
 				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner")) {
-				// Show radial menu at the entity's screen position
 				const entityPos = userLocationEntity?.position?.getValue(JulianDate.now());
 				if (entityPos && cesiumViewer) {
-					const screenPos = Cesium.SceneTransforms.worldToWindowCoordinates(
-						cesiumViewer.scene, entityPos
-					);
-					if (screenPos) {
-						radialScreenX = screenPos.x;
-						radialScreenY = screenPos.y;
-						showRadialMenu = true;
-					}
+					const cartographic = Cartographic.fromCartesian(entityPos);
+					cesiumViewer.camera.flyTo({
+						destination: Cartesian3.fromDegrees(
+							CesiumMath.toDegrees(cartographic.longitude),
+							CesiumMath.toDegrees(cartographic.latitude),
+							2000
+						),
+						complete: () => {
+							if (!cesiumViewer || !entityPos) return;
+							const screenPos = Cesium.SceneTransforms.worldToWindowCoordinates(
+								cesiumViewer.scene, entityPos
+							);
+							if (screenPos) {
+								radialScreenX = screenPos.x;
+								radialScreenY = screenPos.y;
+								showRadialMenu = true;
+							}
+						},
+					});
 				}
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('helpout_')) {
 				// Handle helpout marker click
@@ -1465,8 +1475,11 @@ function handleSocialTakenDown(listingId: string) {
 /** Handle radial menu category selection → open gig panel to that vertical. */
 function handleRadialSelect(vertical: GigVertical) {
   showRadialMenu = false;
+  modalService.hideGigEconomy();
   preselectedGigVertical.set(vertical);
-  modalService.showGigEconomy();
+  requestAnimationFrame(() => {
+    modalService.showGigEconomy();
+  });
 }
 
 function handleRadialClose() {

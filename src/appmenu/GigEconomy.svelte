@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { fade, slide } from 'svelte/transition';
   import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical } from '../store';
+  import { modalService } from '../utils/modalService';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
@@ -31,6 +33,11 @@
       nostrError = true;
     } finally {
       recovering = false;
+      const preselected = get(preselectedGigVertical);
+      if (preselected) {
+        preselectedGigVertical.set(null);
+        selectVertical(preselected);
+      }
     }
   })();
 
@@ -194,21 +201,17 @@
     logger.info(`Selected vertical: ${vertical}`, { component: 'GigEconomy', operation: 'selectVertical' });
   }
 
-  // Auto-navigate when a vertical was preselected via the radial menu
-  $: if ($preselectedGigVertical && sharedNostr && !recovering) {
-    const v = $preselectedGigVertical;
-    preselectedGigVertical.set(null);
-    selectVertical(v);
-  }
-
   // ─── View Navigation ───────────────────────────────────────
   function handleNeed() { currentView = 'need'; }
   function handleOffer() { currentView = 'offer'; }
 
+  function closePanel() {
+    modalService.hideGigEconomy();
+  }
+
   function goBack() {
     if (currentView === 'menu' || currentView === 'helpouts') {
-      currentView = 'verticals';
-      config = null;
+      closePanel();
     } else if (currentView === 'need' || currentView === 'offer') {
       currentView = 'menu';
       isPickingDestination = false;
@@ -216,11 +219,6 @@
       destinationLat = '';
       destinationLon = '';
     }
-  }
-
-  function goBackToVerticals() {
-    currentView = 'verticals';
-    config = null;
   }
 
   // ─── Service Callbacks ──────────────────────────────────────
@@ -525,10 +523,10 @@
     myRequest = null;
     confirmedProviderPubkey = null;
     resetProviderState();
-    currentView = 'verticals';
     config = null;
     destinationLat = '';
     destinationLon = '';
+    closePanel();
   }
 
   // ─── Service Cleanup ────────────────────────────────────────
@@ -601,11 +599,11 @@
 
   <!-- ═══════════════ HELPOUTS (LISTING MODE) ═════════ -->
   {:else if currentView === 'helpouts' && config}
-    <GigHelpouts {config} nostr={sharedNostr} onBack={goBackToVerticals} />
+    <GigHelpouts {config} nostr={sharedNostr} onBack={closePanel} />
 
   <!-- ═══════════════ SOCIAL (LISTING MODE) ═══════════ -->
   {:else if currentView === 'social' && config}
-    <GigSocial {config} nostr={sharedNostr} onBack={goBackToVerticals} />
+    <GigSocial {config} nostr={sharedNostr} onBack={closePanel} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && matchingConfig}
