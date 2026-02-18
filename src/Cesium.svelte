@@ -1647,6 +1647,7 @@ function handleCoordinatePick(result: any) {
 	main {
 	  width: 100%;
 	  height: 100vh;
+	  height: 100dvh;
 	  margin: 0;
 	  padding: 0;
 	}
@@ -1655,7 +1656,7 @@ function handleCoordinatePick(result: any) {
 	/* Height display (bottom left) */
 	.height-display {
 	  position: absolute;
-	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+	  bottom: 20px;
 	  left: 10px;
 	  z-index: 1000;
 	  background: rgba(0, 0, 0, 0.7);

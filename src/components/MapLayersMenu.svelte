@@ -238,7 +238,7 @@
   /* ─── Toggle button (bottom-right of map) ─── */
   .layers-toggle {
     position: absolute;
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    bottom: 20px;
     right: 10px;
     z-index: 1000;
     width: 40px;
