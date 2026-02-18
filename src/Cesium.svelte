@@ -46,7 +46,7 @@ import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
 import SocialDetail from './gig/SocialDetail.svelte';
 import RadialGigMenu from './components/RadialGigMenu.svelte';
-import { preselectedGigVertical } from './store';
+import { preselectedGigVertical, showRadialGigMenu } from './store';
 import { getSharedNostr } from './services/nostrPool';
 import { REPLACEABLE_KIND } from './services/nostrService';
 import type { Listing, GigVertical } from './types';
@@ -502,6 +502,20 @@ $: if (cesiumViewer && modelDataSource) {
 	if (modelsChanged) {
 		loadModelsFromStore();
 		previousModels = [...$models]; // Update previous models
+	}
+}
+
+// Reopen radial menu when signalled by back buttons in the gig panel
+$: if ($showRadialGigMenu) {
+	showRadialGigMenu.set(false);
+	const pos = userLocationEntity?.position?.getValue(JulianDate.now());
+	if (pos && cesiumViewer) {
+		const sp = Cesium.SceneTransforms.worldToWindowCoordinates(cesiumViewer.scene, pos);
+		if (sp) {
+			radialScreenX = sp.x;
+			radialScreenY = sp.y;
+			showRadialMenu = true;
+		}
 	}
 }
 

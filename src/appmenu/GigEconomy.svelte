@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { fade, slide } from 'svelte/transition';
-  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical } from '../store';
+  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical, showRadialGigMenu } from '../store';
   import { modalService } from '../utils/modalService';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
@@ -209,9 +209,14 @@
     modalService.hideGigEconomy();
   }
 
+  function goBackToRadial() {
+    closePanel();
+    showRadialGigMenu.set(true);
+  }
+
   function goBack() {
     if (currentView === 'menu' || currentView === 'helpouts') {
-      closePanel();
+      goBackToRadial();
     } else if (currentView === 'need' || currentView === 'offer') {
       currentView = 'menu';
       isPickingDestination = false;
@@ -599,11 +604,11 @@
 
   <!-- ═══════════════ HELPOUTS (LISTING MODE) ═════════ -->
   {:else if currentView === 'helpouts' && config}
-    <GigHelpouts {config} nostr={sharedNostr} onBack={closePanel} />
+    <GigHelpouts {config} nostr={sharedNostr} onBack={goBackToRadial} />
 
   <!-- ═══════════════ SOCIAL (LISTING MODE) ═══════════ -->
   {:else if currentView === 'social' && config}
-    <GigSocial {config} nostr={sharedNostr} onBack={closePanel} />
+    <GigSocial {config} nostr={sharedNostr} onBack={goBackToRadial} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && matchingConfig}

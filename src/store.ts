@@ -98,6 +98,8 @@ export const currentGeohash: Writable<string> = writable('');
 export const gigCanClose: Writable<boolean> = writable(true);
 /** Pre-selected vertical from the radial menu (auto-navigated on panel open) */
 export const preselectedGigVertical: Writable<GigVertical | null> = writable(null);
+/** Signal Cesium to reopen the radial gig menu (set by back buttons) */
+export const showRadialGigMenu: Writable<boolean> = writable(false);
 
 // Map Layer Stores
 /** Set of currently active map layer IDs (e.g. 'helpouts') */
@@ -162,6 +164,7 @@ export function resetAllStores() {
   currentGeohash.set('');
   gigCanClose.set(true);
   preselectedGigVertical.set(null);
+  showRadialGigMenu.set(false);
   
   // Map Layers
   activeMapLayers.set(new Set());
