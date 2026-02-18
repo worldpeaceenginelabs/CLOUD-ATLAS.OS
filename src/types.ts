@@ -58,7 +58,6 @@ export interface PinData {
 export type GigVertical = 'rides' | 'delivery' | 'helpouts' | 'social';
 
 // Listing types (shared by Helpouts and Social)
-export type ListingType = 'helpouts' | 'social';
 export type ListingMode = 'in-person' | 'online' | 'both';
 
 export interface ListingCategory {
@@ -70,7 +69,6 @@ export interface ListingCategory {
 export interface Listing {
   id: string;
   pubkey: string;
-  type: ListingType;
   mode: ListingMode;
   category: string;
   description: string;
@@ -88,7 +86,6 @@ export interface Listing {
 export interface GigRequest {
   id: string;
   pubkey: string;
-  vertical: GigVertical;
   startLocation: {
     latitude: number;
     longitude: number;
@@ -99,7 +96,6 @@ export interface GigRequest {
   };
   status: 'open' | 'taken' | 'cancelled';
   matchedProviderPubkey: string | null;
-  timestamp: string;
   geohash: string;
   /** Vertical-specific form data (item description, guest count, etc.) */
   details: Record<string, string>;

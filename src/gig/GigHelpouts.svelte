@@ -37,7 +37,6 @@
   let listingService: ListingService | null = null;
   let relayCount = 0;
   let relayTotal = 0;
-  let publishedListing: Listing | null = null;
 
   // ─── Validation ─────────────────────────────────────────────
   $: needsLocation = helpoutMode === 'in-person' || helpoutMode === 'both';
@@ -99,7 +98,6 @@
     const listing: Listing = {
       id: crypto.randomUUID(),
       pubkey: listingService.pubkey,
-      type: 'helpouts',
       mode: helpoutMode,
       category: selectedCategory,
       description: description.trim(),
@@ -110,7 +108,6 @@
     };
 
     listingService.publishListing(listing);
-    publishedListing = listing;
 
     logger.info('Helpout listing submitted', { component: 'GigHelpouts', operation: 'submitListing' });
   }
@@ -127,7 +124,6 @@
       listingService.stop();
       listingService = null;
     }
-    publishedListing = null;
     relayCount = 0;
     relayTotal = 0;
     gigCanClose.set(true);

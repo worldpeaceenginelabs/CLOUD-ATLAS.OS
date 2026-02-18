@@ -1,9 +1,9 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
-  import type { VerticalConfig } from './verticals';
+  import type { MatchingVerticalConfig } from './verticals';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
 
-  export let config: VerticalConfig;
+  export let config: MatchingVerticalConfig;
   export let userLiveLocation: { latitude: number; longitude: number } | null;
   export let onBack: () => void;
   export let onSubmit: (details: Record<string, string>) => void;

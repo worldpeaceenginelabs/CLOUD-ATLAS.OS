@@ -86,7 +86,6 @@ interface AcceptDM {
 export class GigService {
   private nostr: NostrService;
   private callbacks: GigCallbacks;
-  private vertical: GigVertical;
   private needTag: string;
   private offerTag: string;
   private knownRequests = new Set<string>();
@@ -104,7 +103,6 @@ export class GigService {
   constructor(nostr: NostrService, vertical: GigVertical, callbacks: GigCallbacks) {
     this.nostr = nostr;
     this.callbacks = callbacks;
-    this.vertical = vertical;
     this.needTag = `need-${vertical}`;
     this.offerTag = `offer-${vertical}`;
   }
@@ -153,7 +151,7 @@ export class GigService {
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
     }, (event: NostrEvent) => this.handleProviderAvailEvent(event));
 
-    logger.info(`Requester started in cell ${geohash} [${this.vertical}]`, { component: 'GigService', operation: 'startAsRequester' });
+    logger.info(`Requester started in cell ${geohash} [${this.needTag}]`, { component: 'GigService', operation: 'startAsRequester' });
   }
 
   /**
@@ -229,7 +227,7 @@ export class GigService {
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
     }, (event: NostrEvent) => this.handleRequestEvent(event));
 
-    logger.info(`Provider started in cell ${geohash} [${this.vertical}]`, { component: 'GigService', operation: 'startAsProvider' });
+    logger.info(`Provider started in cell ${geohash} [${this.offerTag}]`, { component: 'GigService', operation: 'startAsProvider' });
   }
 
   /**

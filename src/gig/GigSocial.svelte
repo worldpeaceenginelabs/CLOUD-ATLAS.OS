@@ -39,7 +39,6 @@
   let listingService: ListingService | null = null;
   let relayCount = 0;
   let relayTotal = 0;
-  let publishedListing: Listing | null = null;
 
   // ─── Validation ─────────────────────────────────────────────
   $: needsLocation = eventMode === 'in-person' || eventMode === 'both';
@@ -102,7 +101,6 @@
     const listing: Listing = {
       id: crypto.randomUUID(),
       pubkey: listingService.pubkey,
-      type: 'social',
       mode: eventMode,
       title: title.trim(),
       category: selectedCategory,
@@ -115,7 +113,6 @@
     };
 
     listingService.publishListing(listing);
-    publishedListing = listing;
 
     logger.info('Social listing submitted', { component: 'GigSocial', operation: 'submitListing' });
   }
@@ -131,7 +128,6 @@
       listingService.stop();
       listingService = null;
     }
-    publishedListing = null;
     relayCount = 0;
     relayTotal = 0;
     gigCanClose.set(true);

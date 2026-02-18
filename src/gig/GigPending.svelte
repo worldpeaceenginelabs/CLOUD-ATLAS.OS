@@ -1,11 +1,11 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
   import type { GigRequest } from '../types';
-  import type { VerticalConfig } from './verticals';
+  import type { MatchingVerticalConfig } from './verticals';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import RelayStatus from '../components/RelayStatus.svelte';
 
-  export let config: VerticalConfig;
+  export let config: MatchingVerticalConfig;
   export let role: 'rider' | 'driver' | null;
   export let relayCount: number;
   export let relayTotal: number;

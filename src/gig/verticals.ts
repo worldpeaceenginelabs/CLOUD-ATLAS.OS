@@ -18,17 +18,18 @@ export interface GigFormField {
   required: boolean;
 }
 
-// ─── Vertical Config ────────────────────────────────────────────
+// ─── Vertical Config (discriminated union) ──────────────────────
 
-export interface VerticalConfig {
+interface BaseVerticalConfig {
   id: GigVertical;
   name: string;
   color: string;
+}
 
-  /** 'matching' = real-time need/offer protocol; 'listing' = publish-only with long TTL */
-  mode: 'matching' | 'listing';
+export interface MatchingVerticalConfig extends BaseVerticalConfig {
+  mode: 'matching';
 
-  // Menu labels (used by matching verticals for the need/offer menu)
+  // Menu labels
   needLabel: string;
   needDesc: string;
   offerLabel: string;
@@ -62,6 +63,12 @@ export interface VerticalConfig {
   mapDestColor: string;
   mapLabel: string;
 }
+
+export interface ListingVerticalConfig extends BaseVerticalConfig {
+  mode: 'listing';
+}
+
+export type VerticalConfig = MatchingVerticalConfig | ListingVerticalConfig;
 
 // ─── Helpout Categories ─────────────────────────────────────────
 
@@ -151,24 +158,6 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Helpouts',
     color: '#00BCD4',
     mode: 'listing',
-    needLabel: '',
-    needDesc: '',
-    offerLabel: 'I can Help',
-    offerDesc: 'Offer your expertise to others',
-    hasDestination: false,
-    reverseLocations: false,
-    gpsLocationLabel: '',
-    mapPickLabel: '',
-    needFields: [],
-    offerFields: [],
-    requesterNoun: 'learner',
-    providerNoun: 'helper',
-    requestNoun: 'help request',
-    matchTitle: 'Helper Found!',
-    matchMessage: 'You\'ve been connected with a helper.',
-    mapColor: '#00BCD4',
-    mapDestColor: '#00BCD4',
-    mapLabel: 'Helpout',
   },
 
   social: {
@@ -176,24 +165,6 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Spontaneous Contacts',
     color: '#FF4081',
     mode: 'listing',
-    needLabel: '',
-    needDesc: '',
-    offerLabel: 'Host an Event',
-    offerDesc: 'Organize a meetup or activity',
-    hasDestination: false,
-    reverseLocations: false,
-    gpsLocationLabel: '',
-    mapPickLabel: '',
-    needFields: [],
-    offerFields: [],
-    requesterNoun: 'attendee',
-    providerNoun: 'host',
-    requestNoun: 'event',
-    matchTitle: '',
-    matchMessage: '',
-    mapColor: '#FF4081',
-    mapDestColor: '#FF4081',
-    mapLabel: 'Social',
   },
 };
 

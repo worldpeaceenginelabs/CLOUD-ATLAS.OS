@@ -1,9 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
-  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose, activeGigVertical } from '../store';
+  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose } from '../store';
   import type { GigRequest, GigVertical } from '../types';
-  import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
@@ -35,6 +34,8 @@
   type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts' | 'social';
   let currentView: GigView = 'verticals';
   let config: VerticalConfig | null = null;
+
+  $: matchingConfig = config?.mode === 'matching' ? config : null;
 
   $: gigCanClose.set(
     currentView === 'verticals' ||
@@ -82,9 +83,9 @@
   let service: GigService | null = null;
 
   function createService(): GigService {
-    if (!config) throw new Error('No vertical selected');
+    if (!matchingConfig) throw new Error('No matching vertical selected');
     if (!sharedNostr) throw new Error('Nostr not connected');
-    return new GigService(sharedNostr, config.id, {
+    return new GigService(sharedNostr, matchingConfig.id, {
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
@@ -103,7 +104,6 @@
   // ─── Vertical Selection ─────────────────────────────────────
   function selectVertical(vertical: GigVertical) {
     config = VERTICALS[vertical];
-    activeGigVertical.set(vertical);
     if (config.mode === 'listing') {
       currentView = vertical === 'social' ? 'social' : 'helpouts';
     } else {
@@ -120,7 +120,6 @@
     if (currentView === 'menu' || currentView === 'helpouts') {
       currentView = 'verticals';
       config = null;
-      activeGigVertical.set(null);
     } else if (currentView === 'need' || currentView === 'offer') {
       currentView = 'menu';
       isPickingDestination = false;
@@ -133,7 +132,6 @@
   function goBackToVerticals() {
     currentView = 'verticals';
     config = null;
-    activeGigVertical.set(null);
   }
 
   // ─── Service Callbacks ──────────────────────────────────────
@@ -145,7 +143,7 @@
     stopService();
     userGigRole.set(null);
     currentView = 'need';
-    showError(`Your ${config?.requestNoun ?? 'request'} expired. Please submit again.`);
+    showError(`Your ${matchingConfig?.requestNoun ?? 'request'} expired. Please submit again.`);
     logger.info('Own request expired', { component: 'GigEconomy', operation: 'handleOwnRequestExpired' });
   }
 
@@ -213,7 +211,7 @@
   // ─── Cesium Visualization ────────────────────────────────────
 
   function addRequestToMap(request: GigRequest) {
-    if (!$viewer || !config) return;
+    if (!$viewer || !matchingConfig) return;
     if ($viewer.entities.getById(`gig_${request.id}`)) return;
 
     const startCartographic = Cesium.Cartographic.fromDegrees(
@@ -230,13 +228,13 @@
       ),
       point: {
         pixelSize: 12,
-        color: Cesium.Color.fromCssColorString(config.mapColor),
+        color: Cesium.Color.fromCssColorString(matchingConfig.mapColor),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
-        text: config.mapLabel,
+        text: matchingConfig.mapLabel,
         font: '12px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
@@ -264,7 +262,7 @@
         ),
         point: {
           pixelSize: 8,
-          color: Cesium.Color.fromCssColorString(config.mapDestColor),
+          color: Cesium.Color.fromCssColorString(matchingConfig.mapDestColor),
           outlineColor: Cesium.Color.WHITE,
           outlineWidth: 1,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
@@ -288,7 +286,7 @@
             ),
           ],
           width: 2,
-          material: Cesium.Color.fromCssColorString(config.mapColor).withAlpha(0.6),
+          material: Cesium.Color.fromCssColorString(matchingConfig.mapColor).withAlpha(0.6),
           clampToGround: true,
         },
       });
@@ -339,33 +337,30 @@
   }
 
   function submitRequest(details: Record<string, string>) {
-    if (!config) return;
+    if (!matchingConfig) return;
 
-    if (config.hasDestination && (!destinationLat || !destinationLon)) {
-      showError(`Please pick a ${config.mapPickLabel.toLowerCase()} on the map first.`);
+    if (matchingConfig.hasDestination && (!destinationLat || !destinationLon)) {
+      showError(`Please pick a ${matchingConfig.mapPickLabel.toLowerCase()} on the map first.`);
       return;
     }
 
     const ctx = prepareService();
     if (!ctx) return;
 
-    const mapPickLocation = config.hasDestination ? {
+    const mapPickLocation = matchingConfig.hasDestination ? {
       latitude: parseFloat(destinationLat),
       longitude: parseFloat(destinationLon),
     } : undefined;
 
-    // Reverse: map-pick is the start (pickup), GPS is the destination (dropoff)
     const request: GigRequest = {
       id: crypto.randomUUID(),
       pubkey: service!.pubkey,
-      vertical: config.id,
-      startLocation: config.reverseLocations && mapPickLocation ? mapPickLocation : ctx.location,
-      destination: config.hasDestination
-        ? (config.reverseLocations ? ctx.location : mapPickLocation)
+      startLocation: matchingConfig.reverseLocations && mapPickLocation ? mapPickLocation : ctx.location,
+      destination: matchingConfig.hasDestination
+        ? (matchingConfig.reverseLocations ? ctx.location : mapPickLocation)
         : undefined,
       status: 'open',
       matchedProviderPubkey: null,
-      timestamp: getCurrentTimeIso8601(),
       geohash: ctx.geohash,
       details,
     };
@@ -380,7 +375,7 @@
   }
 
   function submitOffer(details: Record<string, string>) {
-    if (!config) return;
+    if (!matchingConfig) return;
 
     const ctx = prepareService();
     if (!ctx) return;
@@ -443,7 +438,6 @@
     resetProviderState();
     currentView = 'verticals';
     config = null;
-    activeGigVertical.set(null);
     destinationLat = '';
     destinationLon = '';
   }
@@ -482,7 +476,6 @@
     stopService();
     gigCanClose.set(true);
     isGigPickingDestination.set(false);
-    activeGigVertical.set(null);
     if (unsubCoords) unsubCoords();
     clearError();
   });
@@ -526,13 +519,13 @@
     <GigSocial {config} nostr={sharedNostr} onBack={goBackToVerticals} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
-  {:else if currentView === 'menu' && config}
+  {:else if currentView === 'menu' && matchingConfig}
     <div class="gig-menu" transition:slide={{ duration: 300 }}>
       <button class="back-btn" on:click={goBack}>&larr; Back</button>
 
       <div class="vertical-badge">
-        <span class="badge-dot" style="background: {config.color}"></span>
-        <span class="badge-label">{config.name}</span>
+        <span class="badge-dot" style="background: {matchingConfig.color}"></span>
+        <span class="badge-label">{matchingConfig.name}</span>
       </div>
 
       <h3 class="gig-title">What would you like to do?</h3>
@@ -540,34 +533,34 @@
       <div class="gig-actions">
         <button
           class="gig-action-btn"
-          style="--hover-border: {config.color}"
+          style="--hover-border: {matchingConfig.color}"
           on:click={handleNeed}
         >
-          <div class="action-accent" style="background: {config.color}"></div>
+          <div class="action-accent" style="background: {matchingConfig.color}"></div>
           <div class="action-text">
-            <span class="action-label">{config.needLabel}</span>
-            <span class="action-desc">{config.needDesc}</span>
+            <span class="action-label">{matchingConfig.needLabel}</span>
+            <span class="action-desc">{matchingConfig.needDesc}</span>
           </div>
         </button>
 
         <button
           class="gig-action-btn"
-          style="--hover-border: {config.color}"
+          style="--hover-border: {matchingConfig.color}"
           on:click={handleOffer}
         >
-          <div class="action-accent" style="background: {config.color}; opacity: 0.6"></div>
+          <div class="action-accent" style="background: {matchingConfig.color}; opacity: 0.6"></div>
           <div class="action-text">
-            <span class="action-label">{config.offerLabel}</span>
-            <span class="action-desc">{config.offerDesc}</span>
+            <span class="action-label">{matchingConfig.offerLabel}</span>
+            <span class="action-desc">{matchingConfig.offerDesc}</span>
           </div>
         </button>
       </div>
     </div>
 
   <!-- ═══════════════ NEED FORM ═══════════════════════ -->
-  {:else if currentView === 'need' && config}
+  {:else if currentView === 'need' && matchingConfig}
     <GigNeedForm
-      {config}
+      config={matchingConfig}
       userLiveLocation={$userLiveLocation}
       {destinationLat}
       {destinationLon}
@@ -578,18 +571,18 @@
     />
 
   <!-- ═══════════════ OFFER FORM ═════════════════════ -->
-  {:else if currentView === 'offer' && config}
+  {:else if currentView === 'offer' && matchingConfig}
     <GigOfferForm
-      {config}
+      config={matchingConfig}
       userLiveLocation={$userLiveLocation}
       onBack={goBack}
       onSubmit={submitOffer}
     />
 
   <!-- ═══════════════ PENDING VIEW ═══════════════════ -->
-  {:else if currentView === 'pending' && config}
+  {:else if currentView === 'pending' && matchingConfig}
     <GigPending
-      {config}
+      config={matchingConfig}
       role={$userGigRole}
       {relayCount}
       {relayTotal}
@@ -604,8 +597,8 @@
     />
 
   <!-- ═══════════════ MATCHED VIEW ═══════════════════ -->
-  {:else if currentView === 'matched' && config}
-    <GigMatched {config} onDone={finishAndReset} />
+  {:else if currentView === 'matched' && matchingConfig}
+    <GigMatched config={matchingConfig} onDone={finishAndReset} />
   {/if}
 </div>
 

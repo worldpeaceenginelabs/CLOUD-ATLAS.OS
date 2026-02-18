@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, PinData, GigVertical } from './types';
+import type { Coordinates, ModelData, PinData } from './types';
 
 export type { Coordinates, ModelData, PinData };
 
@@ -96,8 +96,6 @@ export const isGigPickingDestination: Writable<boolean> = writable(false);
 export const currentGeohash: Writable<string> = writable('');
 /** Whether the gig economy panel can be closed via the X button */
 export const gigCanClose: Writable<boolean> = writable(true);
-/** Which gig vertical is currently active (null when on the selector screen) */
-export const activeGigVertical: Writable<GigVertical | null> = writable(null);
 
 // Map Layer Stores
 /** Set of currently active map layer IDs (e.g. 'helpouts') */
@@ -161,7 +159,6 @@ export function resetAllStores() {
   isGigPickingDestination.set(false);
   currentGeohash.set('');
   gigCanClose.set(true);
-  activeGigVertical.set(null);
   
   // Map Layers
   activeMapLayers.set(new Set());
