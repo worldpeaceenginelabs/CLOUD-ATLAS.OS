@@ -1639,7 +1639,7 @@ function handleCoordinatePick(result: any) {
 	/* Height display (bottom left) */
 	.height-display {
 	  position: absolute;
-	  bottom: 20px;
+	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 	  left: 10px;
 	  z-index: 1000;
 	  background: rgba(0, 0, 0, 0.7);
