@@ -246,6 +246,7 @@
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
@@ -278,6 +279,7 @@
     max-height: 75vh;
     z-index: 2000;
     background: rgba(18, 18, 22, 0.97);
+    -webkit-backdrop-filter: blur(24px);
     backdrop-filter: blur(24px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 20px 20px 0 0;
