@@ -627,11 +627,6 @@
     <div class="gig-menu" transition:slide={{ duration: 300 }}>
       <button class="back-btn" on:click={goBack}>&larr; Back</button>
 
-      <div class="vertical-badge">
-        <span class="badge-dot" style="background: {matchingConfig.color}"></span>
-        <span class="badge-label">{matchingConfig.name}</span>
-      </div>
-
       <h3 class="gig-title">What would you like to do?</h3>
 
       <div class="gig-actions">
@@ -815,6 +810,12 @@
   }
 
   /* ── Menu ── */
+  .gig-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
   .gig-title {
     margin: 0 0 0.75rem 0;
     font-size: 1.1rem;
