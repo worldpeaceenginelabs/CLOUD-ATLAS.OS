@@ -250,10 +250,8 @@
     font-weight: 600;
     color: rgba(255, 255, 255, 0.85);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    white-space: nowrap;
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-align: center;
+    max-width: 100px;
   }
 
   @media (max-width: 480px) {
