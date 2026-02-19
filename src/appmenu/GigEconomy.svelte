@@ -70,6 +70,7 @@
   let relayCount = 0;
   let relayTotal = 0;
   let confirmedProviderPubkey: string | null = null;
+  let matchedProviderDetails: Record<string, string> = {};
   let requestQueue: GigRequest[] = [];
 
   // ─── Error State ────────────────────────────────────────────
@@ -287,12 +288,13 @@
     }
   }
 
-  function handleProviderAccepted(providerPubkey: string, requestId: string) {
+  function handleProviderAccepted(providerPubkey: string, requestId: string, details?: Record<string, string>) {
     if (!myRequest || !service) return;
     if (requestId !== myRequest.id) return;
 
     if (confirmedProviderPubkey === null) {
       confirmedProviderPubkey = providerPubkey;
+      matchedProviderDetails = details ?? {};
       service.confirmMatch(myRequest, providerPubkey);
       myRequest = { ...myRequest, status: 'taken', matchedProviderPubkey: providerPubkey };
       currentView = 'matched';
@@ -539,6 +541,7 @@
   function finishAndReset() {
     myRequest = null;
     confirmedProviderPubkey = null;
+    matchedProviderDetails = {};
     resetProviderState();
     config = null;
     destinationLat = '';
@@ -699,7 +702,7 @@
 
   <!-- ═══════════════ MATCHED VIEW ═══════════════════ -->
   {:else if currentView === 'matched' && matchingConfig}
-    <GigMatched config={matchingConfig} onDone={finishAndReset} />
+    <GigMatched config={matchingConfig} onDone={finishAndReset} role={$userGigRole} providerDetails={matchedProviderDetails} />
   {/if}
 </div>
 

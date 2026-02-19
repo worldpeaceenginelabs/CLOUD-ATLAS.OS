@@ -5,6 +5,16 @@
 
   export let config: MatchingVerticalConfig;
   export let onDone: () => void;
+  export let role: 'requester' | 'provider' | null = null;
+  export let providerDetails: Record<string, string> = {};
+
+  $: hasContact = !!(providerDetails.phone || providerDetails.messenger);
+  $: showContact = role === 'requester' && hasContact;
+
+  function formatMessengerHref(link: string): string {
+    if (/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(link)) return link;
+    return 'https://' + link;
+  }
 </script>
 
 <div class="matched" transition:slide={{ duration: 300 }}>
@@ -17,6 +27,24 @@
     <p class="message">{config.matchMessage}</p>
     <p class="peer-info">Connected directly via P2P</p>
   </div>
+
+  {#if showContact}
+    <div class="contact-card" style="--accent: {config.color}">
+      <span class="contact-heading">{config.providerNoun.charAt(0).toUpperCase() + config.providerNoun.slice(1)} Contact</span>
+      {#if providerDetails.phone}
+        <div class="contact-row">
+          <span class="contact-label">Phone</span>
+          <a class="contact-value" href="tel:{providerDetails.phone.replace(/\s/g, '')}">{providerDetails.phone}</a>
+        </div>
+      {/if}
+      {#if providerDetails.messenger}
+        <div class="contact-row">
+          <span class="contact-label">Messenger</span>
+          <a class="contact-value link" href={formatMessengerHref(providerDetails.messenger)} target="_blank" rel="noopener noreferrer">{providerDetails.messenger}</a>
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   {#if config.id === 'rides'}
     <div class="safety-instructions">
@@ -70,6 +98,55 @@
     font-size: 0.78rem;
     color: rgba(255, 255, 255, 0.4);
     margin: 0;
+  }
+
+  .contact-card {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: left;
+  }
+
+  .contact-heading {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .contact-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    min-width: 70px;
+  }
+
+  .contact-value {
+    font-size: 0.9rem;
+    color: white;
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .contact-value:hover {
+    text-decoration: underline;
+  }
+
+  .contact-value.link {
+    color: rgba(96, 165, 250, 1);
   }
 
   .safety-instructions {

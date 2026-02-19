@@ -64,8 +64,8 @@ export interface GigCallbacks {
   onRequest: (request: GigRequest) => void;
   /** Provider: a request was taken, cancelled, or expired. */
   onRequestGone: (requestId: string, matchedProviderPubkey: string | null) => void;
-  /** Requester: a provider sent an accept for our request. */
-  onProviderAccepted: (providerPubkey: string, requestId: string) => void;
+  /** Requester: a provider sent an accept for our request (includes provider's form details). */
+  onProviderAccepted: (providerPubkey: string, requestId: string, details?: Record<string, string>) => void;
   /** Requester: number of available providers in the cell changed. */
   onProviderCount?: (count: number) => void;
   /** Requester: own request expired or disappeared from relays. */
@@ -79,6 +79,7 @@ interface AcceptDM {
   type: 'accept';
   requestId: string;
   providerPubkey: string;
+  details?: Record<string, string>;
 }
 
 // ─── Service ─────────────────────────────────────────────────
@@ -139,7 +140,7 @@ export class GigService {
     this.dmSubId = this.nostr.subscribeDMs(REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
       const dm = payload as AcceptDM;
       if (dm?.type === 'accept' && dm.requestId === this.myRequest?.id) {
-        this.callbacks.onProviderAccepted(fromPubkey, dm.requestId);
+        this.callbacks.onProviderAccepted(fromPubkey, dm.requestId, dm.details);
       }
     });
 
@@ -241,6 +242,7 @@ export class GigService {
         type: 'accept',
         requestId,
         providerPubkey: this.pubkey,
+        details: Object.keys(this.myProviderDetails).length > 0 ? this.myProviderDetails : undefined,
       };
       this.nostr.sendDM(requesterPubkey, dm, REQUEST_TTL_SECS);
       return true;

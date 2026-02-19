@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
-  import type { MatchingVerticalConfig } from './verticals';
+  import type { MatchingVerticalConfig, GigFormField } from './verticals';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import LocationPicker from '../components/LocationPicker.svelte';
 
@@ -15,10 +15,8 @@
   export let onDestinationClear: () => void;
   export let onSubmit: (details: Record<string, string>) => void;
 
-  // Local state for extra form fields
   let fieldValues: Record<string, string> = {};
 
-  // Initialize field values from config
   $: {
     for (const f of config.needFields) {
       if (!(f.key in fieldValues)) {
@@ -27,19 +25,39 @@
     }
   }
 
-  function handleSubmit() {
-    // Validate required fields
-    for (const f of config.needFields) {
-      if (f.required && !fieldValues[f.key]?.trim()) {
-        return;
-      }
-    }
-    onSubmit({ ...fieldValues });
+  function fieldValid(field: GigFormField, value: string): boolean {
+    const trimmed = value?.trim();
+    if (!trimmed) return true;
+    if (field.pattern) return new RegExp(field.pattern).test(trimmed);
+    return true;
   }
+
+  $: groups = [...new Set(config.needFields.map(f => f.group).filter((g): g is string => !!g))];
+
+  $: groupsSatisfied = groups.every(g => {
+    const gf = config.needFields.filter(f => f.group === g);
+    return gf.some(f => {
+      const val = fieldValues[f.key]?.trim();
+      return val && fieldValid(f, val);
+    });
+  });
+
+  $: allPatternsValid = config.needFields.every(f => fieldValid(f, fieldValues[f.key]));
 
   $: canSubmit = userLiveLocation
     && (!config.hasDestination || (destinationLat && destinationLon))
-    && config.needFields.filter(f => f.required).every(f => fieldValues[f.key]?.trim());
+    && config.needFields.filter(f => f.required).every(f => fieldValues[f.key]?.trim())
+    && groupsSatisfied
+    && allPatternsValid;
+
+  function handleSubmit() {
+    for (const f of config.needFields) {
+      if (f.required && !fieldValues[f.key]?.trim()) return;
+      if (!fieldValid(f, fieldValues[f.key])) return;
+    }
+    if (!groupsSatisfied) return;
+    onSubmit({ ...fieldValues });
+  }
 </script>
 
 <div class="need-form" transition:slide={{ duration: 300 }}>
@@ -71,17 +89,24 @@
     />
   {/if}
 
-  <!-- Extra fields from vertical config -->
+  {#each groups as g}
+    {#if config.needFieldGroupHints?.[g]}
+      <p class="group-context-hint">{config.needFieldGroupHints[g]}</p>
+    {/if}
+  {/each}
+
   {#each config.needFields as field (field.key)}
     <div class="form-group">
       <label class="field-label" for="need-{field.key}">
         {field.label}
         {#if field.required}<span class="required">*</span>{/if}
+        {#if field.group}<span class="group-badge">*</span>{/if}
       </label>
       {#if field.type === 'textarea'}
         <textarea
           id="need-{field.key}"
           class="field-input textarea"
+          class:invalid={fieldValues[field.key]?.trim() && !fieldValid(field, fieldValues[field.key])}
           placeholder={field.placeholder}
           bind:value={fieldValues[field.key]}
           rows="3"
@@ -90,13 +115,21 @@
         <input
           id="need-{field.key}"
           class="field-input"
+          class:invalid={fieldValues[field.key]?.trim() && !fieldValid(field, fieldValues[field.key])}
           type="text"
           placeholder={field.placeholder}
           bind:value={fieldValues[field.key]}
         />
       {/if}
+      {#if fieldValues[field.key]?.trim() && !fieldValid(field, fieldValues[field.key])}
+        <span class="field-error">{field.patternHint ?? 'Invalid format'}</span>
+      {/if}
     </div>
   {/each}
+
+  {#if groups.length > 0 && !groupsSatisfied}
+    <p class="group-warn">Please fill at least one field per group.</p>
+  {/if}
 
   <GlassmorphismButton
     variant="primary"
@@ -175,9 +208,38 @@
     border-color: rgba(255, 255, 255, 0.35);
   }
 
+  .field-input.invalid {
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+
   .field-input.textarea {
     resize: vertical;
     min-height: 60px;
+  }
+
+  .field-error {
+    font-size: 0.75rem;
+    color: rgba(239, 68, 68, 0.8);
+  }
+
+  .group-badge {
+    font-size: 0.65rem;
+    color: rgba(255, 204, 0, 0.7);
+    margin-left: 2px;
+  }
+
+  .group-context-hint {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.45);
+    margin: 0;
+    line-height: 1.4;
+    font-style: italic;
+  }
+
+  .group-warn {
+    font-size: 0.8rem;
+    color: rgba(255, 204, 0, 0.9);
+    margin: 0;
   }
 
   .live-badge {

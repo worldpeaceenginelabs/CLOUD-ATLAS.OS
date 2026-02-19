@@ -16,6 +16,12 @@ export interface GigFormField {
   type: 'text' | 'textarea';
   placeholder: string;
   required: boolean;
+  /** Regex string for per-field validation (tested when field is non-empty). */
+  pattern?: string;
+  /** Shown below the field when the pattern doesn't match. */
+  patternHint?: string;
+  /** Cross-field group name — at least one field in the group must be filled and valid. */
+  group?: string;
 }
 
 // ─── Vertical Config (discriminated union) ──────────────────────
@@ -48,6 +54,10 @@ export interface MatchingVerticalConfig extends BaseVerticalConfig {
   // Extra form fields beyond GPS location (+ optional destination)
   needFields: GigFormField[];
   offerFields: GigFormField[];
+
+  // Per-group contextual hints (keyed by group name, shown above grouped fields)
+  needFieldGroupHints?: Record<string, string>;
+  offerFieldGroupHints?: Record<string, string>;
 
   // Role nouns for status messages
   requesterNoun: string;
@@ -142,7 +152,13 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     needFields: [
       { key: 'item', label: 'Item Description', type: 'text', placeholder: 'What needs to be delivered?', required: true },
     ],
-    offerFields: [],
+    offerFields: [
+      { key: 'phone', label: 'Phone Number', type: 'text', placeholder: '+49 170 1234567', required: false, pattern: '^\\+?[0-9\\s\\-]{4,20}$', patternHint: 'Digits only (optional + at start)', group: 'contact' },
+      { key: 'messenger', label: 'Messenger Link', type: 'text', placeholder: 't.me/user or peer://invite-code', required: false, pattern: '^([a-zA-Z][a-zA-Z0-9+\\-.]*:\\/\\/.+|[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}\\S*)$', patternHint: 'Enter a link (e.g. t.me/user, https://... or peer://...)', group: 'contact' },
+    ],
+    offerFieldGroupHints: {
+      contact: 'Provide at least one way for customers to reach you. Mind not using too exotic apps so customers have a chance of contacting you \u2014 also note that some P2P protocols may not work in certain countries.',
+    },
     requesterNoun: 'customer',
     providerNoun: 'courier',
     requestNoun: 'delivery',
