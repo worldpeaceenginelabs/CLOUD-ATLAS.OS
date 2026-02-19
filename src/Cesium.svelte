@@ -1504,6 +1504,16 @@ function handleRadialClose() {
   showRadialMenu = false;
 }
 
+/** Fly camera to the user's current live location. */
+function flyToMyLocation() {
+  const loc = $userLiveLocation;
+  if (!loc || !cesiumViewer) return;
+  cesiumViewer.camera.flyTo({
+    destination: Cartesian3.fromDegrees(loc.longitude, loc.latitude, 2000),
+    duration: 1.5,
+  });
+}
+
 /** Ensure we have the user's Nostr public key for ownership checks. */
 async function ensureMyPk() {
   if (!myNostrPk) {
@@ -1675,6 +1685,17 @@ function handleCoordinatePick(result: any) {
     <div class="height-value">{Math.round($currentHeight / 1000)}km</div>
   </div>
 
+  <!-- My Location button (bottom right, above layers) -->
+  <button class="my-location-btn" on:click={flyToMyLocation} title="My Location">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <line x1="12" y1="2" x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="6" y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
+
   <!-- Map Layers Menu (bottom right) -->
   <MapLayersMenu {onHelpoutsChanged} {onSocialChanged} />
 </div>
@@ -1758,7 +1779,33 @@ function handleCoordinatePick(result: any) {
 	  text-align: center;
 	}
 
+	/* My Location button (above map layers toggle) */
+	.my-location-btn {
+	  position: absolute;
+	  bottom: 70px;
+	  right: 10px;
+	  z-index: 1000;
+	  width: 40px;
+	  height: 40px;
+	  border-radius: 8px;
+	  background: rgba(0, 0, 0, 0.7);
+	  border: 1px solid rgba(255, 255, 255, 0.2);
+	  -webkit-backdrop-filter: blur(10px);
+	  backdrop-filter: blur(10px);
+	  color: rgba(255, 255, 255, 0.8);
+	  padding: 0;
+	  cursor: pointer;
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+	  transition: all 0.2s;
+	}
 
+	.my-location-btn:hover {
+	  background: rgba(0, 0, 0, 0.85);
+	  color: white;
+	  border-color: rgba(255, 255, 255, 0.35);
+	}
 
 	:global(.cesium-button.cesium-vrButton) {
 	display: block;
