@@ -243,7 +243,23 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		},
 	  });
 
-	  return [outer, inner, center];
+	  const hitCanvas = document.createElement('canvas');
+	  hitCanvas.width = 1;
+	  hitCanvas.height = 1;
+
+	  const hitArea = new Entity({
+		id: `${pointId}_hitarea`,
+		position,
+		billboard: {
+		  image: hitCanvas,
+		  width: 52,
+		  height: 52,
+		  color: new Cesium.Color(1, 1, 1, 0.004),
+		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+		},
+	  });
+
+	  return [hitArea, outer, inner, center];
 	};
   
 	// Start user location tracking (single watchPosition handles both initial placement and live updates)
@@ -940,7 +956,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
 				if (pickedObject.id.id === "pickedPoint") {
 					// Ignore clicks on the picked point marker
-				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner")) {
+				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner" || pickedObject.id.id === "Your Location!_hitarea")) {
 				const entityPos = userLocationEntity?.position?.getValue(JulianDate.now());
 				if (entityPos && cesiumViewer) {
 					const screenPos = Cesium.SceneTransforms.worldToWindowCoordinates(
