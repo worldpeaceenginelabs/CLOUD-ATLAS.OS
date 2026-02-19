@@ -1295,13 +1295,27 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  // Set up event handlers for user interactions
 	  setupEventHandlers();
 
-	  // Fly camera to location when set from address search
+	  // Fly camera to location when set from address search and show a marker
 	  unsubFlyTo = flyToLocation.subscribe(loc => {
 	    if (loc && cesiumViewer) {
 	      cesiumViewer.camera.flyTo({
 	        destination: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 5000),
 	        duration: 1.5,
 	      });
+
+	      if (pointEntity) cesiumViewer.entities.remove(pointEntity);
+	      pointEntity = cesiumViewer.entities.add({
+	        id: "pickedPoint",
+	        position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 0),
+	        point: {
+	          pixelSize: 8,
+	          color: Cesium.Color.fromCssColorString('#34A853'),
+	          outlineColor: Cesium.Color.WHITE,
+	          outlineWidth: 1,
+	          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+	        },
+	      });
+
 	      flyToLocation.set(null);
 	    }
 	  });
@@ -1575,23 +1589,21 @@ function handleCoordinatePick(result: any) {
     height: cartographic.height
   });
 
-  // Skip pin billboard when picking for gig economy
-  if (isGigPicking) return;
-
   if (pointEntity && cesiumViewer) {
     cesiumViewer.entities.remove(pointEntity);
   }
 
   if (cesiumViewer) {
     pointEntity = cesiumViewer.entities.add({
-    id: "pickedPoint",
-    position: cartesian,
-    billboard: {
-      image: '../location-on.png', // Path to your map marker icon
-      width: 32, // Adjust the width as needed
-      height: 32, // Adjust the height as needed
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
-    },
+      id: "pickedPoint",
+      position: cartesian,
+      point: {
+        pixelSize: 8,
+        color: Cesium.Color.fromCssColorString('#34A853'),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 1,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
     });
   }
 }
