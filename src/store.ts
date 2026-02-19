@@ -92,7 +92,6 @@ export const userLiveLocation: Writable<{ latitude: number; longitude: number } 
 
 // Gig Economy Stores
 export const userGigRole: Writable<'requester' | 'provider' | null> = writable(null);
-export const isGigPickingDestination: Writable<boolean> = writable(false);
 export const currentGeohash: Writable<string> = writable('');
 /** Whether the gig economy panel can be closed via the X button */
 export const gigCanClose: Writable<boolean> = writable(true);
@@ -163,7 +162,6 @@ export function resetAllStores() {
   
   // Gig Economy state
   userGigRole.set(null);
-  isGigPickingDestination.set(false);
   currentGeohash.set('');
   gigCanClose.set(true);
   preselectedGigVertical.set(null);

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { coordinates, isGigPickingDestination, userLiveLocation, gigCanClose, helpoutLayerRefresh } from '../store';
+  import { userLiveLocation, gigCanClose, helpoutLayerRefresh } from '../store';
   import type { Listing, ListingMode } from '../types';
   import type { NostrService } from '../services/nostrService';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
@@ -33,7 +33,6 @@
   let locationLat = '';
   let locationLon = '';
   let locationAddress = '';
-  let isPickingLocation = false;
 
   // ─── Service State ──────────────────────────────────────────
   let listingService: ListingService | null = null;
@@ -50,39 +49,16 @@
     (!needsLocation || (locationLat && locationLon));
 
   // ─── Location Picking ──────────────────────────────────────
-  let unsubCoords: (() => void) | null = null;
-
-  function handlePickLocation() {
-    isPickingLocation = true;
-    isGigPickingDestination.set(true);
-  }
-
   function handleLocationSelected(lat: string, lon: string, displayName?: string) {
     locationLat = lat;
     locationLon = lon;
     locationAddress = displayName ?? '';
-    isPickingLocation = false;
-    isGigPickingDestination.set(false);
   }
 
   function handleLocationClear() {
     locationLat = '';
     locationLon = '';
     locationAddress = '';
-  }
-
-  $: if (isPickingLocation) {
-    if (unsubCoords) unsubCoords();
-    let skipFirst = true;
-    unsubCoords = coordinates.subscribe(value => {
-      if (skipFirst) { skipFirst = false; return; }
-      if (isPickingLocation && value.latitude && value.longitude) {
-        locationLat = value.latitude;
-        locationLon = value.longitude;
-        isPickingLocation = false;
-        isGigPickingDestination.set(false);
-      }
-    });
   }
 
   // ─── Submit ─────────────────────────────────────────────────
@@ -144,12 +120,10 @@
     relayCount = 0;
     relayTotal = 0;
     gigCanClose.set(true);
-    isGigPickingDestination.set(false);
   }
 
   onDestroy(() => {
     cleanup();
-    if (unsubCoords) unsubCoords();
   });
 
   // ─── Helpers ────────────────────────────────────────────────
@@ -191,8 +165,6 @@
         lat={locationLat}
         lon={locationLon}
         label="Location"
-        isPickingOnMap={isPickingLocation}
-        onPickOnMap={handlePickLocation}
         onLocationSelected={handleLocationSelected}
         onClear={handleLocationClear}
       />

@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { fade, slide } from 'svelte/transition';
-  import { coordinates, viewer, userGigRole, isGigPickingDestination, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical, showRadialGigMenu } from '../store';
+  import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical, showRadialGigMenu } from '../store';
   import { modalService } from '../utils/modalService';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
@@ -60,7 +60,6 @@
   // ─── Form State ─────────────────────────────────────────────
   let destinationLat = '';
   let destinationLon = '';
-  let isPickingDestination = false;
 
   // ─── User State ─────────────────────────────────────────────
   let myRequest: GigRequest | null = null;
@@ -220,8 +219,6 @@
       goBackToRadial();
     } else if (currentView === 'need' || currentView === 'offer') {
       currentView = 'menu';
-      isPickingDestination = false;
-      isGigPickingDestination.set(false);
       destinationLat = '';
       destinationLon = '';
     }
@@ -414,16 +411,9 @@
 
   // ─── User Actions ────────────────────────────────────────────
 
-  function handlePickDestination() {
-    isPickingDestination = true;
-    isGigPickingDestination.set(true);
-  }
-
   function handleDestinationSelected(lat: string, lon: string, _displayName?: string) {
     destinationLat = lat;
     destinationLon = lon;
-    isPickingDestination = false;
-    isGigPickingDestination.set(false);
   }
 
   function handleDestinationClear() {
@@ -561,29 +551,11 @@
     clearAllGigEntities();
   }
 
-  // ─── Destination Picking ────────────────────────────────────
-  let unsubCoords: (() => void) | null = null;
-
-  $: if (isPickingDestination) {
-    if (unsubCoords) unsubCoords();
-    let skipFirst = true;
-    unsubCoords = coordinates.subscribe(value => {
-      if (skipFirst) { skipFirst = false; return; }
-      if (isPickingDestination && value.latitude && value.longitude) {
-        destinationLat = value.latitude;
-        destinationLon = value.longitude;
-        isPickingDestination = false;
-        isGigPickingDestination.set(false);
-      }
-    });
-  }
 
   // ─── Lifecycle ──────────────────────────────────────────────
   onDestroy(() => {
     stopService();
     gigCanClose.set(true);
-    isGigPickingDestination.set(false);
-    if (unsubCoords) unsubCoords();
     clearError();
   });
 </script>
@@ -666,9 +638,7 @@
       userLiveLocation={$userLiveLocation}
       {destinationLat}
       {destinationLon}
-      {isPickingDestination}
       onBack={goBack}
-      onPickDestination={handlePickDestination}
       onDestinationSelected={handleDestinationSelected}
       onDestinationClear={handleDestinationClear}
       onSubmit={submitRequest}

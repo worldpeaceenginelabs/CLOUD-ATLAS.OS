@@ -8,9 +8,7 @@
   export let userLiveLocation: { latitude: number; longitude: number } | null;
   export let destinationLat: string;
   export let destinationLon: string;
-  export let isPickingDestination: boolean;
   export let onBack: () => void;
-  export let onPickDestination: () => void;
   export let onDestinationSelected: (lat: string, lon: string, displayName?: string) => void;
   export let onDestinationClear: () => void;
   export let onSubmit: (details: Record<string, string>) => void;
@@ -82,8 +80,6 @@
       lat={destinationLat}
       lon={destinationLon}
       label={config.mapPickLabel}
-      isPickingOnMap={isPickingDestination}
-      onPickOnMap={onPickDestination}
       onLocationSelected={onDestinationSelected}
       onClear={onDestinationClear}
     />

@@ -32,7 +32,6 @@
 		isInitialLoadComplete,
 		isRoamingAreaMode,
 		roamingAreaBounds,
-		isGigPickingDestination,
 		userLiveLocation,
 		flyToLocation
 	} from './store';
@@ -980,25 +979,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 					await handleEntityPick(pickedObject);
 				}
 			} else {
-				// If no object is picked, handle coordinate picking
-				// Skip zoom modal during roaming area painting or gig destination picking
 				if (!$isRoamingAreaMode) {
-					if ($isGigPickingDestination) {
-						// Gig economy destination picking — bypass zoom restriction
-						handleCoordinatePick(click);
-					} else {
-						const height = cesiumViewer.camera.positionCartographic.height;
-						if (height > 250000) {
-							// Show the zoom modal
-							modalService.showZoomRequired();
-							// Auto-hide after 3 seconds
-							setTimeout(() => {
-								modalService.hideZoomRequired();
-							}, 3000);
-						} else {
-							handleCoordinatePick(click);
-						}
-					}
+					handleCoordinatePick(click);
 				}
 			}
 		}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -1536,22 +1518,14 @@ async function ensureMyPk() {
 
 function handleCoordinatePick(result: any) {
   if (!cesiumViewer) return;
-  
-  // When picking destination for gig economy, skip zoom check and pin billboard
-  const isGigPicking = $isGigPickingDestination;
-  
-  if (!isGigPicking) {
-    // Check camera height before allowing pin placement
-    const cameraHeight = cesiumViewer.camera.positionCartographic.height;
-    if (cameraHeight > 250000) {
-      // Show the zoom modal if trying to place pin from too high
-      modalService.showZoomRequired();
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        modalService.hideZoomRequired();
-      }, 3000);
-      return; // Prevent pin placement
-    }
+
+  const cameraHeight = cesiumViewer.camera.positionCartographic.height;
+  if (cameraHeight > 250000) {
+    modalService.showZoomRequired();
+    setTimeout(() => {
+      modalService.hideZoomRequired();
+    }, 3000);
+    return;
   }
   
   const cartesian = cesiumViewer.scene.pickPosition(result.position);

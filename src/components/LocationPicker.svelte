@@ -1,14 +1,11 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { autocomplete, reverse, formatShortAddress, type NominatimResult } from '../services/nominatimService';
-  import { flyToLocation } from '../store';
-  import GlassmorphismButton from './GlassmorphismButton.svelte';
+  import { coordinates, flyToLocation } from '../store';
 
   export let lat: string = '';
   export let lon: string = '';
   export let label: string = 'Location';
-  export let isPickingOnMap: boolean = false;
-  export let onPickOnMap: () => void;
   export let onLocationSelected: (lat: string, lon: string, displayName?: string) => void;
   export let onClear: (() => void) | undefined = undefined;
   export let required: boolean = false;
@@ -23,6 +20,16 @@
   let selectedIndex = -1;
   let inputEl: HTMLInputElement;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Auto-fill from map clicks via coordinates store
+  let skipFirst = true;
+  const unsubCoords = coordinates.subscribe(value => {
+    if (skipFirst) { skipFirst = false; return; }
+    if (value.latitude && value.longitude) {
+      displayName = '';
+      onLocationSelected(value.latitude, value.longitude);
+    }
+  });
 
   // Reverse geocode whenever lat/lon changes (from map pick or address select)
   let lastReversedKey = '';
@@ -136,14 +143,9 @@
     if (onClear) onClear();
   }
 
-  function handlePickAgain() {
-    displayName = '';
-    lastReversedKey = '';
-    onPickOnMap();
-  }
-
   onDestroy(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
+    unsubCoords();
   });
 </script>
 
@@ -197,33 +199,12 @@
     <div class="no-results">No results found</div>
   {/if}
 
-  <!-- Divider -->
-  <div class="divider">
-    <span class="divider-line"></span>
-    <span class="divider-text">or</span>
-    <span class="divider-line"></span>
-  </div>
-
-  <!-- Map pick button -->
-  <GlassmorphismButton variant="secondary" size="small" onClick={isPickingOnMap ? undefined : onPickOnMap}>
-    <span class="map-btn-content">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-      </svg>
-      {isPickingOnMap ? 'Click on the map...' : 'Pick Location on Map'}
-    </span>
-  </GlassmorphismButton>
-
   <!-- Selected location display -->
   {#if lat && lon}
     <div class="selected-location">
       <div class="selected-header">
         <span class="selected-label">Selected</span>
-        <div class="selected-actions">
-          <button class="action-link" on:click={handlePickAgain}>Pick again</button>
-          <span class="action-sep">·</span>
-          <button class="action-link" on:click={handleClear}>Clear</button>
-        </div>
+        <button class="action-link" on:click={handleClear}>Clear</button>
       </div>
       <p class="coords-display">
         {parseFloat(lat).toFixed(5)}, {parseFloat(lon).toFixed(5)}
@@ -365,33 +346,6 @@
     border-radius: 8px;
   }
 
-  /* Divider */
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0.15rem 0;
-  }
-
-  .divider-line {
-    flex: 1;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .divider-text {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.3);
-    text-transform: lowercase;
-  }
-
-  /* Map button content */
-  .map-btn-content {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   /* Selected location */
   .selected-location {
     display: flex;
@@ -418,12 +372,6 @@
     letter-spacing: 0.04em;
   }
 
-  .selected-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
   .action-link {
     background: none;
     border: none;
@@ -437,11 +385,6 @@
 
   .action-link:hover {
     color: rgba(66, 133, 244, 1);
-  }
-
-  .action-sep {
-    color: rgba(255, 255, 255, 0.2);
-    font-size: 0.72rem;
   }
 
   .coords-display {
