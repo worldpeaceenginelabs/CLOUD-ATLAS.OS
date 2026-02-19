@@ -70,6 +70,7 @@ let animationFrameId: number | null = null; // For requestAnimationFrame
 let tileset: Cesium3DTileset | null = null; // Global tileset reference
 let isBasemapLoaded = false; // Local variable for basemap loading state
 let isTilesetLoaded = false; // Local variable for tileset loading state
+let initialZoomComplete = false; // True after the initial flyTo animation finishes
 let cesiumViewer: any = null; // Global viewer reference
 
 // Map layer state
@@ -263,7 +264,7 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 	};
   
 	// Start user location tracking (single watchPosition handles both initial placement and live updates)
-	const startUserLocationTracking = (silent = false) => {
+	const startUserLocationTracking = () => {
 	  if (!navigator.geolocation || !cesiumViewer) return;
 	  if (geoWatchId !== null) return; // already tracking
 
@@ -271,22 +272,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		(position) => {
 		  const { latitude, longitude } = position.coords;
 		  userLiveLocation.set({ latitude, longitude });
-
-		  if (!userLocationInitialized) {
-			userLocationInitialized = true;
-			const cartographic = Cartographic.fromDegrees(longitude, latitude);
-			const sampledHeight = cesiumViewer!.scene.sampleHeight(cartographic);
-			const height = sampledHeight !== undefined ? sampledHeight : 0;
-			const userPosition = Cartesian3.fromDegrees(longitude, latitude, height);
-			const entities = createDoubleRing('Your Location!', userPosition);
-			entities.forEach(e => {
-			  e.show = !silent;
-			  cesiumViewer!.entities.add(e);
-			});
-			userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
-			userRingEntities = entities;
-			return;
-		  }
 
 		  if (userRingEntities.length > 0 && cesiumViewer) {
 			const cartographic = Cartographic.fromDegrees(longitude, latitude);
@@ -307,23 +292,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		  timeout: 15000,
 		}
 	  );
-	};
-
-	// Show the user location entity and fly to it
-	const showUserLocation = () => {
-	  if (userRingEntities.length > 0 && cesiumViewer) {
-		userRingEntities.forEach(e => { e.show = true; });
-		const position = userLocationEntity?.position?.getValue(JulianDate.now());
-		if (position) {
-		  cesiumViewer.camera.flyTo({
-			destination: Cartesian3.fromDegrees(
-			  CesiumMath.toDegrees(Cartographic.fromCartesian(position).longitude),
-			  CesiumMath.toDegrees(Cartographic.fromCartesian(position).latitude),
-			  20000000.0
-			),
-		  });
-		}
-	  }
 	};
 
 	// Stop user location tracking
@@ -520,6 +488,24 @@ $: if (cesiumViewer && modelDataSource) {
 		loadModelsFromStore();
 		previousModels = [...$models]; // Update previous models
 	}
+}
+
+// Create user location entities the instant both geolocation and initial load are ready
+$: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && cesiumViewer) {
+	userLocationInitialized = true;
+	const { latitude, longitude } = $userLiveLocation;
+	const cartographic = Cartographic.fromDegrees(longitude, latitude);
+	const sampledHeight = cesiumViewer.scene.sampleHeight(cartographic);
+	const height = sampledHeight !== undefined ? sampledHeight : 0;
+	const userPosition = Cartesian3.fromDegrees(longitude, latitude, height);
+	const entities = createDoubleRing('Your Location!', userPosition);
+	entities.forEach(e => cesiumViewer!.entities.add(e));
+	userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
+	userRingEntities = entities;
+	cesiumViewer.camera.flyTo({
+		destination: Cartesian3.fromDegrees(longitude, latitude, 20000000),
+		duration: 1.5,
+	});
 }
 
 // Reopen radial menu when signalled by back buttons in the gig panel
@@ -885,16 +871,11 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	function checkIfBothLoaded() {
 		if (isBasemapLoaded && isTilesetLoaded && !$isInitialLoadComplete && cesiumViewer) {
 			isInitialLoadComplete.set(true);
-			// Zoom to 20 million meters
 			cesiumViewer.camera.flyTo({
 				destination: Cartesian3.fromDegrees(0, 0, 20000000),
-				duration: 3.0
+				duration: 3.0,
+				complete: () => { initialZoomComplete = true; },
 			});
-			
-			// Show user location after zoom animation completes
-			setTimeout(() => {
-				showUserLocation();
-			}, 3000); // 3.0 seconds to allow for 3-second zoom duration
 		}
 	}
 
@@ -1229,8 +1210,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		},
 	  });
 
-	  // Start location tracking (entity hidden until initial load completes)
-	  startUserLocationTracking(true);
+	  // Start location tracking (entities created once initial load completes)
+	  startUserLocationTracking();
 
 	  // Initialize height display
 	  updateHeightDisplay();
@@ -1701,6 +1682,7 @@ function handleCoordinatePick(result: any) {
 		stopUserLocationTracking();
 		isMonitoringCamera = false;
 		animationFrameId = null;
+		initialZoomComplete = false;
 	});
 
 
