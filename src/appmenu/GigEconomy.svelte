@@ -19,6 +19,7 @@
   import GigHelpouts from '../gig/GigHelpouts.svelte';
   import GigSocial from '../gig/GigSocial.svelte';
   import * as Cesium from 'cesium';
+  import { clampToSurface } from '../utils/clampToSurface';
 
   // ─── Shared Nostr (loaded once on mount) ─────────────────
   let sharedNostr: NostrService | null = null;
@@ -301,22 +302,17 @@
 
   // ─── Cesium Visualization ────────────────────────────────────
 
-  function addRequestToMap(request: GigRequest) {
+  async function addRequestToMap(request: GigRequest) {
     if (!$viewer || !matchingConfig) return;
     if ($viewer.entities.getById(`gig_${request.id}`)) return;
 
-    const startCartographic = Cesium.Cartographic.fromDegrees(
+    const startPos = await clampToSurface(
       request.startLocation.longitude, request.startLocation.latitude
     );
-    const startHeight = $viewer.scene.sampleHeight(startCartographic) ?? 0;
 
     const startEntity = $viewer.entities.add({
       id: `gig_${request.id}`,
-      position: Cesium.Cartesian3.fromDegrees(
-        request.startLocation.longitude,
-        request.startLocation.latitude,
-        startHeight
-      ),
+      position: startPos,
       point: {
         pixelSize: 12,
         color: Cesium.Color.fromCssColorString(matchingConfig.mapColor),
@@ -339,18 +335,13 @@
     gigEntities.push(startEntity);
 
     if (request.destination) {
-      const destCartographic = Cesium.Cartographic.fromDegrees(
+      const destPos = await clampToSurface(
         request.destination.longitude, request.destination.latitude
       );
-      const destHeight = $viewer.scene.sampleHeight(destCartographic) ?? 0;
 
       const destEntity = $viewer.entities.add({
         id: `gig_dest_${request.id}`,
-        position: Cesium.Cartesian3.fromDegrees(
-          request.destination.longitude,
-          request.destination.latitude,
-          destHeight
-        ),
+        position: destPos,
         point: {
           pixelSize: 8,
           color: Cesium.Color.fromCssColorString(matchingConfig.mapDestColor),
@@ -364,18 +355,7 @@
       const lineEntity = $viewer.entities.add({
         id: `gig_line_${request.id}`,
         polyline: {
-          positions: [
-            Cesium.Cartesian3.fromDegrees(
-              request.startLocation.longitude,
-              request.startLocation.latitude,
-              startHeight
-            ),
-            Cesium.Cartesian3.fromDegrees(
-              request.destination.longitude,
-              request.destination.latitude,
-              destHeight
-            ),
-          ],
+          positions: [startPos, destPos],
           width: 2,
           material: Cesium.Color.fromCssColorString(matchingConfig.mapColor).withAlpha(0.6),
           clampToGround: true,

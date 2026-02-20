@@ -41,6 +41,7 @@
 import { getCurrentTimeIso8601 } from './utils/timeUtils';
 import { logger } from './utils/logger';
 import { roamingAnimationManager } from './utils/roamingAnimation';
+import { clampToSurface } from './utils/clampToSurface';
 import ScrollbarStyles from './components/ScrollbarStyles.svelte';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
@@ -273,12 +274,10 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		  userLiveLocation.set({ latitude, longitude });
 
 		  if (userRingEntities.length > 0 && cesiumViewer) {
-			const cartographic = Cartographic.fromDegrees(longitude, latitude);
-			const sampledHeight = cesiumViewer.scene.sampleHeight(cartographic);
-			const height = sampledHeight !== undefined ? sampledHeight : 0;
-			const newPos = Cartesian3.fromDegrees(longitude, latitude, height);
-			userRingEntities.forEach(e => {
-			  (e.position as any) = newPos;
+			clampToSurface(longitude, latitude).then(newPos => {
+			  userRingEntities.forEach(e => {
+				(e.position as any) = newPos;
+			  });
 			});
 		  }
 		},
@@ -493,14 +492,13 @@ $: if (cesiumViewer && modelDataSource) {
 $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && cesiumViewer) {
 	userLocationInitialized = true;
 	const { latitude, longitude } = $userLiveLocation;
-	const cartographic = Cartographic.fromDegrees(longitude, latitude);
-	const sampledHeight = cesiumViewer.scene.sampleHeight(cartographic);
-	const height = sampledHeight !== undefined ? sampledHeight : 0;
-	const userPosition = Cartesian3.fromDegrees(longitude, latitude, height);
-	const entities = createDoubleRing('Your Location!', userPosition);
-	entities.forEach(e => cesiumViewer!.entities.add(e));
-	userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
-	userRingEntities = entities;
+	(async () => {
+		const userPosition = await clampToSurface(longitude, latitude);
+		const entities = createDoubleRing('Your Location!', userPosition);
+		entities.forEach(e => cesiumViewer!.entities.add(e));
+		userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
+		userRingEntities = entities;
+	})();
 	cesiumViewer.camera.flyTo({
 		destination: Cartesian3.fromDegrees(longitude, latitude, 20000000),
 		duration: 1.5,
@@ -1267,16 +1265,19 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	      });
 
 	      if (pointEntity) cesiumViewer.entities.remove(pointEntity);
-	      pointEntity = cesiumViewer.entities.add({
-	        id: "pickedPoint",
-	        position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 0),
-	        point: {
-	          pixelSize: 8,
-	          color: Cesium.Color.fromCssColorString('#34A853'),
-	          outlineColor: Cesium.Color.WHITE,
-	          outlineWidth: 1,
-	          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-	        },
+	      clampToSurface(loc.lon, loc.lat).then(clamped => {
+	        if (!cesiumViewer) return;
+	        pointEntity = cesiumViewer.entities.add({
+	          id: "pickedPoint",
+	          position: clamped,
+	          point: {
+	            pixelSize: 8,
+	            color: Cesium.Color.fromCssColorString('#34A853'),
+	            outlineColor: Cesium.Color.WHITE,
+	            outlineWidth: 1,
+	            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+	          },
+	        });
 	      });
 
 	      flyToLocation.set(null);
@@ -1347,17 +1348,13 @@ async function handleEntityPick(pickedFeature: any) {
 // ─── Helpout Map Layer ──────────────────────────────────────
 
 /** Add helpout listing markers to the Cesium globe. */
-function renderHelpoutMarkers(listings: Listing[]) {
+async function renderHelpoutMarkers(listings: Listing[]) {
   removeHelpoutMarkers();
   if (!cesiumViewer) return;
 
   for (const listing of listings) {
     if (!listing.location) continue;
-    const position = Cartesian3.fromDegrees(
-      listing.location.longitude,
-      listing.location.latitude,
-      0
-    );
+    const position = await clampToSurface(listing.location.longitude, listing.location.latitude);
 
     const entity = cesiumViewer.entities.add({
       id: `helpout_${listing.id}`,
@@ -1368,7 +1365,6 @@ function renderHelpoutMarkers(listings: Listing[]) {
         outlineColor: Color.WHITE,
         outlineWidth: 1.5,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
       },
       label: {
         text: '?',
@@ -1420,17 +1416,13 @@ function handleHelpoutTakenDown(listingId: string) {
 // ─── Social Map Layer ───────────────────────────────────────
 
 /** Add social listing markers to the Cesium globe. */
-function renderSocialMarkers(listings: Listing[]) {
+async function renderSocialMarkers(listings: Listing[]) {
   removeSocialMarkers();
   if (!cesiumViewer) return;
 
   for (const listing of listings) {
     if (!listing.location) continue;
-    const position = Cartesian3.fromDegrees(
-      listing.location.longitude,
-      listing.location.latitude,
-      0
-    );
+    const position = await clampToSurface(listing.location.longitude, listing.location.latitude);
 
     const entity = cesiumViewer.entities.add({
       id: `social_${listing.id}`,
@@ -1441,7 +1433,6 @@ function renderSocialMarkers(listings: Listing[]) {
         outlineColor: Color.WHITE,
         outlineWidth: 1.5,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
       },
       label: {
         text: listing.title || '★',
