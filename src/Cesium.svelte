@@ -250,6 +250,8 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 	  const hitCanvas = document.createElement('canvas');
 	  hitCanvas.width = 1;
 	  hitCanvas.height = 1;
+	  const ctx = hitCanvas.getContext('2d');
+	  if (ctx) { ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 1, 1); }
 
 	  const hitArea = new Entity({
 		id: `${pointId}_hitarea`,
@@ -258,12 +260,12 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		  image: hitCanvas,
 		  width: 52,
 		  height: 52,
-		  color: new Cesium.Color(1, 1, 1, 0.004),
+		  color: new Cesium.Color(1, 1, 1, 0.01),
 		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
 		},
 	  });
 
-	  return [hitArea, outer, inner, center];
+	  return [outer, inner, center, hitArea];
 	};
   
 	// Start user location tracking (single watchPosition handles both initial placement and live updates)
