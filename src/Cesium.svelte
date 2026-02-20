@@ -59,6 +59,7 @@ import {
   removeMarkers,
   removeMarkerById,
 } from './utils/cesiumHelpers';
+import { setupTouchTiltHandler, destroyTouchTiltHandler } from './utils/touchTiltHandler';
 import { hasActiveGigSession } from './gig/gigRecovery';
 import { getSharedNostr } from './services/nostrPool';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
@@ -967,18 +968,23 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	// Function to disable camera controls
 	function disableCameraControls() {
 		if (cesiumViewer) {
-			cesiumViewer.scene.screenSpaceCameraController.enableRotate = false;
-			cesiumViewer.scene.screenSpaceCameraController.enableTranslate = false;
-			cesiumViewer.scene.screenSpaceCameraController.enableZoom = false;
+			const ctrl = cesiumViewer.scene.screenSpaceCameraController;
+			ctrl.enableRotate = false;
+			ctrl.enableTranslate = false;
+			ctrl.enableZoom = false;
+			ctrl.enableTilt = false;
+			ctrl.enableLook = false;
 		}
 	}
 
-	// Function to re-enable camera controls
 	function enableCameraControls() {
 		if (cesiumViewer) {
-			cesiumViewer.scene.screenSpaceCameraController.enableRotate = true;
-			cesiumViewer.scene.screenSpaceCameraController.enableTranslate = true;
-			cesiumViewer.scene.screenSpaceCameraController.enableZoom = true;
+			const ctrl = cesiumViewer.scene.screenSpaceCameraController;
+			ctrl.enableRotate = true;
+			ctrl.enableTranslate = true;
+			ctrl.enableZoom = true;
+			ctrl.enableTilt = true;
+			ctrl.enableLook = true;
 		}
 	}
 
@@ -1062,9 +1068,29 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  // Set the viewer in the store
 	  viewer.set(cesiumViewer);
 
+	  // Remap touch gestures: pinch only zooms, tilt is desktop-only (middle-drag / Ctrl+drag).
+	  // Custom touchTiltHandler provides mobile tilt via two-finger parallel drag.
+	  const sscc = cesiumViewer.scene.screenSpaceCameraController;
+	  sscc.tiltEventTypes = [
+		Cesium.CameraEventType.MIDDLE_DRAG,
+		{ eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL },
+	  ];
+	  sscc.zoomEventTypes = [
+		Cesium.CameraEventType.WHEEL,
+		Cesium.CameraEventType.PINCH,
+	  ];
 
+	  // Pitch clamp: prevent the camera from ever crossing the horizon
+	  cesiumViewer.scene.preRender.addEventListener(() => {
+		if (!cesiumViewer) return;
+		const cam = cesiumViewer.camera;
+		if (cam.pitch > CesiumMath.toRadians(-5)) {
+		  cam.setView({ orientation: { heading: cam.heading, pitch: CesiumMath.toRadians(-5), roll: 0 } });
+		}
+	  });
 
-
+	  // Wire up custom mobile tilt handler (two-finger parallel drag)
+	  setupTouchTiltHandler(cesiumViewer);
 
 
 	// Render the Cesium Container background transparent
@@ -1317,6 +1343,9 @@ function handleCoordinatePick(result: any) {
 
 		// Stop camera monitoring
 		stopCameraMonitoring();
+
+		// Clean up custom mobile tilt handler
+		destroyTouchTiltHandler();
 		
 		// Stop roaming animation
 		stopRoamingAnimation();
