@@ -11,10 +11,6 @@
 
   let expanded = false;
 
-  const padding = 130;
-  $: clampedX = Math.max(padding, Math.min(screenX, window.innerWidth - padding));
-  $: clampedY = Math.max(padding, Math.min(screenY, window.innerHeight - padding));
-
   const radius = 105;
   const startAngle = -90;
   const angleStep = 360 / VERTICAL_LIST.length;
@@ -49,7 +45,7 @@
 <div class="radial-overlay" transition:fade={{ duration: 200 }}>
   <div class="backdrop" on:click={onClose} role="presentation"></div>
 
-  <div class="radial-center" style="left: {clampedX}px; top: {clampedY}px">
+  <div class="radial-center" style="left: {screenX}px; top: {screenY}px">
     <!-- Outer ring (blue) -->
     <div class="ring outer" class:expanded></div>
     <!-- Inner ring (orange) -->

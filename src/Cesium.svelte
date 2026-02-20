@@ -508,14 +508,19 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && c
 // Reopen radial menu when signalled by back buttons in the gig panel
 $: if ($showRadialGigMenu) {
 	showRadialGigMenu.set(false);
+	radialScreenX = window.innerWidth / 2;
+	radialScreenY = window.innerHeight / 2;
+	showRadialMenu = true;
 	const pos = userLocationEntity?.position?.getValue(JulianDate.now());
 	if (pos && cesiumViewer) {
-		const sp = Cesium.SceneTransforms.worldToWindowCoordinates(cesiumViewer.scene, pos);
-		if (sp) {
-			radialScreenX = sp.x;
-			radialScreenY = sp.y;
-			showRadialMenu = true;
-		}
+		const cartographic = Cartographic.fromCartesian(pos);
+		cesiumViewer.camera.flyTo({
+			destination: Cartesian3.fromDegrees(
+				CesiumMath.toDegrees(cartographic.longitude),
+				CesiumMath.toDegrees(cartographic.latitude),
+				2000
+			),
+		});
 	}
 }
 
@@ -937,14 +942,9 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner" || pickedObject.id.id === "Your Location!_hitarea")) {
 				const entityPos = userLocationEntity?.position?.getValue(JulianDate.now());
 				if (entityPos && cesiumViewer) {
-					const screenPos = Cesium.SceneTransforms.worldToWindowCoordinates(
-						cesiumViewer.scene, entityPos
-					);
-					if (screenPos) {
-						radialScreenX = screenPos.x;
-						radialScreenY = screenPos.y;
-						showRadialMenu = true;
-					}
+					radialScreenX = window.innerWidth / 2;
+					radialScreenY = window.innerHeight / 2;
+					showRadialMenu = true;
 					const cartographic = Cartographic.fromCartesian(entityPos);
 					cesiumViewer.camera.flyTo({
 						destination: Cartesian3.fromDegrees(
