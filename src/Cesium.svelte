@@ -1168,7 +1168,7 @@ async function onHelpoutsChanged(listings: Listing[]) {
   if (listings.length === 0) { removeMarkers(cesiumViewer, helpoutEntities); helpoutEntities = []; return; }
   await ensureMyPk();
   helpoutEntities = await renderListingMarkers(cesiumViewer, listings, helpoutEntities, {
-    idPrefix: 'helpout_', pointColor: '#00BCD4', getLabelText: () => '?', propertyKey: 'helpoutListing',
+    idPrefix: 'helpout_', pointColor: '#00BCD4', getLabelText: (l) => l.title || '?', propertyKey: 'helpoutListing',
   });
 }
 

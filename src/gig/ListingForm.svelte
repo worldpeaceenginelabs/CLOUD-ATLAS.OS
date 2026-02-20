@@ -47,9 +47,9 @@
 
   $: canSubmit =
     selectedCategory &&
+    title.trim() &&
     description.trim() &&
     contact.trim() &&
-    (!isSocial || title.trim()) &&
     (!needsLocation || (locationLat && locationLon));
 
   function handleLocationSelected(lat: string, lon: string, displayName?: string) {
@@ -93,13 +93,14 @@
       pubkey: listingService.pubkey,
       mode,
       category: selectedCategory,
+      title: title.trim(),
       description: description.trim(),
       contact: contact.trim(),
       location,
       address: locationAddress || undefined,
       timestamp: getCurrentTimeIso8601(),
       geohash,
-      ...(isSocial && { title: title.trim(), eventDate: eventDate || undefined }),
+      ...(isSocial && { eventDate: eventDate || undefined }),
     };
 
     listingService.publishListing(listing);
@@ -139,12 +140,10 @@
       <button class="gig-mode-btn" class:active={mode === 'both'} on:click={() => mode = 'both'}>Both</button>
     </div>
 
-    {#if isSocial}
-      <div class="gig-form-group">
-        <label class="gig-field-label" for="event-title">Event Title <span class="gig-required">*</span></label>
-        <input id="event-title" class="gig-field-input" type="text" placeholder="e.g. Saturday Morning Run, Board Game Night..." bind:value={title} />
-      </div>
-    {/if}
+    <div class="gig-form-group">
+      <label class="gig-field-label" for="event-title">{isSocial ? 'Event Title' : 'Title'} <span class="gig-required">*</span></label>
+      <input id="event-title" class="gig-field-input" type="text" placeholder={isSocial ? 'e.g. Saturday Morning Run, Board Game Night...' : 'e.g. Guitar Lessons, Math Tutoring...'} bind:value={title} />
+    </div>
 
     {#if needsLocation}
       <LocationPicker lat={locationLat} lon={locationLon} label="Location" onLocationSelected={handleLocationSelected} onClear={handleLocationClear} />
@@ -217,7 +216,7 @@
     <RelayStatus connected={relayCount} total={relayTotal} />
 
     <div class="gig-listing-summary">
-      {#if isSocial && title}
+      {#if title}
         <div class="gig-summary-row">
           <span class="gig-summary-label">Title</span>
           <span class="gig-summary-value">{title}</span>

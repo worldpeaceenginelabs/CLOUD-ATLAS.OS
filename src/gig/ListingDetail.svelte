@@ -53,7 +53,7 @@
       <button class="gig-detail-close" on:click={onClose}>&times;</button>
     </div>
 
-    {#if isSocial && listing.title}
+    {#if listing.title}
       <h3 class="detail-title">{listing.title}</h3>
     {/if}
 
