@@ -2,33 +2,25 @@
   import { fly } from 'svelte/transition';
   import type { Listing } from '../types';
   import { SOCIAL_CATEGORIES } from './verticals';
-  import { getSharedNostr } from '../services/nostrPool';
+  import { getCategoryName } from './categoryUtils';
+  import { ensureProtocol } from '../utils/urlUtils';
+  import { takeDownListing } from './listingActions';
 
   export let listing: Listing;
   export let myPk: string;
   export let onClose: () => void;
-  /** Called after the publisher takes down their listing. */
   export let onTakenDown: ((listingId: string) => void) | undefined = undefined;
 
   let isTakingDown = false;
 
   $: isOwner = listing.pubkey === myPk;
-
-  $: categoryName = SOCIAL_CATEGORIES.find(c => c.id === listing.category)?.name ?? listing.category;
-
+  $: categoryName = getCategoryName(SOCIAL_CATEGORIES, listing.category);
   $: modeLabel =
     listing.mode === 'in-person' ? 'In-Person' :
     listing.mode === 'online' ? 'Online' : 'In-Person & Online';
-
   $: formattedDate = listing.eventDate
     ? new Date(listing.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
     : null;
-
-  /** Ensure URL has a protocol so window.open doesn't treat it as relative. */
-  function ensureProtocol(url: string): string {
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) return url;
-    return 'https://' + url;
-  }
 
   function openContact() {
     window.open(ensureProtocol(listing.contact), '_blank', 'noopener');
@@ -37,20 +29,7 @@
   async function takeDown() {
     isTakingDown = true;
     try {
-      const nostr = await getSharedNostr();
-
-      // Publish a replacement event with 1-second TTL
-      const expiration = String(Math.floor(Date.now() / 1000) + 1);
-      const tags: string[][] = [
-        ['t', 'listing-social'],
-        ['expiration', expiration],
-      ];
-      if (listing.geohash) tags.push(['g', listing.geohash]);
-
-      nostr.publishReplaceable(listing.id, tags, JSON.stringify(listing));
-
-      onTakenDown?.(listing.id);
-      onClose();
+      await takeDownListing(listing, 'listing-social', onTakenDown, onClose);
     } catch {
       isTakingDown = false;
     }

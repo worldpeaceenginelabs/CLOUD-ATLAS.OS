@@ -6,6 +6,7 @@
   import { modalService } from '../utils/modalService';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
+  import { GEOHASH_PRECISION_MATCHING } from '../gig/constants';
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
   import { getSharedNostr } from '../services/nostrPool';
@@ -406,7 +407,7 @@
       showError('GPS location not available. Please enable location services and try again.');
       return null;
     }
-    const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, 6);
+    const geohash = geohashEncode($userLiveLocation.latitude, $userLiveLocation.longitude, GEOHASH_PRECISION_MATCHING);
     currentGeohash.set(geohash);
     service = createService();
     return { geohash, location: { latitude: $userLiveLocation.latitude, longitude: $userLiveLocation.longitude } };

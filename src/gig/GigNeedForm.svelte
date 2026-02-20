@@ -1,6 +1,8 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
-  import type { MatchingVerticalConfig, GigFormField } from './verticals';
+  import type { MatchingVerticalConfig } from './verticals';
+  import { fieldValid, getGroups, groupsSatisfied as checkGroupsSatisfied, allPatternsValid as checkAllPatternsValid } from './formValidation';
+  import { formatLatLon } from '../utils/urlUtils';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import LocationPicker from '../components/LocationPicker.svelte';
 
@@ -23,24 +25,9 @@
     }
   }
 
-  function fieldValid(field: GigFormField, value: string): boolean {
-    const trimmed = value?.trim();
-    if (!trimmed) return true;
-    if (field.pattern) return new RegExp(field.pattern).test(trimmed);
-    return true;
-  }
-
-  $: groups = [...new Set(config.needFields.map(f => f.group).filter((g): g is string => !!g))];
-
-  $: groupsSatisfied = groups.every(g => {
-    const gf = config.needFields.filter(f => f.group === g);
-    return gf.some(f => {
-      const val = fieldValues[f.key]?.trim();
-      return val && fieldValid(f, val);
-    });
-  });
-
-  $: allPatternsValid = config.needFields.every(f => fieldValid(f, fieldValues[f.key]));
+  $: groups = getGroups(config.needFields);
+  $: groupsSatisfied = checkGroupsSatisfied(config.needFields, fieldValues);
+  $: allPatternsValid = checkAllPatternsValid(config.needFields, fieldValues);
 
   $: canSubmit = userLiveLocation
     && (!config.hasDestination || (destinationLat && destinationLon))
@@ -67,7 +54,7 @@
     <span class="field-label">{config.gpsLocationLabel} <span class="live-badge">LIVE</span></span>
     <p class="location-display">
       {#if userLiveLocation}
-        {userLiveLocation.latitude.toFixed(5)}, {userLiveLocation.longitude.toFixed(5)}
+        {formatLatLon(userLiveLocation.latitude, userLiveLocation.longitude)}
       {:else}
         <span class="location-hint">Waiting for GPS... Enable location services if this persists.</span>
       {/if}

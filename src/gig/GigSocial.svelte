@@ -9,6 +9,8 @@
   import { logger } from '../utils/logger';
   import { ListingService } from '../services/listingService';
   import { SOCIAL_CATEGORIES, type VerticalConfig } from './verticals';
+  import { getCategoryName } from './categoryUtils';
+  import { GEOHASH_PRECISION_LISTING } from './constants';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import RelayStatus from '../components/RelayStatus.svelte';
   import LocationPicker from '../components/LocationPicker.svelte';
@@ -77,7 +79,7 @@
     } : undefined;
 
     const geohash = location
-      ? geohashEncode(location.latitude, location.longitude, 4)
+      ? geohashEncode(location.latitude, location.longitude, GEOHASH_PRECISION_LISTING)
       : undefined;
 
     listingService = new ListingService(nostr, 'listing-social', {
@@ -130,9 +132,8 @@
     cleanup();
   });
 
-  // ─── Helpers ────────────────────────────────────────────────
-  function getCategoryName(id: string): string {
-    return SOCIAL_CATEGORIES.find(c => c.id === id)?.name ?? id;
+  function getSocialCategoryName(id: string): string {
+    return getCategoryName(SOCIAL_CATEGORIES, id);
   }
 </script>
 
@@ -304,7 +305,7 @@
       </div>
       <div class="summary-row">
         <span class="summary-label">Category</span>
-        <span class="summary-value">{getCategoryName(selectedCategory)}</span>
+        <span class="summary-value">{getSocialCategoryName(selectedCategory)}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Expires</span>

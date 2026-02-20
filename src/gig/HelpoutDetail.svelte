@@ -2,29 +2,22 @@
   import { fly } from 'svelte/transition';
   import type { Listing } from '../types';
   import { HELPOUT_CATEGORIES } from './verticals';
-  import { getSharedNostr } from '../services/nostrPool';
+  import { getCategoryName } from './categoryUtils';
+  import { ensureProtocol } from '../utils/urlUtils';
+  import { takeDownListing } from './listingActions';
 
   export let listing: Listing;
   export let myPk: string;
   export let onClose: () => void;
-  /** Called after the publisher takes down their listing. */
   export let onTakenDown: ((listingId: string) => void) | undefined = undefined;
 
   let isTakingDown = false;
 
   $: isOwner = listing.pubkey === myPk;
-
-  $: categoryName = HELPOUT_CATEGORIES.find(c => c.id === listing.category)?.name ?? listing.category;
-
+  $: categoryName = getCategoryName(HELPOUT_CATEGORIES, listing.category);
   $: modeLabel =
     listing.mode === 'in-person' ? 'In-Person' :
     listing.mode === 'online' ? 'Online' : 'In-Person & Online';
-
-  /** Ensure URL has a protocol so window.open doesn't treat it as relative. */
-  function ensureProtocol(url: string): string {
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) return url;
-    return 'https://' + url;
-  }
 
   function openContact() {
     window.open(ensureProtocol(listing.contact), '_blank', 'noopener');
@@ -33,21 +26,7 @@
   async function takeDown() {
     isTakingDown = true;
     try {
-      const nostr = await getSharedNostr();
-
-      // Publish a replacement event with 1-second TTL
-      const expiration = String(Math.floor(Date.now() / 1000) + 1);
-      const tags: string[][] = [
-        ['t', 'listing-helpouts'],
-        ['expiration', expiration],
-      ];
-      if (listing.geohash) tags.push(['g', listing.geohash]);
-
-      nostr.publishReplaceable(listing.id, tags, JSON.stringify(listing));
-
-      // Connections are already established — event is broadcast instantly
-      onTakenDown?.(listing.id);
-      onClose();
+      await takeDownListing(listing, 'listing-helpouts', onTakenDown, onClose);
     } catch {
       isTakingDown = false;
     }

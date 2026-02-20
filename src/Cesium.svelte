@@ -11,11 +11,9 @@
 	  JulianDate,
 	  Cesium3DTileset,
 	  CustomDataSource,
-	  ModelGraphics,
 	  HeadingPitchRoll,
 	  Transforms,
 	  Math as CesiumMath,
-	  Cartographic,
 	} from 'cesium';
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -42,14 +40,27 @@ import { getCurrentTimeIso8601 } from './utils/timeUtils';
 import { logger } from './utils/logger';
 import { roamingAnimationManager } from './utils/roamingAnimation';
 import { clampToSurface } from './utils/clampToSurface';
+import {
+  resolveModelUri,
+  modelPositionAndOrientation,
+  removeEntityById,
+  setModelVisibility,
+  flyToLonLat,
+  flyToEntityPosition,
+  pickPositionToLonLat,
+  addPickedPointMarker,
+  renderListingMarkers,
+  removeMarkers,
+  removeMarkerById,
+} from './utils/cesiumHelpers';
+import { hasActiveGigSession } from './gig/gigRecovery';
+import { getSharedNostr } from './services/nostrPool';
 import ScrollbarStyles from './components/ScrollbarStyles.svelte';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
 import HelpoutDetail from './gig/HelpoutDetail.svelte';
 import SocialDetail from './gig/SocialDetail.svelte';
 import RadialGigMenu from './components/RadialGigMenu.svelte';
 import { preselectedGigVertical, showRadialGigMenu } from './store';
-import { getSharedNostr } from './services/nostrPool';
-import { REPLACEABLE_KIND } from './services/nostrService';
 import type { Listing, GigVertical } from './types';
   
 // Global variables and states
@@ -184,14 +195,8 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		}
 	};
 
-	// Remove a single record from the map
 	const removeRecordFromMap = (mapid: string) => {
-		if (customDataSource) {
-			const entity = customDataSource.entities.getById(`${mapid}_image`);
-			if (entity) {
-				customDataSource.entities.remove(entity);
-			}
-		}
+		removeEntityById(customDataSource, `${mapid}_image`);
 	};
   
 	// Create a double-ring pulsating indicator (outer blue, inner orange, offset timing)
@@ -374,41 +379,15 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 // Add 3D model to the scene
 function addModelToScene(modelData: ModelData) {
 	try {
-		const position = Cartesian3.fromDegrees(
-			modelData.coordinates.longitude,
-			modelData.coordinates.latitude,
-			modelData.transform.height
-		);
-
-		const heading = CesiumMath.toRadians(modelData.transform.heading);
-		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
-		const roll = CesiumMath.toRadians(modelData.transform.roll);
-
-		// Create object URL for file uploads
-		let modelUri: string;
-		if (modelData.source === 'file' && modelData.file) {
-			// Check if file is a File object or a URL string (from IndexedDB)
-			if (modelData.file instanceof File) {
-				modelUri = URL.createObjectURL(modelData.file);
-				createdObjectURLs.push(modelUri);
-			} else {
-				// It's a URL string from IndexedDB
-				modelUri = modelData.file as string;
-			}
-		} else if (modelData.source === 'url' && modelData.url) {
-			modelUri = modelData.url;
-		} else {
-			console.error('Invalid model source or missing URL/file');
-			return;
-		}
-
-		// Create the model entity
+		const modelUri = resolveModelUri(modelData, createdObjectURLs);
+		if (!modelUri) { console.error('Invalid model source or missing URL/file'); return; }
 		if (!modelDataSource) return;
-		
-		const entity = modelDataSource.entities.add({
+
+		const { position, orientation } = modelPositionAndOrientation(modelData);
+		modelDataSource.entities.add({
 			id: modelData.id,
 			name: modelData.name,
-			position: position,
+			position,
 			model: {
 				uri: modelUri,
 				scale: modelData.transform.scale,
@@ -416,20 +395,14 @@ function addModelToScene(modelData: ModelData) {
 				maximumScale: 20000,
 				show: true,
 			},
-			orientation: Transforms.headingPitchRollQuaternion(
-				position,
-				new HeadingPitchRoll(heading, pitch, roll)
-			),
+			orientation,
 			description: modelData.description || '3D Model'
 		});
 
 		logger.modelAdded(modelData.name);
 		
-		// Add to roaming animation if enabled
 		if (modelData.roaming?.isEnabled) {
 			roamingAnimationManager.addModel(modelData);
-			
-			// Start roaming animation if not already running
 			if (!isRoamingAnimationActive) {
 				startRoamingAnimation();
 			}
@@ -499,41 +472,26 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && c
 		userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
 		userRingEntities = entities;
 	})();
-	cesiumViewer.camera.flyTo({
-		destination: Cartesian3.fromDegrees(longitude, latitude, 20000000),
-		duration: 1.5,
-	});
+	flyToLonLat(cesiumViewer, longitude, latitude, 20000000, 1.5);
 }
 
 // Reopen radial menu when signalled by back buttons in the gig panel
 $: if ($showRadialGigMenu) {
 	showRadialGigMenu.set(false);
+	openRadialMenuCentered();
+}
+
+/** Open radial menu centered on screen and fly camera to user location. */
+function openRadialMenuCentered() {
 	radialScreenX = window.innerWidth / 2;
 	radialScreenY = window.innerHeight / 2;
 	showRadialMenu = true;
-	const pos = userLocationEntity?.position?.getValue(JulianDate.now());
-	if (pos && cesiumViewer) {
-		const cartographic = Cartographic.fromCartesian(pos);
-		cesiumViewer.camera.flyTo({
-			destination: Cartesian3.fromDegrees(
-				CesiumMath.toDegrees(cartographic.longitude),
-				CesiumMath.toDegrees(cartographic.latitude),
-				2000
-			),
-		});
-	}
+	flyToEntityPosition(cesiumViewer, userLocationEntity);
 }
 
 // Remove model from scene
 function removeModelFromScene(modelId: string) {
-	if (modelDataSource) {
-		const entity = modelDataSource.entities.getById(modelId);
-		if (entity) {
-			modelDataSource.entities.remove(entity);
-		}
-	}
-	
-	// Remove from roaming animation if active
+	removeEntityById(modelDataSource, modelId);
 	roamingAnimationManager.removeModel(modelId);
 }
 
@@ -635,41 +593,15 @@ function addPreviewModelToScene(modelData: ModelData) {
 			}
 		}
 
-		const position = Cartesian3.fromDegrees(
-			modelData.coordinates.longitude,
-			modelData.coordinates.latitude,
-			modelData.transform.height
-		);
+		const modelUri = resolveModelUri(modelData, createdObjectURLs);
+		if (!modelUri) { console.error('Invalid model source or missing URL/file for preview'); return; }
+		if (!previewModelDataSource) return;
 
-		const heading = CesiumMath.toRadians(modelData.transform.heading);
-		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
-		const roll = CesiumMath.toRadians(modelData.transform.roll);
-
-		// Create object URL for file uploads
-		let modelUri: string;
-		if (modelData.source === 'file' && modelData.file) {
-			if (modelData.file instanceof File) {
-				modelUri = URL.createObjectURL(modelData.file);
-				createdObjectURLs.push(modelUri);
-			} else {
-				modelUri = modelData.file as string;
-			}
-		} else if (modelData.source === 'url' && modelData.url) {
-			modelUri = modelData.url;
-		} else {
-			console.error('Invalid model source or missing URL/file for preview');
-			return;
-		}
-
-		// Create the preview model entity
-		if (!previewModelDataSource) {
-			return;
-		}
-		
+		const { position, orientation } = modelPositionAndOrientation(modelData);
 		const entity = previewModelDataSource.entities.add({
 			id: modelData.id,
 			name: modelData.name + ' (Preview)',
-			position: position,
+			position,
 			model: {
 				uri: modelUri,
 				scale: modelData.transform.scale,
@@ -677,10 +609,7 @@ function addPreviewModelToScene(modelData: ModelData) {
 				maximumScale: 20000,
 				show: true,
 			},
-			orientation: Transforms.headingPitchRollQuaternion(
-				position,
-				new HeadingPitchRoll(heading, pitch, roll)
-			),
+			orientation,
 			description: modelData.description || '3D Model Preview'
 		});
 
@@ -694,39 +623,19 @@ function addPreviewModelToScene(modelData: ModelData) {
 // Remove preview model from scene
 function removePreviewModelFromScene() {
 	if (previewModelDataSource && currentPreviewModelId) {
-		const entity = previewModelDataSource.entities.getById(currentPreviewModelId);
-		if (entity) {
-			previewModelDataSource.entities.remove(entity);
-		}
-		
-		// Show the original model again
+		removeEntityById(previewModelDataSource, currentPreviewModelId);
 		showOriginalModel(currentPreviewModelId);
-		
 		currentPreviewModelId = null;
 		logger.info('Preview model removed from scene', { component: 'Cesium', operation: 'removePreviewModel' });
 	}
 }
 
-// Hide original model when in preview mode
 function hideOriginalModel(modelId: string) {
-	if (modelDataSource) {
-		const entity = modelDataSource.entities.getById(modelId);
-		if (entity && entity.model) {
-			entity.model.show = false;
-			logger.info('Original model hidden for preview: ' + modelId, { component: 'Cesium', operation: 'hideOriginalModel' });
-		}
-	}
+	setModelVisibility(modelDataSource, modelId, false);
 }
 
-// Show original model when exiting preview mode
 function showOriginalModel(modelId: string) {
-	if (modelDataSource) {
-		const entity = modelDataSource.entities.getById(modelId);
-		if (entity && entity.model) {
-			entity.model.show = true;
-			logger.info('Original model shown: ' + modelId, { component: 'Cesium', operation: 'showOriginalModel' });
-		}
-	}
+	setModelVisibility(modelDataSource, modelId, true);
 }
 
 // Update preview model in scene
@@ -746,47 +655,18 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			return;
 		}
 
-		// Update the existing entity
-		const position = Cartesian3.fromDegrees(
-			modelData.coordinates.longitude,
-			modelData.coordinates.latitude,
-			modelData.transform.height
-		);
+		const modelUri = resolveModelUri(modelData, createdObjectURLs);
+		if (!modelUri) { console.error('Invalid model source or missing URL/file for preview update'); return; }
 
-		const heading = CesiumMath.toRadians(modelData.transform.heading);
-		const pitch = CesiumMath.toRadians(modelData.transform.pitch);
-		const roll = CesiumMath.toRadians(modelData.transform.roll);
-
-		// Create object URL for file uploads
-		let modelUri: string;
-		if (modelData.source === 'file' && modelData.file) {
-			if (modelData.file instanceof File) {
-				modelUri = URL.createObjectURL(modelData.file);
-				createdObjectURLs.push(modelUri);
-			} else {
-				modelUri = modelData.file as string;
-			}
-		} else if (modelData.source === 'url' && modelData.url) {
-			modelUri = modelData.url;
-		} else {
-			console.error('Invalid model source or missing URL/file for preview update');
-			return;
-		}
-
-		// Update entity properties
+		const { position, orientation } = modelPositionAndOrientation(modelData);
 		entity.position = position;
 		entity.name = modelData.name + ' (Preview)';
 		entity.description = modelData.description || '3D Model Preview';
-		
 		if (entity.model) {
 			entity.model.uri = modelUri;
 			entity.model.scale = modelData.transform.scale;
 		}
-		
-		entity.orientation = Transforms.headingPitchRollQuaternion(
-			position,
-			new HeadingPitchRoll(heading, pitch, roll)
-		);
+		entity.orientation = orientation;
 
 		logger.info('Preview model updated in scene: ' + modelData.name, { component: 'Cesium', operation: 'updatePreviewModel' });
 	} catch (error) {
@@ -876,7 +756,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			cesiumViewer.camera.flyTo({
 				destination: Cartesian3.fromDegrees(0, 0, 20000000),
 				duration: 3.0,
-				complete: () => { initialZoomComplete = true; },
+				complete: () => { initialZoomComplete = true; }
 			});
 		}
 	}
@@ -940,20 +820,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				if (pickedObject.id.id === "pickedPoint") {
 					// Ignore clicks on the picked point marker
 				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner" || pickedObject.id.id === "Your Location!_hitarea")) {
-				const entityPos = userLocationEntity?.position?.getValue(JulianDate.now());
-				if (entityPos && cesiumViewer) {
-					radialScreenX = window.innerWidth / 2;
-					radialScreenY = window.innerHeight / 2;
-					showRadialMenu = true;
-					const cartographic = Cartographic.fromCartesian(entityPos);
-					cesiumViewer.camera.flyTo({
-						destination: Cartesian3.fromDegrees(
-							CesiumMath.toDegrees(cartographic.longitude),
-							CesiumMath.toDegrees(cartographic.latitude),
-							2000
-						),
-					});
-				}
+				openRadialMenuCentered();
 				} else if (pickedObject.id && pickedObject.id.id.startsWith('helpout_')) {
 				// Handle helpout marker click
 				const props = pickedObject.id.properties;
@@ -988,12 +855,10 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	function handleRoamingAreaClick(click: any) {
 		if (!cesiumViewer) return;
 		
+		const coords = pickPositionToLonLat(cesiumViewer, click.position);
+		if (!coords) return;
+		const { longitude, latitude } = coords;
 		const cartesian = cesiumViewer.scene.pickPosition(click.position);
-		if (!cartesian) return;
-
-		const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-		const longitude = Cesium.Math.toDegrees(cartographic.longitude);
-		const latitude = Cesium.Math.toDegrees(cartographic.latitude);
 		
 		if (!roamingAreaStart) {
 			// First click - start the area
@@ -1228,20 +1093,9 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		});
 	  
   
-	  // Check for active gig session on relay — auto-open panel if found
-	  getSharedNostr().then(nostr => {
-	    const subId = `gig-recovery-${Date.now()}`;
-	    let found = false;
-	    nostr.subscribe(subId, {
-	      kinds: [REPLACEABLE_KIND],
-	      authors: [nostr.pubkey],
-	      since: Math.floor(Date.now() / 1000) - 120,
-	    }, () => {
-	      if (!found) { found = true; modalService.showGigEconomy(); }
-	    }, () => {
-	      nostr.unsubscribe(subId);
-	    });
-	  }).catch(() => {});
+	  hasActiveGigSession()
+	    .then(active => { if (active) modalService.showGigEconomy(); })
+	    .catch(() => {});
 
 	  // Set up clustering for the custom data source
 	  if (customDataSource) {
@@ -1256,30 +1110,13 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  // Set up event handlers for user interactions
 	  setupEventHandlers();
 
-	  // Fly camera to location when set from address search and show a marker
 	  unsubFlyTo = flyToLocation.subscribe(loc => {
 	    if (loc && cesiumViewer) {
-	      cesiumViewer.camera.flyTo({
-	        destination: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 5000),
-	        duration: 1.5,
-	      });
-
-	      if (pointEntity) cesiumViewer.entities.remove(pointEntity);
+	      flyToLonLat(cesiumViewer, loc.lon, loc.lat, 5000, 1.5);
 	      clampToSurface(loc.lon, loc.lat).then(clamped => {
 	        if (!cesiumViewer) return;
-	        pointEntity = cesiumViewer.entities.add({
-	          id: "pickedPoint",
-	          position: clamped,
-	          point: {
-	            pixelSize: 8,
-	            color: Cesium.Color.fromCssColorString('#34A853'),
-	            outlineColor: Cesium.Color.WHITE,
-	            outlineWidth: 1,
-	            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-	          },
-	        });
+	        pointEntity = addPickedPointMarker(cesiumViewer, clamped, pointEntity);
 	      });
-
 	      flyToLocation.set(null);
 	    }
 	  });
@@ -1345,140 +1182,30 @@ async function handleEntityPick(pickedFeature: any) {
   }
 }
 
-// ─── Helpout Map Layer ──────────────────────────────────────
+// ─── Listing Map Layers (Helpouts + Social) ─────────────────
 
-/** Add helpout listing markers to the Cesium globe. */
-async function renderHelpoutMarkers(listings: Listing[]) {
-  removeHelpoutMarkers();
-  if (!cesiumViewer) return;
-
-  for (const listing of listings) {
-    if (!listing.location) continue;
-    const position = await clampToSurface(listing.location.longitude, listing.location.latitude);
-
-    const entity = cesiumViewer.entities.add({
-      id: `helpout_${listing.id}`,
-      position,
-      point: {
-        pixelSize: 10,
-        color: Color.fromCssColorString('#00BCD4'),
-        outlineColor: Color.WHITE,
-        outlineWidth: 1.5,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-      label: {
-        text: '?',
-        font: 'bold 12px sans-serif',
-        fillColor: Color.WHITE,
-        outlineColor: Color.BLACK,
-        outlineWidth: 2,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        pixelOffset: new Cartesian2(0, -12),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-      properties: { helpoutListing: listing },
-    });
-    helpoutEntities.push(entity);
-  }
-}
-
-/** Remove all helpout markers from the globe. */
-function removeHelpoutMarkers() {
-  if (!cesiumViewer) return;
-  for (const entity of helpoutEntities) {
-    cesiumViewer.entities.remove(entity);
-  }
-  helpoutEntities = [];
-}
-
-/** Handle MapLayersMenu callback for helpouts. */
 async function onHelpoutsChanged(listings: Listing[]) {
-  if (listings.length === 0) {
-    removeHelpoutMarkers();
-    return;
-  }
+  if (listings.length === 0) { removeMarkers(cesiumViewer, helpoutEntities); helpoutEntities = []; return; }
   await ensureMyPk();
-  renderHelpoutMarkers(listings);
+  helpoutEntities = await renderListingMarkers(cesiumViewer, listings, helpoutEntities, {
+    idPrefix: 'helpout_', pointColor: '#00BCD4', getLabelText: () => '?', propertyKey: 'helpoutListing',
+  });
 }
 
-/** Remove a single helpout marker by listing ID (after take-down). */
 function handleHelpoutTakenDown(listingId: string) {
-  if (!cesiumViewer) return;
-  const entityId = `helpout_${listingId}`;
-  const idx = helpoutEntities.findIndex(e => e.id === entityId);
-  if (idx !== -1) {
-    cesiumViewer.entities.remove(helpoutEntities[idx]);
-    helpoutEntities.splice(idx, 1);
-  }
+  removeMarkerById(cesiumViewer, helpoutEntities, 'helpout_', listingId);
 }
 
-// ─── Social Map Layer ───────────────────────────────────────
-
-/** Add social listing markers to the Cesium globe. */
-async function renderSocialMarkers(listings: Listing[]) {
-  removeSocialMarkers();
-  if (!cesiumViewer) return;
-
-  for (const listing of listings) {
-    if (!listing.location) continue;
-    const position = await clampToSurface(listing.location.longitude, listing.location.latitude);
-
-    const entity = cesiumViewer.entities.add({
-      id: `social_${listing.id}`,
-      position,
-      point: {
-        pixelSize: 10,
-        color: Color.fromCssColorString('#FF4081'),
-        outlineColor: Color.WHITE,
-        outlineWidth: 1.5,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-      label: {
-        text: listing.title || '★',
-        font: 'bold 12px sans-serif',
-        fillColor: Color.WHITE,
-        outlineColor: Color.BLACK,
-        outlineWidth: 2,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        pixelOffset: new Cartesian2(0, -12),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-      properties: { socialListing: listing },
-    });
-    socialEntities.push(entity);
-  }
-}
-
-/** Remove all social markers from the globe. */
-function removeSocialMarkers() {
-  if (!cesiumViewer) return;
-  for (const entity of socialEntities) {
-    cesiumViewer.entities.remove(entity);
-  }
-  socialEntities = [];
-}
-
-/** Handle MapLayersMenu callback for social. */
 async function onSocialChanged(listings: Listing[]) {
-  if (listings.length === 0) {
-    removeSocialMarkers();
-    return;
-  }
+  if (listings.length === 0) { removeMarkers(cesiumViewer, socialEntities); socialEntities = []; return; }
   await ensureMyPk();
-  renderSocialMarkers(listings);
+  socialEntities = await renderListingMarkers(cesiumViewer, listings, socialEntities, {
+    idPrefix: 'social_', pointColor: '#FF4081', getLabelText: (l) => l.title || '★', propertyKey: 'socialListing',
+  });
 }
 
-/** Remove a single social marker by listing ID (after take-down). */
 function handleSocialTakenDown(listingId: string) {
-  if (!cesiumViewer) return;
-  const entityId = `social_${listingId}`;
-  const idx = socialEntities.findIndex(e => e.id === entityId);
-  if (idx !== -1) {
-    cesiumViewer.entities.remove(socialEntities[idx]);
-    socialEntities.splice(idx, 1);
-  }
+  removeMarkerById(cesiumViewer, socialEntities, 'social_', listingId);
 }
 
 /** Handle radial menu category selection → open gig panel to that vertical. */
@@ -1495,14 +1222,10 @@ function handleRadialClose() {
   showRadialMenu = false;
 }
 
-/** Fly camera to the user's current live location. */
 function flyToMyLocation() {
   const loc = $userLiveLocation;
   if (!loc || !cesiumViewer) return;
-  cesiumViewer.camera.flyTo({
-    destination: Cartesian3.fromDegrees(loc.longitude, loc.latitude, 2000),
-    duration: 1.5,
-  });
+  flyToLonLat(cesiumViewer, loc.longitude, loc.latitude, 2000, 1.5);
 }
 
 /** Ensure we have the user's Nostr public key for ownership checks. */
@@ -1523,45 +1246,21 @@ function handleCoordinatePick(result: any) {
   const cameraHeight = cesiumViewer.camera.positionCartographic.height;
   if (cameraHeight > 250000) {
     modalService.showZoomRequired();
-    setTimeout(() => {
-      modalService.hideZoomRequired();
-    }, 3000);
+    setTimeout(() => { modalService.hideZoomRequired(); }, 3000);
     return;
   }
   
-  const cartesian = cesiumViewer.scene.pickPosition(result.position);
-  if (!cartesian) return;
+  const coords = pickPositionToLonLat(cesiumViewer, result.position);
+  if (!coords) return;
 
-  const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-  const longitude = Cesium.Math.toDegrees(cartographic.longitude);
-  const latitude = Cesium.Math.toDegrees(cartographic.latitude);
-  
-  // Height is captured and stored in coordinates store
-
-  // Store coordinates with full precision using toFixed with more decimal places
   coordinates.set({ 
-    latitude: latitude.toFixed(10), 
-    longitude: longitude.toFixed(10),
-    height: cartographic.height
+    latitude: coords.latitude.toFixed(10), 
+    longitude: coords.longitude.toFixed(10),
+    height: coords.height,
   });
 
-  if (pointEntity && cesiumViewer) {
-    cesiumViewer.entities.remove(pointEntity);
-  }
-
-  if (cesiumViewer) {
-    pointEntity = cesiumViewer.entities.add({
-      id: "pickedPoint",
-      position: cartesian,
-      point: {
-        pixelSize: 8,
-        color: Cesium.Color.fromCssColorString('#34A853'),
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 1,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
-    });
-  }
+  const cartesian = cesiumViewer.scene.pickPosition(result.position);
+  pointEntity = addPickedPointMarker(cesiumViewer, cartesian, pointEntity);
 }
 
 
@@ -1653,7 +1352,8 @@ function handleCoordinatePick(result: any) {
 		userRingEntities = [];
 		userLocationInitialized = false;
 		showRadialMenu = false;
-		removeHelpoutMarkers();
+		removeMarkers(cesiumViewer, helpoutEntities);
+		removeMarkers(cesiumViewer, socialEntities);
 		stopUserLocationTracking();
 		isMonitoringCamera = false;
 		animationFrameId = null;

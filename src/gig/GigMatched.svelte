@@ -1,6 +1,7 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
   import type { MatchingVerticalConfig } from './verticals';
+  import { ensureProtocol } from '../utils/urlUtils';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
 
   export let config: MatchingVerticalConfig;
@@ -10,11 +11,6 @@
 
   $: hasContact = !!(providerDetails.phone || providerDetails.messenger);
   $: showContact = role === 'requester' && hasContact;
-
-  function formatMessengerHref(link: string): string {
-    if (/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(link)) return link;
-    return 'https://' + link;
-  }
 </script>
 
 <div class="matched" transition:slide={{ duration: 300 }}>
@@ -40,7 +36,7 @@
       {#if providerDetails.messenger}
         <div class="contact-row">
           <span class="contact-label">Messenger</span>
-          <a class="contact-value link" href={formatMessengerHref(providerDetails.messenger)} target="_blank" rel="noopener noreferrer">{providerDetails.messenger}</a>
+          <a class="contact-value link" href={ensureProtocol(providerDetails.messenger)} target="_blank" rel="noopener noreferrer">{providerDetails.messenger}</a>
         </div>
       {/if}
     </div>
