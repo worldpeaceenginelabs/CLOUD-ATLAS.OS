@@ -1079,6 +1079,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		Cesium.CameraEventType.WHEEL,
 		Cesium.CameraEventType.PINCH,
 	  ];
+	  sscc.zoomFactor = 15.0;
 
 	  // Pitch clamp: prevent the camera from ever crossing the horizon
 	  cesiumViewer.scene.preRender.addEventListener(() => {
