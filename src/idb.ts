@@ -3,7 +3,7 @@ import type { PinData, ModelData, Listing } from './types';
 class IndexedDBManager {
   private db: IDBDatabase | null = null;
   private dbName = 'indexeddbstore';
-  private version = 6;
+  private version = 7;
 
   async openDB(): Promise<IDBDatabase> {
     if (this.db) return this.db;
@@ -13,7 +13,7 @@ class IndexedDBManager {
 
       request.onupgradeneeded = () => {
         const db = request.result;
-        const stores = ['locationpins:mapid', 'models:id', 'localpins:mapid', 'helpouts:cell', 'nostrkeys:id'];
+        const stores = ['locationpins:mapid', 'models:id', 'localpins:mapid', 'helpouts:cell', 'nostrkeys:id', 'settings:id'];
         for (const entry of stores) {
           const [name, key] = entry.split(':');
           if (!db.objectStoreNames.contains(name)) {
@@ -89,6 +89,17 @@ class IndexedDBManager {
   async loadKeypair(): Promise<{ sk: Uint8Array; pk: string } | null> {
     const result = await this.req(this.store('nostrkeys').get('primary'));
     return result ? { sk: new Uint8Array(result.sk), pk: result.pk } : null;
+  }
+
+  // ─── Settings ───────────────────────────────────────────────
+
+  async saveSetting(id: string, value: string): Promise<void> {
+    await this.req(this.store('settings', 'readwrite').put({ id, value }));
+  }
+
+  async loadSetting(id: string): Promise<string | null> {
+    const result = await this.req(this.store('settings').get(id));
+    return result ? result.value : null;
   }
 }
 

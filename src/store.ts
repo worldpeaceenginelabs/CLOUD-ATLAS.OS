@@ -19,6 +19,8 @@ export const is3DTilesetActive = writable(false);
 export const isBasemapLoaded = writable(false);
 export const isTilesetLoaded = writable(false);
 export const enable3DTileset: Writable<boolean> = writable(false);
+/** User-provided Cesium Ion access token (overrides the env default) */
+export const userIonAccessToken: Writable<string> = writable('');
 
 // Progress Stores
 export const basemapProgress = writable(0);

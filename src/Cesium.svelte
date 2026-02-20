@@ -26,6 +26,7 @@
 		currentHeight,
 		is3DTilesetActive,
 		enable3DTileset,
+		userIonAccessToken,
 		basemapProgress,
 		tilesetProgress,
 		isInitialLoadComplete,
@@ -436,7 +437,18 @@ function loadModelsFromStore() {
 	}
 }
 
+// React to runtime Ion API key changes
+$: {
+	const token = $userIonAccessToken;
+	if (token) {
+		Ion.defaultAccessToken = token;
+	} else {
+		Ion.defaultAccessToken = import.meta.env.VITE_ION_ACCESS_TOKEN;
+	}
+}
+
 // React to runtime 3D Tiles toggle
+let tilesetLoading = false;
 $: if (cesiumViewer) {
 	if (!$enable3DTileset) {
 		if (tileset) tileset.show = false;
@@ -449,6 +461,19 @@ $: if (cesiumViewer) {
 			tileset.show = true;
 			is3DTilesetActive.set(true);
 		}
+	} else if (!tilesetLoading && $userIonAccessToken) {
+		tilesetLoading = true;
+		loadTilesetWithProgress().then(() => {
+			tilesetLoading = false;
+			if (tileset && $enable3DTileset) {
+				const h = cesiumViewer.camera.positionCartographic.height;
+				if (h <= 6000000) {
+					cesiumViewer.scene.globe.show = false;
+					tileset.show = true;
+					is3DTilesetActive.set(true);
+				}
+			}
+		});
 	}
 }
 
@@ -999,9 +1024,19 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	// Initialization on mount
 	onMount(async () => {
-	Ion.defaultAccessToken = import.meta.env.VITE_ION_ACCESS_TOKEN;
-	// FOR LIVE EDIT: Ion.defaultAccessToken = 'yourtoken';
-	// TO USE THE GLOBE IN LIVE EDIT GET A FREE API KEY AT https://ion.cesium.com/
+	// Hydrate user Ion key from IDB, fall back to env default
+	try {
+		await idb.openDB();
+		const stored = await idb.loadSetting('ionAccessToken');
+		if (stored) {
+			Ion.defaultAccessToken = stored;
+			userIonAccessToken.set(stored);
+		} else {
+			Ion.defaultAccessToken = import.meta.env.VITE_ION_ACCESS_TOKEN;
+		}
+	} catch {
+		Ion.defaultAccessToken = import.meta.env.VITE_ION_ACCESS_TOKEN;
+	}
 
 	  
 	  // Initialize Cesium viewer with configuration
