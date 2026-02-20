@@ -356,7 +356,4 @@
 .close:hover span {
   width: calc(var(--size) / 4);
 }
-
-
- /* Scrollbar styles provided by ScrollbarStyles component */
 </style>

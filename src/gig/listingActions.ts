@@ -1,5 +1,5 @@
 /**
- * Shared listing actions (e.g. take-down) used by HelpoutDetail and SocialDetail.
+ * Shared listing actions (e.g. take-down) used by ListingDetail.
  */
 
 import type { Listing } from '../types';

@@ -1534,8 +1534,5 @@ function handleCoordinatePick(result: any) {
         opacity: 1;
         }
 }
-
-
-/* Scrollbar styles provided by ScrollbarStyles component */
 </style>
   
