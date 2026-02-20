@@ -14,9 +14,8 @@ import {
   CustomDataSource,
 } from 'cesium';
 import * as Cesium from 'cesium';
-import type { ModelData } from '../types';
+import type { ModelData, Listing } from '../types';
 import { clampToSurface } from './clampToSurface';
-import type { Listing } from '../types';
 
 // ─── Model Helpers ──────────────────────────────────────────────
 
@@ -121,7 +120,7 @@ export function flyToEntityPosition(
 export function pickPositionToLonLat(
   viewer: any,
   screenPosition: any,
-): { longitude: number; latitude: number; height: number } | null {
+): { longitude: number; latitude: number; height: number; cartesian: any } | null {
   const cartesian = viewer.scene.pickPosition(screenPosition);
   if (!cartesian) return null;
   const cartographic = Cartographic.fromCartesian(cartesian);
@@ -129,6 +128,7 @@ export function pickPositionToLonLat(
     longitude: CesiumMath.toDegrees(cartographic.longitude),
     latitude: CesiumMath.toDegrees(cartographic.latitude),
     height: cartographic.height,
+    cartesian,
   };
 }
 

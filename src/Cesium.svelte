@@ -857,8 +857,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		
 		const coords = pickPositionToLonLat(cesiumViewer, click.position);
 		if (!coords) return;
-		const { longitude, latitude } = coords;
-		const cartesian = cesiumViewer.scene.pickPosition(click.position);
+		const { longitude, latitude, cartesian } = coords;
 		
 		if (!roamingAreaStart) {
 			// First click - start the area
@@ -1259,8 +1258,7 @@ function handleCoordinatePick(result: any) {
     height: coords.height,
   });
 
-  const cartesian = cesiumViewer.scene.pickPosition(result.position);
-  pointEntity = addPickedPointMarker(cesiumViewer, cartesian, pointEntity);
+  pointEntity = addPickedPointMarker(cesiumViewer, coords.cartesian, pointEntity);
 }
 
 
@@ -1352,8 +1350,8 @@ function handleCoordinatePick(result: any) {
 		userRingEntities = [];
 		userLocationInitialized = false;
 		showRadialMenu = false;
-		removeMarkers(cesiumViewer, helpoutEntities);
-		removeMarkers(cesiumViewer, socialEntities);
+		helpoutEntities = [];
+		socialEntities = [];
 		stopUserLocationTracking();
 		isMonitoringCamera = false;
 		animationFrameId = null;
