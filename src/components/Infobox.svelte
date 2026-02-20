@@ -1,7 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
   import { writable } from 'svelte/store';
-    import ScrollbarStyles from './ScrollbarStyles.svelte';
 
   export let isVisible = writable(true);
 
@@ -10,7 +9,6 @@
   }
 </script>
 
-<ScrollbarStyles />
 {#if $isVisible}
 <div class="main_div" transition:slide={{ duration: 500 }}>
 

@@ -1,451 +1,61 @@
-/**
- * Centralized Modal Management System for Cloud Atlas OS
- * Provides unified modal state management, stacking, and history
- */
+import { writable, derived, get } from 'svelte/store';
 
-import { writable, derived, get, type Writable } from 'svelte/store';
-
-// Modal Types
-export type ModalType = 'default' | 'notification' | 'overlay' | 'card';
-
-export interface ModalConfig {
+export interface ModalEntry {
   id: string;
-  type: ModalType;
-  title?: string;
-  maxWidth?: string;
-  zIndex?: number;
-  showCloseButton?: boolean;
-  closeOnBackdropClick?: boolean;
-  transitionDuration?: number;
-  customClass?: string;
-  forwardInputs?: boolean;
   data?: any;
 }
 
-export interface ModalState {
-  id: string;
-  config: ModalConfig;
-  isVisible: boolean;
-  timestamp: number;
-  zIndex: number;
+const _modals = writable<ModalEntry[]>([]);
+
+export const openModals = derived(_modals, $m => $m);
+
+export function showModal(id: string, data?: any): void {
+  _modals.update(list => {
+    if (list.some(m => m.id === id)) return list;
+    return [...list, { id, data }];
+  });
 }
 
-export interface ModalHistory {
-  modals: string[];
-  currentIndex: number;
+export function hideModal(id: string): void {
+  _modals.update(list => list.filter(m => m.id !== id));
 }
 
-// Modal Registry - stores all available modal configurations
-const modalRegistry = new Map<string, ModalConfig>();
-
-// Modal Stack - manages currently open modals
-const modalStack = writable<ModalState[]>([]);
-
-// Modal History - tracks modal navigation
-const modalHistory = writable<ModalHistory>({
-  modals: [],
-  currentIndex: -1
-});
-
-// Base z-index for modals
-const BASE_Z_INDEX = 1000;
-const Z_INDEX_INCREMENT = 10;
-
-// Current z-index counter
-let currentZIndex = BASE_Z_INDEX;
-
-// Derived stores
-export const openModals = derived(modalStack, $stack => $stack.filter(modal => modal.isVisible));
-export const topModal = derived(modalStack, $stack => {
-  const visibleModals = $stack.filter(modal => modal.isVisible);
-  return visibleModals.length > 0 ? visibleModals[visibleModals.length - 1] : null;
-});
-export const modalCount = derived(modalStack, $stack => $stack.filter(modal => modal.isVisible).length);
-
-// Modal Manager Class
-class ModalManager {
-  private static instance: ModalManager;
-  private eventListeners: Map<string, ((modalId: string) => void)[]> = new Map();
-  private handleKeyDown: ((event: KeyboardEvent) => void) | null = null;
-
-  private constructor() {
-    this.setupKeyboardHandlers();
-  }
-
-  static getInstance(): ModalManager {
-    if (!ModalManager.instance) {
-      ModalManager.instance = new ModalManager();
-    }
-    return ModalManager.instance;
-  }
-
-  /**
-   * Register a modal configuration
-   */
-  registerModal(config: ModalConfig): void {
-    modalRegistry.set(config.id, config);
-  }
-
-  /**
-   * Show a modal
-   */
-  showModal(modalId: string, data?: any): void {
-    const config = modalRegistry.get(modalId);
-    if (!config) {
-      console.error(`Modal ${modalId} not found in registry`);
-      return;
-    }
-
-    // Check if modal is already open
-    modalStack.update(stack => {
-      const existingModal = stack.find(modal => modal.id === modalId);
-      if (existingModal && existingModal.isVisible) {
-        return stack; // Modal already open
-      }
-
-      // Create new modal state
-      const modalState: ModalState = {
-        id: modalId,
-        config: { ...config, data },
-        isVisible: true,
-        timestamp: Date.now(),
-        zIndex: currentZIndex
-      };
-
-      // Add to stack
-      const newStack = existingModal 
-        ? stack.map(modal => modal.id === modalId ? modalState : modal)
-        : [...stack, modalState];
-
-      // Update z-index for next modal
-      currentZIndex += Z_INDEX_INCREMENT;
-
-      // Add to history
-      this.addToHistory(modalId);
-
-      return newStack;
-    });
-
-    this.emit('modalOpen', modalId);
-  }
-
-  /**
-   * Hide a modal
-   */
-  hideModal(modalId: string): void {
-    modalStack.update(stack => {
-      return stack.map(modal => 
-        modal.id === modalId 
-          ? { ...modal, isVisible: false }
-          : modal
-      );
-    });
-
-    // Remove from history
-    this.removeFromHistory(modalId);
-
-    this.emit('modalClose', modalId);
-  }
-
-  /**
-   * Toggle a modal
-   */
-  toggleModal(modalId: string, data?: any): void {
-    const stack = get(modalStack);
-    const existingModal = stack.find(modal => modal.id === modalId);
-    if (existingModal && existingModal.isVisible) {
-      this.hideModal(modalId);
-    } else {
-      this.showModal(modalId, data);
-    }
-  }
-
-  /**
-   * Close all modals
-   */
-  closeAllModals(): void {
-    modalStack.update(stack => 
-      stack.map(modal => ({ ...modal, isVisible: false }))
-    );
-    this.clearHistory();
-    this.emit('allModalsClose', '');
-  }
-
-  /**
-   * Close top modal
-   */
-  closeTopModal(): void {
-    modalStack.update(stack => {
-      const visibleModals = stack.filter(modal => modal.isVisible);
-      if (visibleModals.length > 0) {
-        const topModal = visibleModals[visibleModals.length - 1];
-        return stack.map(modal => 
-          modal.id === topModal.id 
-            ? { ...modal, isVisible: false }
-            : modal
-        );
-      }
-      return stack;
-    });
-  }
-
-  /**
-   * Get modal state
-   */
-  getModalState(modalId: string): ModalState | undefined {
-    const stack = get(modalStack);
-    return stack.find(modal => modal.id === modalId);
-  }
-
-  /**
-   * Update modal data
-   */
-  updateModalData(modalId: string, data: any): void {
-    modalStack.update(stack => 
-      stack.map(modal => 
-        modal.id === modalId 
-          ? { ...modal, config: { ...modal.config, data } }
-          : modal
-      )
-    );
-  }
-
-  /**
-   * Add to history
-   */
-  private addToHistory(modalId: string): void {
-    modalHistory.update(history => {
-      const newModals = [...history.modals, modalId];
-      return {
-        modals: newModals,
-        currentIndex: newModals.length - 1
-      };
-    });
-  }
-
-  /**
-   * Remove from history
-   */
-  private removeFromHistory(modalId: string): void {
-    modalHistory.update(history => {
-      const newModals = history.modals.filter(id => id !== modalId);
-      return {
-        modals: newModals,
-        currentIndex: Math.min(history.currentIndex, newModals.length - 1)
-      };
-    });
-  }
-
-  /**
-   * Clear history
-   */
-  private clearHistory(): void {
-    modalHistory.set({
-      modals: [],
-      currentIndex: -1
-    });
-  }
-
-  /**
-   * Navigate back in modal history
-   */
-  goBack(): void {
-    const history = get(modalHistory);
-    if (history.currentIndex > 0) {
-      const previousModalId = history.modals[history.currentIndex - 1];
-      modalHistory.update(h => ({
-        ...h,
-        currentIndex: h.currentIndex - 1
-      }));
-      this.showModal(previousModalId);
-    }
-  }
-
-  /**
-   * Navigate forward in modal history
-   */
-  goForward(): void {
-    const history = get(modalHistory);
-    if (history.currentIndex < history.modals.length - 1) {
-      const nextModalId = history.modals[history.currentIndex + 1];
-      modalHistory.update(h => ({
-        ...h,
-        currentIndex: h.currentIndex + 1
-      }));
-      this.showModal(nextModalId);
-    }
-  }
-
-  /**
-   * Setup keyboard handlers
-   */
-  private setupKeyboardHandlers(): void {
-    this.handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        this.closeTopModal();
-      } else if (event.altKey && event.key === 'ArrowLeft') {
-        event.preventDefault();
-        this.goBack();
-      } else if (event.altKey && event.key === 'ArrowRight') {
-        event.preventDefault();
-        this.goForward();
-      }
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('keydown', this.handleKeyDown);
-    }
-  }
-
-  /**
-   * Add event listener for modal events
-   */
-  on(event: string, callback: (modalId: string) => void): void {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, []);
-    }
-    this.eventListeners.get(event)!.push(callback);
-  }
-
-  /**
-   * Remove event listener
-   */
-  off(event: string, callback: (modalId: string) => void): void {
-    const listeners = this.eventListeners.get(event);
-    if (listeners) {
-      const index = listeners.indexOf(callback);
-      if (index > -1) {
-        listeners.splice(index, 1);
-      }
-    }
-  }
-
-  /**
-   * Emit event
-   */
-  private emit(event: string, modalId: string): void {
-    const listeners = this.eventListeners.get(event);
-    if (listeners) {
-      listeners.forEach(callback => callback(modalId));
-    }
-  }
-
+export function toggleModal(id: string, data?: any): void {
+  const list = get(_modals);
+  if (list.some(m => m.id === id)) hideModal(id);
+  else showModal(id, data);
 }
 
-// Export singleton instance
-export const modalManager = ModalManager.getInstance();
+export function closeAllModals(): void {
+  _modals.set([]);
+}
 
-// Export stores for reactive usage
-export { modalStack, modalHistory };
+export function closeTopModal(): void {
+  _modals.update(list => list.length > 0 ? list.slice(0, -1) : list);
+}
 
-// Predefined modal configurations
-export const MODAL_CONFIGS: Record<string, ModalConfig> = {
-  // Record modals
-  'record-details': {
-    id: 'record-details',
-    type: 'default',
-    title: 'Record Details',
-    maxWidth: '500px',
-    showCloseButton: true,
-    closeOnBackdropClick: true
+export function isModalOpen(id: string): boolean {
+  return get(_modals).some(m => m.id === id);
+}
+
+export function getModalData(id: string): any {
+  return get(_modals).find(m => m.id === id)?.data;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTopModal();
+  });
+}
+
+export const modalManager = {
+  showModal,
+  hideModal,
+  toggleModal,
+  closeAllModals,
+  closeTopModal,
+  getModalState: (id: string) => {
+    const entry = get(_modals).find(m => m.id === id);
+    return entry ? { isVisible: true, config: { data: entry.data } } : undefined;
   },
-
-  // Model modals
-  'model-details': {
-    id: 'model-details',
-    type: 'default',
-    title: '3D Model Details',
-    maxWidth: '500px',
-    showCloseButton: true,
-    closeOnBackdropClick: true
-  },
-
-  // Editor card
-  'model-editor': {
-    id: 'model-editor',
-    type: 'card',
-    showCloseButton: true,
-    closeOnBackdropClick: false
-  },
-
-  // AddButton modals
-  'brainstorming': {
-    id: 'brainstorming',
-    type: 'default',
-    title: 'Add Brainstorming',
-    maxWidth: '600px',
-    showCloseButton: true,
-    closeOnBackdropClick: true,
-    transitionDuration: 500
-  },
-
-  'simulation': {
-    id: 'simulation',
-    type: 'default',
-    title: 'Add Simulation',
-    maxWidth: '600px',
-    showCloseButton: true,
-    closeOnBackdropClick: true,
-    transitionDuration: 500
-  },
-
-  'action-event': {
-    id: 'action-event',
-    type: 'default',
-    title: 'Add Action Event',
-    maxWidth: '600px',
-    showCloseButton: true,
-    closeOnBackdropClick: true,
-    transitionDuration: 500
-  },
-
-  'petition': {
-    id: 'petition',
-    type: 'default',
-    title: 'Add Petition',
-    maxWidth: '600px',
-    showCloseButton: true,
-    closeOnBackdropClick: true,
-    transitionDuration: 500
-  },
-
-  'crowdfunding': {
-    id: 'crowdfunding',
-    type: 'default',
-    title: 'Add Crowdfunding',
-    maxWidth: '600px',
-    showCloseButton: true,
-    closeOnBackdropClick: true,
-    transitionDuration: 500
-  },
-
-  // Gig Economy modal (card type — no backdrop, map stays interactive)
-  'gig-economy': {
-    id: 'gig-economy',
-    type: 'card',
-    showCloseButton: true,
-    closeOnBackdropClick: false
-  },
-
-  // Notification modals
-  'coordinate-picker': {
-    id: 'coordinate-picker',
-    type: 'notification',
-    showCloseButton: false,
-    closeOnBackdropClick: false,
-    transitionDuration: 500
-  },
-
-  'zoom-required': {
-    id: 'zoom-required',
-    type: 'notification',
-    showCloseButton: false,
-    closeOnBackdropClick: false,
-    transitionDuration: 500
-  }
 };
-
-// Register all predefined modals
-Object.values(MODAL_CONFIGS).forEach(config => {
-  modalManager.registerModal(config);
-});

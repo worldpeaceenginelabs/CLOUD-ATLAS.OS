@@ -1,53 +1,18 @@
-/**
- * Centralized Error Handling Utilities
- * Consolidates duplicate error handling patterns across components
- */
-
 export interface ErrorContext {
   component: string;
   operation: string;
   additionalInfo?: string;
 }
 
-/**
- * Standardized error logging with context
- */
 export function logError(error: unknown, context: ErrorContext): void {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const contextString = `${context.component}.${context.operation}`;
-  const additionalInfo = context.additionalInfo ? ` (${context.additionalInfo})` : '';
-  
-  console.error(`[${contextString}]${additionalInfo}:`, errorMessage);
+  const msg = error instanceof Error ? error.message : String(error);
+  console.error(`[${context.component}.${context.operation}]`, msg);
 }
 
-/**
- * Create error context for common operations
- */
-function createErrorContext(component: string, operation: string, additionalInfo?: string): ErrorContext {
-  return { component, operation, additionalInfo };
-}
-
-/**
- * Common error contexts for frequently used operations
- */
 export const CommonErrorContexts = {
   dataManager: {
-    addModel: (modelName: string) => createErrorContext('DataManager', 'addModel', modelName),
-    updateModel: (modelId: string) => createErrorContext('DataManager', 'updateModel', modelId),
-    removeModel: (modelId: string) => createErrorContext('DataManager', 'removeModel', modelId),
-    loadModels: () => createErrorContext('DataManager', 'loadModels'),
+    addModel: (name: string): ErrorContext => ({ component: 'DataManager', operation: 'addModel', additionalInfo: name }),
+    updateModel: (id: string): ErrorContext => ({ component: 'DataManager', operation: 'updateModel', additionalInfo: id }),
+    removeModel: (id: string): ErrorContext => ({ component: 'DataManager', operation: 'removeModel', additionalInfo: id }),
   },
-  idb: {
-    savePin: (pinId: string) => createErrorContext('IndexedDB', 'savePin', pinId),
-    loadPins: () => createErrorContext('IndexedDB', 'loadPins'),
-  },
-  cesium: {
-    addModelToScene: (modelId: string) => createErrorContext('Cesium', 'addModelToScene', modelId),
-    removeModelFromScene: (modelId: string) => createErrorContext('Cesium', 'removeModelFromScene', modelId),
-    flyTo: (destination: string) => createErrorContext('Cesium', 'flyTo', destination),
-  },
-  form: {
-    validateModel: () => createErrorContext('Form', 'validateModel'),
-    submitModel: (modelName: string) => createErrorContext('Form', 'submitModel', modelName),
-  }
 } as const;

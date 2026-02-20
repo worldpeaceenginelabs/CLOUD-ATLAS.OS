@@ -63,3 +63,374 @@ button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
+
+/* ── Shared Scrollbar Styles ────────────────────────────── */
+
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+* { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1); }
+
+/* ── Shared Keyframe Animations ─────────────────────────── */
+
+@keyframes gig-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-scale-down {
+  from { opacity: 0; transform: scale(1.1); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fade-in-scale-up {
+  from { opacity: 0; transform: scale(0.01); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Shared Animated Gradient Text ──────────────────────── */
+
+.animated-gradient {
+  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+  background-size: 400% 400%;
+  animation: gradientBG 5s ease infinite, pulse 10s infinite;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Shared Gig Form Styles ─────────────────────────────── */
+
+.gig-back-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0.25rem;
+  transition: color 0.2s;
+  text-align: left;
+}
+.gig-back-btn:hover { color: white; }
+
+.gig-form-title {
+  margin: 0 0 0.15rem 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+}
+
+.gig-form-subtitle {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.gig-field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.gig-required {
+  color: rgba(239, 68, 68, 0.8);
+  margin-left: 2px;
+}
+
+.gig-field-input {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: white;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.gig-field-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+.gig-field-input:focus { border-color: rgba(255, 255, 255, 0.35); }
+.gig-field-input.invalid { border-color: rgba(239, 68, 68, 0.6); }
+.gig-field-input.textarea { resize: vertical; min-height: 60px; }
+
+.gig-field-hint {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 2px;
+}
+
+.gig-field-error {
+  font-size: 0.75rem;
+  color: rgba(239, 68, 68, 0.8);
+}
+
+.gig-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gig-live-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #34a853;
+  background: rgba(52, 168, 83, 0.15);
+  border: 1px solid rgba(52, 168, 83, 0.3);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+.gig-pulse-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: gig-pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.gig-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Shared Mode Selector ───────────────────────────────── */
+
+.gig-mode-selector {
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.gig-mode-btn {
+  flex: 1;
+  padding: 8px 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.gig-mode-btn:hover { color: rgba(255, 255, 255, 0.8); }
+.gig-mode-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 600;
+}
+
+/* ── Shared Category Grid ───────────────────────────────── */
+
+.gig-category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.gig-category-chip {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.gig-category-chip:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+
+.gig-category-desc {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 2px 0 0 0;
+  font-style: italic;
+}
+
+/* ── Shared Listing Summary ─────────────────────────────── */
+
+.gig-listing-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.gig-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gig-summary-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.gig-summary-value {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+
+/* ── Shared Detail Overlay ──────────────────────────────── */
+
+.gig-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.gig-detail-card {
+  width: 100%;
+  max-width: 380px;
+  background: rgba(15, 15, 25, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.gig-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gig-detail-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.gig-detail-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.gig-detail-close:hover { color: white; }
+
+.gig-detail-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.gig-detail-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.5;
+}
+
+.gig-detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.gig-action-btn-primary,
+.gig-action-btn-danger {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+.gig-action-btn-primary:disabled,
+.gig-action-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.gig-action-btn-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgba(239, 68, 68, 0.85);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.gig-action-btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.2); }
+
+.gig-detail-hint {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+}
+
+.gig-live-hint {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+  line-height: 1.4;
+  text-align: center;
+}

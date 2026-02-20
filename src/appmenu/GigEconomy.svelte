@@ -13,12 +13,10 @@
   import { REPLACEABLE_KIND, type NostrService, type NostrEvent } from '../services/nostrService';
   import { VERTICALS, type VerticalConfig } from '../gig/verticals';
   import GigVerticalSelector from '../gig/GigVerticalSelector.svelte';
-  import GigNeedForm from '../gig/GigNeedForm.svelte';
-  import GigOfferForm from '../gig/GigOfferForm.svelte';
+  import GigMatchForm from '../gig/GigMatchForm.svelte';
   import GigPending from '../gig/GigPending.svelte';
   import GigMatched from '../gig/GigMatched.svelte';
-  import GigHelpouts from '../gig/GigHelpouts.svelte';
-  import GigSocial from '../gig/GigSocial.svelte';
+  import ListingForm from '../gig/ListingForm.svelte';
   import * as Cesium from 'cesium';
   import { clampToSurface } from '../utils/clampToSurface';
 
@@ -562,7 +560,7 @@
   <!-- ═══════════════ LOADING / CONNECTING / RECOVERING ═ -->
   {:else if !sharedNostr || recovering}
     <div class="loading-keys" transition:slide={{ duration: 300 }}>
-      <div class="pulse-dot" style="background: rgba(255,255,255,0.5)"></div>
+      <div class="gig-pulse-dot" style="background: rgba(255,255,255,0.5)"></div>
       <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">{recovering ? 'Reconnecting...' : 'Loading...'}</span>
     </div>
 
@@ -570,18 +568,14 @@
   {:else if currentView === 'verticals'}
     <GigVerticalSelector onSelect={selectVertical} />
 
-  <!-- ═══════════════ HELPOUTS (LISTING MODE) ═════════ -->
-  {:else if currentView === 'helpouts' && config}
-    <GigHelpouts {config} nostr={sharedNostr} onBack={goBackToRadial} />
-
-  <!-- ═══════════════ SOCIAL (LISTING MODE) ═══════════ -->
-  {:else if currentView === 'social' && config}
-    <GigSocial {config} nostr={sharedNostr} onBack={goBackToRadial} />
+  <!-- ═══════════════ LISTING MODE (Helpouts / Social) ═ -->
+  {:else if (currentView === 'helpouts' || currentView === 'social') && config}
+    <ListingForm {config} nostr={sharedNostr} onBack={goBackToRadial} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && matchingConfig}
     <div class="gig-menu" transition:slide={{ duration: 300 }}>
-      <button class="back-btn" on:click={goBack}>&larr; Back</button>
+      <button class="gig-back-btn" on:click={goBack}>&larr; Back</button>
 
       <h3 class="gig-title">What would you like to do?</h3>
 
@@ -612,26 +606,18 @@
       </div>
     </div>
 
-  <!-- ═══════════════ NEED FORM ═══════════════════════ -->
-  {:else if currentView === 'need' && matchingConfig}
-    <GigNeedForm
+  <!-- ═══════════════ NEED / OFFER FORM ════════════════ -->
+  {:else if (currentView === 'need' || currentView === 'offer') && matchingConfig}
+    <GigMatchForm
       config={matchingConfig}
+      role={currentView}
       userLiveLocation={$userLiveLocation}
       {destinationLat}
       {destinationLon}
       onBack={goBack}
       onDestinationSelected={handleDestinationSelected}
       onDestinationClear={handleDestinationClear}
-      onSubmit={submitRequest}
-    />
-
-  <!-- ═══════════════ OFFER FORM ═════════════════════ -->
-  {:else if currentView === 'offer' && matchingConfig}
-    <GigOfferForm
-      config={matchingConfig}
-      userLiveLocation={$userLiveLocation}
-      onBack={goBack}
-      onSubmit={submitOffer}
+      onSubmit={currentView === 'need' ? submitRequest : submitOffer}
     />
 
   <!-- ═══════════════ PENDING VIEW ═══════════════════ -->
@@ -740,29 +726,6 @@
     padding: 24px;
   }
 
-  /* ── Vertical Badge ── */
-  .vertical-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 0.25rem;
-  }
-
-  .badge-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .badge-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.6);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
   /* ── Menu ── */
   .gig-menu {
     display: flex;
@@ -828,22 +791,6 @@
     color: rgba(255, 255, 255, 0.5);
   }
 
-  /* ── Back Button ── */
-  .back-btn {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.9rem;
-    cursor: pointer;
-    padding: 0;
-    margin-bottom: 0.5rem;
-    transition: color 0.2s;
-    text-align: left;
-  }
-
-  .back-btn:hover {
-    color: white;
-  }
 
   /* ── Responsive ── */
   @media (max-width: 768px) {

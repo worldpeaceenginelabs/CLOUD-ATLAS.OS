@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { openModals, modalManager } from '../utils/modalManager';
+  import { openModals, hideModal } from '../utils/modalManager';
   import Modal from './Modal.svelte';
   import Editor from './Editor.svelte';
   import SwarmGovernance from '../appmenu/SwarmGovernance.svelte';
@@ -14,48 +14,35 @@
   import ShareButton from './Sharebutton.svelte';
   import { gigCanClose } from '../store';
 
-  // Handle modal close
-  function handleModalClose(modalId: string) {
-    modalManager.hideModal(modalId);
-  }
+  const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
+  const NOTIFICATION_MODALS = new Set(['coordinate-picker', 'zoom-required']);
 
-  // Handle model edit
   function handleModelEdit(modelData: any) {
     modalService.hideModelDetails();
     modelEditorService.handleEditModel(modelData);
   }
 
-  // Handle model remove
   async function handleModelRemove(modelData: any) {
     try {
       await removeModel(modelData.id);
       modalService.hideModelDetails();
       logger.info('Model removed successfully', { component: 'ModalManager', operation: 'removeModel' });
     } catch (error) {
-      logger.operationError('removeModel', error, { component: 'ModalManager', operation: 'removeModel' });
+      logger.error('Failed to remove model', { component: 'ModalManager', operation: 'removeModel' });
     }
-  }
-
-  // Handle record link click
-  function handleRecordLinkClick(link: string) {
-    window.open(link, '_blank');
   }
 </script>
 
-<!-- Render all open modals -->
 {#each $openModals as modal (modal.id)}
-  {#if modal.config.type === 'card'}
-    <!-- Card-type modals (like Editor) -->
+  {#if CARD_MODALS.has(modal.id)}
     {#if modal.id === 'model-editor'}
       <div class="modal-card-container">
-        <Editor 
-          isEditMode={modal.config.data?.editMode || false}
-        />
+        <Editor isEditMode={modal.data?.editMode || false} />
       </div>
     {:else if modal.id === 'gig-economy'}
       <div class="gig-economy-panel">
         {#if $gigCanClose}
-          <button class="gig-close-btn" on:click={() => handleModalClose(modal.id)} aria-label="Close">
+          <button class="gig-close-btn" on:click={() => hideModal(modal.id)} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -65,22 +52,18 @@
       </div>
     {/if}
   {:else}
-    <!-- Regular modals -->
-    <Modal 
-      isVisible={modal.isVisible}
-      onClose={() => handleModalClose(modal.id)}
-      title={modal.config.title}
-      maxWidth={modal.config.maxWidth}
-      zIndex={modal.zIndex}
-      showCloseButton={modal.config.showCloseButton}
-      closeOnBackdropClick={modal.config.closeOnBackdropClick}
-      transitionDuration={modal.config.transitionDuration}
-      customClass={modal.config.customClass}
-      forwardInputs={modal.config.forwardInputs}
-      modalType={modal.config.type}
+    <Modal
+      isVisible={true}
+      onClose={() => hideModal(modal.id)}
+      title={modal.id === 'record-details' ? 'Record Details' : modal.id === 'model-details' ? '3D Model Details' : ''}
+      maxWidth={NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
+      showCloseButton={!NOTIFICATION_MODALS.has(modal.id)}
+      closeOnBackdropClick={!NOTIFICATION_MODALS.has(modal.id)}
+      modalType={NOTIFICATION_MODALS.has(modal.id) ? 'notification' : 'default'}
+      forwardInputs={NOTIFICATION_MODALS.has(modal.id)}
     >
-      {#if modal.id === 'record-details' && modal.config.data?.record}
-        {@const record = modal.config.data.record}
+      {#if modal.id === 'record-details' && modal.data?.record}
+        {@const record = modal.data.record}
         <div class="modal-record">
           <div>
             <p class="title">{record.title}</p>
@@ -89,52 +72,27 @@
           <div>
             <p class="created">CREATED {formatTimestamp(record.timestamp)}</p>
             <p>
-              <GlassmorphismButton 
-                variant="primary" 
-                onClick={() => handleRecordLinkClick(record.link)}
-              >
+              <GlassmorphismButton variant="primary" onClick={() => window.open(record.link, '_blank')}>
                 {record.link.includes('t.me') ? 'JOIN TELEGRAM' : 'VIEW LINK'}
               </GlassmorphismButton>
             </p>
           </div>
           <div>
-            <ShareButton 
-              title={record.title} 
-              text={record.text} 
-              link={record.link} 
-            />
+            <ShareButton title={record.title} text={record.text} link={record.link} />
           </div>
         </div>
-      {:else if modal.id === 'model-details' && modal.config.data?.model}
-        {@const model = modal.config.data.model}
+      {:else if modal.id === 'model-details' && modal.data?.model}
+        {@const model = modal.data.model}
         <div class="modal-record">
           <div>
             <p class="title">{model.name}</p>
             <p class="text">{model.description || '3D Model'}</p>
-            <p class="model-info">
-              Scale: {model.transform.scale}x | 
-              Height: {model.transform.height}m | 
-              Source: {model.source}
-            </p>
+            <p class="model-info">Scale: {model.transform.scale}x | Height: {model.transform.height}m | Source: {model.source}</p>
           </div>
           <div>
             <p class="created">CREATED {formatTimestamp(model.timestamp)}</p>
-            <p>
-              <GlassmorphismButton 
-                variant="primary" 
-                onClick={() => handleModelEdit(model)}
-              >
-                EDIT MODEL
-              </GlassmorphismButton>
-            </p>
-            <p>
-              <GlassmorphismButton 
-                variant="danger" 
-                onClick={() => handleModelRemove(model)}
-              >
-                REMOVE MODEL
-              </GlassmorphismButton>
-            </p>
+            <p><GlassmorphismButton variant="primary" onClick={() => handleModelEdit(model)}>EDIT MODEL</GlassmorphismButton></p>
+            <p><GlassmorphismButton variant="danger" onClick={() => handleModelRemove(model)}>REMOVE MODEL</GlassmorphismButton></p>
           </div>
         </div>
       {:else if modal.id === 'brainstorming'}
@@ -218,7 +176,6 @@
     }
   }
 
-  /* Modal content styles */
   .modal-record {
     display: flex;
     flex-direction: column;

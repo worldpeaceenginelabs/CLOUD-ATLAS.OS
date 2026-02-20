@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount, onDestroy, afterUpdate } from 'svelte';
-  import { isRoamingAreaMode, roamingAreaBounds } from '../store';
+  import { afterUpdate } from 'svelte';
+  import { isRoamingAreaMode, roamingAreaBounds, roamingPaintSignal, roamingCancelSignal, roamingClearSignal } from '../store';
   import FormInput from './FormInput.svelte';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
 
@@ -46,8 +46,7 @@
   function startPaintingArea() {
     isPaintingArea = true;
     isRoamingAreaMode.set(true);
-    // Dispatch event to disable camera controls
-    window.dispatchEvent(new CustomEvent('startRoamingAreaPainting'));
+    roamingPaintSignal.update(n => n + 1);
   }
 
   function stopPaintingArea() {
@@ -58,22 +57,20 @@
   function clearArea() {
     areaBounds = null;
     roamingAreaBounds.set(null);
-    roamingArea = null; // Clear the prop
-    // Remove visual entities from the Cesium scene
-    window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
+    roamingArea = null;
+    roamingClearSignal.update(n => n + 1);
   }
 
   function confirmArea() {
     if (areaBounds) {
       roamingAreaBounds.set(areaBounds);
-      roamingArea = areaBounds; // Update the prop to pass to parent
+      roamingArea = areaBounds;
     }
     stopPaintingArea();
   }
 
   function cancelPainting() {
-    // Dispatch event to cancel painting mode
-    window.dispatchEvent(new CustomEvent('cancelRoamingAreaPainting'));
+    roamingCancelSignal.update(n => n + 1);
     stopPaintingArea();
   }
 
@@ -88,21 +85,9 @@
     }
   }
 
-  // Listen for area bounds updates from the map
-  function handleAreaBoundsUpdate(event: CustomEvent) {
-    const bounds = event.detail;
-    if (bounds) {
-      areaBounds = bounds;
-    }
+  $: if ($roamingAreaBounds) {
+    areaBounds = $roamingAreaBounds;
   }
-
-  onMount(() => {
-    window.addEventListener('roamingAreaBounds', handleAreaBoundsUpdate as EventListener);
-  });
-
-  onDestroy(() => {
-    window.removeEventListener('roamingAreaBounds', handleAreaBoundsUpdate as EventListener);
-  });
 </script>
 
 <div class="roaming-section">
@@ -116,11 +101,9 @@
         bind:checked={isEnabled}
         on:change={() => {
           if (!isEnabled) {
-            // Clear area when disabling roaming
             areaBounds = null;
             roamingAreaBounds.set(null);
-            // Remove visual entities from the Cesium scene
-            window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
+            roamingClearSignal.update(n => n + 1);
           }
         }}
       />

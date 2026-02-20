@@ -24,36 +24,6 @@ export const basemapProgress = writable(0);
 export const tilesetProgress = writable(0);
 export const isInitialLoadComplete = writable(false);
 
-// Cesium Action Interface
-export interface CesiumActions {
-  addModelToScene: ((modelData: ModelData) => void) | null;
-  removeModelFromScene: ((modelId: string) => void) | null;
-  addPinToScene: ((pinData: PinData) => void) | null;
-  removePinFromScene: ((mapid: string) => void) | null;
-  addPreviewModelToScene: ((modelData: ModelData) => void) | null;
-  removePreviewModelFromScene: (() => void) | null;
-  updatePreviewModelInScene: ((modelData: ModelData) => void) | null;
-  hideOriginalModel: ((modelId: string) => void) | null;
-  showOriginalModel: ((modelId: string) => void) | null;
-  flyTo: ((destination: any) => void) | null;
-  setCamera: ((position: any) => void) | null;
-}
-
-// Cesium Actions Store
-export const cesiumActions = writable<CesiumActions>({
-  addModelToScene: null,
-  removeModelFromScene: null,
-  addPinToScene: null,
-  removePinFromScene: null,
-  addPreviewModelToScene: null,
-  removePreviewModelFromScene: null,
-  updatePreviewModelInScene: null,
-  hideOriginalModel: null,
-  showOriginalModel: null,
-  flyTo: null,
-  setCamera: null
-});
-
 export const coordinates: Writable<Coordinates> = writable({
   latitude: '',
   longitude: '',
@@ -66,8 +36,6 @@ export const models: Writable<ModelData[]> = writable([]);
 
 export const pins: Writable<PinData[]> = writable([]);
 
-export const isZoomModalVisible: Writable<boolean> = writable(false);
-
 export const lastTriggeredModal: Writable<'zoom' | 'pick' | null> = writable(null);
 
 // Roaming state
@@ -78,6 +46,12 @@ export const roamingAreaBounds: Writable<{
   east: number;
   west: number;
 } | null> = writable(null);
+/** Increment to signal Cesium to start roaming area painting */
+export const roamingPaintSignal: Writable<number> = writable(0);
+/** Increment to signal Cesium to cancel roaming area painting */
+export const roamingCancelSignal: Writable<number> = writable(0);
+/** Increment to signal Cesium to clear roaming area visuals */
+export const roamingClearSignal: Writable<number> = writable(0);
 
 // Preview Model State
 export const previewModel: Writable<ModelData | null> = writable(null);
@@ -142,12 +116,14 @@ export function resetAllStores() {
   });
   models.set([]);
   pins.set([]);
-  isZoomModalVisible.set(false);
   lastTriggeredModal.set(null);
   
   // Roaming state
   isRoamingAreaMode.set(false);
   roamingAreaBounds.set(null);
+  roamingPaintSignal.set(0);
+  roamingCancelSignal.set(0);
+  roamingClearSignal.set(0);
   
   // Preview state
   previewModel.set(null);
@@ -175,18 +151,4 @@ export function resetAllStores() {
   helpoutLayerRefresh.set(0);
   socialLayerRefresh.set(0);
   
-  // Cesium Actions
-  cesiumActions.set({
-    addModelToScene: null,
-    removeModelFromScene: null,
-    addPinToScene: null,
-    removePinFromScene: null,
-    addPreviewModelToScene: null,
-    removePreviewModelFromScene: null,
-    updatePreviewModelInScene: null,
-    hideOriginalModel: null,
-    showOriginalModel: null,
-    flyTo: null,
-    setCamera: null
-  });
 }

@@ -1,290 +1,95 @@
-/**
- * Shared IndexedDB utilities for Cloud Atlas OS
- * Centralized IndexedDB initialization and management
- */
-
 import type { PinData, ModelData, Listing } from './types';
 
-export class IndexedDBManager {
+class IndexedDBManager {
   private db: IDBDatabase | null = null;
   private dbName = 'indexeddbstore';
-  private version = 6; // Incremented to add nostrkeys store
+  private version = 6;
 
-  /**
-   * Initialize IndexedDB connection
-   */
   async openDB(): Promise<IDBDatabase> {
-    if (this.db) {
-      return this.db;
-    }
+    if (this.db) return this.db;
 
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version);
 
-      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+      request.onupgradeneeded = () => {
         const db = request.result;
-        console.log('IndexedDB upgrade needed, creating object stores...');
-
-        // Create locationpins store
-        if (!db.objectStoreNames.contains('locationpins')) {
-          db.createObjectStore('locationpins', { keyPath: 'mapid' });
-          console.log('Created object store: locationpins');
-        }
-
-
-        // Create models store
-        if (!db.objectStoreNames.contains('models')) {
-          db.createObjectStore('models', { keyPath: 'id' });
-          console.log('Created object store: models');
-        }
-
-        // Create localpins store (for dapps)
-        if (!db.objectStoreNames.contains('localpins')) {
-          db.createObjectStore('localpins', { keyPath: 'mapid' });
-          console.log('Created object store: localpins');
-        }
-
-        // Create helpouts cache store (keyed by geohash-4 cell)
-        if (!db.objectStoreNames.contains('helpouts')) {
-          db.createObjectStore('helpouts', { keyPath: 'cell' });
-          console.log('Created object store: helpouts');
-        }
-
-        // Create nostrkeys store (single persistent keypair)
-        if (!db.objectStoreNames.contains('nostrkeys')) {
-          db.createObjectStore('nostrkeys', { keyPath: 'id' });
-          console.log('Created object store: nostrkeys');
+        const stores = ['locationpins:mapid', 'models:id', 'localpins:mapid', 'helpouts:cell', 'nostrkeys:id'];
+        for (const entry of stores) {
+          const [name, key] = entry.split(':');
+          if (!db.objectStoreNames.contains(name)) {
+            db.createObjectStore(name, { keyPath: key });
+          }
         }
       };
 
-      request.onsuccess = (event: Event) => {
-        this.db = request.result;
-        console.log('IndexedDB opened successfully');
-        resolve(this.db);
-      };
-
-      request.onerror = (event: Event) => {
-        console.error('Error opening IndexedDB:', request.error);
-        reject(request.error);
-      };
-    });
-  }
-
-  /**
-   * Get the database instance
-   */
-  getDB(): IDBDatabase | null {
-    return this.db;
-  }
-
-  /**
-   * Wrap an IDBRequest in a proper Promise
-   */
-  private wrapRequest<T = void>(request: IDBRequest<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => { this.db = request.result; resolve(this.db); };
       request.onerror = () => reject(request.error);
     });
   }
 
-  /**
-   * Save pin to IndexedDB
-   */
+  private req<T = void>(r: IDBRequest<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+  }
+
+  private store(name: string, mode: IDBTransactionMode = 'readonly'): IDBObjectStore {
+    if (!this.db) throw new Error('Database not initialized');
+    return this.db.transaction(name, mode).objectStore(name);
+  }
+
+  // ─── Pins ──────────────────────────────────────────────────
+
   async savePin(pinData: PinData): Promise<void> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    if (!this.db.objectStoreNames.contains('locationpins')) {
-      console.log('Locationpins object store not found, skipping pin save');
-      return;
-    }
-
-    const transaction = this.db.transaction('locationpins', 'readwrite');
-    const objectStore = transaction.objectStore('locationpins');
-    await this.wrapRequest(objectStore.put(pinData));
-    console.log('Pin saved to IndexedDB:', pinData.mapid);
+    await this.req(this.store('locationpins', 'readwrite').put(pinData));
   }
 
-  /**
-   * Load all pins from IndexedDB
-   */
   async loadPins(): Promise<PinData[]> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    if (!this.db.objectStoreNames.contains('locationpins')) {
-      console.log('Locationpins object store not found, returning empty array');
-      return [];
-    }
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction('locationpins', 'readonly');
-      const objectStore = transaction.objectStore('locationpins');
-      const request = objectStore.getAll();
-
-      request.onsuccess = (event: Event) => {
-        const pins = (event.target as IDBRequest).result;
-        resolve(pins);
-      };
-
-      request.onerror = (event: Event) => {
-        console.error('Error loading pins from IndexedDB:', request.error);
-        reject(request.error);
-      };
-    });
+    return this.req(this.store('locationpins').getAll());
   }
 
-  /**
-   * Delete pin from IndexedDB
-   */
   async deletePin(mapid: string): Promise<void> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    if (!this.db.objectStoreNames.contains('locationpins')) {
-      console.log('Locationpins object store not found, skipping pin deletion');
-      return;
-    }
-
-    const transaction = this.db.transaction('locationpins', 'readwrite');
-    const objectStore = transaction.objectStore('locationpins');
-    await this.wrapRequest(objectStore.delete(mapid));
-    console.log('Pin deleted from IndexedDB:', mapid);
+    await this.req(this.store('locationpins', 'readwrite').delete(mapid));
   }
 
-  /**
-   * Save model to IndexedDB
-   */
-  async saveModel(modelData: ModelData): Promise<void> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
+  // ─── Models ────────────────────────────────────────────────
 
-    if (!this.db.objectStoreNames.contains('models')) {
-      return;
-    }
-
-    const transaction = this.db.transaction('models', 'readwrite');
-    const objectStore = transaction.objectStore('models');
-    
-    await this.wrapRequest(objectStore.put(modelData));
-    
-    console.log('Model saved to IndexedDB:', modelData.name);
+  async saveModel(modelData: ModelData | any): Promise<void> {
+    await this.req(this.store('models', 'readwrite').put(modelData));
   }
 
-  /**
-   * Load all models from IndexedDB
-   */
   async loadModels(): Promise<ModelData[]> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    if (!this.db.objectStoreNames.contains('models')) {
-      console.log('Models object store not found, returning empty array');
-      return [];
-    }
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction('models', 'readonly');
-      const objectStore = transaction.objectStore('models');
-      const request = objectStore.getAll();
-
-      request.onsuccess = (event: Event) => {
-        const models = (event.target as IDBRequest).result;
-        resolve(models);
-      };
-
-      request.onerror = (event: Event) => {
-        console.error('Error loading models from IndexedDB:', request.error);
-        reject(request.error);
-      };
-    });
+    return this.req(this.store('models').getAll());
   }
 
-  /**
-   * Delete model from IndexedDB
-   */
   async deleteModel(modelId: string): Promise<void> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    if (!this.db.objectStoreNames.contains('models')) {
-      console.log('Models object store not found, skipping model deletion');
-      return;
-    }
-
-    const transaction = this.db.transaction('models', 'readwrite');
-    const objectStore = transaction.objectStore('models');
-    await this.wrapRequest(objectStore.delete(modelId));
-    console.log('Model deleted from IndexedDB:', modelId);
+    await this.req(this.store('models', 'readwrite').delete(modelId));
   }
 
-  // ─── Listing Cache (Helpouts, Social, etc.) ─────────────────
+  // ─── Listing Cache ─────────────────────────────────────────
 
-  /**
-   * Save listings for a type + geohash-4 cell with a fetch timestamp.
-   * Key format: "helpouts:u33d" or "social:u33d"
-   */
   async saveListings(type: string, cell: string, listings: Listing[], fetchedAt: number): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-    if (!this.db.objectStoreNames.contains('helpouts')) return;
-
     const key = `${type}:${cell}`;
-    const transaction = this.db.transaction('helpouts', 'readwrite');
-    const store = transaction.objectStore('helpouts');
-    await this.wrapRequest(store.put({ cell: key, listings, fetchedAt }));
+    await this.req(this.store('helpouts', 'readwrite').put({ cell: key, listings, fetchedAt }));
   }
 
-  /**
-   * Load cached listings for a type + geohash-4 cell.
-   * Returns { listings, fetchedAt } or null on cache miss.
-   */
   async loadListings(type: string, cell: string): Promise<{ listings: Listing[]; fetchedAt: number } | null> {
-    if (!this.db) throw new Error('Database not initialized');
-    if (!this.db.objectStoreNames.contains('helpouts')) return null;
-
     const key = `${type}:${cell}`;
-    const transaction = this.db.transaction('helpouts', 'readonly');
-    const store = transaction.objectStore('helpouts');
-    const result = await this.wrapRequest(store.get(key));
+    const result = await this.req(this.store('helpouts').get(key));
     return result ? { listings: result.listings, fetchedAt: result.fetchedAt ?? 0 } : null;
   }
+
   // ─── Nostr Keypair ─────────────────────────────────────────
 
-  /**
-   * Save the Nostr keypair to IDB.
-   * sk is stored as a plain Array (Uint8Array is not directly serializable in IDB on all browsers).
-   */
   async saveKeypair(sk: Uint8Array, pk: string): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
-    if (!this.db.objectStoreNames.contains('nostrkeys')) return;
-
-    const transaction = this.db.transaction('nostrkeys', 'readwrite');
-    const store = transaction.objectStore('nostrkeys');
-    await this.wrapRequest(store.put({ id: 'primary', sk: Array.from(sk), pk }));
-    console.log('Nostr keypair saved to IndexedDB');
+    await this.req(this.store('nostrkeys', 'readwrite').put({ id: 'primary', sk: Array.from(sk), pk }));
   }
 
-  /**
-   * Load the Nostr keypair from IDB.
-   * Returns null if no keypair exists yet.
-   */
   async loadKeypair(): Promise<{ sk: Uint8Array; pk: string } | null> {
-    if (!this.db) throw new Error('Database not initialized');
-    if (!this.db.objectStoreNames.contains('nostrkeys')) return null;
-
-    const transaction = this.db.transaction('nostrkeys', 'readonly');
-    const store = transaction.objectStore('nostrkeys');
-    const result = await this.wrapRequest(store.get('primary'));
-    if (!result) return null;
-    return { sk: new Uint8Array(result.sk), pk: result.pk };
+    const result = await this.req(this.store('nostrkeys').get('primary'));
+    return result ? { sk: new Uint8Array(result.sk), pk: result.pk } : null;
   }
 }
 
-// Create and export a singleton instance
 export const idb = new IndexedDBManager();

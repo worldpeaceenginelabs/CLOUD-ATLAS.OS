@@ -8,7 +8,8 @@ import { get, writable, type Writable } from 'svelte/store';
 import {
   coordinates,
   editingModelId,
-  temporaryModelId
+  temporaryModelId,
+  roamingClearSignal
 } from '../store';
 import { modalService } from './modalService';
 import {
@@ -286,7 +287,7 @@ class ModelEditorService {
         };
 
         await updateModel(originalModelData);
-        logger.modelUpdated(originalModelData.name);
+        logger.info(`Model updated: ${originalModelData.name}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
 
         if (tempId) {
           removeTemporaryModel(tempId);
@@ -299,7 +300,7 @@ class ModelEditorService {
       } else if (tempId) {
         // Persist the temporary model
         await persistTemporaryModel(tempId);
-        logger.modelAdded(modelData.name);
+        logger.info(`Model added: ${modelData.name}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
         temporaryModelId.set(null);
 
         if (_updateRoamingModel && modelData.roaming?.isEnabled) {
@@ -308,18 +309,17 @@ class ModelEditorService {
       } else {
         // Fallback: add as new model
         await addModel(modelData);
-        logger.modelAdded(modelData.name);
+        logger.info(`Model added: ${modelData.name}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
 
         if (_updateRoamingModel && modelData.roaming?.isEnabled) {
           _updateRoamingModel(modelData);
         }
       }
 
-      // Remove roaming area visuals from the Cesium scene
-      window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
+      roamingClearSignal.update(n => n + 1);
       modalService.hideModelEditor();
     } catch (error) {
-      logger.operationError('submitModel', error, { component: 'ModelEditorService', operation: 'handleSubmit' });
+      logger.error(`submitModel failed: ${error instanceof Error ? error.message : error}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
       alert('Failed to save model. Please try again.');
     }
   }
@@ -327,8 +327,7 @@ class ModelEditorService {
   /** Cancel editing -- clean up temporary model and close */
   handleCancel() {
     this.resetFormData();
-    // Remove roaming area visuals from the Cesium scene
-    window.dispatchEvent(new CustomEvent('clearRoamingAreaVisuals'));
+    roamingClearSignal.update(n => n + 1);
     modalService.hideModelEditor();
   }
 

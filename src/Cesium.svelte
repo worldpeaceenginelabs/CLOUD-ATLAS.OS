@@ -30,11 +30,15 @@
 		isInitialLoadComplete,
 		isRoamingAreaMode,
 		roamingAreaBounds,
+		roamingPaintSignal,
+		roamingCancelSignal,
+		roamingClearSignal,
 		userLiveLocation,
 		flyToLocation
 	} from './store';
 	import type { ModelData, PinData } from './types';
-	import { dataManager } from './dataManager';
+	import { idb } from './idb';
+	import { setSceneCallbacks } from './utils/modelUtils';
 	import { modalService } from './utils/modalService';
 import { getCurrentTimeIso8601 } from './utils/timeUtils';
 import { logger } from './utils/logger';
@@ -55,10 +59,8 @@ import {
 } from './utils/cesiumHelpers';
 import { hasActiveGigSession } from './gig/gigRecovery';
 import { getSharedNostr } from './services/nostrPool';
-import ScrollbarStyles from './components/ScrollbarStyles.svelte';
 import MapLayersMenu from './components/MapLayersMenu.svelte';
-import HelpoutDetail from './gig/HelpoutDetail.svelte';
-import SocialDetail from './gig/SocialDetail.svelte';
+import ListingDetail from './gig/ListingDetail.svelte';
 import RadialGigMenu from './components/RadialGigMenu.svelte';
 import { preselectedGigVertical, showRadialGigMenu } from './store';
 import type { Listing, GigVertical } from './types';
@@ -97,9 +99,12 @@ let roamingAreaEntity: Entity | null = null;
 let roamingAreaRectangle: Entity | null = null;
 let roamingAreaOutline: Entity | null = null;
 
-// Stored event handler references for proper cleanup
-let startRoamingHandler: (() => void) | null = null;
 let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
+
+// Reactive roaming signals (replaces window events)
+$: if ($roamingPaintSignal) disableCameraControls?.();
+$: if ($roamingCancelSignal) cancelPaintingMode?.();
+$: if ($roamingClearSignal) removeRoamingAreaVisuals?.();
 
 // Track created object URLs for proper cleanup (item 5)
 let createdObjectURLs: string[] = [];
@@ -111,17 +116,9 @@ let isRoamingAnimationActive = false;
 // Export preview model functions for parent component
 export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateRoamingModel, hideOriginalModel, showOriginalModel };
   
-	// Initialize data manager
-	const initializeDataManager = async (): Promise<void> => {
-		// Set up callbacks for the data manager
-		dataManager.callbacks = {
-			addModelToScene: addModelToScene,
-			removeModelFromScene: removeModelFromScene,
-			addPinToScene: addRecordToMap,
-			removePinFromScene: removeRecordFromMap
-		};
-  
-		await dataManager.initialize();
+	const initializeData = async (): Promise<void> => {
+		setSceneCallbacks({ addModelToScene, removeModelFromScene });
+		await idb.openDB();
 	};
   
 	// Load all data using streamlined data manager
@@ -134,14 +131,12 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		}
   
 		try {
-			const { models: loadedModels, pins: loadedPins } = await dataManager.loadAllData();
-			
-			// Update stores with loaded data
+			const [loadedModels, loadedPins] = await Promise.all([idb.loadModels(), idb.loadPins()]);
 			models.set(loadedModels);
 			pins.set(loadedPins);
-			
-			logger.dataLoaded('models', loadedModels.length);
-			logger.dataLoaded('pins', loadedPins.length);
+			loadedModels.forEach(m => addModelToScene(m));
+			loadedPins.forEach(p => addRecordToMap(p));
+			logger.info(`Loaded ${loadedModels.length} models, ${loadedPins.length} pins`, { component: 'Cesium', operation: 'loadData' });
 		} catch (error) {
 			console.error('Error loading data:', error);
 		}
@@ -399,7 +394,7 @@ function addModelToScene(modelData: ModelData) {
 			description: modelData.description || '3D Model'
 		});
 
-		logger.modelAdded(modelData.name);
+		logger.info(`Model added: ${modelData.name}`, { component: 'Cesium', operation: 'addModel' });
 		
 		if (modelData.roaming?.isEnabled) {
 			roamingAnimationManager.addModel(modelData);
@@ -764,7 +759,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	// Function to fetch record from data manager
 	async function fetchRecord(mapid: string) {
 		try {
-			const pins = await dataManager.getPins();
+			const pins = await idb.loadPins();
 			return pins.find((pin: PinData) => pin.mapid === mapid) || null;
 		} catch (error) {
 			console.error('Error fetching record:', error);
@@ -776,15 +771,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	function setupEventHandlers() {
 		if (!cesiumViewer) return;
 
-		// Listen for cancel painting mode event
-		window.addEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
-		
-		// Listen for clear roaming area visuals event (from Roaming.svelte and modelEditorService)
-		window.addEventListener('clearRoamingAreaVisuals', removeRoamingAreaVisuals);
-		
-		// Listen for start painting mode event (store reference for cleanup)
-		startRoamingHandler = () => { disableCameraControls(); };
-		window.addEventListener('startRoamingAreaPainting', startRoamingHandler);
 		
 		// Listen for escape key to cancel painting (store reference for cleanup)
 		escapeKeyHandler = (event: KeyboardEvent) => {
@@ -919,10 +905,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				}
 			});
 			
-			// Dispatch event to notify the Roaming component
-			window.dispatchEvent(new CustomEvent('roamingAreaBounds', { 
-				detail: bounds 
-			}));
+			roamingAreaBounds.set(bounds);
 			
 			// Re-enable camera controls
 			enableCameraControls();
@@ -985,8 +968,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		isRoamingAreaMode.set(false);
 	}
 
-	// Note: Reactive statements removed - data flow is now handled by explicit function calls
-	// Data flow: UI → Store → IDB → Scene (via dataManager functions)t
 
 
   
@@ -1079,7 +1060,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
   
 	  // Initialize data manager and preload data asynchronously
 	  // Don't block the main thread with data loading
-	  initializeDataManager()
+	  initializeData()
 		.then(() => {
 		  // Load data in the background after initialization
 		  return loadAllData();
@@ -1281,13 +1262,6 @@ function handleCoordinatePick(result: any) {
 		// Stop roaming animation
 		stopRoamingAnimation();
 		
-		// Remove event listeners
-		window.removeEventListener('cancelRoamingAreaPainting', cancelPaintingMode);
-		window.removeEventListener('clearRoamingAreaVisuals', removeRoamingAreaVisuals);
-		if (startRoamingHandler) {
-			window.removeEventListener('startRoamingAreaPainting', startRoamingHandler);
-			startRoamingHandler = null;
-		}
 		if (escapeKeyHandler) {
 			window.removeEventListener('keydown', escapeKeyHandler);
 			escapeKeyHandler = null;
@@ -1363,7 +1337,6 @@ function handleCoordinatePick(result: any) {
   
 
   
-<ScrollbarStyles />
 <div style="width: 100%; display: flex; justify-content: center; align-items: center; position: relative;">
   <main id="cesiumContainer"></main>
   
@@ -1389,20 +1362,20 @@ function handleCoordinatePick(result: any) {
   <MapLayersMenu {onHelpoutsChanged} {onSocialChanged} />
 </div>
 
-<!-- Helpout Detail Overlay (shown on marker click) -->
+<!-- Listing Detail Overlay (shown on marker click) -->
 {#if selectedHelpout}
-  <HelpoutDetail
+  <ListingDetail
     listing={selectedHelpout}
+    vertical="helpouts"
     myPk={myNostrPk}
     onClose={() => selectedHelpout = null}
     onTakenDown={handleHelpoutTakenDown}
   />
 {/if}
-
-<!-- Social Detail Overlay (shown on marker click) -->
 {#if selectedSocial}
-  <SocialDetail
+  <ListingDetail
     listing={selectedSocial}
+    vertical="social"
     myPk={myNostrPk}
     onClose={() => selectedSocial = null}
     onTakenDown={handleSocialTakenDown}
