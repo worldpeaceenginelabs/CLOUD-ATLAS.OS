@@ -25,6 +25,7 @@
 		viewer,
 		currentHeight,
 		is3DTilesetActive,
+		enable3DTileset,
 		basemapProgress,
 		tilesetProgress,
 		isInitialLoadComplete,
@@ -325,29 +326,32 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		const height = cesiumViewer.camera.positionCartographic.height;
 		currentHeight.set(height); // Update height display
 		
-		// Check if we need to switch between globe and 3D tileset
+	if ($enable3DTileset && tileset) {
 		if (height > 6000000) {
-			// Show the base layer and hide the 3D tileset
 			if ($is3DTilesetActive) {
 				cesiumViewer.scene.globe.show = true;
 				if (tileset) tileset.show = false;
 				is3DTilesetActive.set(false);
-				// Hide location pins and 3D models when using base layer
 				if (customDataSource) customDataSource.show = false;
 				if (modelDataSource) modelDataSource.show = false;
 			}
 		} else {
-			// Hide the base layer and show the 3D tileset
 			if (!$is3DTilesetActive) {
 				cesiumViewer.scene.globe.show = false;
 				if (tileset) tileset.show = true;
 				is3DTilesetActive.set(true);
-				// Show location pins and 3D models when using 3D tileset
 				if (customDataSource) customDataSource.show = true;
 				if (modelDataSource) modelDataSource.show = true;
-				// Data is already preloaded during initialization
 			}
 		}
+	} else {
+		cesiumViewer.scene.globe.show = true;
+		if (tileset) tileset.show = false;
+		is3DTilesetActive.set(false);
+		const showEntities = height <= 6000000;
+		if (customDataSource) customDataSource.show = showEntities;
+		if (modelDataSource) modelDataSource.show = showEntities;
+	}
 		
 		// Continue monitoring
 		animationFrameId = requestAnimationFrame(monitorCameraHeight);
@@ -428,6 +432,22 @@ function loadModelsFromStore() {
 		const hasRoamingModels = $models.some(model => model.roaming?.isEnabled);
 		if (hasRoamingModels && !isRoamingAnimationActive) {
 			startRoamingAnimation();
+		}
+	}
+}
+
+// React to runtime 3D Tiles toggle
+$: if (cesiumViewer) {
+	if (!$enable3DTileset) {
+		if (tileset) tileset.show = false;
+		cesiumViewer.scene.globe.show = true;
+		is3DTilesetActive.set(false);
+	} else if (tileset) {
+		const h = cesiumViewer.camera.positionCartographic.height;
+		if (h <= 6000000) {
+			cesiumViewer.scene.globe.show = false;
+			tileset.show = true;
+			is3DTilesetActive.set(true);
 		}
 	}
 }
@@ -677,11 +697,15 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	// Function to load assets with progress tracking
 	async function loadAssetsWithProgress() {
-		// Load basemap (globe) with progress
 		loadBasemapWithProgress();
 		
-		// Load 3D tileset with progress
-		loadTilesetWithProgress();
+		if ($enable3DTileset) {
+			loadTilesetWithProgress();
+		} else {
+			isTilesetLoaded = true;
+			tilesetProgress.set(100);
+			checkIfBothLoaded();
+		}
 	}
 
 	// Function to load basemap with progress

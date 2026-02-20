@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
   import CloseButton from './CloseButton.svelte';
-  import { activeMapLayers, userLiveLocation, helpoutLayerRefresh, socialLayerRefresh } from '../store';
+  import { activeMapLayers, userLiveLocation, helpoutLayerRefresh, socialLayerRefresh, enable3DTileset } from '../store';
   import { encode as geohashEncode } from '../utils/geohash';
   import { ListingLayerService } from '../services/listingLayerService';
   import { getSharedNostr } from '../services/nostrPool';
@@ -158,9 +158,15 @@
     }
   }
 
+  // ─── 3D Tiles layer ─────────────────────────────────────
+  function toggle3DTiles() {
+    enable3DTileset.set(!$enable3DTileset);
+  }
+
   // ─── Reactive helpers ─────────────────────────────────────
   $: helpoutsOn = $activeMapLayers.has('helpouts');
   $: socialOn = $activeMapLayers.has('social');
+  $: tiles3dOn = $enable3DTileset;
 </script>
 
 <svelte:window on:keydown={onKeydown} />
@@ -225,6 +231,24 @@
         </div>
         <span class="layer-label">Spontaneous Contacts</span>
         {#if socialOn}
+          <span class="layer-badge">ON</span>
+        {/if}
+      </button>
+
+      <button
+        class="layer-card"
+        class:active={tiles3dOn}
+        on:click={toggle3DTiles}
+      >
+        <div class="layer-icon" style="background: #7C4DFF">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3L2 8l10 5 10-5-10-5z"/>
+            <path d="M2 16l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <span class="layer-label">3D Tiles</span>
+        {#if tiles3dOn}
           <span class="layer-badge">ON</span>
         {/if}
       </button>

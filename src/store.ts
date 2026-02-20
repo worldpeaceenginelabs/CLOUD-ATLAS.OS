@@ -18,6 +18,7 @@ export const currentHeight = writable(0);
 export const is3DTilesetActive = writable(false);
 export const isBasemapLoaded = writable(false);
 export const isTilesetLoaded = writable(false);
+export const enable3DTileset: Writable<boolean> = writable(false);
 
 // Progress Stores
 export const basemapProgress = writable(0);
