@@ -1492,7 +1492,6 @@ function handleCoordinatePick(result: any) {
 <style>
 	main {
 	  width: 100%;
-	  height: 100vh;
 	  height: 100dvh;
 	  margin: 0;
 	  padding: 0;
