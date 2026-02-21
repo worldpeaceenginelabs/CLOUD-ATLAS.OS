@@ -28,7 +28,7 @@
     position: absolute;
     top: 20px;
     left: 10px;
-    z-index: 1001; /* Higher than AdvertisingBanner (100) */
+    z-index: 100; /* Between AdvertisingBanner (101) and its backdrop (99) */
     background: rgba(0, 0, 0, 0.7);
     padding: 15px;
     border-radius: 8px;
