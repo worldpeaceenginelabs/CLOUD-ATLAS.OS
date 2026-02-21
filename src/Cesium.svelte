@@ -66,6 +66,7 @@ import MapLayersMenu from './components/MapLayersMenu.svelte';
 import ListingDetail from './gig/ListingDetail.svelte';
 import RadialGigMenu from './components/RadialGigMenu.svelte';
 import { preselectedGigVertical, showRadialGigMenu } from './store';
+import type { OuterRingItem } from './gig/verticalIcons';
 import type { Listing, GigVertical } from './types';
   
 // Global variables and states
@@ -1286,6 +1287,17 @@ function handleRadialSelect(vertical: GigVertical) {
   });
 }
 
+/** Handle action item selection → open the corresponding modal. */
+function handleActionSelect(item: OuterRingItem) {
+  showRadialMenu = false;
+  switch (item) {
+    case 'brainstorming': modalService.showBrainstorming(); break;
+    case 'meetanddo':     modalService.showActionEvent();   break;
+    case 'petition':      modalService.showPetition();      break;
+    case 'crowdfunding':  modalService.showCrowdfunding();  break;
+  }
+}
+
 function handleRadialClose() {
   showRadialMenu = false;
 }
@@ -1479,6 +1491,7 @@ function handleCoordinatePick(result: any) {
     screenX={radialScreenX}
     screenY={radialScreenY}
     onSelect={handleRadialSelect}
+    onActionSelect={handleActionSelect}
     onClose={handleRadialClose}
   />
 {/if}

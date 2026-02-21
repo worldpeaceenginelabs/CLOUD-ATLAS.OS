@@ -7,6 +7,7 @@
  */
 
 import type { GigVertical, ListingCategory } from '../types';
+import type { OuterRingItem } from './verticalIcons';
 
 // ─── Form Field Definition ─────────────────────────────────────
 
@@ -186,3 +187,28 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
 
 /** Ordered list of verticals for the selector UI. */
 export const VERTICAL_LIST: GigVertical[] = ['rides', 'delivery', 'helpouts', 'social'];
+
+/**
+ * Unified radial menu items — single ring, 8 items at 45° intervals.
+ *
+ * Clockwise from top:
+ *   Spontaneous Contacts (top)
+ *   ── right half: actions ──
+ *   Brainstorming, MeetandDo, Petition, Crowdfunding
+ *   ── left half: gig verticals ──
+ *   Helpout, Delivery, Rideshare
+ */
+export type RadialMenuItem =
+  | { kind: 'vertical'; id: GigVertical; name: string; color: string }
+  | { kind: 'action';   id: OuterRingItem; name: string; color: string };
+
+export const RADIAL_MENU_ITEMS: RadialMenuItem[] = [
+  { kind: 'vertical', id: 'social',        name: 'Spontaneous Contacts', color: '#FF4081' },
+  { kind: 'action',   id: 'brainstorming', name: 'Brainstorming',        color: '#FFCA28' },
+  { kind: 'action',   id: 'meetanddo',     name: 'MeetandDo',            color: '#66BB6A' },
+  { kind: 'action',   id: 'petition',      name: 'Petition',             color: '#AB47BC' },
+  { kind: 'action',   id: 'crowdfunding',  name: 'Crowdfunding',         color: '#EF5350' },
+  { kind: 'vertical', id: 'helpouts',      name: 'Helpout',              color: '#00BCD4' },
+  { kind: 'vertical', id: 'delivery',      name: 'Delivery',             color: '#FF6D00' },
+  { kind: 'vertical', id: 'rides',         name: 'Rideshare',            color: '#4285F4' },
+];

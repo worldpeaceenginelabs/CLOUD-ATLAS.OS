@@ -1,36 +1,53 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { VERTICALS, VERTICAL_LIST } from '../gig/verticals';
-  import { verticalIconSvg } from '../gig/verticalIcons';
+  import { RADIAL_MENU_ITEMS } from '../gig/verticals';
+  import type { RadialMenuItem } from '../gig/verticals';
+  import { verticalIconSvg, outerRingIconSvg } from '../gig/verticalIcons';
+  import type { OuterRingItem } from '../gig/verticalIcons';
   import type { GigVertical } from '../types';
 
   export let screenX: number;
   export let screenY: number;
   export let onSelect: (vertical: GigVertical) => void;
+  export let onActionSelect: (item: OuterRingItem) => void;
   export let onClose: () => void;
 
   let expanded = false;
 
-  const radius = 105;
+  const radius = 115;
   const startAngle = -90;
-  const angleStep = 360 / VERTICAL_LIST.length;
+  const angleStep = 360 / RADIAL_MENU_ITEMS.length;
 
-  interface RadialPosition {
-    vertical: GigVertical;
+  interface ItemPosition {
+    item: RadialMenuItem;
     x: number;
     y: number;
   }
 
-  const positions: RadialPosition[] = VERTICAL_LIST.map((v, i) => {
+  const positions: ItemPosition[] = RADIAL_MENU_ITEMS.map((item, i) => {
     const angle = startAngle + i * angleStep;
     const rad = (angle * Math.PI) / 180;
     return {
-      vertical: v,
+      item,
       x: Math.cos(rad) * radius,
       y: Math.sin(rad) * radius,
     };
   });
+
+  function handleItemClick(item: RadialMenuItem) {
+    if (item.kind === 'vertical') {
+      onSelect(item.id);
+    } else {
+      onActionSelect(item.id);
+    }
+  }
+
+  function iconSvg(item: RadialMenuItem, size: number): string {
+    return item.kind === 'vertical'
+      ? verticalIconSvg(item.id, size)
+      : outerRingIconSvg(item.id, size);
+  }
 
   onMount(() => {
     requestAnimationFrame(() => { expanded = true; });
@@ -47,27 +64,25 @@
   <div class="backdrop" on:click={onClose} role="presentation"></div>
 
   <div class="radial-center" style="left: {screenX}px; top: {screenY}px">
-    <!-- Outer ring (blue) -->
+    <!-- Decorative rings -->
     <div class="ring outer" class:expanded></div>
-    <!-- Inner ring (orange) -->
     <div class="ring inner" class:expanded></div>
 
     <!-- Center label -->
     <span class="center-label" class:expanded>Me</span>
 
-    <!-- Category items -->
-    {#each positions as { vertical, x, y }, i}
-      {@const cfg = VERTICALS[vertical]}
+    <!-- All items on a single ring -->
+    {#each positions as { item, x, y }, i}
       <button
         class="radial-item"
         class:expanded
-        style="--tx: {x}px; --ty: {y}px; --delay: {i * 70 + 120}ms; --accent: {cfg.color}"
-        on:click={() => onSelect(vertical)}
+        style="--tx: {x}px; --ty: {y}px; --delay: {i * 55 + 100}ms; --accent: {item.color}"
+        on:click={() => handleItemClick(item)}
       >
-        <span class="item-icon" style="background: {cfg.color}18; color: {cfg.color}">
-          {@html verticalIconSvg(vertical, 22)}
+        <span class="item-icon" style="background: {item.color}18; color: {item.color}">
+          {@html iconSvg(item, 20)}
         </span>
-        <span class="item-label">{cfg.name}</span>
+        <span class="item-label">{item.name}</span>
       </button>
     {/each}
   </div>
@@ -95,7 +110,7 @@
     pointer-events: none;
   }
 
-  /* ── Rings ── */
+  /* ── Decorative rings ── */
   .ring {
     position: absolute;
     border-radius: 50%;
@@ -117,9 +132,9 @@
 
   .ring.outer.expanded {
     animation: none;
-    width: 200px;
-    height: 200px;
-    border-color: rgba(66, 133, 244, 0.25);
+    width: 230px;
+    height: 230px;
+    border-color: rgba(66, 133, 244, 0.2);
   }
 
   .ring.inner {
@@ -134,9 +149,9 @@
 
   .ring.inner.expanded {
     animation: none;
-    width: 130px;
-    height: 130px;
-    border-color: rgba(255, 109, 0, 0.2);
+    width: 60px;
+    height: 60px;
+    border-color: rgba(255, 109, 0, 0.18);
   }
 
   @keyframes breathe-outer {
@@ -183,7 +198,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: none;
     border: none;
     cursor: pointer;
@@ -201,8 +216,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 52px;
-    height: 52px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(8px);
@@ -222,22 +237,24 @@
   }
 
   .item-label {
-    font-size: 0.7rem;
+    font-size: 0.58rem;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.85);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
     text-align: center;
-    max-width: 100px;
+    max-width: 72px;
+    line-height: 1.2;
   }
 
   @media (max-width: 480px) {
     .item-icon {
-      width: 46px;
-      height: 46px;
+      width: 38px;
+      height: 38px;
     }
 
     .item-label {
-      font-size: 0.65rem;
+      font-size: 0.52rem;
+      max-width: 64px;
     }
   }
 </style>
