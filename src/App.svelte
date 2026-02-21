@@ -7,7 +7,6 @@
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
-  import UpdateToast from "./components/UpdateToast.svelte";
   import { 
     showPicture,
     gridReady,
@@ -43,8 +42,6 @@
     isVisible.set(false);
   });
 </script>
-
-<UpdateToast />
 
 <div class="app-container">
   {#if $showPicture}

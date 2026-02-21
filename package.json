@@ -20,8 +20,7 @@
     "tslib": "^2.6.2",
     "typescript": "^5.2.2",
     "vite": "^5.2.0",
-    "vite-plugin-cesium": "^1.2.23",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-cesium": "^1.2.23"
   },
   "dependencies": {
     "@types/three": "^0.180.0",
