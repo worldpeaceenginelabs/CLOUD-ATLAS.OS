@@ -19,6 +19,7 @@
   function checkInstalled(): boolean {
     if (window.matchMedia('(display-mode: standalone)').matches) return true;
     if ((navigator as any).standalone === true) return true;
+    if (localStorage.getItem('pwa-installed') === 'true') return true;
     return false;
   }
 
@@ -30,6 +31,7 @@
   function handleAppInstalled() {
     isInstalled = true;
     deferredPrompt = null;
+    localStorage.setItem('pwa-installed', 'true');
   }
 
   async function installApp(e: MouseEvent) {
