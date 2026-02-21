@@ -13,6 +13,7 @@
   });
 
   function dismiss() {
+    if (isFadingOut) return;
     isFadingOut = true;
     setTimeout(() => {
       isVisible = false;
@@ -24,7 +25,7 @@
 {#if isVisible}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="banner-backdrop" on:click={dismiss} role="presentation"></div>
+  <div class="banner-backdrop" class:fade-out={isFadingOut} on:click={dismiss} role="presentation"></div>
   <div class="advertising-banner" class:fade-out={isFadingOut}>
     <button class="close-btn" on:click={dismiss} aria-label="Close banner">✕</button>
     <div class="banner-content">
@@ -52,6 +53,12 @@
     background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    opacity: 1;
+    transition: opacity 0.5s ease;
+  }
+
+  .banner-backdrop.fade-out {
+    opacity: 0;
   }
 
   .advertising-banner {
