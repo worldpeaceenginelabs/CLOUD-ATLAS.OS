@@ -61,15 +61,18 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <div class="radial-overlay" transition:fade={{ duration: 200 }}>
-  <div class="backdrop" on:click={onClose} role="presentation"></div>
+  <!-- Blur layer: blurs only outside the clear center circle -->
+  <div
+    class="backdrop-blur"
+    style="--cx: {screenX}px; --cy: {screenY}px"
+  ></div>
+  <!-- Tint layer: uniform dark overlay everywhere, captures clicks -->
+  <div class="backdrop-tint" on:click={onClose} role="presentation"></div>
 
   <div class="radial-center" style="left: {screenX}px; top: {screenY}px">
     <!-- Decorative rings -->
     <div class="ring outer" class:expanded></div>
     <div class="ring inner" class:expanded></div>
-
-    <!-- Center label -->
-    <span class="center-label" class:expanded>Me</span>
 
     <!-- All items on a single ring -->
     {#each positions as { item, x, y }, i}
@@ -96,12 +99,20 @@
     pointer-events: auto;
   }
 
-  .backdrop {
+  .backdrop-blur {
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    -webkit-mask-image: radial-gradient(circle at var(--cx) var(--cy), transparent 115px, black 117px);
+    mask-image: radial-gradient(circle at var(--cx) var(--cy), transparent 115px, black 117px);
+    pointer-events: none;
+  }
+
+  .backdrop-tint {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
   }
 
   .radial-center {
@@ -149,8 +160,8 @@
 
   .ring.inner.expanded {
     animation: none;
-    width: 60px;
-    height: 60px;
+    width: 130px;
+    height: 130px;
     border-color: rgba(255, 109, 0, 0.18);
   }
 
@@ -162,26 +173,6 @@
   @keyframes breathe-inner {
     0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
     50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-  }
-
-  /* ── Center label ── */
-  .center-label {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    color: rgba(255, 255, 255, 0.9);
-    font-weight: 700;
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
-    opacity: 0;
-    transition: opacity 0.3s ease 0.25s;
-    pointer-events: none;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  }
-
-  .center-label.expanded {
-    opacity: 1;
   }
 
   /* ── Radial items ── */
