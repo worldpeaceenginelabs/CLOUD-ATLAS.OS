@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, PinData, GigVertical } from './types';
+import type { Coordinates, ModelData, PinData, GigVertical, Listing } from './types';
 
 export type { Coordinates, ModelData, PinData };
 
@@ -87,6 +87,10 @@ export const activeMapLayers: Writable<Set<string>> = writable(new Set());
 export const helpoutLayerRefresh: Writable<number> = writable(0);
 /** Increment to trigger a force-refresh of the social map layer */
 export const socialLayerRefresh: Writable<number> = writable(0);
+/** Current helpout listings to render on the map (written by AddButton, read by Cesium) */
+export const helpoutLayerListings: Writable<Listing[]> = writable([]);
+/** Current social listings to render on the map (written by AddButton, read by Cesium) */
+export const socialLayerListings: Writable<Listing[]> = writable([]);
 
 // Store cleanup functions
 export function resetAllStores() {
@@ -153,5 +157,7 @@ export function resetAllStores() {
   activeMapLayers.set(new Set());
   helpoutLayerRefresh.set(0);
   socialLayerRefresh.set(0);
+  helpoutLayerListings.set([]);
+  socialLayerListings.set([]);
   
 }

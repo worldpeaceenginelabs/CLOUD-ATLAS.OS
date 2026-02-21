@@ -3,59 +3,82 @@
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
   
-  import { coordinates, lastTriggeredModal, isVisible } from '../store';
+  import {
+    coordinates, lastTriggeredModal, isVisible,
+    activeMapLayers, userLiveLocation, helpoutLayerRefresh, socialLayerRefresh,
+    enable3DTileset, userIonAccessToken,
+    helpoutLayerListings, socialLayerListings,
+  } from '../store';
   import { modalService } from '../utils/modalService';
+  import { encode as geohashEncode } from '../utils/geohash';
+  import { ListingLayerService } from '../services/listingLayerService';
+  import { getSharedNostr } from '../services/nostrPool';
+  import { idb } from '../idb';
+  import type { Listing } from '../types';
 
-  // Props
   export let onAddModel: (() => void) | undefined = undefined;
 
-  // Component state
+  // ─── Component state ──────────────────────────────────────
   let coordinatePickerTimer: ReturnType<typeof setTimeout> | null = null;
   let isDropdownVisible = false;
   let hoveredItem = '';
   let showInfoPanel = false;
   let infoPanelContent = '';
 
-  // Coordinate state
   let hasCoordinates = false;
+  $: hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
 
-  // Reactive statement to check if coordinates are available
-  $: {
-    hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
-  }
+  // ─── Layer state (merged from MapLayersMenu) ──────────────
+  let helpoutService: ListingLayerService | null = null;
+  let helpoutCache: Listing[] = [];
+  let helpoutCachedAt = 0;
+  let helpoutLoading = false;
 
-  // Toggle dropdown
+  let socialService: ListingLayerService | null = null;
+  let socialCache: Listing[] = [];
+  let socialCachedAt = 0;
+  let socialLoading = false;
+
+  const CACHE_TTL_MS = 30 * 60 * 1000;
+  let layerError = '';
+
+  // Ion API key state
+  let ionKeyInput = '';
+  let ionKeySaved = false;
+  let showIonKey = false;
+  let ionKeyExpanded = false;
+
+  $: helpoutsOn = $activeMapLayers.has('helpouts');
+  $: socialOn = $activeMapLayers.has('social');
+  $: tiles3dOn = $enable3DTileset;
+
+  // ─── Menu actions ─────────────────────────────────────────
+
   function toggleDropdown() {
     isDropdownVisible = !isDropdownVisible;
     if (!isDropdownVisible) {
       hoveredItem = '';
       showInfoPanel = false;
+      ionKeyExpanded = false;
     }
   }
 
-  // Close menu (exported for external use)
   export function closeMenu() {
     isDropdownVisible = false;
     hoveredItem = '';
     showInfoPanel = false;
+    ionKeyExpanded = false;
   }
 
-  // Handle info icon click
   function handleInfoClick(item: string, event: Event) {
     event.stopPropagation();
-    
-    // If clicking the same item that's already showing, toggle off
     if (showInfoPanel && hoveredItem === item) {
       showInfoPanel = false;
       hoveredItem = '';
       return;
     }
-    
-    // Otherwise, show the info panel for this item
     hoveredItem = item;
     showInfoPanel = true;
-    
-    // Set info panel content based on item
     switch (item) {
       case 'model':
         infoPanelContent = 'Add 3D models to the map. Upload GLTF files or provide URLs to place interactive 3D objects at specific locations.';
@@ -66,35 +89,27 @@
     }
   }
 
-  // Show coordinate picker modal
   function showCoordinatePickerMessage() {
     modalService.showCoordinatePicker();
     lastTriggeredModal.set('pick');
-    // Clear any existing timer before starting a new one
     if (coordinatePickerTimer) clearTimeout(coordinatePickerTimer);
-    // Auto-hide after 3 seconds
     coordinatePickerTimer = setTimeout(() => {
       modalService.hideCoordinatePicker();
       coordinatePickerTimer = null;
     }, 3000);
   }
 
-  // Handle item click
   function handleItemClick(item: string) {
     logger.debug('Clicked item: ' + item, { component: 'AddButton', operation: 'handleItemClick' });
     showInfoPanel = false;
     hoveredItem = '';
-    
     if (!hasCoordinates) {
       showCoordinatePickerMessage();
       return;
     }
-    
     switch (item) {
       case 'model':
-        if (onAddModel) {
-          onAddModel();
-        }
+        if (onAddModel) onAddModel();
         break;
       case 'simulation':
         modalService.showSimulation();
@@ -119,33 +134,183 @@
     }
   }
 
-  // Handle escape key
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       isDropdownVisible = false;
       hoveredItem = '';
       showInfoPanel = false;
+      ionKeyExpanded = false;
       modalService.closeAllModals();
     }
   }
 
+  // ─── Layer logic (from MapLayersMenu) ─────────────────────
+
+  async function ensureLayerService(tag: string): Promise<ListingLayerService | null> {
+    try {
+      const nostr = await getSharedNostr();
+      return new ListingLayerService(nostr, tag);
+    } catch {
+      layerError = 'Storage unavailable';
+      return null;
+    }
+  }
+
+  async function fetchHelpouts(forceRefresh = false) {
+    const loc = $userLiveLocation;
+    if (!loc || !helpoutService) return;
+    helpoutLoading = true;
+    const cell = geohashEncode(loc.latitude, loc.longitude, 4);
+    const listings = await helpoutService.fetchListings(cell, forceRefresh);
+    helpoutCache = listings.filter(l => l.location);
+    helpoutCachedAt = Date.now();
+    helpoutLayerListings.set(helpoutCache);
+    helpoutLoading = false;
+  }
+
+  async function toggleHelpouts() {
+    layerError = '';
+    const layers = $activeMapLayers;
+    const wasOn = layers.has('helpouts');
+    if (wasOn) {
+      layers.delete('helpouts');
+      activeMapLayers.set(new Set(layers));
+      helpoutLayerListings.set([]);
+      return;
+    }
+    layers.add('helpouts');
+    activeMapLayers.set(new Set(layers));
+    if (helpoutCache.length > 0 && (Date.now() - helpoutCachedAt) < CACHE_TTL_MS) {
+      helpoutLayerListings.set(helpoutCache);
+    }
+    if (!helpoutService) {
+      helpoutService = await ensureLayerService('listing-helpouts');
+      if (!helpoutService) {
+        layers.delete('helpouts');
+        activeMapLayers.set(new Set(layers));
+        return;
+      }
+    }
+    await fetchHelpouts();
+  }
+
+  let lastHelpoutRefresh = $helpoutLayerRefresh;
+  $: if ($helpoutLayerRefresh !== lastHelpoutRefresh) {
+    lastHelpoutRefresh = $helpoutLayerRefresh;
+    if ($activeMapLayers.has('helpouts') && helpoutService) {
+      fetchHelpouts(true);
+    }
+  }
+
+  async function fetchSocial(forceRefresh = false) {
+    const loc = $userLiveLocation;
+    if (!loc || !socialService) return;
+    socialLoading = true;
+    const cell = geohashEncode(loc.latitude, loc.longitude, 4);
+    const listings = await socialService.fetchListings(cell, forceRefresh);
+    socialCache = listings.filter(l => l.location);
+    socialCachedAt = Date.now();
+    socialLayerListings.set(socialCache);
+    socialLoading = false;
+  }
+
+  async function toggleSocial() {
+    layerError = '';
+    const layers = $activeMapLayers;
+    const wasOn = layers.has('social');
+    if (wasOn) {
+      layers.delete('social');
+      activeMapLayers.set(new Set(layers));
+      socialLayerListings.set([]);
+      return;
+    }
+    layers.add('social');
+    activeMapLayers.set(new Set(layers));
+    if (socialCache.length > 0 && (Date.now() - socialCachedAt) < CACHE_TTL_MS) {
+      socialLayerListings.set(socialCache);
+    }
+    if (!socialService) {
+      socialService = await ensureLayerService('listing-social');
+      if (!socialService) {
+        layers.delete('social');
+        activeMapLayers.set(new Set(layers));
+        return;
+      }
+    }
+    await fetchSocial();
+  }
+
+  let lastSocialRefresh = $socialLayerRefresh;
+  $: if ($socialLayerRefresh !== lastSocialRefresh) {
+    lastSocialRefresh = $socialLayerRefresh;
+    if ($activeMapLayers.has('social') && socialService) {
+      fetchSocial(true);
+    }
+  }
+
+  // ─── Ion key persistence ──────────────────────────────────
+
+  async function loadIonKey() {
+    try {
+      await idb.openDB();
+      const stored = await idb.loadSetting('ionAccessToken');
+      if (stored) {
+        ionKeyInput = stored;
+        userIonAccessToken.set(stored);
+        ionKeySaved = true;
+      }
+    } catch {}
+  }
+
+  async function saveIonKey() {
+    const trimmed = ionKeyInput.trim();
+    if (!trimmed) return;
+    try {
+      await idb.openDB();
+      await idb.saveSetting('ionAccessToken', trimmed);
+      userIonAccessToken.set(trimmed);
+      ionKeySaved = true;
+    } catch {
+      layerError = 'Failed to save API key';
+    }
+  }
+
+  async function clearIonKey() {
+    ionKeyInput = '';
+    ionKeySaved = false;
+    showIonKey = false;
+    enable3DTileset.set(false);
+    try {
+      await idb.openDB();
+      await idb.saveSetting('ionAccessToken', '');
+      userIonAccessToken.set('');
+    } catch {}
+  }
+
+  function handleTilesCardClick() {
+    if (ionKeySaved) {
+      enable3DTileset.set(!$enable3DTileset);
+    } else {
+      ionKeyExpanded = !ionKeyExpanded;
+    }
+  }
+
+  // ─── Lifecycle ────────────────────────────────────────────
 
   onMount(() => {
     window.addEventListener('keydown', handleKeyDown);
-    
+    loadIonKey();
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   });
 
   onDestroy(() => {
-    // Clear pending timers
     if (coordinatePickerTimer) clearTimeout(coordinatePickerTimer);
   });
 </script>
 
 <div class="add-button-container">
-  <!-- Main Add Button -->
   <button 
     class="add-button" 
     on:click={toggleDropdown}
@@ -157,7 +322,6 @@
       <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
       <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
     </svg>
-    Add
     {#if hasCoordinates}
       <div class="coordinate-indicator">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -168,10 +332,9 @@
     {/if}
   </button>
 
-  <!-- Blue Container -->
   {#if isDropdownVisible}
     <div class="blue-container" transition:slide={{ duration: 500, axis: 'y' }}>
-      <!-- Red Container (Main Dropdown Menu) -->
+      <!-- Top section: Model & Simulation -->
       <div class="dropdown-menu">
         <div 
           class="dropdown-item" 
@@ -185,14 +348,14 @@
             <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Add Model</span>
+          <span class="item-text">Model</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'model'}
             on:click={(e) => handleInfoClick('model', e)}
             on:keydown={(e) => e.key === 'Enter' && handleInfoClick('model', e)}
             tabindex="0"
-            aria-label="Show info for Add Model"
+            aria-label="Show info for Model"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -215,14 +378,14 @@
             <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Add Simulation</span>
+          <span class="item-text">Simulation</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'simulation'}
             on:click={(e) => handleInfoClick('simulation', e)}
             on:keydown={(e) => e.key === 'Enter' && handleInfoClick('simulation', e)}
             tabindex="0"
-            aria-label="Show info for Add Simulation"
+            aria-label="Show info for Simulation"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -231,10 +394,128 @@
             </svg>
           </button>
         </div>
-
       </div>
 
-      <!-- Separator + Utility Items -->
+      <!-- Middle section: Map Layers -->
+      <div class="dropdown-menu">
+        <div 
+          class="dropdown-item"
+          role="button"
+          tabindex="0"
+          on:click={toggleHelpouts}
+          on:keydown={(e) => e.key === 'Enter' && toggleHelpouts()}
+        >
+          {#if helpoutLoading}
+            <span class="layer-spinner"></span>
+          {:else}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          {/if}
+          <span class="item-text">Helpouts</span>
+          {#if helpoutsOn}
+            <span class="layer-badge">ON</span>
+          {/if}
+        </div>
+
+        <div 
+          class="dropdown-item"
+          role="button"
+          tabindex="0"
+          on:click={toggleSocial}
+          on:keydown={(e) => e.key === 'Enter' && toggleSocial()}
+        >
+          {#if socialLoading}
+            <span class="layer-spinner"></span>
+          {:else}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          {/if}
+          <span class="item-text">Spontaneous Contacts</span>
+          {#if socialOn}
+            <span class="layer-badge">ON</span>
+          {/if}
+        </div>
+
+        <div 
+          class="dropdown-item"
+          role="button"
+          tabindex="0"
+          on:click={handleTilesCardClick}
+          on:keydown={(e) => e.key === 'Enter' && handleTilesCardClick()}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3L2 8l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 16l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="item-text">3D Tiles</span>
+          {#if tiles3dOn}
+            <span class="layer-badge">ON</span>
+          {:else if !ionKeySaved}
+            <span class="layer-hint">Add API key</span>
+          {/if}
+          {#if ionKeySaved}
+            <button class="tiles3d-edit" on:click|stopPropagation={() => ionKeyExpanded = !ionKeyExpanded} aria-label="Edit Ion key">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          {/if}
+        </div>
+
+        {#if layerError}
+          <div class="layer-error">{layerError}</div>
+        {/if}
+      </div>
+
+      <!-- Ion key panel (expands below layers section) -->
+      {#if ionKeyExpanded}
+        <div class="ion-panel" transition:slide={{ duration: 200 }}>
+          <p class="ion-hint">
+            Get a free key at <a href="https://ion.cesium.com" target="_blank" rel="noopener">ion.cesium.com</a> to unlock Google Photorealistic 3D Tiles.
+          </p>
+          <div class="ion-key-row">
+            {#if showIonKey}
+              <input
+                class="ion-key-input"
+                type="text"
+                placeholder="Paste Ion access token"
+                bind:value={ionKeyInput}
+                on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
+              />
+            {:else}
+              <input
+                class="ion-key-input"
+                type="password"
+                placeholder="Paste Ion access token"
+                bind:value={ionKeyInput}
+                on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
+              />
+            {/if}
+            <button class="ion-key-eye" on:click={() => showIonKey = !showIonKey} title={showIonKey ? 'Hide' : 'Show'}>
+              {#if showIonKey}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              {:else}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              {/if}
+            </button>
+          </div>
+          <div class="ion-key-actions">
+            <button class="ion-key-btn save" on:click={saveIonKey} disabled={!ionKeyInput.trim()}>Save</button>
+            {#if ionKeySaved}
+              <button class="ion-key-btn clear" on:click={clearIonKey}>Reset</button>
+            {/if}
+            <button class="ion-key-btn clear" on:click={() => ionKeyExpanded = false}>Cancel</button>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Bottom section: Utility -->
       <div class="utility-menu">
         <div 
           class="dropdown-item"
@@ -268,7 +549,6 @@
     </div>
   {/if}
 
-  <!-- Info Panel -->
   {#if showInfoPanel && infoPanelContent}
     <div class="info-panel slide-in">
       <div class="info-content">
@@ -277,8 +557,6 @@
     </div>
   {/if}
 </div>
-
-<!-- All modals are now handled by the centralized ModalManager component -->
 
 
 <style>
@@ -340,20 +618,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: 8px;
     color: #4ade80;
     animation: pulse 2s infinite;
   }
 
   @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.7;
-      transform: scale(1.1);
-    }
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
   }
 
   .blue-container {
@@ -436,7 +707,6 @@
 
   .info-icon.active {
     background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
     color: white;
     transform: scale(1.05);
@@ -450,6 +720,174 @@
   .info-icon svg {
     width: 16px;
     height: 16px;
+  }
+
+  /* ── Layer badges & status ── */
+  .layer-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(74, 222, 128, 0.2);
+    color: rgba(74, 222, 128, 1);
+    flex-shrink: 0;
+  }
+
+  .layer-hint {
+    font-size: 0.62rem;
+    color: rgba(124, 77, 255, 0.7);
+    flex-shrink: 0;
+  }
+
+  .layer-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid rgba(255, 255, 255, 0.25);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .layer-error {
+    padding: 8px 16px;
+    font-size: 0.78rem;
+    color: rgba(252, 165, 165, 0.9);
+    text-align: center;
+  }
+
+  .tiles3d-edit {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    padding: 2px;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .tiles3d-edit:hover {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  /* ── Ion key panel ── */
+  .ion-panel {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(124, 77, 255, 0.25);
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-width: 250px;
+  }
+
+  .ion-hint {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.45);
+    margin: 0 0 10px;
+    line-height: 1.4;
+  }
+
+  .ion-hint a {
+    color: rgba(124, 77, 255, 0.9);
+    text-decoration: none;
+  }
+
+  .ion-hint a:hover {
+    text-decoration: underline;
+  }
+
+  .ion-key-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .ion-key-input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.78rem;
+    font-family: monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ion-key-input:focus {
+    border-color: rgba(79, 195, 247, 0.5);
+  }
+
+  .ion-key-input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+    font-family: inherit;
+  }
+
+  .ion-key-eye {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+  }
+
+  .ion-key-eye:hover {
+    color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .ion-key-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .ion-key-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .ion-key-btn.save {
+    background: rgba(79, 195, 247, 0.15);
+    color: rgba(79, 195, 247, 1);
+  }
+
+  .ion-key-btn.save:hover:not(:disabled) {
+    background: rgba(79, 195, 247, 0.25);
+  }
+
+  .ion-key-btn.save:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .ion-key-btn.clear {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .ion-key-btn.clear:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
   }
 
   .utility-menu {
@@ -492,7 +930,6 @@
     line-height: 1.5;
   }
 
-  /* Responsive design */
   @media (max-width: 768px) {
     .info-panel {
       max-width: 250px;
