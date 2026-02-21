@@ -59,6 +59,8 @@
 
   .banner-backdrop.fade-out {
     opacity: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .advertising-banner {
@@ -88,6 +90,8 @@
   .advertising-banner.fade-out {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.96);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .close-btn {
