@@ -1,6 +1,18 @@
 ### Project begin was 2017 for the first M.I.T. Disobedience Award
 
-### Cloud Atlas OS = Protocol + Matching-Client over Nostr Relays<br><br>
+#### Cloud Atlas OS = Protocol + Matching-Client over Nostr Relays<br><br>
+
+**What if the world was run by you and me?** Science fiction meets the real world.<br>
+
+Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof — ridesharing, delivery, freelance, spontaneous connections — with **zero commissions.** Keep 100% of what you earn. We'll teach you how to keep it, legally.<br>
+
+But that's just the beginning.<br>
+
+Govern your city through **SWARM GOVERNANCE** — brainstorm, petition, crowdfund, and organize real change. Stream your impact live on **MissionTV** and get paid for the causes you love. Explore **OMNIPEDIA** — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the **HOLODECK** — no coding required.<br>
+
+Think Google Maps, Wikipedia, Twitch, Kickstarter, and an App Store — raised by the open-source community. 🔥<br>
+
+Community-owned. Open-source. Yours. **Redefine the way we live together.**<br><br>
 
 <img width="1024" height="1024" alt="cloudatlasoslogo" src="https://github.com/user-attachments/assets/fa7db772-665c-4b2a-8c92-c606f17ecd5c" />
 
@@ -82,13 +94,13 @@ Vehicle. Fuel. Maintenance. Equipment. Software. Phone. Data. Rent share. Utilit
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/16f50f0c-03c6-4b29-a4b3-a0ec3f71bd20" />
 <br><br>
 
-### 1. Decentralized Government
+### 1. Decentralized Government = SWARM GOVERNANCE
 A bold reimagining of governance—where **brainstorming, group action, petitioning,** and **crowdfunding** merge into an action-driven system. Whether it’s addressing local challenges or tackling global issues, anyone can create or join missions. It’s governance made accessible, participatory, and even fun—like a game where everyone plays to make the world better.<br><br>
 It’s government by doing, not by voting.<br><br>
 ![image](https://github.com/user-attachments/assets/ef465199-8a65-465f-8c84-720b2f166ce3)
 <br><br>
 
-### 2. Virtual Encyclopedia
+### 2. Virtual Encyclopedia = OMNIPEDIA
 6 Million Wikipedia articles sourced into immersive, animated 3D scenes and objects—geolocated on a global map and powered by BitTorrent. The more people use it, the more scalable, faster and rich the content becomes.<br>
 
 Picture a **3D animated Wikipedia** where articles come to life as **interactive objects or scenes roaming the globe**, based on the content of each article.<br>
