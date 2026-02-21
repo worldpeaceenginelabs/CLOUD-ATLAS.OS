@@ -136,6 +136,7 @@
     font-size: 22px;
     line-height: 1.3;
     margin-bottom: 4px !important;
+    padding-right: 36px;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 
