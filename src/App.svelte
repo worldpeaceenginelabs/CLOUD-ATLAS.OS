@@ -91,7 +91,7 @@
   }
 
   .app-container {
-    height: 100dvh;
+    height: 100vh;
     width: 100vw;
     box-sizing: border-box;
   }
@@ -107,7 +107,7 @@
   .cesiumcontainer {
     display: flex;
     flex-direction: column;
-    height: 100dvh;
+    height: 100vh;
     width: 100vw;
     z-index: 20;
     position: relative;
@@ -125,7 +125,7 @@
     flex-direction: column;
     text-align: center;
     background-color: #000;
-    height: 100dvh;
+    height: 100vh;
     width: 100vw;
     position: relative;
     overflow: hidden;

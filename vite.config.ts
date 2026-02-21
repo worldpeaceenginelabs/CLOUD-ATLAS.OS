@@ -13,18 +13,7 @@ export default defineConfig({
       manifest: {
         name: 'CLOUD ATLAS OS',
         short_name: 'Cloud Atlas',
-        description:
-          'What if the world was run by you and me? Science fiction meets the real world. ' +
-          'Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof ' +
-          '— ridesharing, delivery, freelance, spontaneous connections — with zero commissions. ' +
-          'Keep 100% of what you earn. We\'ll teach you how to keep it, legally. ' +
-          'But that\'s just the beginning. ' +
-          'Govern your city through SWARM GOVERNANCE — brainstorm, petition, crowdfund, and organize real change. ' +
-          'Stream your impact live on MissionTV and get paid for the causes you love. ' +
-          'Explore OMNIPEDIA — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. ' +
-          'Build apps, games, and experiences in seconds with the HOLODECK — no coding required. ' +
-          'Think Google Maps, Wikipedia, Twitch, Kickstarter, and an App Store — raised by the open-source community. ' +
-          'Community-owned. Open-source. Yours. Redefine the way we live together.',
+        description: "What if the world was run by You and Me? Science fiction meets the real-world.",
         theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone',
