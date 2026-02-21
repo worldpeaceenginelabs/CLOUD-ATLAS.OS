@@ -1,6 +1,6 @@
 /**
  * Shared SVG icon markup for each gig vertical.
- * Used by both GigVerticalSelector and RadialGigMenu.
+ * Used by RadialGigMenu.
  */
 
 import type { GigVertical } from '../types';

@@ -12,13 +12,17 @@
   import { getSharedNostr } from '../services/nostrPool';
   import { REPLACEABLE_KIND, type NostrService, type NostrEvent } from '../services/nostrService';
   import { VERTICALS, type VerticalConfig } from '../gig/verticals';
-  import GigVerticalSelector from '../gig/GigVerticalSelector.svelte';
   import GigMatchForm from '../gig/GigMatchForm.svelte';
   import GigPending from '../gig/GigPending.svelte';
   import GigMatched from '../gig/GigMatched.svelte';
   import ListingForm from '../gig/ListingForm.svelte';
   import * as Cesium from 'cesium';
   import { clampToSurface } from '../utils/clampToSurface';
+
+  // ─── View State ──────────────────────────────────────────────
+  type GigView = 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts' | 'social';
+  let currentView: GigView = 'menu';
+  let config: VerticalConfig | null = null;
 
   // ─── Shared Nostr (loaded once on mount) ─────────────────
   let sharedNostr: NostrService | null = null;
@@ -37,19 +41,15 @@
       if (preselected) {
         preselectedGigVertical.set(null);
         selectVertical(preselected);
+      } else if (currentView === 'menu' && !config) {
+        modalService.hideGigEconomy();
       }
     }
   })();
 
-  // ─── View State ──────────────────────────────────────────────
-  type GigView = 'verticals' | 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts' | 'social';
-  let currentView: GigView = 'verticals';
-  let config: VerticalConfig | null = null;
-
   $: matchingConfig = config?.mode === 'matching' ? config : null;
 
   $: gigCanClose.set(
-    currentView === 'verticals' ||
     currentView === 'menu' ||
     currentView === 'need' ||
     currentView === 'offer' ||
@@ -563,10 +563,6 @@
       <div class="gig-pulse-dot" style="background: rgba(255,255,255,0.5)"></div>
       <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">{recovering ? 'Reconnecting...' : 'Loading...'}</span>
     </div>
-
-  <!-- ═══════════════ VERTICAL SELECTOR ═══════════════ -->
-  {:else if currentView === 'verticals'}
-    <GigVerticalSelector onSelect={selectVertical} />
 
   <!-- ═══════════════ LISTING MODE (Helpouts / Social) ═ -->
   {:else if (currentView === 'helpouts' || currentView === 'social') && config}
