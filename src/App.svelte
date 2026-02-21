@@ -7,6 +7,8 @@
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
+  import UpdateToast from "./components/UpdateToast.svelte";
+  import InstallPrompt from "./components/InstallPrompt.svelte";
   import { 
     showPicture,
     gridReady,
@@ -43,6 +45,8 @@
   });
 </script>
 
+<UpdateToast />
+
 <div class="app-container">
   {#if $showPicture}
     <div class="picture-container" on:click={() => showPicture.set(false)} on:keydown={(e) => e.key === 'Enter' && showPicture.set(false)} role="button" tabindex="0">
@@ -61,6 +65,7 @@
       <div class="quote">{quote}</div>
       <div class="enter-text animated-gradient">ENTER</div>
       <div class="twpg-text under-enter animated-gradient">THE WORLD PEACE GAME</div>
+      <InstallPrompt />
     </div>
   {:else}
     <div class="gridcontainer"><Grid on:gridReady={() => gridReady.set(true)} /></div>

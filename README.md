@@ -1,7 +1,6 @@
 ### Project begin was 2017 for the first M.I.T. Disobedience Award
-<br><br>
 
-Cloud Atlas OS = Protocol + Matching-Client over Nostr Relays<br><br>
+### Cloud Atlas OS = Protocol + Matching-Client over Nostr Relays<br><br>
 
 <img width="1024" height="1024" alt="cloudatlasoslogo" src="https://github.com/user-attachments/assets/fa7db772-665c-4b2a-8c92-c606f17ecd5c" />
 

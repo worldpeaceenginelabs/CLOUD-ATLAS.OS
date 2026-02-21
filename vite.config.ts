@@ -1,12 +1,112 @@
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import cesium from 'vite-plugin-cesium'
+import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [svelte(), cesium()],
+  plugins: [
+    svelte(),
+    cesium(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['icons/favicon-32x32.png'],
+      manifest: {
+        name: 'CLOUD ATLAS OS',
+        short_name: 'Cloud Atlas',
+        description: "What if the world was run by You and Me? Science fiction meets the real-world.",
+        theme_color: '#000000',
+        background_color: '#000000',
+        display: 'standalone',
+        orientation: 'any',
+        scope: '/',
+        start_url: '/',
+        categories: ['education', 'entertainment', 'social'],
+        icons: [
+          { src: 'icons/icon_192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon_256.png', sizes: '256x256', type: 'image/png' },
+          { src: 'icons/icon_384.png', sizes: '384x384', type: 'image/png' },
+          { src: 'icons/icon_512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        screenshots: [
+          {
+            src: 'screenshot-wide.jpg',
+            sizes: '1408x736',
+            type: 'image/jpeg',
+            form_factor: 'wide',
+            label: 'Cloud Atlas OS - Explore the 3D Globe',
+          },
+          {
+            src: 'screenshot-mobile.jpg',
+            sizes: '562x1280',
+            type: 'image/jpeg',
+            form_factor: 'narrow',
+            label: 'Cloud Atlas OS - Mobile Experience',
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: ['**/cesium/**'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        navigateFallback: 'index.html',
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.cesium\.com\//i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'cesium-tiles',
+              expiration: {
+                maxEntries: 1000,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+              rangeRequests: true,
+            },
+          },
+          {
+            urlPattern: /^https:\/\/nominatim\.openstreetmap\.org\//i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'nominatim-geocoding',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+              networkTimeoutSeconds: 5,
+            },
+          },
+          {
+            urlPattern: /\.(?:mp4|webm|jpg|jpeg|png|webp)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'media-assets',
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 90,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+              rangeRequests: true,
+            },
+          },
+          {
+            urlPattern: /^https:\/\/cloudatlas\.club\//i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'cloudatlas-assets',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
+    }),
+  ],
   define: {
-    // This is optional if you want to explicitly define global constants.
-    'process.env': process.env
-  }
+    'process.env': process.env,
+  },
 });
