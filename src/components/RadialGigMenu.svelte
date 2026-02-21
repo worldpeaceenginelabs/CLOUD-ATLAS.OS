@@ -14,6 +14,7 @@
   export let onClose: () => void;
 
   let expanded = false;
+  let infoPanelText = '';
 
   const radius = 115;
   const startAngle = -90;
@@ -43,6 +44,16 @@
     }
   }
 
+  function toggleInfo(item: RadialMenuItem, e: Event) {
+    e.stopPropagation();
+    if (item.kind !== 'action') return;
+    if (infoPanelText === item.description) {
+      infoPanelText = '';
+    } else {
+      infoPanelText = item.description;
+    }
+  }
+
   function iconSvg(item: RadialMenuItem, size: number): string {
     return item.kind === 'vertical'
       ? verticalIconSvg(item.id, size)
@@ -53,8 +64,22 @@
     requestAnimationFrame(() => { expanded = true; });
   });
 
+  function handleBackdropClick() {
+    if (infoPanelText) {
+      infoPanelText = '';
+    } else {
+      onClose();
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape') {
+      if (infoPanelText) {
+        infoPanelText = '';
+      } else {
+        onClose();
+      }
+    }
   }
 </script>
 
@@ -67,7 +92,7 @@
     style="--cx: {screenX}px; --cy: {screenY}px"
   ></div>
   <!-- Tint layer: uniform dark overlay everywhere, captures clicks -->
-  <div class="backdrop-tint" on:click={onClose} role="presentation"></div>
+  <div class="backdrop-tint" on:click={handleBackdropClick} role="presentation"></div>
 
   <div class="radial-center" style="left: {screenX}px; top: {screenY}px">
     <!-- Decorative rings -->
@@ -84,11 +109,34 @@
       >
         <span class="item-icon" style="background: {item.color}18; color: {item.color}">
           {@html iconSvg(item, 20)}
+          {#if item.kind === 'action'}
+            <button
+              class="info-btn"
+              class:active={infoPanelText === item.description}
+              on:click={(e) => toggleInfo(item, e)}
+              aria-label="Show info for {item.name}"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M12 16V12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M12 8H12.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          {/if}
         </span>
         <span class="item-label">{item.name}</span>
       </button>
     {/each}
   </div>
+
+  <!-- Info panel (centered on screen) -->
+  {#if infoPanelText}
+    <div class="info-panel" transition:fade={{ duration: 200 }}>
+      <div class="info-content">
+        {infoPanelText}
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -204,6 +252,7 @@
   }
 
   .item-icon {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -237,6 +286,67 @@
     line-height: 1.2;
   }
 
+  /* ── Info button (on action items only) ── */
+  .info-btn {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .info-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: white;
+    transform: scale(1.15);
+  }
+
+  .info-btn.active {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    color: white;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+  }
+
+  /* ── Info panel ── */
+  .info-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 110;
+    max-width: 300px;
+    min-width: 250px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .info-content {
+    padding: 16px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
   @media (max-width: 480px) {
     .item-icon {
       width: 38px;
@@ -246,6 +356,16 @@
     .item-label {
       font-size: 0.52rem;
       max-width: 64px;
+    }
+
+    .info-panel {
+      max-width: 250px;
+      min-width: 200px;
+    }
+
+    .info-content {
+      font-size: 13px;
+      padding: 12px;
     }
   }
 </style>
