@@ -84,7 +84,7 @@
         infoPanelContent = 'Add 3D models to the map. Upload GLTF files or provide URLs to place interactive 3D objects at specific locations.';
         break;
       case 'simulation':
-        infoPanelContent = 'Run simulations and scenarios on the map. Visualize what does not fit into words.';
+        infoPanelContent = 'Connect 3D models into a scene. Run simulations and scenarios on the map. Visualize what does not fit into words.';
         break;
     }
   }
@@ -348,7 +348,7 @@
             <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Model</span>
+          <span class="item-text">Add Model</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'model'}
@@ -378,7 +378,7 @@
             <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Simulation</span>
+          <span class="item-text">Add Simulation</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'simulation'}

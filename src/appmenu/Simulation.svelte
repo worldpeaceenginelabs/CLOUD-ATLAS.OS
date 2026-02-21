@@ -13,7 +13,7 @@
       <h1>Simulation</h1>
       <p class="coming-soon-text">Coming Soon</p>
       <p class="description">
-        Run simulations and scenarios on the map. Test different parameters and see how they affect the virtual environment.
+        Connect 3D models into a scene. Run simulations and scenarios on the map. Test different parameters and see how they affect the virtual environment.
       </p>
     </div>
   </div>
