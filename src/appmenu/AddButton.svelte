@@ -336,6 +336,7 @@
     <div class="blue-container" transition:slide={{ duration: 500, axis: 'y' }}>
       <!-- Top section: Model & Simulation -->
       <div class="dropdown-menu">
+        <div class="section-label">Create</div>
         <div 
           class="dropdown-item" 
           role="button"
@@ -398,6 +399,7 @@
 
       <!-- Middle section: Map Layers -->
       <div class="dropdown-menu">
+        <div class="section-label">Layers</div>
         <div 
           class="dropdown-item"
           role="button"
@@ -720,6 +722,15 @@
   .info-icon svg {
     width: 16px;
     height: 16px;
+  }
+
+  .section-label {
+    padding: 8px 16px 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
   }
 
   /* ── Layer badges & status ── */
