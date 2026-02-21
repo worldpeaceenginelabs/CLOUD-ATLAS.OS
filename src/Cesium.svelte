@@ -887,6 +887,16 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				}
 			}
 		}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+		cesiumViewer.screenSpaceEventHandler.setInputAction((movement: any) => {
+			if (!cesiumViewer) return;
+			const picked = cesiumViewer.scene.pick(movement.endPosition);
+			if (Cesium.defined(picked) && picked.id?.id && picked.id.id !== 'pickedPoint') {
+				cesiumViewer.canvas.style.cursor = 'pointer';
+			} else {
+				cesiumViewer.canvas.style.cursor = '';
+			}
+		}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 	}
 
 	// Function to handle roaming area painting clicks
