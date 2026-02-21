@@ -8,7 +8,6 @@
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
   import UpdateToast from "./components/UpdateToast.svelte";
-  import InstallPrompt from "./components/InstallPrompt.svelte";
   import { 
     showPicture,
     gridReady,
@@ -65,7 +64,6 @@
       <div class="quote">{quote}</div>
       <div class="enter-text animated-gradient">ENTER</div>
       <div class="twpg-text under-enter animated-gradient">THE WORLD PEACE GAME</div>
-      <InstallPrompt />
     </div>
   {:else}
     <div class="gridcontainer"><Grid on:gridReady={() => gridReady.set(true)} /></div>
