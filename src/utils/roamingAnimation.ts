@@ -30,14 +30,6 @@ export interface RoamingModel {
 
 export class RoamingAnimationManager {
   private roamingModels: Map<string, RoamingModel> = new Map();
-  private animationFrameId: number | null = null;
-  private isRunning = false;
-  private lastUpdateTime = 0;
-  private updateInterval = 100; // Update every 100ms for smooth animation
-
-  constructor() {
-    this.startAnimationLoop();
-  }
 
   /**
    * Add a model to the roaming system
@@ -225,66 +217,13 @@ export class RoamingAnimationManager {
   }
 
   /**
-   * Start the animation loop
+   * Advance all roaming model positions by one frame.
+   * Call this from the host animation loop (e.g. Cesium's rAF).
    */
-  private startAnimationLoop(): void {
-    if (this.isRunning) return;
-    
-    this.isRunning = true;
-    this.lastUpdateTime = performance.now();
-    this.animate();
-  }
-
-  /**
-   * Stop the animation loop
-   */
-  stopAnimationLoop(): void {
-    this.isRunning = false;
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-  }
-
-  /**
-   * Main animation loop
-   */
-  private animate = (): void => {
-    if (!this.isRunning) return;
-
-    const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastUpdateTime;
-
-    // Only update if enough time has passed
-    if (deltaTime >= this.updateInterval) {
-      this.updateAllModels(currentTime);
-      this.lastUpdateTime = currentTime;
-    }
-
-    this.animationFrameId = requestAnimationFrame(this.animate);
-  };
-
-  /**
-   * Update all roaming models
-   */
-  private updateAllModels(currentTime: number): void {
+  tick(currentTime: number = performance.now()): void {
     for (const roamingModel of this.roamingModels.values()) {
       this.updateModelPosition(roamingModel, currentTime);
     }
-  }
-
-  /**
-   * Pause all roaming animations
-   */
-  pauseAll(): void {
-    this.stopAnimationLoop();
-  }
-
-  /**
-   * Resume all roaming animations
-   */
-  resumeAll(): void {
-    this.startAnimationLoop();
   }
 
   /**
@@ -294,14 +233,8 @@ export class RoamingAnimationManager {
     this.roamingModels.clear();
   }
 
-  /**
-   * Get roaming statistics
-   */
-  getStats(): { activeModels: number; isRunning: boolean } {
-    return {
-      activeModels: this.roamingModels.size,
-      isRunning: this.isRunning
-    };
+  getActiveModelCount(): number {
+    return this.roamingModels.size;
   }
 }
 

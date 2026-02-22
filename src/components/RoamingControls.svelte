@@ -1,51 +1,12 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
+  import { isRoamingActive, roamingModelCount } from '../store';
   import { roamingAnimationManager } from '../utils/roamingAnimation';
 
-  // Local state
-  let isRoamingActive = false;
-  let activeModelsCount = 0;
-  let animationStats = { activeModels: 0, isRunning: false };
-
-  // Update stats periodically
-  function updateStats() {
-    animationStats = roamingAnimationManager.getStats();
-    activeModelsCount = animationStats.activeModels;
-    isRoamingActive = animationStats.isRunning;
-  }
-
-  // Start roaming animation
-  function startRoaming() {
-    roamingAnimationManager.resumeAll();
-    updateStats();
-  }
-
-  // Stop roaming animation
-  function stopRoaming() {
-    roamingAnimationManager.pauseAll();
-    updateStats();
-  }
-
-  // Clear all roaming models
   function clearAllRoaming() {
     roamingAnimationManager.clearAll();
-    updateStats();
+    roamingModelCount.set(0);
   }
-
-  // Update stats every second
-  let statsInterval: ReturnType<typeof setInterval>;
-  
-  onMount(() => {
-    updateStats();
-    statsInterval = setInterval(updateStats, 1000);
-  });
-
-  onDestroy(() => {
-    if (statsInterval) {
-      clearInterval(statsInterval);
-    }
-  });
 </script>
 
 <div class="roaming-controls">
@@ -54,46 +15,29 @@
   <div class="stats">
     <div class="stat-item">
       <span class="stat-label">Active Models:</span>
-      <span class="stat-value">{activeModelsCount}</span>
+      <span class="stat-value">{$roamingModelCount}</span>
     </div>
     <div class="stat-item">
       <span class="stat-label">Status:</span>
-      <span class="stat-value {isRoamingActive ? 'active' : 'inactive'}">
-        {isRoamingActive ? 'Running' : 'Stopped'}
+      <span class="stat-value {$isRoamingActive ? 'active' : 'inactive'}">
+        {$isRoamingActive ? 'Running' : 'Stopped'}
       </span>
     </div>
   </div>
 
   <div class="controls">
     <GlassmorphismButton 
-      variant="primary" 
-      onClick={startRoaming}
-      disabled={activeModelsCount === 0 || isRoamingActive}
-    >
-      Start Roaming
-    </GlassmorphismButton>
-    
-    <GlassmorphismButton 
-      variant="secondary" 
-      onClick={stopRoaming}
-      disabled={!isRoamingActive}
-    >
-      Stop Roaming
-    </GlassmorphismButton>
-    
-    <GlassmorphismButton 
       variant="danger" 
       onClick={clearAllRoaming}
-      disabled={activeModelsCount === 0}
+      disabled={$roamingModelCount === 0}
     >
       Clear All
     </GlassmorphismButton>
   </div>
 
-  {#if activeModelsCount > 0}
+  {#if $roamingModelCount > 0}
     <div class="info">
-      <p>🎯 {activeModelsCount} model{activeModelsCount === 1 ? '' : 's'} configured for roaming</p>
-      <p>💡 Enable roaming in model settings to see movement</p>
+      <p>{$roamingModelCount} model{$roamingModelCount === 1 ? '' : 's'} configured for roaming</p>
     </div>
   {/if}
 </div>

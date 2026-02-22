@@ -1,151 +1,96 @@
 import { writable, type Writable } from 'svelte/store';
 import type { Coordinates, ModelData, GigVertical, Listing } from './types';
 
-export type { Coordinates, ModelData };
+// ─── Store registry ──────────────────────────────────────────
+type ResetFn = () => void;
+const registry: ResetFn[] = [];
 
-// UI State Stores
-export const showPicture = writable(true);
-export const gridReady = writable(false);
-export const isVisible = writable(false);
-export const isEditorOpen = writable(false);
+function resettable<T>(initial: T): Writable<T> {
+  const s = writable(initial);
+  registry.push(() => s.set(typeof initial === 'object' && initial !== null
+    ? structuredClone(initial)
+    : initial));
+  return s;
+}
 
-// Modal State Stores - now handled by modalManager
+export function resetAllStores() {
+  for (const reset of registry) reset();
+}
 
-// 3D Scene State Stores
-export const cesiumReady = writable(false);
-export const viewer = writable<any>(null);
-export const currentHeight = writable(0);
-export const is3DTilesetActive = writable(false);
-export const isBasemapLoaded = writable(false);
-export const isTilesetLoaded = writable(false);
-export const enable3DTileset: Writable<boolean> = writable(false);
+// ─── UI State ────────────────────────────────────────────────
+export const showPicture = resettable(true);
+export const gridReady = resettable(false);
+export const isVisible = resettable(false);
+export const isEditorOpen = resettable(false);
+
+// ─── 3D Scene State ──────────────────────────────────────────
+export const cesiumReady = resettable(false);
+export const viewer = resettable<any>(null);
+export const currentHeight = resettable(0);
+export const is3DTilesetActive = resettable(false);
+export const isBasemapLoaded = resettable(false);
+export const isTilesetLoaded = resettable(false);
+export const enable3DTileset = resettable(false);
 /** User-provided Cesium Ion access token (overrides the env default) */
-export const userIonAccessToken: Writable<string> = writable('');
+export const userIonAccessToken = resettable('');
 
-// Progress Stores
-export const basemapProgress = writable(0);
-export const tilesetProgress = writable(0);
-export const isInitialLoadComplete = writable(false);
+// ─── Progress ────────────────────────────────────────────────
+export const basemapProgress = resettable(0);
+export const tilesetProgress = resettable(0);
+export const isInitialLoadComplete = resettable(false);
 
-export const coordinates: Writable<Coordinates> = writable({
+// ─── Data ────────────────────────────────────────────────────
+export const coordinates: Writable<Coordinates> = resettable<Coordinates>({
   latitude: '',
   longitude: '',
-  height: 0
+  height: 0,
 });
+export const models: Writable<ModelData[]> = resettable<ModelData[]>([]);
 
-export const models: Writable<ModelData[]> = writable([]);
-
-// selectedModel moved to modalManager
-
-// Roaming state
-export const isRoamingAreaMode: Writable<boolean> = writable(false);
-export const roamingAreaBounds: Writable<{
-  north: number;
-  south: number;
-  east: number;
-  west: number;
-} | null> = writable(null);
+// ─── Roaming State ───────────────────────────────────────────
+export const isRoamingAreaMode = resettable(false);
+export const roamingAreaBounds = resettable<{
+  north: number; south: number; east: number; west: number;
+} | null>(null);
 /** Increment to signal Cesium to start roaming area painting */
-export const roamingPaintSignal: Writable<number> = writable(0);
+export const roamingPaintSignal = resettable(0);
 /** Increment to signal Cesium to cancel roaming area painting */
-export const roamingCancelSignal: Writable<number> = writable(0);
+export const roamingCancelSignal = resettable(0);
 /** Increment to signal Cesium to clear roaming area visuals */
-export const roamingClearSignal: Writable<number> = writable(0);
+export const roamingClearSignal = resettable(0);
+/** Whether the roaming animation loop is currently active */
+export const isRoamingActive = resettable(false);
+/** Number of models currently in the roaming system */
+export const roamingModelCount = resettable(0);
 
-// Preview Model State
-export const previewModel: Writable<ModelData | null> = writable(null);
-export const isPreviewMode: Writable<boolean> = writable(false);
-export const editingModelId: Writable<string | null> = writable(null);
+// ─── Preview Model State ─────────────────────────────────────
+export const previewModel = resettable<ModelData | null>(null);
+export const isPreviewMode = resettable(false);
+export const editingModelId = resettable<string | null>(null);
 
-// Temporary Model State
-export const temporaryModelId: Writable<string | null> = writable(null);
+// ─── Temporary Model State ───────────────────────────────────
+export const temporaryModelId = resettable<string | null>(null);
 
-// User Live GPS Location (updated via watchPosition)
-export const userLiveLocation: Writable<{ latitude: number; longitude: number } | null> = writable(null);
+// ─── User Live GPS Location ──────────────────────────────────
+export const userLiveLocation = resettable<{ latitude: number; longitude: number } | null>(null);
 
-// Gig Economy Stores
-export const userGigRole: Writable<'requester' | 'provider' | null> = writable(null);
-export const currentGeohash: Writable<string> = writable('');
+// ─── Gig Economy ─────────────────────────────────────────────
+export const userGigRole = resettable<'requester' | 'provider' | null>(null);
+export const currentGeohash = resettable('');
 /** Whether the gig economy panel can be closed via the X button */
-export const gigCanClose: Writable<boolean> = writable(true);
+export const gigCanClose = resettable(true);
 /** Pre-selected vertical from the radial menu (auto-navigated on panel open) */
-export const preselectedGigVertical: Writable<GigVertical | null> = writable(null);
+export const preselectedGigVertical = resettable<GigVertical | null>(null);
 /** Signal Cesium to reopen the radial gig menu (set by back buttons) */
-export const showRadialGigMenu: Writable<boolean> = writable(false);
+export const showRadialGigMenu = resettable(false);
 
-// Fly-to store: set to trigger Cesium camera fly to a location (e.g. from address search)
-export const flyToLocation: Writable<{ lat: number; lon: number } | null> = writable(null);
+// ─── Fly-to ──────────────────────────────────────────────────
+export const flyToLocation = resettable<{ lat: number; lon: number } | null>(null);
 
-// Map Layer Stores
+// ─── Map Layers ──────────────────────────────────────────────
 /** Set of currently active map layer IDs (e.g. 'helpouts', 'brainstorming') */
-export const activeMapLayers: Writable<Set<string>> = writable(new Set());
+export const activeMapLayers = resettable<Set<string>>(new Set());
 /** Per-vertical refresh counter — increment a key to force-refresh that layer */
-export const layerRefresh: Writable<Record<string, number>> = writable({});
+export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
-export const layerListings: Writable<Record<string, Listing[]>> = writable({});
-
-// Store cleanup functions
-export function resetAllStores() {
-  // UI State
-  showPicture.set(true);
-  gridReady.set(false);
-  isVisible.set(false);
-  isEditorOpen.set(false);
-  
-  // Modal State - now handled by modalManager
-  
-  // 3D Scene State
-  cesiumReady.set(false);
-  viewer.set(null);
-  currentHeight.set(0);
-  is3DTilesetActive.set(false);
-  isBasemapLoaded.set(false);
-  isTilesetLoaded.set(false);
-  
-  // Progress State
-  basemapProgress.set(0);
-  tilesetProgress.set(0);
-  isInitialLoadComplete.set(false);
-  
-  // Data State
-  coordinates.set({
-    latitude: '',
-    longitude: '',
-    height: 0
-  });
-  models.set([]);
-  
-  // Roaming state
-  isRoamingAreaMode.set(false);
-  roamingAreaBounds.set(null);
-  roamingPaintSignal.set(0);
-  roamingCancelSignal.set(0);
-  roamingClearSignal.set(0);
-  
-  // Preview state
-  previewModel.set(null);
-  isPreviewMode.set(false);
-  editingModelId.set(null);
-  
-  // Temporary model state
-  temporaryModelId.set(null);
-  
-  // Live location
-  userLiveLocation.set(null);
-  
-  // Gig Economy state
-  userGigRole.set(null);
-  currentGeohash.set('');
-  gigCanClose.set(true);
-  preselectedGigVertical.set(null);
-  showRadialGigMenu.set(false);
-  
-  // Fly-to
-  flyToLocation.set(null);
-  
-  // Map Layers
-  activeMapLayers.set(new Set());
-  layerRefresh.set({});
-  layerListings.set({});
-  
-}
+export const layerListings = resettable<Record<string, Listing[]>>({});

@@ -91,33 +91,3 @@ export interface GigRequest {
   /** Vertical-specific form data (item description, guest count, etc.) */
   details: Record<string, string>;
 }
-
-// Modal Management Types
-export type ModalType = 'default' | 'notification' | 'overlay' | 'card';
-
-export interface ModalConfig {
-  id: string;
-  type: ModalType;
-  title?: string;
-  maxWidth?: string;
-  zIndex?: number;
-  showCloseButton?: boolean;
-  closeOnBackdropClick?: boolean;
-  transitionDuration?: number;
-  customClass?: string;
-  forwardInputs?: boolean;
-  data?: any;
-}
-
-export interface ModalState {
-  id: string;
-  config: ModalConfig;
-  isVisible: boolean;
-  timestamp: number;
-  zIndex: number;
-}
-
-export interface ModalHistory {
-  modals: string[];
-  currentIndex: number;
-}

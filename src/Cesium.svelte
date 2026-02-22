@@ -33,6 +33,8 @@
 		roamingPaintSignal,
 		roamingCancelSignal,
 		roamingClearSignal,
+		isRoamingActive,
+		roamingModelCount,
 		userLiveLocation,
 		flyToLocation
 	} from './store';
@@ -40,32 +42,32 @@
 	import { idb } from './idb';
 	import { setSceneCallbacks } from './utils/modelUtils';
 	import { modalService } from './utils/modalService';
-import { getCurrentTimeIso8601 } from './utils/timeUtils';
-import { logger } from './utils/logger';
-import { roamingAnimationManager } from './utils/roamingAnimation';
-import { clampToSurface } from './utils/clampToSurface';
-import {
-  resolveModelUri,
-  modelPositionAndOrientation,
-  removeEntityById,
-  setModelVisibility,
-  flyToLonLat,
-  flyToEntityPosition,
-  pickPositionToLonLat,
-  addPickedPointMarker,
-  renderListingMarkers,
-  removeMarkers,
-  removeMarkerById,
-} from './utils/cesiumHelpers';
-import { setupTouchTiltHandler, destroyTouchTiltHandler } from './utils/touchTiltHandler';
-import { hasActiveGigSession } from './gig/gigRecovery';
-import { getSharedNostr } from './services/nostrPool';
-import ListingDetail from './gig/ListingDetail.svelte';
-import RadialGigMenu from './components/RadialGigMenu.svelte';
-import { preselectedGigVertical, showRadialGigMenu, layerListings } from './store';
-import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
-import type { Listing, GigVertical, ListingVertical } from './types';
-  
+	import { getCurrentTimeIso8601 } from './utils/timeUtils';
+	import { logger } from './utils/logger';
+	import { roamingAnimationManager } from './utils/roamingAnimation';
+	import { clampToSurface } from './utils/clampToSurface';
+	import {
+		resolveModelUri,
+		modelPositionAndOrientation,
+		removeEntityById,
+		setModelVisibility,
+		flyToLonLat,
+		flyToEntityPosition,
+		pickPositionToLonLat,
+		addPickedPointMarker,
+		renderListingMarkers,
+		removeMarkers,
+		removeMarkerById,
+	} from './utils/cesiumHelpers';
+	import { setupTouchTiltHandler, destroyTouchTiltHandler } from './utils/touchTiltHandler';
+	import { hasActiveGigSession } from './gig/gigRecovery';
+	import { getSharedNostr } from './services/nostrPool';
+	import ListingDetail from './gig/ListingDetail.svelte';
+	import RadialGigMenu from './components/RadialGigMenu.svelte';
+	import { preselectedGigVertical, showRadialGigMenu, layerListings } from './store';
+	import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
+	import type { Listing, GigVertical, ListingVertical } from './types';
+
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
 let pointEntity: Entity | null = null; // For coordinate picking
@@ -109,7 +111,6 @@ let createdObjectURLs: string[] = [];
 
 // Roaming animation state
 let roamingAnimationFrameId: number | null = null;
-let isRoamingAnimationActive = false;
 
 // Export preview model functions for parent component
 export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateRoamingModel, hideOriginalModel, showOriginalModel };
@@ -340,7 +341,8 @@ function addModelToScene(modelData: ModelData) {
 		
 		if (modelData.roaming?.isEnabled) {
 			roamingAnimationManager.addModel(modelData);
-			if (!isRoamingAnimationActive) {
+			roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
+			if (!$isRoamingActive) {
 				startRoamingAnimation();
 			}
 		}
@@ -366,9 +368,8 @@ function loadModelsFromStore() {
 			}
 		});
 		
-		// Start roaming animation if any models have roaming enabled
-		const hasRoamingModels = $models.some(model => model.roaming?.isEnabled);
-		if (hasRoamingModels && !isRoamingAnimationActive) {
+		roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
+		if (roamingAnimationManager.getActiveModelCount() > 0 && !$isRoamingActive) {
 			startRoamingAnimation();
 		}
 	}
@@ -415,26 +416,14 @@ $: if (cesiumViewer) {
 }
 
 // Track previous models to prevent unnecessary reloads
-let previousModels: ModelData[] = [];
+let previousModelsSerialized = '[]';
 
 // Reactive statement to automatically load models when store changes
 $: if (cesiumViewer && modelDataSource) {
-	// Only reload if the models array actually changed
-	const modelsChanged = $models.length !== previousModels.length || 
-		$models.some((model, index) => {
-			const prevModel = previousModels[index];
-			return !prevModel || 
-				model.id !== prevModel.id || 
-				model.name !== prevModel.name ||
-				model.coordinates.latitude !== prevModel.coordinates.latitude ||
-				model.coordinates.longitude !== prevModel.coordinates.longitude ||
-				model.transform.scale !== prevModel.transform.scale ||
-				model.transform.height !== prevModel.transform.height;
-		});
-	
-	if (modelsChanged) {
+	const serialized = JSON.stringify($models);
+	if (serialized !== previousModelsSerialized) {
 		loadModelsFromStore();
-		previousModels = [...$models]; // Update previous models
+		previousModelsSerialized = serialized;
 	}
 }
 
@@ -470,48 +459,36 @@ function openRadialMenuCentered() {
 function removeModelFromScene(modelId: string) {
 	removeEntityById(modelDataSource, modelId);
 	roamingAnimationManager.removeModel(modelId);
+	roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
 }
 
 // Roaming animation functions
 function startRoamingAnimation() {
-	if (isRoamingAnimationActive) return;
-	
-	isRoamingAnimationActive = true;
-	roamingAnimationManager.resumeAll();
-	
-	// Start the animation loop
+	if ($isRoamingActive) return;
+	isRoamingActive.set(true);
 	animateRoamingModels();
-	
 	logger.info('Roaming animation started', { component: 'Cesium', operation: 'startRoaming' });
 }
 
 function stopRoamingAnimation() {
-	if (!isRoamingAnimationActive) return;
-	
-	isRoamingAnimationActive = false;
-	roamingAnimationManager.pauseAll();
-	
+	if (!$isRoamingActive) return;
+	isRoamingActive.set(false);
 	if (roamingAnimationFrameId) {
 		cancelAnimationFrame(roamingAnimationFrameId);
 		roamingAnimationFrameId = null;
 	}
-	
 	logger.info('Roaming animation stopped', { component: 'Cesium', operation: 'stopRoaming' });
 }
 
 function animateRoamingModels() {
-	if (!isRoamingAnimationActive || !cesiumViewer || !modelDataSource) return;
-	
-	// Update all roaming models
-	const roamingModels = roamingAnimationManager.getAllRoamingModels();
-	
-	// Animation logging removed for better performance
-	
-	for (const roamingModel of roamingModels) {
+	if (!$isRoamingActive || !cesiumViewer || !modelDataSource) return;
+
+	roamingAnimationManager.tick();
+
+	for (const roamingModel of roamingAnimationManager.getAllRoamingModels()) {
 		const position = roamingAnimationManager.getModelPosition(roamingModel.id);
 		if (!position) continue;
-		
-		// Update the model entity position and orientation
+
 		const entity = modelDataSource.entities.getById(roamingModel.id);
 		if (entity) {
 			const newPosition = Cartesian3.fromDegrees(
@@ -519,23 +496,18 @@ function animateRoamingModels() {
 				position.latitude,
 				position.height
 			);
-			
-			// Update position using Cesium's position property
 			entity.position = newPosition;
-			
-			// Update orientation using Cesium's orientation property
-			const heading = CesiumMath.toRadians(position.heading);
-			const pitch = CesiumMath.toRadians(roamingModel.modelData.transform.pitch);
-			const roll = CesiumMath.toRadians(roamingModel.modelData.transform.roll);
-			
 			entity.orientation = Transforms.headingPitchRollQuaternion(
 				newPosition,
-				new HeadingPitchRoll(heading, pitch, roll)
+				new HeadingPitchRoll(
+					CesiumMath.toRadians(position.heading),
+					CesiumMath.toRadians(roamingModel.modelData.transform.pitch),
+					CesiumMath.toRadians(roamingModel.modelData.transform.roll)
+				)
 			);
 		}
 	}
-	
-	// Continue animation loop
+
 	roamingAnimationFrameId = requestAnimationFrame(animateRoamingModels);
 }
 
@@ -544,7 +516,7 @@ function updateRoamingModel(modelData: ModelData) {
 	roamingAnimationManager.updateModel(modelData);
 	
 	// If roaming is enabled and animation is not running, start it
-	if (modelData.roaming?.isEnabled && !isRoamingAnimationActive) {
+	if (modelData.roaming?.isEnabled && !$isRoamingActive) {
 		startRoamingAnimation();
 	}
 }
@@ -938,9 +910,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		isRoamingAreaMode.set(false);
 	}
 
-
-
-  
 	let unsubFlyTo: (() => void) | null = null;
 
 	// Initialization on mount
@@ -1105,9 +1074,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		// Add label collection to scene with proper cleanup reference
 		const labels = cesiumViewer.scene.primitives.add(new Cesium.LabelCollection());
 		
-		// Store labels reference for cleanup
-		(window as any).cityLabels = labels;
-
 		// Load all 1200 cities as requested
 		const sample = cities.slice(0, 1200);
 
@@ -1242,16 +1208,6 @@ function handleCoordinatePick(result: any) {
   pointEntity = addPickedPointMarker(cesiumViewer, coords.cartesian, pointEntity);
 }
 
-
-
-
-
-
-
-
-  
-
-
 	onDestroy(() => {
 		// Unsubscribe flyToLocation
 		if (unsubFlyTo) unsubFlyTo();
@@ -1328,12 +1284,8 @@ function handleCoordinatePick(result: any) {
 		animationFrameId = null;
 		initialZoomComplete = false;
 	});
+</script>
 
-
-  </script>
-  
-
-  
 <div style="width: 100%; display: flex; justify-content: center; align-items: center; position: relative;">
   <main id="cesiumContainer"></main>
   
@@ -1354,8 +1306,6 @@ function handleCoordinatePick(result: any) {
       <line x1="18" y1="12" x2="22" y2="12"/>
     </svg>
   </button>
-
-
 </div>
 
 <!-- Listing Detail Overlay (shown on marker click) -->
@@ -1378,9 +1328,6 @@ function handleCoordinatePick(result: any) {
     onClose={handleRadialClose}
   />
 {/if}
-
-
-
 
 
 
@@ -1471,7 +1418,7 @@ function handleCoordinatePick(result: any) {
 
 	:global(.cesium-widget-credits){
 	opacity: 0;
-	animation: fade-in 3s ease-in-out forwards; /* Apply the fade-in animation */
+	animation: fade-in 3s ease-in-out forwards;
 	animation-delay: 4s;
 	}
 
@@ -1483,44 +1430,9 @@ function handleCoordinatePick(result: any) {
 
 
 
-
-
-
-
-
-
-/* Keyframes for fade-in-scale down effect */
-@keyframes fade-in-scale-down {
-    from {
-        opacity: 0;
-        transform: scale(1.1); /* Optional: add a slight zoom-in effect */
-    }
-    to {
-        opacity: 1;
-        transform: scale(1); /* Reset to normal scale */
-    }
-}
-
-/* Keyframes for fade-in-scale-up effect */
-@keyframes fade-in-scale-up {
-    from {
-        opacity: 0;
-        transform: scale(0.01); /* Optional: add a slight zoom-in effect */
-    }
-    to {
-        opacity: 1;
-        transform: scale(1); /* Reset to normal scale */
-    }
-}
-
-/* Keyframes for fade-in effect */
 @keyframes fade-in {
-    from {
-        opacity: 0;
-        }
-    to {
-        opacity: 1;
-        }
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 </style>
   

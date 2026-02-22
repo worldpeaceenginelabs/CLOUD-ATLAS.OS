@@ -118,7 +118,6 @@
       hoveredItem = '';
       showInfoPanel = false;
       ionKeyExpanded = false;
-      modalService.closeAllModals();
     }
   }
 

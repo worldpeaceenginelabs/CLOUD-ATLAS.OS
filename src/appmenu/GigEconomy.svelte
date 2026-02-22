@@ -28,14 +28,17 @@
   let sharedNostr: NostrService | null = null;
   let nostrError = false;
   let recovering = true;
+  let destroyed = false;
 
   (async () => {
     try {
       sharedNostr = await getSharedNostr();
+      if (destroyed) return;
       await attemptRecovery();
     } catch {
       nostrError = true;
     } finally {
+      if (destroyed) return;
       recovering = false;
       const preselected = get(preselectedGigVertical);
       if (preselected) {
@@ -532,6 +535,7 @@
 
   // ─── Lifecycle ──────────────────────────────────────────────
   onDestroy(() => {
+    destroyed = true;
     stopService();
     gigCanClose.set(true);
     clearError();
