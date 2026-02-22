@@ -6,11 +6,9 @@
 import type { ModelData } from '../types';
 import { 
   getRandomPositionInArea, 
-  calculateDistance, 
   calculateTravelTime, 
   getRandomHeading,
   shouldStartRoaming,
-  type RoamingAreaBounds 
 } from './roamingUtils';
 
 export interface RoamingModel {

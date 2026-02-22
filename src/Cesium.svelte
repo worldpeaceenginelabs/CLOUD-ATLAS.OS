@@ -361,11 +361,6 @@ function loadModelsFromStore() {
 		
 		$models.forEach(modelData => {
 			addModelToScene(modelData);
-			
-			// Add to roaming animation if enabled
-			if (modelData.roaming?.isEnabled) {
-				roamingAnimationManager.addModel(modelData);
-			}
 		});
 		
 		roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
@@ -1421,9 +1416,6 @@ function handleCoordinatePick(result: any) {
 	animation: fade-in 3s ease-in-out forwards;
 	animation-delay: 4s;
 	}
-
-
-
 
 
 
