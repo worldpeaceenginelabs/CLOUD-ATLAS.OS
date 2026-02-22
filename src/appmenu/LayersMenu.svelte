@@ -314,7 +314,7 @@
           on:click={handleTilesCardClick}
           on:keydown={(e) => e.key === 'Enter' && handleTilesCardClick()}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 3L2 8l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M2 16l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -385,7 +385,7 @@
           on:click={() => handleItemClick('model')}
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('model')}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -415,7 +415,7 @@
           on:click={() => handleItemClick('simulation')}
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('simulation')}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -479,7 +479,7 @@
           on:click={toggleAbout}
           on:keydown={(e) => e.key === 'Enter' && toggleAbout()}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
             <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -494,7 +494,7 @@
           on:click={openLiveEdit}
           on:keydown={(e) => e.key === 'Enter' && openLiveEdit()}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -609,8 +609,8 @@
   .dropdown-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 10px;
+    padding: 8px 14px;
     color: white;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -629,14 +629,15 @@
   }
 
   .dropdown-item svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
   }
 
   .item-text {
     flex: 1;
     text-align: left;
+    font-size: 0.85rem;
   }
 
   .info-icon {
@@ -681,7 +682,7 @@
   }
 
   .section-label {
-    padding: 8px 16px 4px;
+    padding: 6px 14px 2px;
     font-size: 0.65rem;
     font-weight: 600;
     letter-spacing: 1px;
@@ -690,7 +691,7 @@
   }
 
   .sub-header {
-    padding: 6px 16px 2px;
+    padding: 4px 14px 1px;
     font-size: 0.58rem;
     font-weight: 600;
     letter-spacing: 0.5px;
