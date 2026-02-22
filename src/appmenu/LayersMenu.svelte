@@ -297,7 +297,7 @@
   </button>
 
   {#if isDropdownVisible}
-    <div class="blue-container" transition:slide={{ duration: 500, axis: 'y' }}>
+    <div class="layermenu-container" transition:slide={{ duration: 500, axis: 'y' }}>
 
       <!-- ═══ LAYERS ═══════════════════════════════════════ -->
       <div class="dropdown-menu">
@@ -331,6 +331,48 @@
             </button>
           {/if}
         </div>
+
+        <!-- Ion key panel (expands directly below 3D Tiles) -->
+        {#if ionKeyExpanded}
+          <div class="ion-panel-inline" transition:slide={{ duration: 200 }}>
+            <p class="ion-hint">
+              Get a free key at <a href="https://ion.cesium.com" target="_blank" rel="noopener">ion.cesium.com</a> to unlock Google Photorealistic 3D Tiles.
+            </p>
+            <div class="ion-key-row">
+              {#if showIonKey}
+                <input
+                  class="ion-key-input"
+                  type="text"
+                  placeholder="Paste Ion access token"
+                  bind:value={ionKeyInput}
+                  on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
+                />
+              {:else}
+                <input
+                  class="ion-key-input"
+                  type="password"
+                  placeholder="Paste Ion access token"
+                  bind:value={ionKeyInput}
+                  on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
+                />
+              {/if}
+              <button class="ion-key-eye" on:click={() => showIonKey = !showIonKey} title={showIonKey ? 'Hide' : 'Show'}>
+                {#if showIonKey}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                {:else}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                {/if}
+              </button>
+            </div>
+            <div class="ion-key-actions">
+              <button class="ion-key-btn save" on:click={saveIonKey} disabled={!ionKeyInput.trim()}>Save</button>
+              {#if ionKeySaved}
+                <button class="ion-key-btn clear" on:click={clearIonKey}>Reset</button>
+              {/if}
+              <button class="ion-key-btn clear" on:click={() => ionKeyExpanded = false}>Cancel</button>
+            </div>
+          </div>
+        {/if}
 
         <!-- Create sub-header -->
         <div class="sub-header">Create</div>
@@ -427,48 +469,6 @@
           <div class="layer-error">{layerError}</div>
         {/if}
       </div>
-
-      <!-- Ion key panel (expands below layers section) -->
-      {#if ionKeyExpanded}
-        <div class="ion-panel" transition:slide={{ duration: 200 }}>
-          <p class="ion-hint">
-            Get a free key at <a href="https://ion.cesium.com" target="_blank" rel="noopener">ion.cesium.com</a> to unlock Google Photorealistic 3D Tiles.
-          </p>
-          <div class="ion-key-row">
-            {#if showIonKey}
-              <input
-                class="ion-key-input"
-                type="text"
-                placeholder="Paste Ion access token"
-                bind:value={ionKeyInput}
-                on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
-              />
-            {:else}
-              <input
-                class="ion-key-input"
-                type="password"
-                placeholder="Paste Ion access token"
-                bind:value={ionKeyInput}
-                on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
-              />
-            {/if}
-            <button class="ion-key-eye" on:click={() => showIonKey = !showIonKey} title={showIonKey ? 'Hide' : 'Show'}>
-              {#if showIonKey}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              {:else}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              {/if}
-            </button>
-          </div>
-          <div class="ion-key-actions">
-            <button class="ion-key-btn save" on:click={saveIonKey} disabled={!ionKeyInput.trim()}>Save</button>
-            {#if ionKeySaved}
-              <button class="ion-key-btn clear" on:click={clearIonKey}>Reset</button>
-            {/if}
-            <button class="ion-key-btn clear" on:click={() => ionKeyExpanded = false}>Cancel</button>
-          </div>
-        </div>
-      {/if}
 
       <!-- Bottom section: Utility -->
       <div class="utility-menu">
@@ -582,7 +582,7 @@
     50% { opacity: 0.7; transform: scale(1.1); }
   }
 
-  .blue-container {
+  .layermenu-container {
     position: absolute;
     top: 100%;
     right: 0;
@@ -591,6 +591,7 @@
     flex-direction: column;
     gap: 8px;
     z-index: 60;
+    max-height: calc(100vh - 80px);
   }
 
   .dropdown-menu {
@@ -599,8 +600,10 @@
     border: 1px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
-    overflow: hidden;
     min-width: 250px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .dropdown-item {
@@ -763,14 +766,11 @@
     color: rgba(255, 255, 255, 0.7);
   }
 
-  /* ── Ion key panel ── */
-  .ion-panel {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(124, 77, 255, 0.25);
-    border-radius: 12px;
-    padding: 14px 16px;
-    min-width: 250px;
+  /* ── Ion key panel (inline, inside dropdown-menu) ── */
+  .ion-panel-inline {
+    padding: 10px 16px 14px;
+    border-top: 1px solid rgba(124, 77, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .ion-hint {
