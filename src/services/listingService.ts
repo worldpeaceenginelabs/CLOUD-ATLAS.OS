@@ -14,7 +14,7 @@
  *   - Take-down via 1-second TTL replacement (handled in detail cards)
  */
 
-import type { NostrService } from './nostrService';
+import { type NostrService, RELAY_LABEL } from './nostrService';
 import { logger } from '../utils/logger';
 import type { Listing } from '../types';
 
@@ -30,6 +30,7 @@ const freshExpiration = (): number => Math.floor(Date.now() / 1000) + LISTING_TT
 const buildTags = (listingTag: string, geohash?: string): string[][] => {
   const tags: string[][] = [
     ['t', listingTag],
+    ['L', RELAY_LABEL],
     ['expiration', String(freshExpiration())],
   ];
   if (geohash) {

@@ -30,7 +30,7 @@
  *   so events from different verticals never interfere.
  */
 
-import { type NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
+import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
 import type { GigRequest, GigVertical } from '../types';
 
@@ -52,6 +52,7 @@ const freshExpiration = (): number => Math.floor(Date.now() / 1000) + REQUEST_TT
 const buildTags = (geohash: string, type: string): string[][] => [
   ['g', geohash],
   ['t', type],
+  ['L', RELAY_LABEL],
   ['expiration', String(freshExpiration())],
 ];
 
@@ -134,6 +135,7 @@ export class GigService {
       kinds: [REPLACEABLE_KIND],
       authors: [this.nostr.pubkey],
       '#d': [request.id],
+      '#L': [RELAY_LABEL],
     }, (event: NostrEvent) => this.handleOwnEvent(event));
 
     // Subscribe to incoming accept DMs
@@ -149,6 +151,7 @@ export class GigService {
       kinds: [REPLACEABLE_KIND],
       '#g': [geohash],
       '#t': [this.offerTag],
+      '#L': [RELAY_LABEL],
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
     }, (event: NostrEvent) => this.handleProviderAvailEvent(event));
 
@@ -218,6 +221,7 @@ export class GigService {
       kinds: [REPLACEABLE_KIND],
       authors: [this.nostr.pubkey],
       '#d': [this.offerTag],
+      '#L': [RELAY_LABEL],
     }, (event: NostrEvent) => this.handleOwnEvent(event));
 
     // Subscribe to requests in this cell
@@ -225,6 +229,7 @@ export class GigService {
       kinds: [REPLACEABLE_KIND],
       '#g': [geohash],
       '#t': [this.needTag],
+      '#L': [RELAY_LABEL],
       since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
     }, (event: NostrEvent) => this.handleRequestEvent(event));
 

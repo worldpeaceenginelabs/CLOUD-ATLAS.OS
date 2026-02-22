@@ -31,6 +31,7 @@ export type { NostrEvent };
 
 export const REPLACEABLE_KIND = 30078;
 const DM_KIND = 14;
+export const RELAY_LABEL = import.meta.env.VITE_RELAY_LABEL as string;
 
 /** Public Nostr relays – updated 2026-02-12. */
 const DEFAULT_RELAYS = [
@@ -209,19 +210,22 @@ export class NostrService {
   private handleIncomingEvent(subId: string, event: NostrEvent): void {
     const isOwn = event.pubkey === this.pk;
 
-    // Verify signature (skip for own events — we signed them)
-    if (!isOwn && !verifyEvent(event)) {
-      logger.warn(`Rejected event with invalid signature: ${event.id?.slice(0, 8)}`, { component: 'NostrService', operation: 'handleIncomingEvent' });
-      return;
-    }
-
-    // Deduplicate across relays (skip for own events — self-subscriptions
-    // need every echo so the heartbeat timer can resync with relay state)
+    // Own events skip verification and dedup — self-subscriptions
+    // need every echo so the heartbeat timer can resync with relay state.
     if (!isOwn) {
+      // Event ID is a SHA-256 hash of the content, so same ID = same event.
+      // If we already verified this hash, drop the duplicate immediately.
       if (this.seenEventIds.has(event.id)) return;
-      this.seenEventIds.add(event.id);
 
-      // Evict oldest entries when cap is reached
+      // First time seeing this event — verify the signature.
+      if (!verifyEvent(event)) {
+        // Don't add to seenEventIds — another relay may deliver a valid copy.
+        logger.warn(`Rejected event with invalid signature: ${event.id?.slice(0, 8)}`, { component: 'NostrService', operation: 'handleIncomingEvent' });
+        return;
+      }
+
+      // Verified — remember this ID so future copies are dropped.
+      this.seenEventIds.add(event.id);
       if (this.seenEventIds.size > NostrService.MAX_SEEN_IDS) {
         const iter = this.seenEventIds.values();
         this.seenEventIds.delete(iter.next().value!);
@@ -246,7 +250,7 @@ export class NostrService {
     const template: EventTemplate = {
       kind: REPLACEABLE_KIND,
       created_at: Math.floor(Date.now() / 1000),
-      tags: [['d', dTag], ...extraTags],
+      tags: [['d', dTag], ['L', RELAY_LABEL], ...extraTags],
       content,
     };
 
@@ -301,6 +305,7 @@ export class NostrService {
     this.subscribe(subId, {
       kinds: [DM_KIND],
       '#p': [this.pk],
+      '#L': [RELAY_LABEL],
       since: Math.floor(Date.now() / 1000) - lookbackSecs,
     }, (event: NostrEvent) => {
       try {
@@ -322,7 +327,7 @@ export class NostrService {
     const key = this.getConversationKey(toPubkey);
     const ciphertext = nip44.encrypt(plaintext, key);
 
-    const tags: string[][] = [['p', toPubkey]];
+    const tags: string[][] = [['p', toPubkey], ['L', RELAY_LABEL]];
     if (expirationSecs !== undefined) {
       tags.push(['expiration', String(Math.floor(Date.now() / 1000) + expirationSecs)]);
     }

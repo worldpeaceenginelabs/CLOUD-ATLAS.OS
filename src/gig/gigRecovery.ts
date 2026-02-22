@@ -3,7 +3,7 @@
  */
 
 import { getSharedNostr } from '../services/nostrPool';
-import { REPLACEABLE_KIND } from '../services/nostrService';
+import { REPLACEABLE_KIND, RELAY_LABEL } from '../services/nostrService';
 
 /**
  * Returns true if the current user has an active gig session
@@ -20,6 +20,7 @@ export async function hasActiveGigSession(): Promise<boolean> {
       {
         kinds: [REPLACEABLE_KIND],
         authors: [nostr.pubkey],
+        '#L': [RELAY_LABEL],
         since: Math.floor(Date.now() / 1000) - 120,
       },
       () => {

@@ -17,7 +17,7 @@
  *   - On relay failure: fall back to IDB cache regardless of age
  */
 
-import { type NostrService, REPLACEABLE_KIND, type NostrEvent } from './nostrService';
+import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { idb } from '../idb';
 import { logger } from '../utils/logger';
 import type { Listing } from '../types';
@@ -105,6 +105,7 @@ export class ListingLayerService {
         kinds: [REPLACEABLE_KIND],
         '#g': [geohash4],
         '#t': [this.listingTag],
+        '#L': [RELAY_LABEL],
         since: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60,
       }, (event: NostrEvent) => {
         if (!event.content) return;
