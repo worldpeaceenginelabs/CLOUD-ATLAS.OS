@@ -200,7 +200,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     ],
     offerFields: [
       { key: 'phone', label: 'Phone Number', type: 'text', placeholder: '+49 170 1234567', required: false, pattern: '^\\+?[0-9\\s\\-]{4,20}$', patternHint: 'Digits only (optional + at start)', group: 'contact' },
-      { key: 'messenger', label: 'Messenger Link', type: 'text', placeholder: 't.me/user or peer://invite-code', required: false, pattern: '^([a-zA-Z][a-zA-Z0-9+\\-.]*:\\/\\/.+|[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}\\S*)$', patternHint: 'Enter a link (e.g. t.me/user, https://... or peer://...)', group: 'contact' },
+      { key: 'messenger', label: 'Contact Link', type: 'text', placeholder: 't.me/user or peer://invite-code', required: false, pattern: '^([a-zA-Z][a-zA-Z0-9+\\-.]*:\\/\\/.+|[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}\\S*)$', patternHint: 'Enter a link (e.g. t.me/user, https://... or peer://...)', group: 'contact' },
     ],
     offerFieldGroupHints: {
       contact: 'Provide at least one way for customers to reach you. Mind not using too exotic apps so customers have a chance of contacting you \u2014 also note that some P2P protocols may not work in certain countries.',
