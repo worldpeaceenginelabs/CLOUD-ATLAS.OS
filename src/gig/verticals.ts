@@ -196,7 +196,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     gpsLocationLabel: 'Deliver to (Your Location)',
     mapPickLabel: 'Pickup Location',
     needFields: [
-      { key: 'item', label: 'Item Description', type: 'text', placeholder: 'What needs to be delivered?', required: true },
+      { key: 'item', label: 'Description', type: 'text', placeholder: 'What needs to be delivered?', required: true },
     ],
     offerFields: [
       { key: 'phone', label: 'Phone Number', type: 'text', placeholder: '+49 170 1234567', required: false, pattern: '^\\+?[0-9\\s\\-]{4,20}$', patternHint: 'Digits only (optional + at start)', group: 'contact' },
