@@ -73,7 +73,7 @@
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
-let pointEntity: Entity | null = null;
+let pointEntities: Entity[] = [];
 let userLocationEntity: Entity | null = null;
 let userRingEntities: Entity[] = [];
 let userLocationInitialized = false;
@@ -276,6 +276,15 @@ function openRadialMenuCentered() {
 	radialScreenY = window.innerHeight / 2;
 	showRadialMenu = true;
 	flyToEntityPosition(cesiumViewer, userLocationEntity);
+}
+
+/** Open radial menu centered on screen and fly camera to the picked point. */
+function openRadialMenuAtPickedPoint() {
+	radialScreenX = window.innerWidth / 2;
+	radialScreenY = window.innerHeight / 2;
+	showRadialMenu = true;
+	const center = pointEntities.find(e => e.id === 'pickedPoint') ?? null;
+	flyToEntityPosition(cesiumViewer, center);
 }
 
 // Remove model from scene
@@ -571,7 +580,11 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
 				const id = pickedObject.id.id;
-				if (id === 'pickedPoint') return;
+
+				if (id === 'pickedPoint' || id?.startsWith('pickedPoint_')) {
+					openRadialMenuAtPickedPoint();
+					return;
+				}
 
 				if (id?.startsWith('Your Location!')) {
 					openRadialMenuCentered();
@@ -591,7 +604,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		cesiumViewer.screenSpaceEventHandler.setInputAction((movement: any) => {
 			if (!cesiumViewer) return;
 			const picked = cesiumViewer.scene.pick(movement.endPosition);
-			if (Cesium.defined(picked) && picked.id?.id && picked.id.id !== 'pickedPoint') {
+			const hoveredId = picked?.id?.id;
+			if (Cesium.defined(picked) && hoveredId) {
 				cesiumViewer.canvas.style.cursor = 'pointer';
 			} else {
 				cesiumViewer.canvas.style.cursor = '';
@@ -732,7 +746,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	      flyToLonLat(cesiumViewer, loc.lon, loc.lat, 5000, 1.5);
 	      clampToSurface(loc.lon, loc.lat).then(clamped => {
 	        if (!cesiumViewer) return;
-	        pointEntity = addPickedPointMarker(cesiumViewer, clamped, pointEntity);
+	        pointEntities = addPickedPointMarker(cesiumViewer, clamped, pointEntities);
 	      });
 	      flyToLocation.set(null);
 	    }
@@ -844,7 +858,7 @@ function handleCoordinatePick(result: any) {
     height: coords.height,
   });
 
-  pointEntity = addPickedPointMarker(cesiumViewer, coords.cartesian, pointEntity);
+  pointEntities = addPickedPointMarker(cesiumViewer, coords.cartesian, pointEntities);
 }
 
 	onDestroy(() => {
@@ -887,7 +901,7 @@ function handleCoordinatePick(result: any) {
 
 		resetAllStores();
 		modalService.closeAllModals();
-		pointEntity = null;
+		pointEntities = [];
 		userLocationEntity = null;
 		userRingEntities = [];
 		userLocationInitialized = false;

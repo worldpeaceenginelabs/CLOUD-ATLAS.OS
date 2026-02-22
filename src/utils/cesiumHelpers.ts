@@ -134,26 +134,83 @@ export function pickPositionToLonLat(
 
 // ─── Picked Point Marker ────────────────────────────────────────
 
-const PICKED_POINT_STYLE = {
-  pixelSize: 8,
-  color: Color.fromCssColorString('#34A853'),
-  outlineColor: Color.WHITE,
-  outlineWidth: 1,
-  disableDepthTestDistance: Number.POSITIVE_INFINITY,
-} as const;
+const PICKED_POINT_GREEN = '#34A853';
 
 export function addPickedPointMarker(
   viewer: any,
   position: any,
-  existingEntity: Entity | null,
-): Entity | null {
-  if (!viewer) return null;
-  if (existingEntity) viewer.entities.remove(existingEntity);
-  return viewer.entities.add({
+  existingEntities: Entity[],
+): Entity[] {
+  if (!viewer) return [];
+  removeMarkers(viewer, existingEntities);
+
+  const t0 = Date.now();
+
+  const outerPulse = new Cesium.CallbackProperty(() => {
+    const t = (Date.now() - t0) / 1000;
+    return 22 + 4 * Math.sin((2 * Math.PI * t) / 4);
+  }, false);
+
+  const innerPulse = new Cesium.CallbackProperty(() => {
+    const t = (Date.now() - t0) / 1000 - 0.7;
+    return 13 + 3 * Math.sin((2 * Math.PI * t) / 4);
+  }, false);
+
+  const outer = new Entity({
+    id: 'pickedPoint_outer',
+    position,
+    point: {
+      pixelSize: outerPulse,
+      color: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.04),
+      outlineColor: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.7),
+      outlineWidth: 2,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+
+  const inner = new Entity({
+    id: 'pickedPoint_inner',
+    position,
+    point: {
+      pixelSize: innerPulse,
+      color: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.04),
+      outlineColor: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.7),
+      outlineWidth: 2,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+
+  const center = new Entity({
     id: 'pickedPoint',
     position,
-    point: { ...PICKED_POINT_STYLE },
+    point: {
+      pixelSize: 4,
+      color: Cesium.Color.WHITE.withAlpha(0.85),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
   });
+
+  const hitCanvas = document.createElement('canvas');
+  hitCanvas.width = 1;
+  hitCanvas.height = 1;
+  const ctx = hitCanvas.getContext('2d');
+  if (ctx) { ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 1, 1); }
+
+  const hitArea = new Entity({
+    id: 'pickedPoint_hitarea',
+    position,
+    billboard: {
+      image: hitCanvas,
+      width: 52,
+      height: 52,
+      color: new Cesium.Color(1, 1, 1, 0.01),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+
+  const entities = [outer, inner, center, hitArea];
+  entities.forEach(e => viewer.entities.add(e));
+  return entities;
 }
 
 // ─── Listing Markers ────────────────────────────────────────────
