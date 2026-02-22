@@ -437,6 +437,21 @@
           </button>
         </div>
 
+        <!-- Beyond the Horizon -->
+        <div class="sub-header">Immersive Worlds</div>
+
+        <div class="dropdown-item coming-soon-item" title="Coming Soon">
+          <span class="layer-dot coming-soon-dot"></span>
+          <span class="item-text">Holodeck</span>
+          <span class="coming-soon-badge">COMING SOON</span>
+        </div>
+
+        <div class="dropdown-item coming-soon-item" title="Coming Soon">
+          <span class="layer-dot coming-soon-dot"></span>
+          <span class="item-text">Omnipedia</span>
+          <span class="coming-soon-badge">COMING SOON</span>
+        </div>
+
         <!-- Listing layer groups -->
         {#each layerGroups as group}
           <div class="sub-header">{group.header}</div>
@@ -727,6 +742,27 @@
     border-radius: 50%;
     flex-shrink: 0;
     opacity: 0.85;
+  }
+
+  .coming-soon-item {
+    opacity: 0.35;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .coming-soon-dot {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .coming-soon-badge {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 5px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.5);
+    flex-shrink: 0;
   }
 
   .layer-spinner {

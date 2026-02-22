@@ -3,17 +3,18 @@
 </script>
 
 <main transition:fade={{ duration: 500 }}>
-  <div class="simulation-container">
+  <div class="missiontv-container">
     <div class="coming-soon">
       <div class="icon">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="2" y="7" width="20" height="15" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="17 2 12 7 7 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <h1>HOLODECK & OMNIPEDIA CREATOR</h1>
+      <h1>MissionTV</h1>
       <p class="coming-soon-text">Coming Soon</p>
       <p class="description">
-        Connect 3D models into a dynamic scene and run simulations to test how different parameters shape your virtual environment.<br>Explore OMNIPEDIA — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the HOLODECK — no coding required.
+        Watch live missions, community projects, and collaborative efforts unfolding in real-time on the globe.<br>Broadcast them and get paid for the issues you love.
       </p>
     </div>
   </div>
@@ -32,7 +33,7 @@
     text-decoration: none;
   }
 
-  .simulation-container {
+  .missiontv-container {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -84,20 +85,13 @@
   }
 
   @keyframes gradientBG {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
-  /* Responsive design */
   @media (max-width: 768px) {
-    .simulation-container {
+    .missiontv-container {
       min-height: 300px;
       padding: 20px 15px;
     }
