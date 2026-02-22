@@ -1325,8 +1325,10 @@ function handleCoordinatePick(result: any) {
 		userRingEntities = [];
 		userLocationInitialized = false;
 		showRadialMenu = false;
-		helpoutEntities = [];
-		socialEntities = [];
+		for (const key of Object.keys(layerEntities)) {
+			removeMarkers(cesiumViewer, layerEntities[key]);
+			layerEntities[key] = [];
+		}
 		stopUserLocationTracking();
 		isMonitoringCamera = false;
 		animationFrameId = null;
