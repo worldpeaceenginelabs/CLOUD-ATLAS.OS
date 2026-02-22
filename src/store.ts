@@ -77,16 +77,12 @@ export const showRadialGigMenu: Writable<boolean> = writable(false);
 export const flyToLocation: Writable<{ lat: number; lon: number } | null> = writable(null);
 
 // Map Layer Stores
-/** Set of currently active map layer IDs (e.g. 'helpouts') */
+/** Set of currently active map layer IDs (e.g. 'helpouts', 'brainstorming') */
 export const activeMapLayers: Writable<Set<string>> = writable(new Set());
-/** Increment to trigger a force-refresh of the helpouts map layer */
-export const helpoutLayerRefresh: Writable<number> = writable(0);
-/** Increment to trigger a force-refresh of the social map layer */
-export const socialLayerRefresh: Writable<number> = writable(0);
-/** Current helpout listings to render on the map (written by AddButton, read by Cesium) */
-export const helpoutLayerListings: Writable<Listing[]> = writable([]);
-/** Current social listings to render on the map (written by AddButton, read by Cesium) */
-export const socialLayerListings: Writable<Listing[]> = writable([]);
+/** Per-vertical refresh counter — increment a key to force-refresh that layer */
+export const layerRefresh: Writable<Record<string, number>> = writable({});
+/** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
+export const layerListings: Writable<Record<string, Listing[]>> = writable({});
 
 // Store cleanup functions
 export function resetAllStores() {
@@ -149,9 +145,7 @@ export function resetAllStores() {
   
   // Map Layers
   activeMapLayers.set(new Set());
-  helpoutLayerRefresh.set(0);
-  socialLayerRefresh.set(0);
-  helpoutLayerListings.set([]);
-  socialLayerListings.set([]);
+  layerRefresh.set({});
+  layerListings.set({});
   
 }

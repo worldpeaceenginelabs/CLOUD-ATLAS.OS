@@ -2,7 +2,6 @@
   import { openModals, hideModal } from '../utils/modalManager';
   import Modal from './Modal.svelte';
   import Editor from './Editor.svelte';
-  import SwarmGovernance from '../appmenu/SwarmGovernance.svelte';
   import Simulation from '../appmenu/Simulation.svelte';
   import GigEconomy from '../appmenu/GigEconomy.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
@@ -75,16 +74,8 @@
             <p><GlassmorphismButton variant="danger" onClick={() => handleModelRemove(model)}>REMOVE MODEL</GlassmorphismButton></p>
           </div>
         </div>
-      {:else if modal.id === 'brainstorming'}
-        <SwarmGovernance category="brainstorming" />
       {:else if modal.id === 'simulation'}
         <Simulation />
-      {:else if modal.id === 'action-event'}
-        <SwarmGovernance category="actionevent" />
-      {:else if modal.id === 'petition'}
-        <SwarmGovernance category="petition" />
-      {:else if modal.id === 'crowdfunding'}
-        <SwarmGovernance category="crowdfunding" />
       {:else if modal.id === 'zoom-required'}
         <p>Zoom in closer to pick a precise location.</p>
       {/if}

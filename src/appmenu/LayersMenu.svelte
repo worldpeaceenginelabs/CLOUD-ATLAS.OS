@@ -2,19 +2,19 @@
   import { onMount, onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
-  
+
   import {
     coordinates, isVisible,
-    activeMapLayers, userLiveLocation, helpoutLayerRefresh, socialLayerRefresh,
+    activeMapLayers, userLiveLocation, layerRefresh, layerListings,
     enable3DTileset, userIonAccessToken,
-    helpoutLayerListings, socialLayerListings,
   } from '../store';
   import { modalService } from '../utils/modalService';
   import { encode as geohashEncode } from '../utils/geohash';
   import { ListingLayerService } from '../services/listingLayerService';
   import { getSharedNostr } from '../services/nostrPool';
   import { idb } from '../idb';
-  import type { Listing } from '../types';
+  import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
+  import type { Listing, ListingVertical } from '../types';
 
   export let onAddModel: (() => void) | undefined = undefined;
 
@@ -26,16 +26,12 @@
 
   $: hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
 
-  // ─── Layer state (merged from MapLayersMenu) ──────────────
-  let helpoutService: ListingLayerService | null = null;
-  let helpoutCache: Listing[] = [];
-  let helpoutCachedAt = 0;
-  let helpoutLoading = false;
+  // ─── Generic layer state ──────────────────────────────────
+  const layerServices: Record<string, ListingLayerService | null> = {};
+  const layerCaches: Record<string, { listings: Listing[]; cachedAt: number }> = {};
+  const layerLoadingState: Record<string, boolean> = {};
 
-  let socialService: ListingLayerService | null = null;
-  let socialCache: Listing[] = [];
-  let socialCachedAt = 0;
-  let socialLoading = false;
+  let layerLoading: Record<string, boolean> = {};
 
   const CACHE_TTL_MS = 30 * 60 * 1000;
   let layerError = '';
@@ -46,8 +42,6 @@
   let showIonKey = false;
   let ionKeyExpanded = false;
 
-  $: helpoutsOn = $activeMapLayers.has('helpouts');
-  $: socialOn = $activeMapLayers.has('social');
   $: tiles3dOn = $enable3DTileset;
 
   // ─── Menu actions ─────────────────────────────────────────
@@ -88,7 +82,7 @@
   }
 
   function handleItemClick(item: string) {
-    logger.debug('Clicked item: ' + item, { component: 'AddButton', operation: 'handleItemClick' });
+    logger.debug('Clicked item: ' + item, { component: 'LayersMenu', operation: 'handleItemClick' });
     showInfoPanel = false;
     hoveredItem = '';
     switch (item) {
@@ -128,7 +122,7 @@
     }
   }
 
-  // ─── Layer logic (from MapLayersMenu) ─────────────────────
+  // ─── Generic layer logic ──────────────────────────────────
 
   async function ensureLayerService(tag: string): Promise<ListingLayerService | null> {
     try {
@@ -140,97 +134,87 @@
     }
   }
 
-  async function fetchHelpouts(forceRefresh = false) {
+  async function fetchLayer(verticalId: ListingVertical, forceRefresh = false) {
+    const cfg = VERTICALS[verticalId] as ListingVerticalConfig;
     const loc = $userLiveLocation;
-    if (!loc || !helpoutService) return;
-    helpoutLoading = true;
+    if (!loc) return;
+
+    if (!layerServices[verticalId]) {
+      layerServices[verticalId] = await ensureLayerService(cfg.listingTag);
+      if (!layerServices[verticalId]) return;
+    }
+
+    layerLoadingState[verticalId] = true;
+    layerLoading = { ...layerLoading, [verticalId]: true };
+
     const cell = geohashEncode(loc.latitude, loc.longitude, 4);
-    const listings = await helpoutService.fetchListings(cell, forceRefresh);
-    helpoutCache = listings.filter(l => l.location);
-    helpoutCachedAt = Date.now();
-    helpoutLayerListings.set(helpoutCache);
-    helpoutLoading = false;
+    const listings = await layerServices[verticalId]!.fetchListings(cell, forceRefresh);
+    const filtered = listings.filter(l => l.location);
+
+    layerCaches[verticalId] = { listings: filtered, cachedAt: Date.now() };
+    layerListings.update(all => ({ ...all, [verticalId]: filtered }));
+
+    layerLoadingState[verticalId] = false;
+    layerLoading = { ...layerLoading, [verticalId]: false };
   }
 
-  async function toggleHelpouts() {
+  async function toggleLayer(verticalId: ListingVertical) {
     layerError = '';
     const layers = $activeMapLayers;
-    const wasOn = layers.has('helpouts');
+    const wasOn = layers.has(verticalId);
+
     if (wasOn) {
-      layers.delete('helpouts');
+      layers.delete(verticalId);
       activeMapLayers.set(new Set(layers));
-      helpoutLayerListings.set([]);
+      layerListings.update(all => ({ ...all, [verticalId]: [] }));
       return;
     }
-    layers.add('helpouts');
+
+    layers.add(verticalId);
     activeMapLayers.set(new Set(layers));
-    if (helpoutCache.length > 0 && (Date.now() - helpoutCachedAt) < CACHE_TTL_MS) {
-      helpoutLayerListings.set(helpoutCache);
+
+    const cache = layerCaches[verticalId];
+    if (cache && cache.listings.length > 0 && (Date.now() - cache.cachedAt) < CACHE_TTL_MS) {
+      layerListings.update(all => ({ ...all, [verticalId]: cache.listings }));
     }
-    if (!helpoutService) {
-      helpoutService = await ensureLayerService('listing-helpouts');
-      if (!helpoutService) {
-        layers.delete('helpouts');
-        activeMapLayers.set(new Set(layers));
-        return;
+
+    await fetchLayer(verticalId);
+  }
+
+  let lastRefreshSnapshot: Record<string, number> = {};
+  $: {
+    const current = $layerRefresh;
+    for (const v of LISTING_VERTICALS) {
+      const cur = current[v] ?? 0;
+      const last = lastRefreshSnapshot[v] ?? 0;
+      if (cur !== last && $activeMapLayers.has(v) && layerServices[v]) {
+        fetchLayer(v, true);
       }
     }
-    await fetchHelpouts();
+    lastRefreshSnapshot = { ...current };
   }
 
-  let lastHelpoutRefresh = $helpoutLayerRefresh;
-  $: if ($helpoutLayerRefresh !== lastHelpoutRefresh) {
-    lastHelpoutRefresh = $helpoutLayerRefresh;
-    if ($activeMapLayers.has('helpouts') && helpoutService) {
-      fetchHelpouts(true);
-    }
+  // ─── Layer groups for menu display ─────────────────────────
+
+  interface LayerGroup {
+    header: string;
+    items: { id: ListingVertical; label: string }[];
   }
 
-  async function fetchSocial(forceRefresh = false) {
-    const loc = $userLiveLocation;
-    if (!loc || !socialService) return;
-    socialLoading = true;
-    const cell = geohashEncode(loc.latitude, loc.longitude, 4);
-    const listings = await socialService.fetchListings(cell, forceRefresh);
-    socialCache = listings.filter(l => l.location);
-    socialCachedAt = Date.now();
-    socialLayerListings.set(socialCache);
-    socialLoading = false;
-  }
-
-  async function toggleSocial() {
-    layerError = '';
-    const layers = $activeMapLayers;
-    const wasOn = layers.has('social');
-    if (wasOn) {
-      layers.delete('social');
-      activeMapLayers.set(new Set(layers));
-      socialLayerListings.set([]);
-      return;
-    }
-    layers.add('social');
-    activeMapLayers.set(new Set(layers));
-    if (socialCache.length > 0 && (Date.now() - socialCachedAt) < CACHE_TTL_MS) {
-      socialLayerListings.set(socialCache);
-    }
-    if (!socialService) {
-      socialService = await ensureLayerService('listing-social');
-      if (!socialService) {
-        layers.delete('social');
-        activeMapLayers.set(new Set(layers));
-        return;
-      }
-    }
-    await fetchSocial();
-  }
-
-  let lastSocialRefresh = $socialLayerRefresh;
-  $: if ($socialLayerRefresh !== lastSocialRefresh) {
-    lastSocialRefresh = $socialLayerRefresh;
-    if ($activeMapLayers.has('social') && socialService) {
-      fetchSocial(true);
-    }
-  }
+  const layerGroups: LayerGroup[] = [
+    { header: 'Social', items: [
+      { id: 'social', label: 'Spontaneous Contacts' },
+    ]},
+    { header: 'Gig Economy', items: [
+      { id: 'helpouts', label: 'Helpouts' },
+    ]},
+    { header: 'Swarm Governance', items: [
+      { id: 'brainstorming', label: 'Brainstorming' },
+      { id: 'meetanddo', label: 'MeetandDo' },
+      { id: 'petition', label: 'Petition' },
+      { id: 'crowdfunding', label: 'Crowdfunding' },
+    ]},
+  ];
 
   // ─── Ion key persistence ──────────────────────────────────
 
@@ -288,10 +272,6 @@
       window.removeEventListener('keydown', handleKeyDown);
     };
   });
-
-  onDestroy(() => {
-    if (coordinatePickerTimer) clearTimeout(coordinatePickerTimer);
-  });
 </script>
 
 <div class="add-button-container">
@@ -318,9 +298,44 @@
 
   {#if isDropdownVisible}
     <div class="blue-container" transition:slide={{ duration: 500, axis: 'y' }}>
-      <!-- Top section: Model & Simulation -->
+
+      <!-- ═══ LAYERS ═══════════════════════════════════════ -->
       <div class="dropdown-menu">
-        <div class="section-label">Create</div>
+        <div class="section-label">Layers</div>
+
+        <!-- Map sub-header -->
+        <div class="sub-header">Map</div>
+
+        <!-- 3D Tiles -->
+        <div 
+          class="dropdown-item"
+          role="button"
+          tabindex="0"
+          on:click={handleTilesCardClick}
+          on:keydown={(e) => e.key === 'Enter' && handleTilesCardClick()}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3L2 8l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 16l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="item-text">3D Tiles</span>
+          {#if tiles3dOn}
+            <span class="layer-badge">ON</span>
+          {:else if !ionKeySaved}
+            <span class="layer-hint">Add API key</span>
+          {/if}
+          {#if ionKeySaved}
+            <button class="tiles3d-edit" on:click|stopPropagation={() => ionKeyExpanded = !ionKeyExpanded} aria-label="Edit Ion key">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          {/if}
+        </div>
+
+        <!-- Create sub-header -->
+        <div class="sub-header">Create</div>
+
+        <!-- Add Model -->
         <div 
           class="dropdown-item" 
           role="button"
@@ -350,6 +365,7 @@
           </button>
         </div>
 
+        <!-- Add Simulation -->
         <div 
           class="dropdown-item" 
           role="button"
@@ -379,80 +395,33 @@
             </svg>
           </button>
         </div>
-      </div>
 
-      <!-- Middle section: Map Layers -->
-      <div class="dropdown-menu">
-        <div class="section-label">Layers</div>
-        <div 
-          class="dropdown-item"
-          role="button"
-          tabindex="0"
-          on:click={toggleHelpouts}
-          on:keydown={(e) => e.key === 'Enter' && toggleHelpouts()}
-        >
-          {#if helpoutLoading}
-            <span class="layer-spinner"></span>
-          {:else}
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          {/if}
-          <span class="item-text">Helpouts</span>
-          {#if helpoutsOn}
-            <span class="layer-badge">ON</span>
-          {/if}
-        </div>
-
-        <div 
-          class="dropdown-item"
-          role="button"
-          tabindex="0"
-          on:click={toggleSocial}
-          on:keydown={(e) => e.key === 'Enter' && toggleSocial()}
-        >
-          {#if socialLoading}
-            <span class="layer-spinner"></span>
-          {:else}
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          {/if}
-          <span class="item-text">Spontaneous Contacts</span>
-          {#if socialOn}
-            <span class="layer-badge">ON</span>
-          {/if}
-        </div>
-
-        <div 
-          class="dropdown-item"
-          role="button"
-          tabindex="0"
-          on:click={handleTilesCardClick}
-          on:keydown={(e) => e.key === 'Enter' && handleTilesCardClick()}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 3L2 8l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 16l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="item-text">3D Tiles</span>
-          {#if tiles3dOn}
-            <span class="layer-badge">ON</span>
-          {:else if !ionKeySaved}
-            <span class="layer-hint">Add API key</span>
-          {/if}
-          {#if ionKeySaved}
-            <button class="tiles3d-edit" on:click|stopPropagation={() => ionKeyExpanded = !ionKeyExpanded} aria-label="Edit Ion key">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-          {/if}
-        </div>
+        <!-- Listing layer groups -->
+        {#each layerGroups as group}
+          <div class="sub-header">{group.header}</div>
+          {#each group.items as layerItem}
+            {@const isOn = $activeMapLayers.has(layerItem.id)}
+            {@const isLoading = layerLoading[layerItem.id] ?? false}
+            {@const color = VERTICALS[layerItem.id].color}
+            <div 
+              class="dropdown-item"
+              role="button"
+              tabindex="0"
+              on:click={() => toggleLayer(layerItem.id)}
+              on:keydown={(e) => e.key === 'Enter' && toggleLayer(layerItem.id)}
+            >
+              {#if isLoading}
+                <span class="layer-spinner"></span>
+              {:else}
+                <span class="layer-dot" style="background: {color}"></span>
+              {/if}
+              <span class="item-text">{layerItem.label}</span>
+              {#if isOn}
+                <span class="layer-badge">ON</span>
+              {/if}
+            </div>
+          {/each}
+        {/each}
 
         {#if layerError}
           <div class="layer-error">{layerError}</div>
@@ -717,6 +686,20 @@
     color: rgba(255, 255, 255, 0.35);
   }
 
+  .sub-header {
+    padding: 6px 16px 2px;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.25);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .sub-header:first-of-type {
+    border-top: none;
+  }
+
   /* ── Layer badges & status ── */
   .layer-badge {
     font-size: 0.6rem;
@@ -733,6 +716,14 @@
     font-size: 0.62rem;
     color: rgba(124, 77, 255, 0.7);
     flex-shrink: 0;
+  }
+
+  .layer-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.85;
   }
 
   .layer-spinner {

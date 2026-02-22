@@ -11,7 +11,7 @@
   import { GigService } from '../services/gigService';
   import { getSharedNostr } from '../services/nostrPool';
   import { REPLACEABLE_KIND, type NostrService, type NostrEvent } from '../services/nostrService';
-  import { VERTICALS, type VerticalConfig } from '../gig/verticals';
+  import { VERTICALS, type VerticalConfig, type ListingVerticalConfig } from '../gig/verticals';
   import GigMatchForm from '../gig/GigMatchForm.svelte';
   import GigPending from '../gig/GigPending.svelte';
   import GigMatched from '../gig/GigMatched.svelte';
@@ -20,7 +20,7 @@
   import { clampToSurface } from '../utils/clampToSurface';
 
   // ─── View State ──────────────────────────────────────────────
-  type GigView = 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'helpouts' | 'social';
+  type GigView = 'menu' | 'need' | 'offer' | 'pending' | 'matched' | 'listing';
   let currentView: GigView = 'menu';
   let config: VerticalConfig | null = null;
 
@@ -53,8 +53,7 @@
     currentView === 'menu' ||
     currentView === 'need' ||
     currentView === 'offer' ||
-    currentView === 'helpouts' ||
-    currentView === 'social'
+    currentView === 'listing'
   );
 
   // ─── Form State ─────────────────────────────────────────────
@@ -194,7 +193,7 @@
   function selectVertical(vertical: GigVertical) {
     config = VERTICALS[vertical];
     if (config.mode === 'listing') {
-      currentView = vertical === 'social' ? 'social' : 'helpouts';
+      currentView = 'listing';
     } else {
       currentView = 'menu';
     }
@@ -215,7 +214,7 @@
   }
 
   function goBack() {
-    if (currentView === 'menu' || currentView === 'helpouts') {
+    if (currentView === 'menu' || currentView === 'listing') {
       goBackToRadial();
     } else if (currentView === 'need' || currentView === 'offer') {
       currentView = 'menu';
@@ -564,9 +563,9 @@
       <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">{recovering ? 'Reconnecting...' : 'Loading...'}</span>
     </div>
 
-  <!-- ═══════════════ LISTING MODE (Helpouts / Social) ═ -->
-  {:else if (currentView === 'helpouts' || currentView === 'social') && config}
-    <ListingForm {config} nostr={sharedNostr} onBack={goBackToRadial} />
+  <!-- ═══════════════ LISTING MODE ═══════════════════ -->
+  {:else if currentView === 'listing' && config?.mode === 'listing'}
+    <ListingForm config={config} nostr={sharedNostr} onBack={goBackToRadial} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && matchingConfig}

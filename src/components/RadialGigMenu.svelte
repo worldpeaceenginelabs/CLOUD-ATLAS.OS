@@ -3,14 +3,12 @@
   import { fade } from 'svelte/transition';
   import { RADIAL_MENU_ITEMS } from '../gig/verticals';
   import type { RadialMenuItem } from '../gig/verticals';
-  import { verticalIconSvg, outerRingIconSvg } from '../gig/verticalIcons';
-  import type { OuterRingItem } from '../gig/verticalIcons';
+  import { verticalIconSvg } from '../gig/verticalIcons';
   import type { GigVertical } from '../types';
 
   export let screenX: number;
   export let screenY: number;
   export let onSelect: (vertical: GigVertical) => void;
-  export let onActionSelect: (item: OuterRingItem) => void;
   export let onClose: () => void;
 
   let expanded = false;
@@ -37,27 +35,21 @@
   });
 
   function handleItemClick(item: RadialMenuItem) {
-    if (item.kind === 'vertical') {
-      onSelect(item.id);
-    } else {
-      onActionSelect(item.id);
-    }
+    onSelect(item.id);
   }
 
   function toggleInfo(item: RadialMenuItem, e: Event) {
     e.stopPropagation();
-    if (item.kind !== 'action') return;
+    if (!item.description) return;
     if (infoPanelText === item.description) {
       infoPanelText = '';
     } else {
-      infoPanelText = item.description;
+      infoPanelText = item.description!;
     }
   }
 
   function iconSvg(item: RadialMenuItem, size: number): string {
-    return item.kind === 'vertical'
-      ? verticalIconSvg(item.id, size)
-      : outerRingIconSvg(item.id, size);
+    return verticalIconSvg(item.id, size);
   }
 
   onMount(() => {
@@ -109,7 +101,7 @@
       >
         <span class="item-icon" style="background: {item.color}18; color: {item.color}">
           {@html iconSvg(item, 20)}
-          {#if item.kind === 'action'}
+          {#if item.description}
             <button
               class="info-btn"
               class:active={infoPanelText === item.description}

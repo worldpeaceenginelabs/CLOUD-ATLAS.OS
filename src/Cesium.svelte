@@ -62,9 +62,9 @@ import { hasActiveGigSession } from './gig/gigRecovery';
 import { getSharedNostr } from './services/nostrPool';
 import ListingDetail from './gig/ListingDetail.svelte';
 import RadialGigMenu from './components/RadialGigMenu.svelte';
-import { preselectedGigVertical, showRadialGigMenu, helpoutLayerListings, socialLayerListings } from './store';
-import type { OuterRingItem } from './gig/verticalIcons';
-import type { Listing, GigVertical } from './types';
+import { preselectedGigVertical, showRadialGigMenu, layerListings } from './store';
+import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
+import type { Listing, GigVertical, ListingVertical } from './types';
   
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
@@ -86,11 +86,9 @@ let isTilesetLoaded = false; // Local variable for tileset loading state
 let initialZoomComplete = false; // True after the initial flyTo animation finishes
 let cesiumViewer: any = null; // Global viewer reference
 
-// Map layer state
-let helpoutEntities: Entity[] = [];
-let socialEntities: Entity[] = [];
-let selectedHelpout: Listing | null = null;
-let selectedSocial: Listing | null = null;
+// Map layer state — generic per-vertical
+const layerEntities: Record<string, Entity[]> = {};
+let selectedListing: { listing: Listing; vertical: ListingVertical } | null = null;
 let myNostrPk = '';
 
 // Roaming area painting state
@@ -783,16 +781,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 				if (id?.startsWith('Your Location!')) {
 					openRadialMenuCentered();
-				} else if (id?.startsWith('helpout_')) {
-					const props = pickedObject.id.properties;
-					if (props?.helpoutListing) {
-						selectedHelpout = props.helpoutListing.getValue(JulianDate.now());
-					}
-				} else if (id?.startsWith('social_')) {
-					const props = pickedObject.id.properties;
-					if (props?.socialListing) {
-						selectedSocial = props.socialListing.getValue(JulianDate.now());
-					}
+				} else if (trySelectListingEntity(pickedObject)) {
+					// handled by trySelectListingEntity
 				} else if (id?.startsWith('model_')) {
 					const modelData = $models.find(model => model.id === id);
 					if (modelData) {
@@ -1149,34 +1139,58 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  }
 	});
 
-// ─── Listing Map Layers (Helpouts + Social) ─────────────────
+// ─── Listing Map Layers (generic per-vertical) ──────────────
 
-async function onHelpoutsChanged(listings: Listing[]) {
-  if (listings.length === 0) { removeMarkers(cesiumViewer, helpoutEntities); helpoutEntities = []; return; }
+function trySelectListingEntity(pickedObject: any): boolean {
+  const id: string | undefined = pickedObject?.id?.id;
+  if (!id) return false;
+  for (const v of LISTING_VERTICALS) {
+    const cfg = VERTICALS[v] as ListingVerticalConfig;
+    if (id.startsWith(cfg.mapPrefix)) {
+      const props = pickedObject.id.properties;
+      if (props?.listing) {
+        selectedListing = { listing: props.listing.getValue(JulianDate.now()), vertical: v };
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+async function onLayerChanged(verticalId: ListingVertical, listings: Listing[]) {
+  const cfg = VERTICALS[verticalId] as ListingVerticalConfig;
+  const existing = layerEntities[verticalId] ?? [];
+  if (listings.length === 0) {
+    removeMarkers(cesiumViewer, existing);
+    layerEntities[verticalId] = [];
+    return;
+  }
   await ensureMyPk();
-  helpoutEntities = await renderListingMarkers(cesiumViewer, listings, helpoutEntities, {
-    idPrefix: 'helpout_', pointColor: '#00BCD4', getLabelText: (l) => l.title || '?', propertyKey: 'helpoutListing',
+  layerEntities[verticalId] = await renderListingMarkers(cesiumViewer, listings, existing, {
+    idPrefix: cfg.mapPrefix, pointColor: cfg.color, getLabelText: (l) => l.title || '?', propertyKey: 'listing',
   });
 }
 
-function handleHelpoutTakenDown(listingId: string) {
-  removeMarkerById(cesiumViewer, helpoutEntities, 'helpout_', listingId);
+function handleListingTakenDown(listingId: string) {
+  if (!selectedListing) return;
+  const cfg = VERTICALS[selectedListing.vertical] as ListingVerticalConfig;
+  const entities = layerEntities[selectedListing.vertical] ?? [];
+  removeMarkerById(cesiumViewer, entities, cfg.mapPrefix, listingId);
+  selectedListing = null;
 }
 
-async function onSocialChanged(listings: Listing[]) {
-  if (listings.length === 0) { removeMarkers(cesiumViewer, socialEntities); socialEntities = []; return; }
-  await ensureMyPk();
-  socialEntities = await renderListingMarkers(cesiumViewer, listings, socialEntities, {
-    idPrefix: 'social_', pointColor: '#FF4081', getLabelText: (l) => l.title || '★', propertyKey: 'socialListing',
-  });
+let prevLayerSnapshot: Record<string, Listing[]> = {};
+$: {
+  const all = $layerListings;
+  for (const v of LISTING_VERTICALS) {
+    const cur = all[v] ?? [];
+    const prev = prevLayerSnapshot[v] ?? [];
+    if (cur !== prev) {
+      onLayerChanged(v, cur);
+    }
+  }
+  prevLayerSnapshot = { ...all };
 }
-
-function handleSocialTakenDown(listingId: string) {
-  removeMarkerById(cesiumViewer, socialEntities, 'social_', listingId);
-}
-
-$: onHelpoutsChanged($helpoutLayerListings);
-$: onSocialChanged($socialLayerListings);
 
 /** Handle radial menu category selection → open gig panel to that vertical. */
 function handleRadialSelect(vertical: GigVertical) {
@@ -1188,16 +1202,6 @@ function handleRadialSelect(vertical: GigVertical) {
   });
 }
 
-/** Handle action item selection → open the corresponding modal. */
-function handleActionSelect(item: OuterRingItem) {
-  showRadialMenu = false;
-  switch (item) {
-    case 'brainstorming': modalService.showBrainstorming(); break;
-    case 'meetanddo':     modalService.showActionEvent();   break;
-    case 'petition':      modalService.showPetition();      break;
-    case 'crowdfunding':  modalService.showCrowdfunding();  break;
-  }
-}
 
 function handleRadialClose() {
   showRadialMenu = false;
@@ -1359,22 +1363,13 @@ function handleCoordinatePick(result: any) {
 </div>
 
 <!-- Listing Detail Overlay (shown on marker click) -->
-{#if selectedHelpout}
+{#if selectedListing}
   <ListingDetail
-    listing={selectedHelpout}
-    vertical="helpouts"
+    listing={selectedListing.listing}
+    vertical={selectedListing.vertical}
     myPk={myNostrPk}
-    onClose={() => selectedHelpout = null}
-    onTakenDown={handleHelpoutTakenDown}
-  />
-{/if}
-{#if selectedSocial}
-  <ListingDetail
-    listing={selectedSocial}
-    vertical="social"
-    myPk={myNostrPk}
-    onClose={() => selectedSocial = null}
-    onTakenDown={handleSocialTakenDown}
+    onClose={() => selectedListing = null}
+    onTakenDown={handleListingTakenDown}
   />
 {/if}
 
@@ -1384,7 +1379,6 @@ function handleCoordinatePick(result: any) {
     screenX={radialScreenX}
     screenY={radialScreenY}
     onSelect={handleRadialSelect}
-    onActionSelect={handleActionSelect}
     onClose={handleRadialClose}
   />
 {/if}

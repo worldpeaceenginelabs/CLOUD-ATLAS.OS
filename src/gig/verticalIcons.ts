@@ -1,11 +1,9 @@
 /**
- * Shared SVG icon markup for gig verticals and outer-ring action items.
+ * Shared SVG icon markup for gig verticals.
  * Used by RadialGigMenu.
  */
 
 import type { GigVertical } from '../types';
-
-export type OuterRingItem = 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
 
 /** Returns an SVG string for the given vertical at the specified size. */
 export function verticalIconSvg(vertical: GigVertical, size = 24): string {
@@ -20,16 +18,6 @@ export function verticalIconSvg(vertical: GigVertical, size = 24): string {
       return `<svg ${attrs}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
     case 'social':
       return `<svg ${attrs}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
-    default:
-      return '';
-  }
-}
-
-/** Returns an SVG string for an outer-ring action item at the specified size. */
-export function outerRingIconSvg(item: OuterRingItem, size = 24): string {
-  const attrs = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
-
-  switch (item) {
     case 'brainstorming':
       return `<svg ${attrs}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`;
     case 'meetanddo':

@@ -1,28 +1,26 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { gigCanClose, helpoutLayerRefresh, socialLayerRefresh } from '../store';
-  import type { Listing, ListingMode, GigVertical } from '../types';
+  import { gigCanClose, layerRefresh } from '../store';
+  import type { Listing, ListingMode, ListingVertical } from '../types';
   import type { NostrService } from '../services/nostrService';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
   import { encode as geohashEncode } from '../utils/geohash';
   import { ListingService } from '../services/listingService';
-  import { HELPOUT_CATEGORIES, SOCIAL_CATEGORIES, type VerticalConfig } from './verticals';
+  import { LISTING_CATEGORIES, type ListingVerticalConfig } from './verticals';
   import { getCategoryName } from './categoryUtils';
   import { GEOHASH_PRECISION_LISTING } from './constants';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import RelayStatus from '../components/RelayStatus.svelte';
   import LocationPicker from '../components/LocationPicker.svelte';
 
-  export let config: VerticalConfig;
+  export let config: ListingVerticalConfig;
   export let nostr: NostrService;
   export let onBack: () => void;
 
-  $: vertical = config.id as 'helpouts' | 'social';
-  $: isSocial = vertical === 'social';
-  $: categories = isSocial ? SOCIAL_CATEGORIES : HELPOUT_CATEGORIES;
-  $: serviceTag = isSocial ? 'listing-social' : 'listing-helpouts';
-  $: refreshStore = isSocial ? socialLayerRefresh : helpoutLayerRefresh;
+  $: vertical = config.id as ListingVertical;
+  $: categories = LISTING_CATEGORIES[vertical] ?? [];
+  $: serviceTag = config.listingTag;
 
   type ListingView = 'form' | 'publishing' | 'live';
   let currentView: ListingView = 'form';
@@ -45,11 +43,13 @@
 
   $: needsLocation = mode === 'in-person' || mode === 'both';
 
+  $: contactValid = contact.trim() && (!config.contactPattern || new RegExp(config.contactPattern).test(contact.trim()));
+
   $: canSubmit =
     selectedCategory &&
     title.trim() &&
     description.trim() &&
-    contact.trim() &&
+    contactValid &&
     (!needsLocation || (locationLat && locationLon));
 
   function handleLocationSelected(lat: string, lon: string, displayName?: string) {
@@ -100,7 +100,7 @@
       address: locationAddress || undefined,
       timestamp: getCurrentTimeIso8601(),
       geohash,
-      ...(isSocial && { eventDate: eventDate || undefined }),
+      ...(config.hasEventDate && { eventDate: eventDate || undefined }),
     };
 
     listingService.publishListing(listing);
@@ -108,7 +108,7 @@
 
   function handleDone() {
     cleanup();
-    refreshStore.update(n => n + 1);
+    layerRefresh.update(r => ({ ...r, [vertical]: (r[vertical] ?? 0) + 1 }));
     onBack();
   }
 
@@ -131,8 +131,8 @@
 {#if currentView === 'form'}
   <div class="listing-form" transition:slide={{ duration: 300 }}>
     <button class="gig-back-btn" on:click={onBack}>&larr; Back</button>
-    <h3 class="gig-form-title">{isSocial ? 'Host an Event' : 'Offer a Helpout'}</h3>
-    <p class="gig-form-subtitle">{isSocial ? 'Organize a meetup or activity for people nearby' : 'Share your expertise with people nearby'}</p>
+    <h3 class="gig-form-title">{config.formTitle}</h3>
+    <p class="gig-form-subtitle">{config.formSubtitle}</p>
 
     <div class="gig-mode-selector">
       <button class="gig-mode-btn" class:active={mode === 'in-person'} on:click={() => mode = 'in-person'}>In-Person</button>
@@ -141,8 +141,8 @@
     </div>
 
     <div class="gig-form-group">
-      <label class="gig-field-label" for="event-title">{isSocial ? 'Event Title' : 'Title'} <span class="gig-required">*</span></label>
-      <input id="event-title" class="gig-field-input" type="text" placeholder={isSocial ? 'e.g. Saturday Morning Run, Board Game Night...' : 'e.g. Guitar Lessons, Math Tutoring...'} bind:value={title} />
+      <label class="gig-field-label" for="event-title">{config.titleLabel} <span class="gig-required">*</span></label>
+      <input id="event-title" class="gig-field-input" type="text" placeholder={config.titlePlaceholder} bind:value={title} />
     </div>
 
     {#if needsLocation}
@@ -158,9 +158,9 @@
             class:selected={selectedCategory === cat.id}
             on:click={() => selectedCategory = cat.id}
             title={cat.description}
-            style:--sel-bg={isSocial ? 'rgba(255, 64, 129, 0.2)' : 'rgba(0, 188, 212, 0.2)'}
-            style:--sel-border={isSocial ? 'rgba(255, 64, 129, 0.5)' : 'rgba(0, 188, 212, 0.5)'}
-            style:--sel-color={isSocial ? '#FF4081' : '#00BCD4'}
+            style:--sel-bg="color-mix(in srgb, {config.color} 20%, transparent)"
+            style:--sel-border="color-mix(in srgb, {config.color} 50%, transparent)"
+            style:--sel-color={config.color}
           >{cat.name}</button>
         {/each}
       </div>
@@ -169,7 +169,7 @@
       {/if}
     </div>
 
-    {#if isSocial}
+    {#if config.hasEventDate}
       <div class="gig-form-group">
         <label class="gig-field-label" for="event-date">Date & Time</label>
         <input id="event-date" class="gig-field-input date-input" type="datetime-local" bind:value={eventDate} />
@@ -179,17 +179,20 @@
 
     <div class="gig-form-group">
       <label class="gig-field-label" for="listing-desc">Description <span class="gig-required">*</span></label>
-      <textarea id="listing-desc" class="gig-field-input textarea" placeholder={isSocial ? "What's the plan? Describe the activity..." : 'What can you help with? Describe your expertise...'} bind:value={description} rows="3"></textarea>
+      <textarea id="listing-desc" class="gig-field-input textarea" placeholder={config.descriptionPlaceholder} bind:value={description} rows="3"></textarea>
     </div>
 
     <div class="gig-form-group">
-      <label class="gig-field-label" for="contact-link">Contact Link <span class="gig-required">*</span></label>
-      <input id="contact-link" class="gig-field-input" type="text" placeholder="e.g. https://t.me/you, https://wa.me/123..." bind:value={contact} />
-      <span class="gig-field-hint">{isSocial ? 'Telegram, WhatsApp, Signal, or any link for attendees to reach you' : 'Telegram, WhatsApp, Signal, Zoom, or any link'}</span>
+      <label class="gig-field-label" for="contact-link">{config.contactLabel} <span class="gig-required">*</span></label>
+      <input id="contact-link" class="gig-field-input" type="text" placeholder={config.contactPlaceholder} bind:value={contact} />
+      <span class="gig-field-hint">{config.contactHint}</span>
+      {#if config.contactPatternHint && contact.trim() && !contactValid}
+        <span class="gig-field-hint" style="color: rgba(252, 165, 165, 0.9)">{config.contactPatternHint}</span>
+      {/if}
     </div>
 
     <GlassmorphismButton variant="primary" fullWidth={true} onClick={submitListing} disabled={!canSubmit}>
-      {isSocial ? 'Publish Event' : 'Publish Listing'}
+      {config.submitLabel}
     </GlassmorphismButton>
   </div>
 
@@ -205,7 +208,7 @@
 
 {:else if currentView === 'live'}
   <div class="listing-form" transition:slide={{ duration: 300 }}>
-    <h3 class="gig-form-title">{isSocial ? 'Your Event is Live!' : 'Your Listing is Live!'}</h3>
+    <h3 class="gig-form-title">{config.liveTitle}</h3>
 
     <div class="live-success">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={config.color} stroke-width="2">
@@ -236,11 +239,7 @@
       </div>
     </div>
 
-    <p class="gig-live-hint">
-      {isSocial
-        ? 'Your event will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.'
-        : 'Your helpout will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.'}
-    </p>
+    <p class="gig-live-hint">{config.liveHint}</p>
 
     <div class="live-actions">
       <GlassmorphismButton variant="secondary" fullWidth={true} onClick={handleDone}>Done</GlassmorphismButton>

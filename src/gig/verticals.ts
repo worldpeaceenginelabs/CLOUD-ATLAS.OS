@@ -6,8 +6,7 @@
  * Listing verticals use a publish-only model with longer TTL.
  */
 
-import type { GigVertical, ListingCategory } from '../types';
-import type { OuterRingItem } from './verticalIcons';
+import type { GigVertical, ListingVertical, ListingCategory } from '../types';
 
 // ─── Form Field Definition ─────────────────────────────────────
 
@@ -77,6 +76,42 @@ export interface MatchingVerticalConfig extends BaseVerticalConfig {
 
 export interface ListingVerticalConfig extends BaseVerticalConfig {
   mode: 'listing';
+  /** Nostr '#t' tag suffix, e.g. 'helpouts' → tag 'listing-helpouts' */
+  listingTag: string;
+  /** Entity prefix on the Cesium map, e.g. 'helpout_' */
+  mapPrefix: string;
+  /** Form title shown at the top of ListingForm */
+  formTitle: string;
+  /** Subtitle below the form title */
+  formSubtitle: string;
+  /** Label for the title input field */
+  titleLabel: string;
+  /** Placeholder for the title input */
+  titlePlaceholder: string;
+  /** Placeholder for the description textarea */
+  descriptionPlaceholder: string;
+  /** Label for the contact input */
+  contactLabel: string;
+  /** Placeholder for the contact input */
+  contactPlaceholder: string;
+  /** Hint text shown below the contact input */
+  contactHint: string;
+  /** Regex pattern for contact field validation (optional — accepts any non-empty string if absent) */
+  contactPattern?: string;
+  /** Hint shown when the contact pattern fails */
+  contactPatternHint?: string;
+  /** Whether this vertical has an event date field */
+  hasEventDate?: boolean;
+  /** Submit button label */
+  submitLabel: string;
+  /** Label shown on the "live" confirmation screen */
+  liveTitle: string;
+  /** Hint on the "live" confirmation screen */
+  liveHint: string;
+  /** Button label in ListingDetail for contacting the author */
+  contactButtonLabel: string;
+  /** Label for take-down button in ListingDetail */
+  takeDownLabel: string;
 }
 
 export type VerticalConfig = MatchingVerticalConfig | ListingVerticalConfig;
@@ -108,6 +143,58 @@ export const SOCIAL_CATEGORIES: ListingCategory[] = [
   { id: 'creative', name: 'Creative & Arts', description: 'Music jamming, singing, drawing, painting groups' },
   { id: 'community', name: 'Other Community', description: 'Book clubs, photography walks, volunteering, hobby groups' },
 ];
+
+export const BRAINSTORMING_CATEGORIES: ListingCategory[] = [
+  { id: 'environment', name: 'Environment & Climate', description: 'Floods, fires, droughts, pollution, sustainability' },
+  { id: 'infrastructure', name: 'Infrastructure & Urban', description: 'Housing, transport, public spaces, city planning' },
+  { id: 'social-justice', name: 'Social Justice', description: 'Inequality, discrimination, human rights, access' },
+  { id: 'economy', name: 'Economy & Jobs', description: 'Employment, cost of living, local business, trade' },
+  { id: 'education', name: 'Education & Youth', description: 'Schools, skills, literacy, youth programs' },
+  { id: 'health-care', name: 'Health & Care', description: 'Healthcare access, mental health, elderly care' },
+  { id: 'tech-innovation', name: 'Tech & Innovation', description: 'Open source, digital rights, civic tech, startups' },
+  { id: 'community', name: 'Community & Culture', description: 'Neighborhood issues, cultural preservation, events' },
+  { id: 'other', name: 'Other', description: 'Anything that doesn\'t fit the categories above' },
+];
+
+export const MEETANDDO_CATEGORIES: ListingCategory[] = [
+  { id: 'cleanup', name: 'Cleanup & Beautification', description: 'Park cleanups, graffiti removal, tree planting' },
+  { id: 'aid', name: 'Aid & Relief', description: 'Disaster relief, food drives, shelter support' },
+  { id: 'build', name: 'Build & Repair', description: 'Community gardens, playground repairs, tool sharing' },
+  { id: 'teach', name: 'Teach & Mentor', description: 'Workshops, tutoring, skill sharing on site' },
+  { id: 'protest', name: 'Protest & Demonstration', description: 'Peaceful demonstrations, marches, awareness campaigns' },
+  { id: 'sport', name: 'Sports & Fitness', description: 'Group runs, outdoor workouts, team sports' },
+  { id: 'other', name: 'Other Mission', description: 'Any real-world action that doesn\'t fit above' },
+];
+
+export const PETITION_CATEGORIES: ListingCategory[] = [
+  { id: 'policy', name: 'Policy & Law', description: 'Legislative changes, regulations, government action' },
+  { id: 'environment', name: 'Environment', description: 'Conservation, pollution, climate action' },
+  { id: 'rights', name: 'Rights & Equality', description: 'Civil rights, anti-discrimination, accessibility' },
+  { id: 'local', name: 'Local Issues', description: 'Neighborhood concerns, zoning, local government' },
+  { id: 'education', name: 'Education', description: 'School policies, curriculum, funding' },
+  { id: 'health', name: 'Health & Safety', description: 'Public health, safety standards, healthcare' },
+  { id: 'other', name: 'Other', description: 'Petitions that don\'t fit the categories above' },
+];
+
+export const CROWDFUNDING_CATEGORIES: ListingCategory[] = [
+  { id: 'community', name: 'Community Projects', description: 'Local spaces, shared resources, neighborhood initiatives' },
+  { id: 'disaster', name: 'Disaster Relief', description: 'Emergency response, recovery, rebuilding' },
+  { id: 'creative', name: 'Creative & Arts', description: 'Music, film, art installations, cultural events' },
+  { id: 'tech', name: 'Tech & Open Source', description: 'Software, hardware, civic tech projects' },
+  { id: 'education', name: 'Education & Research', description: 'Scholarships, research funding, school supplies' },
+  { id: 'social', name: 'Social Enterprise', description: 'Mission-driven businesses, cooperatives, non-profits' },
+  { id: 'other', name: 'Other', description: 'Campaigns that don\'t fit the categories above' },
+];
+
+/** Look up the category list for any listing vertical. */
+export const LISTING_CATEGORIES: Record<ListingVertical, ListingCategory[]> = {
+  helpouts: HELPOUT_CATEGORIES,
+  social: SOCIAL_CATEGORIES,
+  brainstorming: BRAINSTORMING_CATEGORIES,
+  meetanddo: MEETANDDO_CATEGORIES,
+  petition: PETITION_CATEGORIES,
+  crowdfunding: CROWDFUNDING_CATEGORIES,
+};
 
 // ─── Vertical Definitions ───────────────────────────────────────
 
@@ -175,6 +262,21 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Helpout',
     color: '#00BCD4',
     mode: 'listing',
+    listingTag: 'listing-helpouts',
+    mapPrefix: 'helpout_',
+    formTitle: 'Offer a Helpout',
+    formSubtitle: 'Share your expertise with people nearby',
+    titleLabel: 'Title',
+    titlePlaceholder: 'e.g. Guitar Lessons, Math Tutoring...',
+    descriptionPlaceholder: 'What can you help with? Describe your expertise...',
+    contactLabel: 'Contact Link',
+    contactPlaceholder: 'e.g. https://t.me/you, https://wa.me/123...',
+    contactHint: 'Telegram, WhatsApp, Signal, Zoom, or any link',
+    submitLabel: 'Publish Listing',
+    liveTitle: 'Your Listing is Live!',
+    liveHint: 'Your helpout will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
+    contactButtonLabel: 'Contact',
+    takeDownLabel: 'Take Down Listing',
   },
 
   social: {
@@ -182,35 +284,157 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Spontaneous Contacts',
     color: '#FF4081',
     mode: 'listing',
+    listingTag: 'listing-social',
+    mapPrefix: 'social_',
+    formTitle: 'Host an Event',
+    formSubtitle: 'Organize a meetup or activity for people nearby',
+    titleLabel: 'Event Title',
+    titlePlaceholder: 'e.g. Saturday Morning Run, Board Game Night...',
+    descriptionPlaceholder: "What's the plan? Describe the activity...",
+    contactLabel: 'Contact Link',
+    contactPlaceholder: 'e.g. https://t.me/you, https://wa.me/123...',
+    contactHint: 'Telegram, WhatsApp, Signal, or any link for attendees to reach you',
+    hasEventDate: true,
+    submitLabel: 'Publish Event',
+    liveTitle: 'Your Event is Live!',
+    liveHint: 'Your event will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
+    contactButtonLabel: 'Contact Host',
+    takeDownLabel: 'Take Down Event',
+  },
+
+  brainstorming: {
+    id: 'brainstorming',
+    name: 'Brainstorming',
+    color: '#FFCA28',
+    mode: 'listing',
+    listingTag: 'listing-brainstorming',
+    mapPrefix: 'brainstorm_',
+    formTitle: 'Start a Brainstorm',
+    formSubtitle: 'Turn any issue into a public brainstorm — open to everyone',
+    titleLabel: 'Mission Title',
+    titlePlaceholder: 'Enter a short, powerful mission name — max 100 chars',
+    descriptionPlaceholder: "What's the mission in a nutshell?",
+    contactLabel: 'Zoom Link',
+    contactPlaceholder: 'https://us05web.zoom.us/j/ID?pwd=12345',
+    contactHint: 'Zoom meeting link where the brainstorm takes place',
+    contactPattern: '^https:\\/\\/(us05web\\.)?zoom\\.us\\/j\\/\\d+',
+    contactPatternHint: 'Must be a valid Zoom link (https://zoom.us/j/...)',
+    submitLabel: 'Publish Brainstorm',
+    liveTitle: 'Your Brainstorm is Live!',
+    liveHint: 'Your brainstorm session will appear on the map for 14 days. People can join via the Zoom link. You can take it down anytime by tapping your marker on the map.',
+    contactButtonLabel: 'Join Brainstorm',
+    takeDownLabel: 'Take Down Brainstorm',
+  },
+
+  meetanddo: {
+    id: 'meetanddo',
+    name: 'MeetandDo',
+    color: '#66BB6A',
+    mode: 'listing',
+    listingTag: 'listing-meetanddo',
+    mapPrefix: 'meetanddo_',
+    formTitle: 'Organize a Mission',
+    formSubtitle: 'Rally your community, show up, and take action',
+    titleLabel: 'Mission Title',
+    titlePlaceholder: 'e.g. Park Cleanup, Community Garden Build...',
+    descriptionPlaceholder: 'Describe the mission — what, where, when, and what people should bring',
+    contactLabel: 'Telegram Group Link',
+    contactPlaceholder: 'https://t.me/+rtygFbFZrJE5NjIy',
+    contactHint: 'Telegram group where participants coordinate',
+    contactPattern: '^(?:https?:\\/\\/)?(?:t\\.me|telegram\\.me|t\\.dog|telegram\\.dog)\\/(?:joinchat\\/|\\+)?([\\w-]+)$',
+    contactPatternHint: 'Must be a valid Telegram link (https://t.me/...)',
+    submitLabel: 'Publish Mission',
+    liveTitle: 'Your Mission is Live!',
+    liveHint: 'Your mission will appear on the map for 14 days. People can join via Telegram. You can take it down anytime by tapping your marker on the map.',
+    contactButtonLabel: 'Join Mission',
+    takeDownLabel: 'Take Down Mission',
+  },
+
+  petition: {
+    id: 'petition',
+    name: 'Petition',
+    color: '#AB47BC',
+    mode: 'listing',
+    listingTag: 'listing-petition',
+    mapPrefix: 'petition_',
+    formTitle: 'Start a Petition',
+    formSubtitle: 'Push for change — win approvals and unlock collective power',
+    titleLabel: 'Petition Title',
+    titlePlaceholder: 'e.g. Save the Old Oak Tree, Bike Lane for Main St...',
+    descriptionPlaceholder: 'What change are you demanding? Why does it matter?',
+    contactLabel: 'Change.org Link',
+    contactPlaceholder: 'https://www.change.org/p/your-petition-name',
+    contactHint: 'Link to the petition on Change.org',
+    contactPattern: '^https:\\/\\/(www\\.)?change\\.org\\/p\\/[a-zA-Z0-9-]+\\/?$',
+    contactPatternHint: 'Must be a valid Change.org petition link',
+    submitLabel: 'Publish Petition',
+    liveTitle: 'Your Petition is Live!',
+    liveHint: 'Your petition will appear on the map for 14 days. People can sign it via the link. You can take it down anytime by tapping your marker on the map.',
+    contactButtonLabel: 'Sign Petition',
+    takeDownLabel: 'Take Down Petition',
+  },
+
+  crowdfunding: {
+    id: 'crowdfunding',
+    name: 'Crowdfunding',
+    color: '#EF5350',
+    mode: 'listing',
+    listingTag: 'listing-crowdfunding',
+    mapPrefix: 'crowdfunding_',
+    formTitle: 'Launch a Campaign',
+    formSubtitle: 'Raise resources to turn bold ideas into real-world impact',
+    titleLabel: 'Campaign Title',
+    titlePlaceholder: 'e.g. Solar Panels for Community Center...',
+    descriptionPlaceholder: 'What are you raising funds for? How will it make a difference?',
+    contactLabel: 'GoFundMe Link',
+    contactPlaceholder: 'https://www.gofundme.com/f/your-campaign-name',
+    contactHint: 'Link to the campaign on GoFundMe',
+    contactPattern: '^https:\\/\\/(www\\.)?gofundme\\.com\\/f\\/[a-zA-Z0-9-]+\\/?$',
+    contactPatternHint: 'Must be a valid GoFundMe link',
+    submitLabel: 'Publish Campaign',
+    liveTitle: 'Your Campaign is Live!',
+    liveHint: 'Your campaign will appear on the map for 14 days. People can donate via the link. You can take it down anytime by tapping your marker on the map.',
+    contactButtonLabel: 'Donate',
+    takeDownLabel: 'Take Down Campaign',
   },
 };
 
 /** Ordered list of verticals for the selector UI. */
-export const VERTICAL_LIST: GigVertical[] = ['rides', 'delivery', 'helpouts', 'social'];
+export const VERTICAL_LIST: GigVertical[] = [
+  'rides', 'delivery', 'helpouts', 'social',
+  'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
+];
+
+/** Only the listing-mode verticals, for layer management. */
+export const LISTING_VERTICALS: ListingVertical[] = [
+  'helpouts', 'social', 'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
+];
 
 /**
  * Unified radial menu items — single ring, 8 items at 45° intervals.
  *
  * Clockwise from top:
  *   Spontaneous Contacts (top)
- *   ── right half: actions ──
  *   Brainstorming, MeetandDo, Petition, Crowdfunding
- *   ── left half: gig verticals ──
  *   Helpout, Delivery, Rideshare
  */
-export type RadialMenuItem =
-  | { kind: 'vertical'; id: GigVertical; name: string; color: string }
-  | { kind: 'action';   id: OuterRingItem; name: string; color: string; description: string };
+export interface RadialMenuItem {
+  kind: 'vertical';
+  id: GigVertical;
+  name: string;
+  color: string;
+  description?: string;
+}
 
 export const RADIAL_MENU_ITEMS: RadialMenuItem[] = [
   { kind: 'vertical', id: 'social',        name: 'Spontaneous Contacts', color: '#FF4081' },
-  { kind: 'action',   id: 'brainstorming', name: 'Brainstorming',        color: '#FFCA28',
+  { kind: 'vertical', id: 'brainstorming', name: 'Brainstorming',        color: '#FFCA28',
     description: 'Flip the script on every bad news! Take every flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure\u2014or any everyday issue, whether local or global\u2014and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to brainstorm their own challenges and co-create innovative products, services, and solutions.' },
-  { kind: 'action',   id: 'meetanddo',     name: 'MeetandDo',            color: '#66BB6A',
+  { kind: 'vertical', id: 'meetanddo',     name: 'MeetandDo',            color: '#66BB6A',
     description: 'From idea to impact\u2014organize real-world missions with local teams. Rally your community, show up, and take action where it counts.' },
-  { kind: 'action',   id: 'petition',      name: 'Petition',             color: '#AB47BC',
+  { kind: 'vertical', id: 'petition',      name: 'Petition',             color: '#AB47BC',
     description: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.' },
-  { kind: 'action',   id: 'crowdfunding',  name: 'Crowdfunding',         color: '#EF5350',
+  { kind: 'vertical', id: 'crowdfunding',  name: 'Crowdfunding',         color: '#EF5350',
     description: 'Fuel your mission. Raise the resources to launch your project and solutions\u2014and turn bold ideas into real-world transformations.' },
   { kind: 'vertical', id: 'helpouts',      name: 'Helpout',              color: '#00BCD4' },
   { kind: 'vertical', id: 'delivery',      name: 'Delivery',             color: '#FF6D00' },

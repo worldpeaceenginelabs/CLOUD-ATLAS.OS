@@ -1,25 +1,24 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
-  import type { Listing, GigVertical } from '../types';
-  import { HELPOUT_CATEGORIES, SOCIAL_CATEGORIES } from './verticals';
+  import type { Listing, ListingVertical } from '../types';
+  import { VERTICALS, LISTING_CATEGORIES, type ListingVerticalConfig } from './verticals';
   import { getCategoryName } from './categoryUtils';
   import { ensureProtocol } from '../utils/urlUtils';
   import { takeDownListing } from './listingActions';
 
   export let listing: Listing;
-  export let vertical: 'helpouts' | 'social';
+  export let vertical: ListingVertical;
   export let myPk: string;
   export let onClose: () => void;
   export let onTakenDown: ((listingId: string) => void) | undefined = undefined;
 
-  $: isSocial = vertical === 'social';
-  $: categories = isSocial ? SOCIAL_CATEGORIES : HELPOUT_CATEGORIES;
-  $: serviceTag = isSocial ? 'listing-social' : 'listing-helpouts';
-  $: accentColor = isSocial ? '#FF4081' : '#00BCD4';
-  $: accentBg = isSocial ? 'rgba(255, 64, 129, 0.15)' : 'rgba(0, 188, 212, 0.15)';
-  $: accentBtnBg = isSocial ? 'rgba(255, 64, 129, 0.2)' : 'rgba(0, 188, 212, 0.2)';
-  $: accentBtnBorder = isSocial ? 'rgba(255, 64, 129, 0.35)' : 'rgba(0, 188, 212, 0.35)';
-  $: accentBtnHover = isSocial ? 'rgba(255, 64, 129, 0.3)' : 'rgba(0, 188, 212, 0.3)';
+  $: cfg = VERTICALS[vertical] as ListingVerticalConfig;
+  $: categories = LISTING_CATEGORIES[vertical] ?? [];
+  $: serviceTag = cfg.listingTag;
+  $: accentColor = cfg.color;
+  $: accentBg = `color-mix(in srgb, ${cfg.color} 15%, transparent)`;
+  $: accentBtnBg = `color-mix(in srgb, ${cfg.color} 20%, transparent)`;
+  $: accentBtnBorder = `color-mix(in srgb, ${cfg.color} 35%, transparent)`;
 
   let isTakingDown = false;
 
@@ -28,7 +27,7 @@
   $: modeLabel =
     listing.mode === 'in-person' ? 'In-Person' :
     listing.mode === 'online' ? 'Online' : 'In-Person & Online';
-  $: formattedDate = isSocial && listing.eventDate
+  $: formattedDate = cfg.hasEventDate && listing.eventDate
     ? new Date(listing.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
     : null;
 
@@ -78,12 +77,12 @@
 
     <div class="gig-detail-actions">
       <button class="action-btn-primary" style="background: {accentBtnBg}; color: {accentColor}; border: 1px solid {accentBtnBorder}" on:click={openContact}>
-        {isSocial ? 'Contact Host' : 'Contact'}
+        {cfg.contactButtonLabel}
       </button>
 
       {#if isOwner}
         <button class="gig-action-btn-danger" on:click={takeDown} disabled={isTakingDown}>
-          {isTakingDown ? 'Taking down...' : (isSocial ? 'Take Down Event' : 'Take Down Listing')}
+          {isTakingDown ? 'Taking down...' : cfg.takeDownLabel}
         </button>
       {/if}
     </div>

@@ -3,7 +3,7 @@
   import Cesium from "./Cesium.svelte";
   import Infobox from "./components/Infobox.svelte";
   import Grid from "./components/Grid.svelte";
-  import AddButton from "./appmenu/AddButton.svelte";
+  import LayersMenu from "./appmenu/LayersMenu.svelte";
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
@@ -21,7 +21,7 @@
 
   // Component references (only those actually used)
   let cesiumComponent: Cesium | null = null;
-  let addButtonComponent: AddButton | null = null;
+  let layersMenuComponent: LayersMenu | null = null;
 
   // Roaming animation functions from Cesium component
   let updateRoamingModel: ((modelData: any) => void) | undefined = undefined;
@@ -29,11 +29,10 @@
   // Expose updateRoamingModel to the model editor service
   $: modelEditorService.setUpdateRoamingModel(updateRoamingModel);
 
-  // Handle Add Model trigger from AddButton
   function handleAddModel() {
     modelEditorService.handleAddModel();
-    if (addButtonComponent) {
-      addButtonComponent.closeMenu();
+    if (layersMenuComponent) {
+      layersMenuComponent.closeMenu();
     }
   }
 
@@ -70,8 +69,8 @@
     <div class="infoboxcontainer"><Infobox isVisible={isVisible} /></div>
     <AdvertisingBanner />
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
-    <AddButton 
-      bind:this={addButtonComponent} 
+    <LayersMenu 
+      bind:this={layersMenuComponent} 
       onAddModel={handleAddModel}
     />
     <ModalManager />

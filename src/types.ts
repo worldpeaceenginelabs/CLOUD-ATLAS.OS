@@ -42,9 +42,12 @@ export interface ModelData {
 }
 
 // Gig Economy Types
-export type GigVertical = 'rides' | 'delivery' | 'helpouts' | 'social';
+export type GigVertical = 'rides' | 'delivery' | 'helpouts' | 'social' | 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
 
-// Listing types (shared by Helpouts and Social)
+/** Subset of GigVertical that uses the listing (publish-only) model. */
+export type ListingVertical = 'helpouts' | 'social' | 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
+
+// Listing types
 export type ListingMode = 'in-person' | 'online' | 'both';
 
 export interface ListingCategory {
@@ -88,37 +91,6 @@ export interface GigRequest {
   /** Vertical-specific form data (item description, guest count, etc.) */
   details: Record<string, string>;
 }
-
-// App Menu Categories
-export type AppMenuCategory = 'actionevent' | 'brainstorming' | 'crowdfunding' | 'petition';
-
-// Link validation patterns for different categories
-export const LINK_PATTERNS: Record<AppMenuCategory, RegExp> = {
-  actionevent: /^(?:https?:\/\/)?(?:t\.me|telegram\.me|t\.dog|telegram\.dog)\/(?:joinchat\/|\+)?([\w-]+)$/i,
-  brainstorming: /^https:\/\/(us05web\.)?zoom\.us\/j\/\d+/,
-  crowdfunding: /^https:\/\/(www\.)?gofundme\.com\/f\/[a-zA-Z0-9-]+\/?$/,
-  petition: /^https:\/\/(www\.)?change\.org\/p\/[a-zA-Z0-9-]+\/?$/
-};
-
-// Placeholder text for different categories
-export const PLACEHOLDER_TEXT: Record<AppMenuCategory, { label: string; placeholder: string }> = {
-  actionevent: {
-    label: 'Telegram Group Link',
-    placeholder: 'https://t.me/+rtygFbFZrJE5NjIy'
-  },
-  brainstorming: {
-    label: 'Zoom.us Link',
-    placeholder: 'https://us05web.zoom.us/j/ID?pwd=12345 or https://zoom.us/j/ID?pwd=12345'
-  },
-  crowdfunding: {
-    label: 'GoFundMe.org Link',
-    placeholder: 'https://www.gofundme.com/f/your-campaign-name'
-  },
-  petition: {
-    label: 'Change.org Link',
-    placeholder: 'https://www.change.org/p/your-petition-name'
-  }
-};
 
 // Modal Management Types
 export type ModalType = 'default' | 'notification' | 'overlay' | 'card';
