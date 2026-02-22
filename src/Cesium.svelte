@@ -5,7 +5,6 @@
 	  Ion,
 	  Viewer,
 	  Cartesian3,
-	  Color,
 	  Entity,
 	  JulianDate,
 	  Cesium3DTileset,
@@ -67,44 +66,44 @@
 	import { preselectedGigVertical, showRadialGigMenu, layerListings } from './store';
 	import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
+	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
+	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
+	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
+	import { loadCityLabels } from './utils/cesiumCityLabels';
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
-let pointEntity: Entity | null = null; // For coordinate picking
-let userLocationEntity: Entity | null = null; // For user location on map (center dot, click target)
-let userRingEntities: Entity[] = []; // All double-ring entities for user location
-let userLocationInitialized = false; // Track if user location entity has been created
+let pointEntity: Entity | null = null;
+let userLocationEntity: Entity | null = null;
+let userRingEntities: Entity[] = [];
+let userLocationInitialized = false;
 
 // Radial menu state
 let showRadialMenu = false;
 let radialScreenX = 0;
 let radialScreenY = 0;
-let geoWatchId: number | null = null; // For watchPosition cleanup
-let isMonitoringCamera = false; // Track if camera monitoring is active
-let animationFrameId: number | null = null; // For requestAnimationFrame
-let tileset: Cesium3DTileset | null = null; // Global tileset reference
-let isBasemapLoaded = false; // Local variable for basemap loading state
-let isTilesetLoaded = false; // Local variable for tileset loading state
-let initialZoomComplete = false; // True after the initial flyTo animation finishes
-let cesiumViewer: any = null; // Global viewer reference
+let tileset: Cesium3DTileset | null = null;
+let isBasemapLoaded = false;
+let isTilesetLoaded = false;
+let initialZoomComplete = false;
+let cesiumViewer: any = null;
 
-// Map layer state — generic per-vertical
+// Map layer state
 const layerEntities: Record<string, Entity[]> = {};
 let selectedListing: { listing: Listing; vertical: ListingVertical } | null = null;
 let myNostrPk = '';
 
-// Roaming area painting state
-let roamingAreaStart: { latitude: number; longitude: number } | null = null;
-let roamingAreaEntity: Entity | null = null;
-let roamingAreaRectangle: Entity | null = null;
-let roamingAreaOutline: Entity | null = null;
-
 let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 
-// Reactive roaming signals (replaces window events)
-$: if ($roamingPaintSignal) disableCameraControls?.();
-$: if ($roamingCancelSignal) cancelPaintingMode?.();
-$: if ($roamingClearSignal) removeRoamingAreaVisuals?.();
+// Module handles (initialized in onMount)
+let userLocation: UserLocationHandle;
+let cameraMonitor: CameraMonitorHandle;
+let roamingArea: RoamingAreaHandle;
+
+// Reactive roaming signals
+$: if ($roamingPaintSignal) roamingArea?.disableCamera();
+$: if ($roamingCancelSignal) roamingArea?.cancelPainting();
+$: if ($roamingClearSignal) roamingArea?.removeVisuals();
 
 // Track created object URLs for proper cleanup (item 5)
 let createdObjectURLs: string[] = [];
@@ -135,184 +134,8 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		}
 	};
   
-	// Create a double-ring pulsating indicator (outer blue, inner orange, offset timing)
-	const createDoubleRing = (pointId: string, position: Cartesian3): Entity[] => {
-	  if (!cesiumViewer) return [];
 
-	  const t0 = Date.now();
 
-	  const outerPulse = new Cesium.CallbackProperty(() => {
-		const t = (Date.now() - t0) / 1000;
-		return 22 + 4 * Math.sin((2 * Math.PI * t) / 4);
-	  }, false);
-
-	  const innerPulse = new Cesium.CallbackProperty(() => {
-		const t = (Date.now() - t0) / 1000 - 0.7;
-		return 13 + 3 * Math.sin((2 * Math.PI * t) / 4);
-	  }, false);
-
-	  const outer = new Entity({
-		id: `${pointId}_outer`,
-		position,
-		point: {
-		  pixelSize: outerPulse,
-		  color: new Cesium.Color(0.26, 0.52, 0.96, 0.04),
-		  outlineColor: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.7),
-		  outlineWidth: 2,
-		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
-		},
-	  });
-
-	  const inner = new Entity({
-		id: `${pointId}_inner`,
-		position,
-		point: {
-		  pixelSize: innerPulse,
-		  color: new Cesium.Color(1.0, 0.43, 0.0, 0.04),
-		  outlineColor: Cesium.Color.fromCssColorString('#FF6D00').withAlpha(0.7),
-		  outlineWidth: 2,
-		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
-		},
-	  });
-
-	  const center = new Entity({
-		id: pointId,
-		position,
-		point: {
-		  pixelSize: 4,
-		  color: Cesium.Color.WHITE.withAlpha(0.85),
-		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
-		},
-	  });
-
-	  const hitCanvas = document.createElement('canvas');
-	  hitCanvas.width = 1;
-	  hitCanvas.height = 1;
-	  const ctx = hitCanvas.getContext('2d');
-	  if (ctx) { ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 1, 1); }
-
-	  const hitArea = new Entity({
-		id: `${pointId}_hitarea`,
-		position,
-		billboard: {
-		  image: hitCanvas,
-		  width: 52,
-		  height: 52,
-		  color: new Cesium.Color(1, 1, 1, 0.01),
-		  disableDepthTestDistance: Number.POSITIVE_INFINITY,
-		},
-	  });
-
-	  return [outer, inner, center, hitArea];
-	};
-  
-	// Start user location tracking (single watchPosition handles both initial placement and live updates)
-	const startUserLocationTracking = () => {
-	  if (!navigator.geolocation || !cesiumViewer) return;
-	  if (geoWatchId !== null) return; // already tracking
-
-	  geoWatchId = navigator.geolocation.watchPosition(
-		(position) => {
-		  const { latitude, longitude } = position.coords;
-		  userLiveLocation.set({ latitude, longitude });
-
-		  if (userRingEntities.length > 0 && cesiumViewer) {
-			clampToSurface(longitude, latitude).then(newPos => {
-			  userRingEntities.forEach(e => {
-				(e.position as any) = newPos;
-			  });
-			});
-		  }
-		},
-		(error) => {
-		  console.error('Geolocation error:', error);
-		},
-		{
-		  enableHighAccuracy: true,
-		  maximumAge: 10000,
-		  timeout: 15000,
-		}
-	  );
-	};
-
-	// Stop user location tracking
-	const stopUserLocationTracking = () => {
-	  if (geoWatchId !== null && navigator.geolocation) {
-		navigator.geolocation.clearWatch(geoWatchId);
-		geoWatchId = null;
-	  }
-	};
-
-	// Update height display
-	const updateHeightDisplay = () => {
-		if (cesiumViewer) {
-			currentHeight.set(cesiumViewer.camera.positionCartographic.height);
-		}
-	};
-
-	// Optimized camera monitoring function with throttling
-	let lastHeightCheck = 0;
-	const HEIGHT_CHECK_INTERVAL = 100; // Check every 100ms instead of every frame
-	
-	const monitorCameraHeight = () => {
-		if (!cesiumViewer || !isMonitoringCamera) return;
-		
-		const now = performance.now();
-		if (now - lastHeightCheck < HEIGHT_CHECK_INTERVAL) {
-			// Skip this frame, continue monitoring
-			animationFrameId = requestAnimationFrame(monitorCameraHeight);
-			return;
-		}
-		
-		lastHeightCheck = now;
-		const height = cesiumViewer.camera.positionCartographic.height;
-		currentHeight.set(height); // Update height display
-		
-	if ($enable3DTileset && tileset) {
-		if (height > 6000000) {
-			if ($is3DTilesetActive) {
-				cesiumViewer.scene.globe.show = true;
-				if (tileset) tileset.show = false;
-				is3DTilesetActive.set(false);
-				if (modelDataSource) modelDataSource.show = false;
-			}
-		} else {
-			if (!$is3DTilesetActive) {
-				cesiumViewer.scene.globe.show = false;
-				if (tileset) tileset.show = true;
-				is3DTilesetActive.set(true);
-				if (modelDataSource) modelDataSource.show = true;
-			}
-		}
-	} else {
-		cesiumViewer.scene.globe.show = true;
-		if (tileset) tileset.show = false;
-		is3DTilesetActive.set(false);
-		const showEntities = height <= 6000000;
-		if (modelDataSource) modelDataSource.show = showEntities;
-	}
-		
-		// Continue monitoring
-		animationFrameId = requestAnimationFrame(monitorCameraHeight);
-	};
-
-	// Start real-time camera monitoring
-	const startCameraMonitoring = () => {
-		if (!isMonitoringCamera) {
-			isMonitoringCamera = true;
-			monitorCameraHeight();
-		}
-	};
-
-	// Stop real-time camera monitoring
-	const stopCameraMonitoring = () => {
-		isMonitoringCamera = false;
-		if (animationFrameId) {
-			cancelAnimationFrame(animationFrameId);
-			animationFrameId = null;
-		}
-	};
-  
 
 // Add 3D model to the scene
 function addModelToScene(modelData: ModelData) {
@@ -422,13 +245,18 @@ $: if (cesiumViewer && modelDataSource) {
 	}
 }
 
+// Update ring positions when user location changes (after initial placement)
+$: if (userLocationInitialized && $userLiveLocation && userRingEntities.length > 0 && userLocation) {
+	userLocation.updateRingPositions(userRingEntities, $userLiveLocation.longitude, $userLiveLocation.latitude);
+}
+
 // Create user location entities the instant both geolocation and initial load are ready
-$: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && cesiumViewer) {
+$: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && cesiumViewer && userLocation) {
 	userLocationInitialized = true;
 	const { latitude, longitude } = $userLiveLocation;
 	(async () => {
 		const userPosition = await clampToSurface(longitude, latitude);
-		const entities = createDoubleRing('Your Location!', userPosition);
+		const entities = userLocation.createRing('Your Location!', userPosition);
 		entities.forEach(e => cesiumViewer!.entities.add(e));
 		userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
 		userRingEntities = entities;
@@ -717,7 +545,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		// Listen for escape key to cancel painting (store reference for cleanup)
 		escapeKeyHandler = (event: KeyboardEvent) => {
 			if (event.key === 'Escape' && $isRoamingAreaMode) {
-				cancelPaintingMode();
+				roamingArea.cancelPainting();
 			}
 		};
 		window.addEventListener('keydown', escapeKeyHandler);
@@ -735,7 +563,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			if (!cesiumViewer) return;
 
 			if ($isRoamingAreaMode) {
-				handleRoamingAreaClick(click);
+				roamingArea.handleClick(click);
 				return;
 			}
 
@@ -771,139 +599,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 	}
 
-	// Function to handle roaming area painting clicks
-	function handleRoamingAreaClick(click: any) {
-		if (!cesiumViewer) return;
-		
-		const coords = pickPositionToLonLat(cesiumViewer, click.position);
-		if (!coords) return;
-		const { longitude, latitude, cartesian } = coords;
-		
-		if (!roamingAreaStart) {
-			// First click - start the area
-			roamingAreaStart = { latitude, longitude };
-			
-			// Create a visual indicator for the starting point
-			roamingAreaEntity = cesiumViewer.entities.add({
-				position: cartesian,
-				point: {
-					pixelSize: 10,
-					color: Cesium.Color.YELLOW,
-					outlineColor: Cesium.Color.BLACK,
-					outlineWidth: 2,
-					disableDepthTestDistance: Number.POSITIVE_INFINITY,
-				}
-			});
-		} else {
-			// Second click - complete the area
-			const bounds = {
-				north: Math.max(roamingAreaStart.latitude, latitude),
-				south: Math.min(roamingAreaStart.latitude, latitude),
-				east: Math.max(roamingAreaStart.longitude, longitude),
-				west: Math.min(roamingAreaStart.longitude, longitude)
-			};
-			
-			// Update the store
-			roamingAreaBounds.set(bounds);
-			
-			// Remove the starting point entity
-			if (roamingAreaEntity) {
-				cesiumViewer.entities.remove(roamingAreaEntity);
-				roamingAreaEntity = null;
-			}
-			
-			// Create a ground-draped rectangle fill
-			roamingAreaRectangle = cesiumViewer.entities.add({
-				rectangle: {
-					coordinates: Cesium.Rectangle.fromDegrees(
-						bounds.west, bounds.south, bounds.east, bounds.north
-					),
-					material: Cesium.Color.YELLOW.withAlpha(0.3),
-					classificationType: Cesium.ClassificationType.BOTH
-				}
-			});
-
-			// Create a separate polyline outline clamped to ground (ground-draped rectangles don't support outlines)
-			roamingAreaOutline = cesiumViewer.entities.add({
-				polyline: {
-					positions: Cesium.Cartesian3.fromDegreesArray([
-						bounds.west, bounds.south,
-						bounds.east, bounds.south,
-						bounds.east, bounds.north,
-						bounds.west, bounds.north,
-						bounds.west, bounds.south
-					]),
-					width: 2,
-					material: Cesium.Color.YELLOW,
-					clampToGround: true
-				}
-			});
-			
-			// Re-enable camera controls
-			enableCameraControls();
-			
-			// Reset for next area
-			roamingAreaStart = null;
-		}
-	}
-
-	// Function to disable camera controls
-	function disableCameraControls() {
-		if (cesiumViewer) {
-			const ctrl = cesiumViewer.scene.screenSpaceCameraController;
-			ctrl.enableRotate = false;
-			ctrl.enableTranslate = false;
-			ctrl.enableZoom = false;
-			ctrl.enableTilt = false;
-			ctrl.enableLook = false;
-		}
-	}
-
-	function enableCameraControls() {
-		if (cesiumViewer) {
-			const ctrl = cesiumViewer.scene.screenSpaceCameraController;
-			ctrl.enableRotate = true;
-			ctrl.enableTranslate = true;
-			ctrl.enableZoom = true;
-			ctrl.enableTilt = true;
-			ctrl.enableLook = true;
-		}
-	}
-
-	// Remove roaming area visual entities (rectangle fill + outline) from the scene
-	function removeRoamingAreaVisuals() {
-		if (cesiumViewer) {
-			if (roamingAreaRectangle) {
-				cesiumViewer.entities.remove(roamingAreaRectangle);
-				roamingAreaRectangle = null;
-			}
-			if (roamingAreaOutline) {
-				cesiumViewer.entities.remove(roamingAreaOutline);
-				roamingAreaOutline = null;
-			}
-		}
-	}
-
-	// Function to cancel painting mode
-	function cancelPaintingMode() {
-		// Re-enable camera controls
-		enableCameraControls();
-		
-		// Clear painting state
-		roamingAreaStart = null;
-		
-		// Remove any existing entities
-		if (roamingAreaEntity && cesiumViewer) {
-			cesiumViewer.entities.remove(roamingAreaEntity);
-			roamingAreaEntity = null;
-		}
-
-		// Remove roaming area visuals (rectangle + outline)
-		removeRoamingAreaVisuals();
-		
-		// Exit painting mode
-		isRoamingAreaMode.set(false);
-	}
 
 	let unsubFlyTo: (() => void) | null = null;
 
@@ -944,20 +639,27 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		},
 	  });
 	  
-	  // Set the viewer in the store
 	  viewer.set(cesiumViewer);
 
-	  // Remap touch gestures: pinch only zooms, tilt is desktop-only (middle-drag / Ctrl+drag).
-	  // Custom touchTiltHandler provides mobile tilt via two-finger parallel drag.
+	  // Initialize extracted modules
+	  userLocation = initUserLocation(cesiumViewer, userLiveLocation);
+	  cameraMonitor = initCameraMonitor({
+		viewer: cesiumViewer,
+		getTileset: () => tileset,
+		getModelDataSource: () => modelDataSource,
+		currentHeight,
+		enable3DTileset,
+		is3DTilesetActive,
+	  });
+	  roamingArea = initRoamingArea(cesiumViewer, roamingAreaBounds, isRoamingAreaMode);
+
+	  // Remap touch gestures
 	  const sscc = cesiumViewer.scene.screenSpaceCameraController;
 	  sscc.tiltEventTypes = [
 		Cesium.CameraEventType.MIDDLE_DRAG,
 		{ eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL },
 	  ];
-	  sscc.zoomEventTypes = [
-		Cesium.CameraEventType.WHEEL,
-		Cesium.CameraEventType.PINCH,
-	  ];
+	  sscc.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH];
 	  sscc.zoomFactor = 15.0;
 
 	  // Pitch clamp: prevent the camera from ever crossing the horizon
@@ -969,44 +671,22 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		}
 	  });
 
-	  // Wire up custom mobile tilt handler (two-finger parallel drag)
 	  setupTouchTiltHandler(cesiumViewer);
-
-
-	// Render the Cesium Container background transparent
 	  cesiumViewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
-
-	// Remove the doubleclick event handler
 	  cesiumViewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-  
-	  // Set up real-time camera monitoring
-		cesiumViewer.camera.moveStart.addEventListener(() => {
-		  // Start monitoring when camera starts moving
-		  startCameraMonitoring();
-		});
 
-		cesiumViewer.camera.moveEnd.addEventListener(() => {
-		  // Stop monitoring when camera stops moving
-		  stopCameraMonitoring();
-		});
-  
-	  // Set initial camera position to 10 billion meters (unseen distance)
+	  // Camera monitoring
+	  cesiumViewer.camera.moveStart.addEventListener(() => cameraMonitor.start());
+	  cesiumViewer.camera.moveEnd.addEventListener(() => cameraMonitor.stop());
+
+	  // Set initial camera position far out
 	  cesiumViewer.scene.camera.setView({
-		destination: Cartesian3.fromDegrees(0, 0, 10000000000), // 10 billion meters
-		orientation: {
-		  heading: 0,
-		  pitch: -CesiumMath.PI_OVER_TWO,
-		  roll: 0,
-		},
+		destination: Cartesian3.fromDegrees(0, 0, 10000000000),
+		orientation: { heading: 0, pitch: -CesiumMath.PI_OVER_TWO, roll: 0 },
 	  });
 
-	  // Start location tracking (entities created once initial load completes)
-	  startUserLocationTracking();
-
-	  // Initialize height display
-	  updateHeightDisplay();
-	  
-	  // Start loading assets in the background
+	  userLocation.startTracking();
+	  cameraMonitor.updateHeight();
 	  loadAssetsWithProgress();
 
 	// Function to get the current time in ISO 8601 format
@@ -1058,43 +738,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	    }
 	  });
 
-	  // Load city data from local JSON with optimized performance for all 1200 cities
-	  try {
-		const response = await fetch('/cities.json');
-		if (!response.ok) {
-		  throw new Error(`Failed to fetch cities: ${response.status}`);
-		}
-		const cities = await response.json();
-
-		// Add label collection to scene with proper cleanup reference
-		const labels = cesiumViewer.scene.primitives.add(new Cesium.LabelCollection());
-		
-		// Load all 1200 cities as requested
-		const sample = cities.slice(0, 1200);
-
-		// Simple, clean city loading
-		sample.forEach((city: any) => {
-		  const lat = parseFloat(city.lat);
-		  const lon = parseFloat(city.lng);
-
-		  if (isNaN(lat) || isNaN(lon)) return;
-
-		  labels.add({
-			position: Cesium.Cartesian3.fromDegrees(lon, lat),
-			text: city.name,
-			font: "24px sans-serif",
-			fillColor: Cesium.Color.WHITE,
-			outlineColor: Cesium.Color.BLACK,
-			outlineWidth: 2,
-			style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-			scaleByDistance: new Cesium.NearFarScalar(1.0, 1.0, 2.0e7, 0.0),
-			eyeOffset: new Cesium.Cartesian3(0.0, 0.0, -12500),
-		  });
-		});
-	  } catch (error) {
-		console.error('Failed to load cities:', error);
-		// Continue without cities if loading fails
-	  }
+	  loadCityLabels(cesiumViewer).catch(e => console.error('Failed to load cities:', e));
 	});
 
 // ─── Listing Map Layers (generic per-vertical) ──────────────
@@ -1167,8 +811,8 @@ function handleRadialClose() {
 
 function flyToMyLocation() {
   const loc = $userLiveLocation;
-  if (!loc || !cesiumViewer) return;
-  flyToLonLat(cesiumViewer, loc.longitude, loc.latitude, 2000, 1.5);
+  if (!loc || !userLocation) return;
+  userLocation.flyToMe(loc);
 }
 
 /** Ensure we have the user's Nostr public key for ownership checks. */
@@ -1204,79 +848,50 @@ function handleCoordinatePick(result: any) {
 }
 
 	onDestroy(() => {
-		// Unsubscribe flyToLocation
 		if (unsubFlyTo) unsubFlyTo();
 
-		// Stop camera monitoring
-		stopCameraMonitoring();
-
-		// Clean up custom mobile tilt handler
+		cameraMonitor?.cleanup();
+		userLocation?.cleanup();
+		roamingArea?.cleanup();
 		destroyTouchTiltHandler();
-		
-		// Stop roaming animation
 		stopRoamingAnimation();
-		
+
 		if (escapeKeyHandler) {
 			window.removeEventListener('keydown', escapeKeyHandler);
 			escapeKeyHandler = null;
 		}
 
-		// Clean up layer entities BEFORE destroying the viewer
 		for (const key of Object.keys(layerEntities)) {
 			removeMarkers(cesiumViewer, layerEntities[key]);
 			layerEntities[key] = [];
 		}
-		
-		// Clean up data sources
+
 		if (modelDataSource) {
 			modelDataSource.entities.removeAll();
 			modelDataSource = null;
 		}
-		
-		// Clean up Cesium viewer and resources
+
 		if (cesiumViewer) {
-			// Remove all data sources
 			cesiumViewer.dataSources.removeAll();
-			
-			// Remove all entities
 			cesiumViewer.entities.removeAll();
-			
-			// Remove all primitives (including city labels)
 			cesiumViewer.scene.primitives.removeAll();
-			
-			// Remove event handlers
 			if (cesiumViewer.screenSpaceEventHandler) {
 				cesiumViewer.screenSpaceEventHandler.destroy();
 			}
-
-			// Destroy the viewer
 			cesiumViewer.destroy();
 			viewer.set(null);
 		}
-		
-		// Clean up tracked object URLs to prevent memory leaks
+
 		createdObjectURLs.forEach(url => URL.revokeObjectURL(url));
 		createdObjectURLs = [];
-  
-		// Clear stores using the cleanup function
+
 		resetAllStores();
-		
-		// Reset state variables
 		modalService.closeAllModals();
-		
-		// Clean up roaming area state
-		roamingAreaStart = null;
-		roamingAreaEntity = null;
-		roamingAreaRectangle = null;
-		roamingAreaOutline = null;
 		pointEntity = null;
 		userLocationEntity = null;
 		userRingEntities = [];
 		userLocationInitialized = false;
 		showRadialMenu = false;
-		stopUserLocationTracking();
-		isMonitoringCamera = false;
-		animationFrameId = null;
 		initialZoomComplete = false;
 	});
 </script>
