@@ -106,6 +106,7 @@
           placeholder={field.placeholder}
           bind:value={fieldValues[field.key]}
           rows="3"
+          maxlength={field.maxLength ?? undefined}
         ></textarea>
       {:else}
         <input
@@ -115,6 +116,7 @@
           type="text"
           placeholder={field.placeholder}
           bind:value={fieldValues[field.key]}
+          maxlength={field.maxLength ?? undefined}
         />
       {/if}
       {#if fieldValues[field.key]?.trim() && !fieldValid(field, fieldValues[field.key])}

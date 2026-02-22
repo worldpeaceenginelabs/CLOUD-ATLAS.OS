@@ -20,6 +20,7 @@ export interface GigFormField {
   pattern?: string;
   /** Shown below the field when the pattern doesn't match. */
   patternHint?: string;
+  maxLength?: number;
   /** Cross-field group name — at least one field in the group must be filled and valid. */
   group?: string;
 }
@@ -196,11 +197,11 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     gpsLocationLabel: 'Deliver to (Your Location)',
     mapPickLabel: 'Pickup Location',
     needFields: [
-      { key: 'item', label: 'Description', type: 'text', placeholder: 'What needs to be delivered?', required: true },
+      { key: 'item', label: 'Description', type: 'text', placeholder: 'What needs to be delivered?', required: true, maxLength: 500 },
     ],
     offerFields: [
       { key: 'phone', label: 'Phone Number', type: 'text', placeholder: '+49 170 1234567', required: false, pattern: '^\\+?[0-9\\s\\-]{4,20}$', patternHint: 'Digits only (optional + at start)', group: 'contact' },
-      { key: 'messenger', label: 'Contact Link', type: 'text', placeholder: 't.me/user or peer://invite-code', required: false, pattern: '^([a-zA-Z][a-zA-Z0-9+\\-.]*:\\/\\/.+|[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}\\S*)$', patternHint: 'Enter a link (e.g. t.me/user, https://... or peer://...)', group: 'contact' },
+      { key: 'messenger', label: 'Contact Link', type: 'text', placeholder: 't.me/user or peer://invite-code', required: false, maxLength: 120, pattern: '^([a-zA-Z][a-zA-Z0-9+\\-.]*:\\/\\/.+|[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}\\S*)$', patternHint: 'Enter a link (e.g. t.me/user, https://... or peer://...)', group: 'contact' },
     ],
     offerFieldGroupHints: {
       contact: 'Provide at least one way for customers to reach you. Mind not using too exotic apps so customers have a chance of contacting you \u2014 also note that some P2P protocols may not work in certain countries.',

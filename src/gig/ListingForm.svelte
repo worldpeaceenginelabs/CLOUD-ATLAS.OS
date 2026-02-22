@@ -144,7 +144,7 @@
 
     <div class="gig-form-group">
       <label class="gig-field-label" for="event-title">{config.titleLabel} <span class="gig-required">*</span></label>
-      <input id="event-title" class="gig-field-input" type="text" placeholder={config.titlePlaceholder} bind:value={title} />
+      <input id="event-title" class="gig-field-input" type="text" placeholder={config.titlePlaceholder} bind:value={title} maxlength={100} />
     </div>
 
     {#if needsLocation}
@@ -183,12 +183,12 @@
 
     <div class="gig-form-group">
       <label class="gig-field-label" for="listing-desc">Description <span class="gig-required">*</span></label>
-      <textarea id="listing-desc" class="gig-field-input textarea" placeholder={config.descriptionPlaceholder} bind:value={description} rows="3"></textarea>
+      <textarea id="listing-desc" class="gig-field-input textarea" placeholder={config.descriptionPlaceholder} bind:value={description} rows="3" maxlength={500}></textarea>
     </div>
 
     <div class="gig-form-group">
       <label class="gig-field-label" for="contact-link">{config.contactLabel} <span class="gig-required">*</span></label>
-      <input id="contact-link" class="gig-field-input" type="text" placeholder={config.contactPlaceholder} bind:value={contact} />
+      <input id="contact-link" class="gig-field-input" type="text" placeholder={config.contactPlaceholder} bind:value={contact} maxlength={120} />
       <span class="gig-field-hint">{config.contactHint}</span>
       {#if config.contactPatternHint && contact.trim() && !contactValid}
         <span class="gig-field-hint" style="color: rgba(252, 165, 165, 0.9)">{config.contactPatternHint}</span>
