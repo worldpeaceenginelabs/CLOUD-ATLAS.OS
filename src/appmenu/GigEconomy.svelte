@@ -6,7 +6,7 @@
   import { modalService } from '../utils/modalService';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
-  import { GEOHASH_PRECISION_MATCHING } from '../gig/constants';
+  import { GEOHASH_PRECISION_MATCHING, REQUEST_TTL_SECS } from '../gig/constants';
   import { logger } from '../utils/logger';
   import { GigService } from '../services/gigService';
   import { getSharedNostr } from '../services/nostrPool';
@@ -128,7 +128,7 @@
       sharedNostr!.subscribe(subId, {
         kinds: [REPLACEABLE_KIND],
         authors: [sharedNostr!.pubkey],
-        since: Math.floor(Date.now() / 1000) - 120,
+        since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
       }, (event: NostrEvent) => {
         events.push(event);
       }, () => {

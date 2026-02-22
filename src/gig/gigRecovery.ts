@@ -1,13 +1,19 @@
 /**
- * Gig session recovery: check relays for any active gig session.
+ * Gig session recovery: check relays for any active matching session.
  */
 
 import { getSharedNostr } from '../services/nostrPool';
 import { REPLACEABLE_KIND, RELAY_LABEL } from '../services/nostrService';
+import { REQUEST_TTL_SECS } from './constants';
+import { VERTICALS } from './verticals';
+
+const MATCHING_TAGS: string[] = Object.values(VERTICALS)
+  .filter(v => v.mode === 'matching')
+  .flatMap(v => [`need-${v.id}`, `offer-${v.id}`]);
 
 /**
- * Returns true if the current user has an active gig session
- * (a replaceable event published within the last 120 seconds).
+ * Returns true if the current user has an active matching session
+ * (a need/offer event published within the last REQUEST_TTL_SECS).
  */
 export async function hasActiveGigSession(): Promise<boolean> {
   const nostr = await getSharedNostr();
@@ -21,7 +27,8 @@ export async function hasActiveGigSession(): Promise<boolean> {
         kinds: [REPLACEABLE_KIND],
         authors: [nostr.pubkey],
         '#L': [RELAY_LABEL],
-        since: Math.floor(Date.now() / 1000) - 120,
+        '#t': MATCHING_TAGS,
+        since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
       },
       () => {
         if (!found) {

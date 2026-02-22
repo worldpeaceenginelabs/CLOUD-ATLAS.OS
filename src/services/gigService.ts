@@ -33,11 +33,9 @@
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
 import type { GigRequest, GigVertical } from '../types';
+import { REQUEST_TTL_SECS } from '../gig/constants';
 
 // ─── Constants ────────────────────────────────────────────────
-
-/** NIP-40 expiration: seconds from now until the event expires on relays. */
-const REQUEST_TTL_SECS = 60;
 
 /** Heartbeat fires this many seconds before the event's expiration. */
 const HEARTBEAT_LEAD_SECS = 20;
