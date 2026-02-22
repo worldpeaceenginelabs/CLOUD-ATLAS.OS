@@ -4,7 +4,6 @@
 	import {
 	  Ion,
 	  Viewer,
-	  Cartesian2,
 	  Cartesian3,
 	  Color,
 	  Entity,
@@ -20,7 +19,6 @@
 	import { 
 		coordinates, 
 		models, 
-		pins, 
 		resetAllStores, 
 		viewer,
 		currentHeight,
@@ -38,7 +36,7 @@
 		userLiveLocation,
 		flyToLocation
 	} from './store';
-	import type { ModelData, PinData } from './types';
+	import type { ModelData } from './types';
 	import { idb } from './idb';
 	import { setSceneCallbacks } from './utils/modelUtils';
 	import { modalService } from './utils/modalService';
@@ -69,7 +67,6 @@ import type { OuterRingItem } from './gig/verticalIcons';
 import type { Listing, GigVertical } from './types';
   
 // Global variables and states
-let customDataSource: CustomDataSource | null = new CustomDataSource('locationpins');
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
 let pointEntity: Entity | null = null; // For coordinate picking
 let userLocationEntity: Entity | null = null; // For user location on map (center dot, click target)
@@ -126,75 +123,18 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
   
 	// Load all data using streamlined data manager
 	const loadAllData = async () => {
-		if (customDataSource) {
-			customDataSource.entities.removeAll();
-		}
 		if (modelDataSource) {
 			modelDataSource.entities.removeAll();
 		}
   
 		try {
-			const [loadedModels, loadedPins] = await Promise.all([idb.loadModels(), idb.loadPins()]);
+			const loadedModels = await idb.loadModels();
 			models.set(loadedModels);
-			pins.set(loadedPins);
 			loadedModels.forEach(m => addModelToScene(m));
-			loadedPins.forEach(p => addRecordToMap(p));
-			logger.info(`Loaded ${loadedModels.length} models, ${loadedPins.length} pins`, { component: 'Cesium', operation: 'loadData' });
+			logger.info(`Loaded ${loadedModels.length} models`, { component: 'Cesium', operation: 'loadData' });
 		} catch (error) {
 			console.error('Error loading data:', error);
 		}
-	};
-
-	// Add a single record to the map
-	const addRecordToMap = (record: { mapid: string, latitude: string, longitude: string, category: string, height: number }) => {
-		const latitude = parseFloat(record.latitude);
-		const longitude = parseFloat(record.longitude);
-
-		if (!isNaN(latitude) && !isNaN(longitude) && record.height !== undefined) {
-			// Use the stored height from the record - no fallback, height is required
-			const height = record.height;
-			const position = Cartesian3.fromDegrees(longitude, latitude, height);
-
-			// Determine the image URL based on the category
-			let imageURL: string = "./mapicons/brainstorming.png"; // Default value
-			switch (record.category) {
-				case 'brainstorming':
-					imageURL = "./mapicons/brainstorming.png";
-					break;
-				case 'actionevent':
-					imageURL = "./mapicons/actionevent.png";
-					break;
-				case 'petition':
-					imageURL = "./mapicons/petition.png";
-					break;
-				case 'crowdfunding':
-					imageURL = "./mapicons/crowdfunding.png";
-					break;
-				}
-
-			// Create an image entity for the record
-			const imageEntity = new Entity({
-				id: `${record.mapid}_image`,
-				position: position,
-				billboard: {
-					image: imageURL,  // The URL of the PNG file
-					width: 50,        // Width of the image in pixels
-					height: 50,       // Height of the image in pixels
-					pixelOffset: new Cartesian2(0, -16),  // Adjust if needed
-					disableDepthTestDistance: Number.POSITIVE_INFINITY,
-				}
-			});
-
-			if (customDataSource) {
-				customDataSource.entities.add(imageEntity);
-			}
-		} else {
-			console.error('Invalid latitude or longitude for record:', record);
-		}
-	};
-
-	const removeRecordFromMap = (mapid: string) => {
-		removeEntityById(customDataSource, `${mapid}_image`);
 	};
   
 	// Create a double-ring pulsating indicator (outer blue, inner orange, offset timing)
@@ -336,7 +276,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 				cesiumViewer.scene.globe.show = true;
 				if (tileset) tileset.show = false;
 				is3DTilesetActive.set(false);
-				if (customDataSource) customDataSource.show = false;
 				if (modelDataSource) modelDataSource.show = false;
 			}
 		} else {
@@ -344,7 +283,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 				cesiumViewer.scene.globe.show = false;
 				if (tileset) tileset.show = true;
 				is3DTilesetActive.set(true);
-				if (customDataSource) customDataSource.show = true;
 				if (modelDataSource) modelDataSource.show = true;
 			}
 		}
@@ -353,7 +291,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		if (tileset) tileset.show = false;
 		is3DTilesetActive.set(false);
 		const showEntities = height <= 6000000;
-		if (customDataSource) customDataSource.show = showEntities;
 		if (modelDataSource) modelDataSource.show = showEntities;
 	}
 		
@@ -808,17 +745,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		}
 	}
 
-	// Function to fetch record from data manager
-	async function fetchRecord(mapid: string) {
-		try {
-			const pins = await idb.loadPins();
-			return pins.find((pin: PinData) => pin.mapid === mapid) || null;
-		} catch (error) {
-			console.error('Error fetching record:', error);
-			return null;
-		}
-	}
-
 	// Function to set up event handlers
 	function setupEventHandlers() {
 		if (!cesiumViewer) return;
@@ -841,11 +767,9 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			};
 		}
 
-		// Combined event handler for picking entities and coordinates
-		cesiumViewer.screenSpaceEventHandler.setInputAction(debounce(async function(click: any) {
+		cesiumViewer.screenSpaceEventHandler.setInputAction(debounce(function(click: any) {
 			if (!cesiumViewer) return;
-			
-			// Check if we're in roaming area painting mode
+
 			if ($isRoamingAreaMode) {
 				handleRoamingAreaClick(click);
 				return;
@@ -853,38 +777,30 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 			const pickedObject = cesiumViewer.scene.pick(click.position);
 
-			// If an object is picked, handle entity picking
 			if (Cesium.defined(pickedObject) && pickedObject.id) {
-				if (pickedObject.id.id === "pickedPoint") {
-					// Ignore clicks on the picked point marker
-				} else if (pickedObject.id.id && (pickedObject.id.id === "Your Location!" || pickedObject.id.id === "Your Location!_outer" || pickedObject.id.id === "Your Location!_inner" || pickedObject.id.id === "Your Location!_hitarea")) {
-				openRadialMenuCentered();
-				} else if (pickedObject.id && pickedObject.id.id.startsWith('helpout_')) {
-				// Handle helpout marker click
-				const props = pickedObject.id.properties;
-				if (props && props.helpoutListing) {
-					selectedHelpout = props.helpoutListing.getValue(JulianDate.now());
-				}
-			} else if (pickedObject.id && pickedObject.id.id.startsWith('social_')) {
-				// Handle social marker click
-				const props = pickedObject.id.properties;
-				if (props && props.socialListing) {
-					selectedSocial = props.socialListing.getValue(JulianDate.now());
-				}
-				} else if (pickedObject.id && pickedObject.id.id.startsWith('model_')) {
-					// Handle 3D model click
-					const modelId = pickedObject.id.id;
-					const modelData = $models.find(model => model.id === modelId);
+				const id = pickedObject.id.id;
+				if (id === 'pickedPoint') return;
+
+				if (id?.startsWith('Your Location!')) {
+					openRadialMenuCentered();
+				} else if (id?.startsWith('helpout_')) {
+					const props = pickedObject.id.properties;
+					if (props?.helpoutListing) {
+						selectedHelpout = props.helpoutListing.getValue(JulianDate.now());
+					}
+				} else if (id?.startsWith('social_')) {
+					const props = pickedObject.id.properties;
+					if (props?.socialListing) {
+						selectedSocial = props.socialListing.getValue(JulianDate.now());
+					}
+				} else if (id?.startsWith('model_')) {
+					const modelData = $models.find(model => model.id === id);
 					if (modelData) {
 						modalService.showModelDetails(modelData);
 					}
-				} else {
-					await handleEntityPick(pickedObject);
 				}
 			} else {
-				if (!$isRoamingAreaMode) {
-					handleCoordinatePick(click);
-				}
+				handleCoordinatePick(click);
 			}
 		}, 300), Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -1175,14 +1091,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	    .then(active => { if (active) modalService.showGigEconomy(); })
 	    .catch(() => {});
 
-	  // Set up clustering for the custom data source
-	  if (customDataSource) {
-		  customDataSource.clustering.enabled = true;
-		  customDataSource.clustering.pixelRange = 10;
-		  customDataSource.clustering.minimumClusterSize = 2;
-	  }
-  
-	  if (customDataSource) cesiumViewer.dataSources.add(customDataSource);
 	  if (modelDataSource) cesiumViewer.dataSources.add(modelDataSource);
 
 	  // Set up event handlers for user interactions
@@ -1240,25 +1148,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		// Continue without cities if loading fails
 	  }
 	});
-
-	// This block handles user interactions with the Cesium viewer, including picking entities and coordinates.
-
-// Function to handle entity picking
-async function handleEntityPick(pickedFeature: any) {
-  if (!pickedFeature || !pickedFeature.id) return;
-
-  const entityId = pickedFeature.id.id;
-  const mapid = entityId.replace(/(_image)$/, '');
-
-  try {
-    const record = await fetchRecord(mapid);
-    if (record) {
-      modalService.showRecordDetails(record as PinData);
-    }
-  } catch (error) {
-    console.error('Error fetching record:', error);
-  }
-}
 
 // ─── Listing Map Layers (Helpouts + Social) ─────────────────
 
@@ -1329,8 +1218,6 @@ async function ensureMyPk() {
     } catch { /* non-critical here */ }
   }
 }
-
-// Function to handle coordinate picking
 
 function handleCoordinatePick(result: any) {
   if (!cesiumViewer) return;
@@ -1404,11 +1291,6 @@ function handleCoordinatePick(result: any) {
 		}
 		
 		// Clean up data sources
-		if (customDataSource) {
-			customDataSource.entities.removeAll();
-			customDataSource = null;
-		}
-		
 		if (modelDataSource) {
 			modelDataSource.entities.removeAll();
 			modelDataSource = null;

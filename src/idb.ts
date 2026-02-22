@@ -1,4 +1,4 @@
-import type { PinData, ModelData, Listing } from './types';
+import type { ModelData, Listing } from './types';
 
 class IndexedDBManager {
   private db: IDBDatabase | null = null;
@@ -13,7 +13,7 @@ class IndexedDBManager {
 
       request.onupgradeneeded = () => {
         const db = request.result;
-        const stores = ['locationpins:mapid', 'models:id', 'localpins:mapid', 'helpouts:cell', 'nostrkeys:id', 'settings:id'];
+        const stores = ['models:id', 'helpouts:cell', 'nostrkeys:id', 'settings:id'];
         for (const entry of stores) {
           const [name, key] = entry.split(':');
           if (!db.objectStoreNames.contains(name)) {
@@ -37,20 +37,6 @@ class IndexedDBManager {
   private store(name: string, mode: IDBTransactionMode = 'readonly'): IDBObjectStore {
     if (!this.db) throw new Error('Database not initialized');
     return this.db.transaction(name, mode).objectStore(name);
-  }
-
-  // ─── Pins ──────────────────────────────────────────────────
-
-  async savePin(pinData: PinData): Promise<void> {
-    await this.req(this.store('locationpins', 'readwrite').put(pinData));
-  }
-
-  async loadPins(): Promise<PinData[]> {
-    return this.req(this.store('locationpins').getAll());
-  }
-
-  async deletePin(mapid: string): Promise<void> {
-    await this.req(this.store('locationpins', 'readwrite').delete(mapid));
   }
 
   // ─── Models ────────────────────────────────────────────────

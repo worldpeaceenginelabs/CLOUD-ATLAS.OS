@@ -41,19 +41,6 @@ export interface ModelData {
   };
 }
 
-export interface PinData {
-  mapid: string;
-  latitude: string;
-  longitude: string;
-  category: string;
-  title: string;
-  text: string;
-  link: string;
-  timestamp: string;
-  height: number;
-  [key: string]: any;
-}
-
 // Gig Economy Types
 export type GigVertical = 'rides' | 'delivery' | 'helpouts' | 'social';
 

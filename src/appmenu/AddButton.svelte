@@ -4,7 +4,7 @@
   import { logger } from '../utils/logger';
   
   import {
-    coordinates, lastTriggeredModal, isVisible,
+    coordinates, isVisible,
     activeMapLayers, userLiveLocation, helpoutLayerRefresh, socialLayerRefresh,
     enable3DTileset, userIonAccessToken,
     helpoutLayerListings, socialLayerListings,
@@ -19,13 +19,11 @@
   export let onAddModel: (() => void) | undefined = undefined;
 
   // ─── Component state ──────────────────────────────────────
-  let coordinatePickerTimer: ReturnType<typeof setTimeout> | null = null;
   let isDropdownVisible = false;
   let hoveredItem = '';
   let showInfoPanel = false;
   let infoPanelContent = '';
 
-  let hasCoordinates = false;
   $: hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
 
   // ─── Layer state (merged from MapLayersMenu) ──────────────
@@ -89,24 +87,10 @@
     }
   }
 
-  function showCoordinatePickerMessage() {
-    modalService.showCoordinatePicker();
-    lastTriggeredModal.set('pick');
-    if (coordinatePickerTimer) clearTimeout(coordinatePickerTimer);
-    coordinatePickerTimer = setTimeout(() => {
-      modalService.hideCoordinatePicker();
-      coordinatePickerTimer = null;
-    }, 3000);
-  }
-
   function handleItemClick(item: string) {
     logger.debug('Clicked item: ' + item, { component: 'AddButton', operation: 'handleItemClick' });
     showInfoPanel = false;
     hoveredItem = '';
-    if (!hasCoordinates) {
-      showCoordinatePickerMessage();
-      return;
-    }
     switch (item) {
       case 'model':
         if (onAddModel) onAddModel();

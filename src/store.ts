@@ -1,7 +1,7 @@
 import { writable, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, PinData, GigVertical, Listing } from './types';
+import type { Coordinates, ModelData, GigVertical, Listing } from './types';
 
-export type { Coordinates, ModelData, PinData };
+export type { Coordinates, ModelData };
 
 // UI State Stores
 export const showPicture = writable(true);
@@ -36,10 +36,6 @@ export const coordinates: Writable<Coordinates> = writable({
 export const models: Writable<ModelData[]> = writable([]);
 
 // selectedModel moved to modalManager
-
-export const pins: Writable<PinData[]> = writable([]);
-
-export const lastTriggeredModal: Writable<'zoom' | 'pick' | null> = writable(null);
 
 // Roaming state
 export const isRoamingAreaMode: Writable<boolean> = writable(false);
@@ -122,8 +118,6 @@ export function resetAllStores() {
     height: 0
   });
   models.set([]);
-  pins.set([]);
-  lastTriggeredModal.set(null);
   
   // Roaming state
   isRoamingAreaMode.set(false);

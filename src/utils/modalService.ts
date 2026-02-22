@@ -1,9 +1,7 @@
 import { showModal, hideModal, closeAllModals, closeTopModal, toggleModal } from './modalManager';
-import type { ModelData, PinData } from '../types';
+import type { ModelData } from '../types';
 
 export const modalService = {
-  showRecordDetails:  (record: PinData)   => showModal('record-details', { record }),
-  hideRecordDetails:  ()                  => hideModal('record-details'),
   showModelDetails:   (model: ModelData)  => showModal('model-details', { model }),
   hideModelDetails:   ()                  => hideModal('model-details'),
   showModelEditor:    (editMode = false, modelData?: ModelData) => showModal('model-editor', { editMode, modelData }),
@@ -20,8 +18,6 @@ export const modalService = {
   hideCrowdfunding:   ()                  => hideModal('crowdfunding'),
   showGigEconomy:     ()                  => showModal('gig-economy'),
   hideGigEconomy:     ()                  => hideModal('gig-economy'),
-  showCoordinatePicker: ()                => showModal('coordinate-picker'),
-  hideCoordinatePicker: ()                => hideModal('coordinate-picker'),
   showZoomRequired:   ()                  => showModal('zoom-required'),
   hideZoomRequired:   ()                  => hideModal('zoom-required'),
   closeAllModals,

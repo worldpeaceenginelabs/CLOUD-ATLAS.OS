@@ -11,11 +11,10 @@
   import { modelEditorService } from '../utils/modelEditorService';
   import { modalService } from '../utils/modalService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
-  import ShareButton from './Sharebutton.svelte';
   import { gigCanClose } from '../store';
 
   const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
-  const NOTIFICATION_MODALS = new Set(['coordinate-picker', 'zoom-required']);
+  const NOTIFICATION_MODALS = new Set(['zoom-required']);
 
   function handleModelEdit(modelData: any) {
     modalService.hideModelDetails();
@@ -55,33 +54,14 @@
     <Modal
       isVisible={true}
       onClose={() => hideModal(modal.id)}
-      title={modal.id === 'record-details' ? 'Record Details' : modal.id === 'model-details' ? '3D Model Details' : ''}
+      title={modal.id === 'model-details' ? '3D Model Details' : ''}
       maxWidth={NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
       showCloseButton={!NOTIFICATION_MODALS.has(modal.id)}
       closeOnBackdropClick={!NOTIFICATION_MODALS.has(modal.id)}
       modalType={NOTIFICATION_MODALS.has(modal.id) ? 'notification' : 'default'}
       forwardInputs={NOTIFICATION_MODALS.has(modal.id)}
     >
-      {#if modal.id === 'record-details' && modal.data?.record}
-        {@const record = modal.data.record}
-        <div class="modal-record">
-          <div>
-            <p class="title">{record.title}</p>
-            <p class="text">{record.text}</p>
-          </div>
-          <div>
-            <p class="created">CREATED {formatTimestamp(record.timestamp)}</p>
-            <p>
-              <GlassmorphismButton variant="primary" onClick={() => window.open(record.link, '_blank')}>
-                {record.link.includes('t.me') ? 'JOIN TELEGRAM' : 'VIEW LINK'}
-              </GlassmorphismButton>
-            </p>
-          </div>
-          <div>
-            <ShareButton title={record.title} text={record.text} link={record.link} />
-          </div>
-        </div>
-      {:else if modal.id === 'model-details' && modal.data?.model}
+      {#if modal.id === 'model-details' && modal.data?.model}
         {@const model = modal.data.model}
         <div class="modal-record">
           <div>
@@ -105,10 +85,8 @@
         <SwarmGovernance category="petition" />
       {:else if modal.id === 'crowdfunding'}
         <SwarmGovernance category="crowdfunding" />
-      {:else if modal.id === 'coordinate-picker'}
-        <p>Please pick coordinates on the map first — then you can add application pins.</p>
       {:else if modal.id === 'zoom-required'}
-        <p>Zoom in until the city level comes into view — then you can drop a pin.</p>
+        <p>Zoom in closer to pick a precise location.</p>
       {/if}
     </Modal>
   {/if}
