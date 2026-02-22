@@ -52,7 +52,6 @@ const freshExpiration = (): number => Math.floor(Date.now() / 1000) + REQUEST_TT
 const buildTags = (geohash: string, type: string): string[][] => [
   ['g', geohash],
   ['t', type],
-  ['L', RELAY_LABEL],
   ['expiration', String(freshExpiration())],
 ];
 

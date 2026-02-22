@@ -128,7 +128,6 @@ export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModel
 		try {
 			const loadedModels = await idb.loadModels();
 			models.set(loadedModels);
-			loadedModels.forEach(m => addModelToScene(m));
 			logger.info(`Loaded ${loadedModels.length} models`, { component: 'Cesium', operation: 'loadData' });
 		} catch (error) {
 			console.error('Error loading data:', error);
@@ -873,8 +872,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				}
 			});
 			
-			roamingAreaBounds.set(bounds);
-			
 			// Re-enable camera controls
 			enableCameraControls();
 			
@@ -1272,6 +1269,18 @@ function handleCoordinatePick(result: any) {
 			window.removeEventListener('keydown', escapeKeyHandler);
 			escapeKeyHandler = null;
 		}
+
+		// Clean up layer entities BEFORE destroying the viewer
+		for (const key of Object.keys(layerEntities)) {
+			removeMarkers(cesiumViewer, layerEntities[key]);
+			layerEntities[key] = [];
+		}
+		
+		// Clean up data sources
+		if (modelDataSource) {
+			modelDataSource.entities.removeAll();
+			modelDataSource = null;
+		}
 		
 		// Clean up Cesium viewer and resources
 		if (cesiumViewer) {
@@ -1294,17 +1303,6 @@ function handleCoordinatePick(result: any) {
 			viewer.set(null);
 		}
 		
-		// Clean up data sources
-		if (modelDataSource) {
-			modelDataSource.entities.removeAll();
-			modelDataSource = null;
-		}
-		
-		// Clean up city labels reference
-		if ((window as any).cityLabels) {
-			(window as any).cityLabels = null;
-		}
-		
 		// Clean up tracked object URLs to prevent memory leaks
 		createdObjectURLs.forEach(url => URL.revokeObjectURL(url));
 		createdObjectURLs = [];
@@ -1325,10 +1323,6 @@ function handleCoordinatePick(result: any) {
 		userRingEntities = [];
 		userLocationInitialized = false;
 		showRadialMenu = false;
-		for (const key of Object.keys(layerEntities)) {
-			removeMarkers(cesiumViewer, layerEntities[key]);
-			layerEntities[key] = [];
-		}
 		stopUserLocationTracking();
 		isMonitoringCamera = false;
 		animationFrameId = null;
