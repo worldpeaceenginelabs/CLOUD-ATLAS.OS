@@ -682,7 +682,7 @@
   }
 
   .section-label {
-    padding: 6px 14px 2px;
+    padding: 6px 14px 6px;
     font-size: 0.65rem;
     font-weight: 600;
     letter-spacing: 1px;
