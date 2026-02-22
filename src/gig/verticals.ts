@@ -144,56 +144,14 @@ export const SOCIAL_CATEGORIES: ListingCategory[] = [
   { id: 'community', name: 'Other Community', description: 'Book clubs, photography walks, volunteering, hobby groups' },
 ];
 
-export const BRAINSTORMING_CATEGORIES: ListingCategory[] = [
-  { id: 'environment', name: 'Environment & Climate', description: 'Floods, fires, droughts, pollution, sustainability' },
-  { id: 'infrastructure', name: 'Infrastructure & Urban', description: 'Housing, transport, public spaces, city planning' },
-  { id: 'social-justice', name: 'Social Justice', description: 'Inequality, discrimination, human rights, access' },
-  { id: 'economy', name: 'Economy & Jobs', description: 'Employment, cost of living, local business, trade' },
-  { id: 'education', name: 'Education & Youth', description: 'Schools, skills, literacy, youth programs' },
-  { id: 'health-care', name: 'Health & Care', description: 'Healthcare access, mental health, elderly care' },
-  { id: 'tech-innovation', name: 'Tech & Innovation', description: 'Open source, digital rights, civic tech, startups' },
-  { id: 'community', name: 'Community & Culture', description: 'Neighborhood issues, cultural preservation, events' },
-  { id: 'other', name: 'Other', description: 'Anything that doesn\'t fit the categories above' },
-];
-
-export const MEETANDDO_CATEGORIES: ListingCategory[] = [
-  { id: 'cleanup', name: 'Cleanup & Beautification', description: 'Park cleanups, graffiti removal, tree planting' },
-  { id: 'aid', name: 'Aid & Relief', description: 'Disaster relief, food drives, shelter support' },
-  { id: 'build', name: 'Build & Repair', description: 'Community gardens, playground repairs, tool sharing' },
-  { id: 'teach', name: 'Teach & Mentor', description: 'Workshops, tutoring, skill sharing on site' },
-  { id: 'protest', name: 'Protest & Demonstration', description: 'Peaceful demonstrations, marches, awareness campaigns' },
-  { id: 'sport', name: 'Sports & Fitness', description: 'Group runs, outdoor workouts, team sports' },
-  { id: 'other', name: 'Other Mission', description: 'Any real-world action that doesn\'t fit above' },
-];
-
-export const PETITION_CATEGORIES: ListingCategory[] = [
-  { id: 'policy', name: 'Policy & Law', description: 'Legislative changes, regulations, government action' },
-  { id: 'environment', name: 'Environment', description: 'Conservation, pollution, climate action' },
-  { id: 'rights', name: 'Rights & Equality', description: 'Civil rights, anti-discrimination, accessibility' },
-  { id: 'local', name: 'Local Issues', description: 'Neighborhood concerns, zoning, local government' },
-  { id: 'education', name: 'Education', description: 'School policies, curriculum, funding' },
-  { id: 'health', name: 'Health & Safety', description: 'Public health, safety standards, healthcare' },
-  { id: 'other', name: 'Other', description: 'Petitions that don\'t fit the categories above' },
-];
-
-export const CROWDFUNDING_CATEGORIES: ListingCategory[] = [
-  { id: 'community', name: 'Community Projects', description: 'Local spaces, shared resources, neighborhood initiatives' },
-  { id: 'disaster', name: 'Disaster Relief', description: 'Emergency response, recovery, rebuilding' },
-  { id: 'creative', name: 'Creative & Arts', description: 'Music, film, art installations, cultural events' },
-  { id: 'tech', name: 'Tech & Open Source', description: 'Software, hardware, civic tech projects' },
-  { id: 'education', name: 'Education & Research', description: 'Scholarships, research funding, school supplies' },
-  { id: 'social', name: 'Social Enterprise', description: 'Mission-driven businesses, cooperatives, non-profits' },
-  { id: 'other', name: 'Other', description: 'Campaigns that don\'t fit the categories above' },
-];
-
 /** Look up the category list for any listing vertical. */
 export const LISTING_CATEGORIES: Record<ListingVertical, ListingCategory[]> = {
   helpouts: HELPOUT_CATEGORIES,
   social: SOCIAL_CATEGORIES,
-  brainstorming: BRAINSTORMING_CATEGORIES,
-  meetanddo: MEETANDDO_CATEGORIES,
-  petition: PETITION_CATEGORIES,
-  crowdfunding: CROWDFUNDING_CATEGORIES,
+  brainstorming: [],
+  meetanddo: [],
+  petition: [],
+  crowdfunding: [],
 };
 
 // ─── Vertical Definitions ───────────────────────────────────────

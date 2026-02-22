@@ -45,8 +45,10 @@
 
   $: contactValid = contact.trim() && (!config.contactPattern || new RegExp(config.contactPattern).test(contact.trim()));
 
+  $: hasCategories = categories.length > 0;
+
   $: canSubmit =
-    selectedCategory &&
+    (!hasCategories || selectedCategory) &&
     title.trim() &&
     description.trim() &&
     contactValid &&
@@ -149,25 +151,27 @@
       <LocationPicker lat={locationLat} lon={locationLon} label="Location" onLocationSelected={handleLocationSelected} onClear={handleLocationClear} />
     {/if}
 
-    <div class="gig-form-group">
-      <label class="gig-field-label" for="category">Category <span class="gig-required">*</span></label>
-      <div class="gig-category-grid">
-        {#each categories as cat}
-          <button
-            class="gig-category-chip"
-            class:selected={selectedCategory === cat.id}
-            on:click={() => selectedCategory = cat.id}
-            title={cat.description}
-            style:--sel-bg="color-mix(in srgb, {config.color} 20%, transparent)"
-            style:--sel-border="color-mix(in srgb, {config.color} 50%, transparent)"
-            style:--sel-color={config.color}
-          >{cat.name}</button>
-        {/each}
+    {#if hasCategories}
+      <div class="gig-form-group">
+        <label class="gig-field-label" for="category">Category <span class="gig-required">*</span></label>
+        <div class="gig-category-grid">
+          {#each categories as cat}
+            <button
+              class="gig-category-chip"
+              class:selected={selectedCategory === cat.id}
+              on:click={() => selectedCategory = cat.id}
+              title={cat.description}
+              style:--sel-bg="color-mix(in srgb, {config.color} 20%, transparent)"
+              style:--sel-border="color-mix(in srgb, {config.color} 50%, transparent)"
+              style:--sel-color={config.color}
+            >{cat.name}</button>
+          {/each}
+        </div>
+        {#if selectedCategory}
+          <p class="gig-category-desc">{categories.find(c => c.id === selectedCategory)?.description}</p>
+        {/if}
       </div>
-      {#if selectedCategory}
-        <p class="gig-category-desc">{categories.find(c => c.id === selectedCategory)?.description}</p>
-      {/if}
-    </div>
+    {/if}
 
     {#if config.hasEventDate}
       <div class="gig-form-group">
@@ -229,10 +233,12 @@
         <span class="gig-summary-label">Mode</span>
         <span class="gig-summary-value">{modeLabel}</span>
       </div>
-      <div class="gig-summary-row">
-        <span class="gig-summary-label">Category</span>
-        <span class="gig-summary-value">{categoryName}</span>
-      </div>
+      {#if hasCategories && categoryName}
+        <div class="gig-summary-row">
+          <span class="gig-summary-label">Category</span>
+          <span class="gig-summary-value">{categoryName}</span>
+        </div>
+      {/if}
       <div class="gig-summary-row">
         <span class="gig-summary-label">Expires</span>
         <span class="gig-summary-value">14 days</span>

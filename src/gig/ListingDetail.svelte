@@ -48,7 +48,11 @@
 <div class="gig-detail-overlay" on:click|self={onClose} on:keydown={undefined} role="presentation">
   <div class="gig-detail-card" transition:fly={{ y: 40, duration: 250 }}>
     <div class="gig-detail-header">
-      <div class="gig-detail-badge" style="background: {accentBg}; color: {accentColor}">{categoryName}</div>
+      {#if categoryName}
+        <div class="gig-detail-badge" style="background: {accentBg}; color: {accentColor}">{categoryName}</div>
+      {:else}
+        <div class="gig-detail-badge" style="background: {accentBg}; color: {accentColor}">{cfg.name}</div>
+      {/if}
       <button class="gig-detail-close" on:click={onClose}>&times;</button>
     </div>
 
