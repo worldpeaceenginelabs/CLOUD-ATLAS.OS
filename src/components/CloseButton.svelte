@@ -61,6 +61,7 @@
     animation: fade-in-scale-down var(--speed) ease-out 0.25s both;
     border: none;
     padding: 0;
+    z-index: 10;
   }
 
   @keyframes fade-in-scale-down {

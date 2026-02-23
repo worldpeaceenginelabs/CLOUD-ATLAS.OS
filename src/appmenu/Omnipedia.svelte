@@ -4,6 +4,9 @@
 
 <main transition:fade={{ duration: 500 }}>
   <div class="omnipedia-container">
+    <video class="bg-video" autoplay loop muted playsinline>
+      <source src="Omnipedia.mp4" type="video/mp4" />
+    </video>
     <div class="coming-soon">
       <div class="icon">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -47,11 +50,28 @@
     align-items: center;
     min-height: 400px;
     padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bg-video {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    min-width: 100%;
+    min-height: 100%;
+    transform: translate(-50%, -50%);
+    object-fit: cover;
+    opacity: 0.25;
+    z-index: 0;
+    pointer-events: none;
   }
 
   .coming-soon {
     text-align: center;
     max-width: 500px;
+    position: relative;
+    z-index: 1;
   }
 
   .icon {

@@ -39,11 +39,28 @@
     align-items: center;
     min-height: 400px;
     padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .missiontv-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('/missiontv.jpg') center / cover no-repeat;
+    opacity: 0.25;
+    z-index: 0;
+    pointer-events: none;
   }
 
   .coming-soon {
     text-align: center;
     max-width: 500px;
+    position: relative;
+    z-index: 1;
   }
 
   .icon {

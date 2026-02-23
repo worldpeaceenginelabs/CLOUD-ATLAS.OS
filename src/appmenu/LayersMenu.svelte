@@ -441,7 +441,7 @@
         </div>
 
         <div 
-          class="dropdown-item coming-soon-clickable"
+          class="dropdown-item"
           role="button"
           tabindex="0"
           on:click={() => handleItemClick('omnipedia')}
@@ -741,15 +741,6 @@
     height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
-    opacity: 0.85;
-  }
-
-  .coming-soon-clickable {
-    opacity: 0.55;
-    cursor: pointer;
-  }
-
-  .coming-soon-clickable:hover {
     opacity: 0.85;
   }
 
