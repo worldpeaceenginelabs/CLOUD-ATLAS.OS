@@ -24,6 +24,44 @@
   export let isEditMode = false;
   
   let sheetExpanded = true;
+  let panelEl: HTMLDivElement;
+  let dragStartY = 0;
+  let dragDelta = 0;
+  let isDragging = false;
+
+  function handleTouchStart(e: TouchEvent) {
+    dragStartY = e.touches[0].clientY;
+    dragDelta = 0;
+    isDragging = true;
+    if (panelEl) panelEl.style.transition = 'none';
+  }
+
+  function handleTouchMove(e: TouchEvent) {
+    if (!isDragging) return;
+    const rawDelta = e.touches[0].clientY - dragStartY;
+    if (sheetExpanded) {
+      dragDelta = Math.max(0, rawDelta);
+      if (panelEl) panelEl.style.transform = `translateY(${dragDelta}px)`;
+    } else {
+      dragDelta = rawDelta;
+    }
+  }
+
+  function handleTouchEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    if (panelEl) {
+      panelEl.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      panelEl.style.transform = '';
+    }
+
+    if (sheetExpanded && dragDelta > 120) {
+      sheetExpanded = false;
+    } else if (!sheetExpanded && dragDelta < -60) {
+      sheetExpanded = true;
+    }
+    dragDelta = 0;
+  }
 
   $: if ($roamingAreaBounds) {
     formRoamingArea.set($roamingAreaBounds);
@@ -66,14 +104,28 @@
   });
 </script>
 
-<div class="editor-panel" class:expanded={sheetExpanded}>
+<div class="editor-panel" class:expanded={sheetExpanded} bind:this={panelEl}>
   <!-- Drag handle for mobile bottom sheet -->
-  <div class="sheet-handle" on:click={toggleSheet} on:keydown={(e) => e.key === 'Enter' && toggleSheet()} role="button" tabindex="0" aria-label="Toggle panel">
+  <div
+    class="sheet-handle"
+    on:click={toggleSheet}
+    on:keydown={(e) => e.key === 'Enter' && toggleSheet()}
+    on:touchstart={handleTouchStart}
+    on:touchmove={handleTouchMove}
+    on:touchend={handleTouchEnd}
+    role="button"
+    tabindex="0"
+    aria-label="Toggle panel"
+  >
     <div class="handle-bar"></div>
   </div>
 
-  <!-- Compact header -->
-  <div class="panel-header">
+  <!-- Compact header (also draggable on mobile) -->
+  <div class="panel-header"
+    on:touchstart={handleTouchStart}
+    on:touchmove={handleTouchMove}
+    on:touchend={handleTouchEnd}
+  >
     <button class="header-btn close" on:click={handleCancel} aria-label="Close editor">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>

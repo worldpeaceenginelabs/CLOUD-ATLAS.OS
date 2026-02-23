@@ -159,12 +159,15 @@ function addModelToScene(modelData: ModelData) {
 		if (!modelUri) { console.error('Invalid model source or missing URL/file'); return; }
 		if (!modelDataSource) return;
 
+		const isHerd = modelData.behavior?.type === 'herd';
 		const { position, orientation } = modelPositionAndOrientation(modelData);
+
+		// For herds the parent entity is the invisible canvas — don't render a model on it
 		modelDataSource.entities.add({
 			id: modelData.id,
 			name: modelData.name,
 			position,
-			model: {
+			model: isHerd ? undefined : {
 				uri: modelUri,
 				scale: modelData.transform.scale,
 				minimumPixelSize: 64,
@@ -175,7 +178,28 @@ function addModelToScene(modelData: ModelData) {
 			description: modelData.description || '3D Model'
 		});
 
-		logger.info(`Model added: ${modelData.name}`, { component: 'Cesium', operation: 'addModel' });
+		// Spawn one Cesium entity per herd member, all sharing the same GLB
+		if (isHerd) {
+			const herd = modelData.behavior as import('./types').HerdBehavior;
+			for (const member of herd.members) {
+				modelDataSource.entities.add({
+					id: `${modelData.id}_${member.id}`,
+					name: `${modelData.name} #${member.id.split('_').pop()}`,
+					position,
+					model: {
+						uri: modelUri,
+						scale: modelData.transform.scale * member.scale,
+						minimumPixelSize: 32,
+						maximumScale: 20000,
+						show: true,
+					},
+					orientation,
+				});
+			}
+			logger.info(`Herd added: ${modelData.name} (${herd.members.length} members)`, { component: 'Cesium', operation: 'addModel' });
+		} else {
+			logger.info(`Model added: ${modelData.name}`, { component: 'Cesium', operation: 'addModel' });
+		}
 		
 		// Register with simulation engine (handles all behavior types including legacy roaming)
 		simulationEngine.addModel(modelData);
@@ -314,6 +338,14 @@ function openRadialMenuAtPickedPoint() {
 
 // Remove model from scene
 function removeModelFromScene(modelId: string) {
+	// Remove herd member entities before removing the parent
+	const modelData = $models.find(m => m.id === modelId);
+	if (modelData?.behavior?.type === 'herd') {
+		for (const member of modelData.behavior.members) {
+			removeEntityById(modelDataSource, `${modelId}_${member.id}`);
+		}
+	}
+
 	removeEntityById(modelDataSource, modelId);
 	roamingAnimationManager.removeModel(modelId);
 	roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
@@ -445,7 +477,7 @@ function animateSimulation() {
 			const canvasHeading = CesiumMath.toRadians(update.position.heading);
 
 			for (const member of update.herdMembers) {
-				const memberEntity = modelDataSource.entities.getById(member.memberId);
+				const memberEntity = modelDataSource.entities.getById(`${update.modelId}_${member.memberId}`);
 				if (!memberEntity) continue;
 
 				const cosH = Math.cos(canvasHeading);
