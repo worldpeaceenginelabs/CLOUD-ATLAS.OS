@@ -745,7 +745,11 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				} else if (trySelectListingEntity(pickedObject)) {
 					// handled by trySelectListingEntity
 				} else if (id?.startsWith('model_')) {
-					const modelData = $models.find(model => model.id === id);
+					let modelData = $models.find(model => model.id === id);
+					if (!modelData && id.includes('_herd_member_')) {
+						const parentId = id.substring(0, id.indexOf('_herd_member_'));
+						modelData = $models.find(model => model.id === parentId);
+					}
 					if (modelData) {
 						modalService.showModelDetails(modelData);
 					}
