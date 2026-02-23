@@ -91,10 +91,7 @@
 
 <style>
   .modal-card-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
+    position: contents;
     z-index: 1000;
   }
 
