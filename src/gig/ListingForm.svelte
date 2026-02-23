@@ -27,7 +27,7 @@
 
   $: gigCanClose.set(currentView === 'form');
 
-  let mode: ListingMode = 'in-person';
+  let mode: ListingMode = config.defaultMode ?? 'in-person';
   let title = '';
   let selectedCategory = '';
   let eventDate = '';
@@ -150,11 +150,13 @@
       </div>
     {/if}
 
-    <div class="gig-mode-selector">
-      <button class="gig-mode-btn" class:active={mode === 'in-person'} on:click={() => mode = 'in-person'}>In-Person</button>
-      <button class="gig-mode-btn" class:active={mode === 'online'} on:click={() => mode = 'online'}>Online</button>
-      <button class="gig-mode-btn" class:active={mode === 'both'} on:click={() => mode = 'both'}>Both</button>
-    </div>
+    {#if !config.defaultMode}
+      <div class="gig-mode-selector">
+        <button class="gig-mode-btn" class:active={mode === 'in-person'} on:click={() => mode = 'in-person'}>In-Person</button>
+        <button class="gig-mode-btn" class:active={mode === 'online'} on:click={() => mode = 'online'}>Online</button>
+        <button class="gig-mode-btn" class:active={mode === 'both'} on:click={() => mode = 'both'}>Both</button>
+      </div>
+    {/if}
 
     <div class="gig-form-group">
       <label class="gig-field-label" for="event-title">{config.titleLabel} <span class="gig-required">*</span></label>

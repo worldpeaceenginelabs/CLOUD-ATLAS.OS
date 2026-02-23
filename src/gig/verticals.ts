@@ -6,7 +6,7 @@
  * Listing verticals use a publish-only model with longer TTL.
  */
 
-import type { GigVertical, ListingVertical, ListingCategory } from '../types';
+import type { GigVertical, ListingVertical, ListingCategory, ListingMode } from '../types';
 
 // ─── Form Field Definition ─────────────────────────────────────
 
@@ -115,6 +115,8 @@ export interface ListingVerticalConfig extends BaseVerticalConfig {
   takeDownLabel: string;
   /** Noun used in the Buckminster Fuller directive banner (governance verticals only) */
   directiveNoun?: string;
+  /** When set, the In-Person/Online/Both selector is hidden and this mode is used. */
+  defaultMode?: ListingMode;
 }
 
 export type VerticalConfig = MatchingVerticalConfig | ListingVerticalConfig;
@@ -286,6 +288,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactButtonLabel: 'Join Brainstorm',
     takeDownLabel: 'Take Down Brainstorm',
     directiveNoun: 'solution',
+    defaultMode: 'online',
   },
 
   meetanddo: {
@@ -311,6 +314,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactButtonLabel: 'Join Mission',
     takeDownLabel: 'Take Down Mission',
     directiveNoun: 'meeting',
+    defaultMode: 'in-person',
   },
 
   petition: {
@@ -336,6 +340,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactButtonLabel: 'Sign Petition',
     takeDownLabel: 'Take Down Petition',
     directiveNoun: 'Petition',
+    defaultMode: 'online',
   },
 
   crowdfunding: {
@@ -361,6 +366,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactButtonLabel: 'Donate',
     takeDownLabel: 'Take Down Campaign',
     directiveNoun: 'Crowdfunding',
+    defaultMode: 'online',
   },
 };
 
