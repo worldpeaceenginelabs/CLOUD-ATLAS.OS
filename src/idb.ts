@@ -1,9 +1,9 @@
-import type { ModelData, Listing } from './types';
+import type { ModelData, SceneData, Listing } from './types';
 
 class IndexedDBManager {
   private db: IDBDatabase | null = null;
   private dbName = 'indexeddbstore';
-  private version = 8;
+  private version = 9;
 
   async openDB(): Promise<IDBDatabase> {
     if (this.db) return this.db;
@@ -13,11 +13,11 @@ class IndexedDBManager {
 
       request.onupgradeneeded = () => {
         const db = request.result;
-        // v8: renamed 'helpouts' → 'listings' (generic cache for all verticals)
         if (db.objectStoreNames.contains('helpouts')) {
           db.deleteObjectStore('helpouts');
         }
-        const stores = ['models:id', 'listings:cell', 'nostrkeys:id', 'settings:id'];
+        // v9: added 'scenes' store for multi-model scene compositions
+        const stores = ['models:id', 'scenes:id', 'listings:cell', 'nostrkeys:id', 'settings:id'];
         for (const entry of stores) {
           const [name, key] = entry.split(':');
           if (!db.objectStoreNames.contains(name)) {
@@ -55,6 +55,20 @@ class IndexedDBManager {
 
   async deleteModel(modelId: string): Promise<void> {
     await this.req(this.store('models', 'readwrite').delete(modelId));
+  }
+
+  // ─── Scenes ─────────────────────────────────────────────────
+
+  async saveScene(scene: SceneData | any): Promise<void> {
+    await this.req(this.store('scenes', 'readwrite').put(scene));
+  }
+
+  async loadScenes(): Promise<SceneData[]> {
+    return this.req(this.store('scenes').getAll());
+  }
+
+  async deleteScene(sceneId: string): Promise<void> {
+    await this.req(this.store('scenes', 'readwrite').delete(sceneId));
   }
 
   // ─── Listing Cache ─────────────────────────────────────────

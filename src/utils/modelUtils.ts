@@ -1,6 +1,6 @@
 import { idb } from '../idb';
 import { models } from '../store';
-import type { ModelData } from '../types';
+import type { ModelData, Behavior } from '../types';
 import { logError, CommonErrorContexts } from './errorHandler';
 
 export interface SceneCallbacks {
@@ -57,9 +57,6 @@ export async function removeModel(modelId: string): Promise<void> {
 
 function serializeModelData(modelData: ModelData): any {
   const { file, ...rest } = modelData;
-  if (file) {
-    return { ...rest, file: URL.createObjectURL(file) };
-  }
   return rest;
 }
 
@@ -80,6 +77,7 @@ export function createFinalModelData(
     isRoamingEnabled?: boolean;
     roamingSpeed?: number;
     roamingArea?: { north: number; south: number; east: number; west: number } | null;
+    behavior?: Behavior | null;
   },
   isEditMode = false,
   editingModelId = ''
@@ -106,7 +104,16 @@ export function createFinalModelData(
     timestamp: new Date().toISOString()
   };
 
-  if (formData.isRoamingEnabled && formData.roamingArea) {
+  if (formData.behavior) {
+    modelData.behavior = formData.behavior;
+    if (formData.behavior.type === 'roam') {
+      modelData.roaming = {
+        isEnabled: true,
+        area: formData.behavior.area,
+        speed: formData.behavior.speed,
+      };
+    }
+  } else if (formData.isRoamingEnabled && formData.roamingArea) {
     modelData.roaming = {
       isEnabled: formData.isRoamingEnabled,
       area: formData.roamingArea,

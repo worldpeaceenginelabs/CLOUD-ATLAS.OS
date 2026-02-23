@@ -3,6 +3,8 @@
   import FormInput from './FormInput.svelte';
   import Roaming from './Roaming.svelte';
   import RoamingControls from './RoamingControls.svelte';
+  import BehaviorEditor from './BehaviorEditor.svelte';
+  import type { Behavior } from '../types';
 
   export let coordinates: { latitude: string; longitude: string; height: number };
 
@@ -27,6 +29,8 @@
     east: number;
     west: number;
   } | null = null;
+
+  export let behavior: Behavior | null = null;
 
   export let onOpenPlayCanvas: (() => void) | undefined = undefined;
 
@@ -285,21 +289,22 @@
     </div>
   {/if}
 
-  <!-- ═══ ROAMING SECTION ═══ -->
+  <!-- ═══ BEHAVIOR SECTION ═══ -->
   <button class="section-header" class:open={openSection === 'roaming'} on:click={() => toggleSection('roaming')}>
     <div class="section-left">
-      <svg class="section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke="currentColor" stroke-width="2"/></svg>
-      <span>Roaming</span>
+      <svg class="section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Behavior</span>
     </div>
     <div class="section-right">
-      <span class="section-preview">{isRoamingEnabled ? 'On' : 'Off'}</span>
+      <span class="section-preview">{behavior ? behavior.type : 'None'}</span>
       <svg class="chevron" class:rotated={openSection === 'roaming'} width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
   </button>
   {#if openSection === 'roaming'}
     <div class="section-body">
-      <Roaming
-        bind:isEnabled={isRoamingEnabled}
+      <BehaviorEditor
+        bind:behavior={behavior}
+        bind:isRoamingEnabled={isRoamingEnabled}
         bind:roamingSpeed={roamingSpeed}
         bind:roamingArea={roamingArea}
       />

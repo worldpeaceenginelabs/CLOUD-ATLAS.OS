@@ -34,6 +34,13 @@
 		roamingClearSignal,
 		isRoamingActive,
 		roamingModelCount,
+		isPathDrawingMode,
+		pathWaypoints,
+		pathPaintSignal,
+		pathCancelSignal,
+		pathClearSignal,
+		isSimulationRunning,
+		simulationEntityCount,
 		userLiveLocation,
 		flyToLocation
 	} from './store';
@@ -44,6 +51,7 @@
 	import { getCurrentTimeIso8601 } from './utils/timeUtils';
 	import { logger } from './utils/logger';
 	import { roamingAnimationManager } from './utils/roamingAnimation';
+	import { simulationEngine } from './utils/simulationEngine';
 	import { clampToSurface } from './utils/clampToSurface';
 	import {
 		resolveModelUri,
@@ -69,6 +77,7 @@
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
 	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
+	import { initPathDrawing, type PathDrawingHandle } from './utils/cesiumPathDrawing';
 	import { loadCityLabels } from './utils/cesiumCityLabels';
 
 // Global variables and states
@@ -99,11 +108,17 @@ let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 let userLocation: UserLocationHandle;
 let cameraMonitor: CameraMonitorHandle;
 let roamingArea: RoamingAreaHandle;
+let pathDrawing: PathDrawingHandle;
 
 // Reactive roaming signals
 $: if ($roamingPaintSignal) roamingArea?.disableCamera();
 $: if ($roamingCancelSignal) roamingArea?.cancelPainting();
 $: if ($roamingClearSignal) roamingArea?.removeVisuals();
+
+// Reactive path drawing signals
+$: if ($pathPaintSignal) pathDrawing?.disableCamera();
+$: if ($pathCancelSignal) pathDrawing?.cancelDrawing();
+$: if ($pathClearSignal) pathDrawing?.removeVisuals();
 
 // Track created object URLs for proper cleanup (item 5)
 let createdObjectURLs: string[] = [];
@@ -162,6 +177,14 @@ function addModelToScene(modelData: ModelData) {
 
 		logger.info(`Model added: ${modelData.name}`, { component: 'Cesium', operation: 'addModel' });
 		
+		// Register with simulation engine (handles all behavior types including legacy roaming)
+		simulationEngine.addModel(modelData);
+		simulationEntityCount.set(simulationEngine.entityCount);
+		if (simulationEngine.entityCount > 0 && !$isSimulationRunning) {
+			startSimulation();
+		}
+
+		// Legacy roaming support
 		if (modelData.roaming?.isEnabled) {
 			roamingAnimationManager.addModel(modelData);
 			roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
@@ -294,6 +317,8 @@ function removeModelFromScene(modelId: string) {
 	removeEntityById(modelDataSource, modelId);
 	roamingAnimationManager.removeModel(modelId);
 	roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
+	simulationEngine.removeModel(modelId);
+	simulationEntityCount.set(simulationEngine.entityCount);
 }
 
 // Roaming animation functions
@@ -346,13 +371,102 @@ function animateRoamingModels() {
 }
 
 function updateRoamingModel(modelData: ModelData) {
-	// Update the roaming animation manager
 	roamingAnimationManager.updateModel(modelData);
-	
-	// If roaming is enabled and animation is not running, start it
+	simulationEngine.updateModel(modelData);
+	simulationEntityCount.set(simulationEngine.entityCount);
+
 	if (modelData.roaming?.isEnabled && !$isRoamingActive) {
 		startRoamingAnimation();
 	}
+	if (simulationEngine.entityCount > 0 && !$isSimulationRunning) {
+		startSimulation();
+	}
+}
+
+// ─── Simulation Engine Loop ──────────────────────────────────
+let simulationFrameId: number | null = null;
+
+function startSimulation() {
+	if ($isSimulationRunning) return;
+	isSimulationRunning.set(true);
+	simulationEngine.start();
+	animateSimulation();
+	logger.info('Simulation started', { component: 'Cesium', operation: 'startSimulation' });
+}
+
+function stopSimulation() {
+	if (!$isSimulationRunning) return;
+	isSimulationRunning.set(false);
+	simulationEngine.pause();
+	if (simulationFrameId) {
+		cancelAnimationFrame(simulationFrameId);
+		simulationFrameId = null;
+	}
+}
+
+function animateSimulation() {
+	if (!$isSimulationRunning || !cesiumViewer || !modelDataSource) return;
+
+	const updates = simulationEngine.tick();
+
+	for (const update of updates) {
+		// Skip models that are already handled by legacy roaming
+		const simEntity = simulationEngine.getAllEntities().find(e => e.id === update.modelId);
+		if (!simEntity) continue;
+		const beh = simEntity.behavior;
+		if (beh.type === 'roam' && !simEntity.modelData.behavior) continue;
+
+		const entity = modelDataSource.entities.getById(update.modelId);
+		if (entity) {
+			const newPosition = Cartesian3.fromDegrees(
+				update.position.longitude,
+				update.position.latitude,
+				update.position.height
+			);
+			entity.position = newPosition;
+			entity.orientation = Transforms.headingPitchRollQuaternion(
+				newPosition,
+				new HeadingPitchRoll(
+					CesiumMath.toRadians(update.position.heading),
+					0,
+					0
+				)
+			);
+		}
+
+		// Herd members: apply local offsets via ENU frame
+		if (update.herdMembers && update.herdMembers.length > 0) {
+			const canvasCartesian = Cartesian3.fromDegrees(
+				update.position.longitude,
+				update.position.latitude,
+				update.position.height
+			);
+			const enu = Transforms.eastNorthUpToFixedFrame(canvasCartesian);
+			const canvasHeading = CesiumMath.toRadians(update.position.heading);
+
+			for (const member of update.herdMembers) {
+				const memberEntity = modelDataSource.entities.getById(member.memberId);
+				if (!memberEntity) continue;
+
+				const cosH = Math.cos(canvasHeading);
+				const sinH = Math.sin(canvasHeading);
+				const rx = member.localX * cosH - member.localY * sinH;
+				const ry = member.localX * sinH + member.localY * cosH;
+
+				const offset = new Cartesian3(rx, ry, 0);
+				const worldPos = Cesium.Matrix4.multiplyByPoint(enu, offset, new Cartesian3());
+
+				memberEntity.position = worldPos;
+				const memberHeading = canvasHeading + CesiumMath.toRadians(member.localHeading);
+				memberEntity.orientation = Transforms.headingPitchRollQuaternion(
+					worldPos,
+					new HeadingPitchRoll(memberHeading, 0, 0)
+				);
+			}
+		}
+	}
+
+	simulationFrameId = requestAnimationFrame(animateSimulation);
 }
 
 // Preview model management
@@ -555,8 +669,9 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		
 		// Listen for escape key to cancel painting (store reference for cleanup)
 		escapeKeyHandler = (event: KeyboardEvent) => {
-			if (event.key === 'Escape' && $isRoamingAreaMode) {
-				roamingArea.cancelPainting();
+			if (event.key === 'Escape') {
+				if ($isRoamingAreaMode) roamingArea.cancelPainting();
+				if ($isPathDrawingMode) pathDrawing.cancelDrawing();
 			}
 		};
 		window.addEventListener('keydown', escapeKeyHandler);
@@ -575,6 +690,11 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 			if ($isRoamingAreaMode) {
 				roamingArea.handleClick(click);
+				return;
+			}
+
+			if ($isPathDrawingMode) {
+				pathDrawing.handleClick(click);
 				return;
 			}
 
@@ -668,6 +788,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		is3DTilesetActive,
 	  });
 	  roamingArea = initRoamingArea(cesiumViewer, roamingAreaBounds, isRoamingAreaMode);
+	  pathDrawing = initPathDrawing(cesiumViewer, pathWaypoints, isPathDrawingMode);
 
 	  // Remap touch gestures
 	  const sscc = cesiumViewer.scene.screenSpaceCameraController;
@@ -871,8 +992,11 @@ function handleCoordinatePick(result: any) {
 		cameraMonitor?.cleanup();
 		userLocation?.cleanup();
 		roamingArea?.cleanup();
+		pathDrawing?.cleanup();
 		destroyTouchTiltHandler();
 		stopRoamingAnimation();
+		stopSimulation();
+		simulationEngine.clearAll();
 
 		if (escapeKeyHandler) {
 			window.removeEventListener('keydown', escapeKeyHandler);

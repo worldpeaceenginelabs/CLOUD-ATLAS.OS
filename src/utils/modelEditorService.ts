@@ -5,11 +5,13 @@
  */
 
 import { get, writable, type Writable } from 'svelte/store';
+import type { Behavior } from '../types';
 import {
   coordinates,
   editingModelId,
   temporaryModelId,
-  roamingClearSignal
+  roamingClearSignal,
+  pathClearSignal,
 } from '../store';
 import { modalService } from './modalService';
 import {
@@ -37,7 +39,7 @@ export const formHeading: Writable<number> = writable(0);
 export const formPitch: Writable<number> = writable(0);
 export const formRoll: Writable<number> = writable(0);
 
-// Roaming state
+// Roaming state (legacy, kept for backward compat)
 export const formIsRoamingEnabled: Writable<boolean> = writable(false);
 export const formRoamingSpeed: Writable<number> = writable(1.0);
 export const formRoamingArea: Writable<{
@@ -46,6 +48,9 @@ export const formRoamingArea: Writable<{
   east: number;
   west: number;
 } | null> = writable(null);
+
+// Behavior state (new unified system)
+export const formBehavior: Writable<Behavior | null> = writable(null);
 
 // ─── Internal State ──────────────────────────────────────────────────
 
@@ -83,6 +88,7 @@ class ModelEditorService {
     formIsRoamingEnabled.set(false);
     formRoamingSpeed.set(1.0);
     formRoamingArea.set(null);
+    formBehavior.set(null);
   }
 
   /** Get a snapshot of all current form values */
@@ -101,7 +107,8 @@ class ModelEditorService {
       roll: get(formRoll),
       isRoamingEnabled: get(formIsRoamingEnabled),
       roamingSpeed: get(formRoamingSpeed),
-      roamingArea: get(formRoamingArea)
+      roamingArea: get(formRoamingArea),
+      behavior: get(formBehavior),
     };
   }
 
@@ -149,6 +156,7 @@ class ModelEditorService {
     formIsRoamingEnabled.set(modelData.roaming?.isEnabled || false);
     formRoamingSpeed.set(modelData.roaming?.speed || 1.0);
     formRoamingArea.set(modelData.roaming?.area || null);
+    formBehavior.set(modelData.behavior || null);
 
     // Clear any existing temporary model
     const tempId = get(temporaryModelId);
@@ -194,7 +202,8 @@ class ModelEditorService {
         roll: form.roll,
         isRoamingEnabled: form.isRoamingEnabled,
         roamingSpeed: form.roamingSpeed,
-        roamingArea: form.roamingArea
+        roamingArea: form.roamingArea,
+        behavior: form.behavior,
       },
       !!editId,
       editId || undefined
@@ -270,7 +279,8 @@ class ModelEditorService {
           roll: form.roll,
           isRoamingEnabled: form.isRoamingEnabled,
           roamingSpeed: form.roamingSpeed,
-          roamingArea: form.roamingArea
+          roamingArea: form.roamingArea,
+          behavior: form.behavior,
         },
         !!editId,
         editId || undefined
@@ -317,6 +327,7 @@ class ModelEditorService {
       }
 
       roamingClearSignal.update(n => n + 1);
+      pathClearSignal.update(n => n + 1);
       modalService.hideModelEditor();
     } catch (error) {
       logger.error(`submitModel failed: ${error instanceof Error ? error.message : error}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
@@ -328,6 +339,7 @@ class ModelEditorService {
   handleCancel() {
     this.resetFormData();
     roamingClearSignal.update(n => n + 1);
+    pathClearSignal.update(n => n + 1);
     modalService.hideModelEditor();
   }
 

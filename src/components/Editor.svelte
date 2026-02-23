@@ -17,7 +17,8 @@
     formRoll,
     formIsRoamingEnabled,
     formRoamingSpeed,
-    formRoamingArea
+    formRoamingArea,
+    formBehavior,
   } from '../utils/modelEditorService';
   
   export let isEditMode = false;
@@ -31,7 +32,7 @@
   $: {
     $formSelectedSource; $formGltfFile; $formGltfUrl; $formModelName; $formModelDescription;
     $formScale; $formHeight; $formHeightOffset; $formHeading; $formPitch; $formRoll;
-    $formIsRoamingEnabled; $formRoamingSpeed; $formRoamingArea;
+    $formIsRoamingEnabled; $formRoamingSpeed; $formRoamingArea; $formBehavior;
     modelEditorService.updatePreview();
   }
 
@@ -100,6 +101,7 @@
       bind:isRoamingEnabled={$formIsRoamingEnabled}
       bind:roamingSpeed={$formRoamingSpeed}
       bind:roamingArea={$formRoamingArea}
+      bind:behavior={$formBehavior}
       onOpenPlayCanvas={openPlayCanvas}
     />
   </div>

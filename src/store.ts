@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, GigVertical, Listing } from './types';
+import type { Coordinates, ModelData, SceneData, LatLon, GigVertical, Listing } from './types';
 
 // ─── Store registry ──────────────────────────────────────────
 type ResetFn = () => void;
@@ -62,6 +62,25 @@ export const roamingClearSignal = resettable(0);
 export const isRoamingActive = resettable(false);
 /** Number of models currently in the roaming system */
 export const roamingModelCount = resettable(0);
+
+// ─── Path Drawing State ──────────────────────────────────────
+export const isPathDrawingMode = resettable(false);
+export const pathWaypoints = resettable<LatLon[]>([]);
+/** Increment to signal Cesium to enter path-drawing mode */
+export const pathPaintSignal = resettable(0);
+/** Increment to signal Cesium to cancel path drawing */
+export const pathCancelSignal = resettable(0);
+/** Increment to signal Cesium to clear path visuals */
+export const pathClearSignal = resettable(0);
+
+// ─── Simulation State ────────────────────────────────────────
+export const isSimulationRunning = resettable(false);
+export const simulationSpeed = resettable(1.0);
+/** Number of entities in the simulation system (models + herd members) */
+export const simulationEntityCount = resettable(0);
+
+// ─── Scene State ─────────────────────────────────────────────
+export const scenes: Writable<SceneData[]> = resettable<SceneData[]>([]);
 
 // ─── Preview Model State ─────────────────────────────────────
 export const previewModel = resettable<ModelData | null>(null);
