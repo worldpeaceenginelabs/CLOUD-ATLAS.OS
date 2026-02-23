@@ -275,7 +275,9 @@ function openRadialMenuCentered() {
 	radialScreenX = window.innerWidth / 2;
 	radialScreenY = window.innerHeight / 2;
 	showRadialMenu = true;
-	flyToEntityPosition(cesiumViewer, userLocationEntity);
+	if (userLocationEntity) {
+		flyToEntityPosition(cesiumViewer, userLocationEntity);
+	}
 }
 
 /** Open radial menu centered on screen and fly camera to the picked point. */
@@ -825,8 +827,10 @@ function handleRadialClose() {
 
 function flyToMyLocation() {
   const loc = $userLiveLocation;
-  if (!loc || !userLocation) return;
-  userLocation.flyToMe(loc);
+  if (loc && userLocation) {
+    userLocation.flyToMe(loc);
+  }
+  openRadialMenuCentered();
 }
 
 /** Ensure we have the user's Nostr public key for ownership checks. */
@@ -976,8 +980,8 @@ function handleCoordinatePick(result: any) {
 
 	/* Height display (bottom left) */
 	.height-display {
-	  position: absolute;
-	  bottom: 20px;
+	  position: fixed;
+	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 	  left: 10px;
 	  z-index: 1000;
 	  background: rgba(0, 0, 0, 0.7);
@@ -1009,8 +1013,8 @@ function handleCoordinatePick(result: any) {
 
 	/* My Location button (bottom right) */
 	.my-location-btn {
-	  position: absolute;
-	  bottom: 20px;
+	  position: fixed;
+	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 	  right: 10px;
 	  z-index: 1000;
 	  width: 40px;
@@ -1039,7 +1043,7 @@ function handleCoordinatePick(result: any) {
 	/* MissionTV button (top left) */
 	.mission-tv-btn {
 	  position: absolute;
-	  top: 20px;
+	  top: calc(20px + env(safe-area-inset-top, 0px));
 	  left: 10px;
 	  z-index: 1000;
 	  width: 40px;

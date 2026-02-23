@@ -531,7 +531,7 @@
 <style>
   .add-button-container {
     position: fixed;
-    top: 20px;
+    top: calc(20px + env(safe-area-inset-top, 0px));
     right: 10px;
     z-index: 50;
     display: inline-block;

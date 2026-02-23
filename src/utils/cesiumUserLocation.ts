@@ -104,7 +104,16 @@ export function initUserLocation(
           longitude: position.coords.longitude,
         });
       },
-      (error) => { console.error('Geolocation error:', error); },
+      (error) => {
+        console.error('Geolocation error:', error);
+        if (error.code === error.PERMISSION_DENIED) {
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          const msg = isIOS
+            ? 'Location access was denied. Please enable it in Settings → Privacy & Security → Location Services → Safari.'
+            : 'Location access was denied. Please allow location access in your browser settings.';
+          alert(msg);
+        }
+      },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
     );
   }
