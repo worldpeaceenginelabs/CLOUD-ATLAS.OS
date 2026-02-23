@@ -3,6 +3,7 @@
   import Modal from './Modal.svelte';
   import Editor from './Editor.svelte';
   import Simulation from '../appmenu/Simulation.svelte';
+  import Omnipedia from '../appmenu/Omnipedia.svelte';
   import MissionTV from '../appmenu/MissionTV.svelte';
   import GigEconomy from '../appmenu/GigEconomy.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
@@ -77,6 +78,8 @@
         </div>
       {:else if modal.id === 'simulation'}
         <Simulation />
+      {:else if modal.id === 'omnipedia'}
+        <Omnipedia />
       {:else if modal.id === 'mission-tv'}
         <MissionTV />
       {:else if modal.id === 'zoom-required'}

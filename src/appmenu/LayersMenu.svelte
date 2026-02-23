@@ -92,6 +92,9 @@
       case 'simulation':
         modalService.showSimulation();
         break;
+      case 'omnipedia':
+        modalService.showOmnipedia();
+        break;
     }
   }
 
@@ -437,7 +440,13 @@
           </button>
         </div>
 
-        <div class="dropdown-item coming-soon-item" title="Coming Soon">
+        <div 
+          class="dropdown-item coming-soon-clickable"
+          role="button"
+          tabindex="0"
+          on:click={() => handleItemClick('omnipedia')}
+          on:keydown={(e) => e.key === 'Enter' && handleItemClick('omnipedia')}
+        >
           <span class="layer-dot coming-soon-dot"></span>
           <span class="item-text">Omnipedia</span>
           <span class="coming-soon-badge">COMING SOON</span>
@@ -735,10 +744,13 @@
     opacity: 0.85;
   }
 
-  .coming-soon-item {
-    opacity: 0.35;
-    cursor: default;
-    pointer-events: none;
+  .coming-soon-clickable {
+    opacity: 0.55;
+    cursor: pointer;
+  }
+
+  .coming-soon-clickable:hover {
+    opacity: 0.85;
   }
 
   .coming-soon-dot {
