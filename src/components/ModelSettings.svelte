@@ -1,8 +1,6 @@
 <script lang="ts">
   import { afterUpdate, onDestroy } from 'svelte';
   import FormInput from './FormInput.svelte';
-  import Roaming from './Roaming.svelte';
-  import RoamingControls from './RoamingControls.svelte';
   import BehaviorEditor from './BehaviorEditor.svelte';
   import SimulationControls from './SimulationControls.svelte';
   import SceneSection from './SceneSection.svelte';
@@ -23,15 +21,6 @@
   export let pitch = 0;
   export let roll = 0;
   
-  export let isRoamingEnabled = false;
-  export let roamingSpeed = 1.0;
-  export let roamingArea: {
-    north: number;
-    south: number;
-    east: number;
-    west: number;
-  } | null = null;
-
   export let behavior: Behavior | null = null;
 
   export let onOpenPlayCanvas: (() => void) | undefined = undefined;
@@ -307,15 +296,7 @@
   </button>
   {#if openSection === 'roaming'}
     <div class="section-body">
-      <BehaviorEditor
-        bind:behavior={behavior}
-        bind:isRoamingEnabled={isRoamingEnabled}
-        bind:roamingSpeed={roamingSpeed}
-        bind:roamingArea={roamingArea}
-      />
-      {#if isRoamingEnabled}
-        <RoamingControls />
-      {/if}
+      <BehaviorEditor bind:behavior={behavior} />
     </div>
   {/if}
 

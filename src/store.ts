@@ -47,21 +47,14 @@ export const coordinates: Writable<Coordinates> = resettable<Coordinates>({
 });
 export const models: Writable<ModelData[]> = resettable<ModelData[]>([]);
 
-// ─── Roaming State ───────────────────────────────────────────
+// ─── Roaming Area Painting State ─────────────────────────────
 export const isRoamingAreaMode = resettable(false);
 export const roamingAreaBounds = resettable<{
   north: number; south: number; east: number; west: number;
 } | null>(null);
-/** Increment to signal Cesium to start roaming area painting */
 export const roamingPaintSignal = resettable(0);
-/** Increment to signal Cesium to cancel roaming area painting */
 export const roamingCancelSignal = resettable(0);
-/** Increment to signal Cesium to clear roaming area visuals */
 export const roamingClearSignal = resettable(0);
-/** Whether the roaming animation loop is currently active */
-export const isRoamingActive = resettable(false);
-/** Number of models currently in the roaming system */
-export const roamingModelCount = resettable(0);
 
 // ─── Path Drawing State ──────────────────────────────────────
 export const isPathDrawingMode = resettable(false);

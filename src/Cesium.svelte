@@ -32,8 +32,6 @@
 		roamingPaintSignal,
 		roamingCancelSignal,
 		roamingClearSignal,
-		isRoamingActive,
-		roamingModelCount,
 		isPathDrawingMode,
 		pathWaypoints,
 		pathPaintSignal,
@@ -50,7 +48,6 @@
 	import { modalService } from './utils/modalService';
 	import { getCurrentTimeIso8601 } from './utils/timeUtils';
 	import { logger } from './utils/logger';
-	import { roamingAnimationManager } from './utils/roamingAnimation';
 	import { simulationEngine } from './utils/simulationEngine';
 	import { clampToSurface } from './utils/clampToSurface';
 	import {
@@ -123,11 +120,8 @@ $: if ($pathClearSignal) pathDrawing?.removeVisuals();
 // Track created object URLs for proper cleanup (item 5)
 let createdObjectURLs: string[] = [];
 
-// Roaming animation state
-let roamingAnimationFrameId: number | null = null;
-
 // Export preview model functions for parent component
-export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateRoamingModel, hideOriginalModel, showOriginalModel };
+export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateSimulationModel, hideOriginalModel, showOriginalModel };
   
 	const initializeData = async (): Promise<void> => {
 		setSceneCallbacks({ addModelToScene, removeModelFromScene });
@@ -201,20 +195,10 @@ function addModelToScene(modelData: ModelData) {
 			logger.info(`Model added: ${modelData.name}`, { component: 'Cesium', operation: 'addModel' });
 		}
 		
-		// Register with simulation engine (handles all behavior types including legacy roaming)
 		simulationEngine.addModel(modelData);
 		simulationEntityCount.set(simulationEngine.entityCount);
 		if (simulationEngine.entityCount > 0 && !$isSimulationRunning) {
 			startSimulation();
-		}
-
-		// Legacy roaming support
-		if (modelData.roaming?.isEnabled) {
-			roamingAnimationManager.addModel(modelData);
-			roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
-			if (!$isRoamingActive) {
-				startRoamingAnimation();
-			}
 		}
 	} catch (error) {
 		console.error('Error adding model to scene:', error);
@@ -225,18 +209,10 @@ function addModelToScene(modelData: ModelData) {
 function loadModelsFromStore() {
 	if (modelDataSource) {
 		modelDataSource.entities.removeAll();
-		
-		// Clear existing roaming models
-		roamingAnimationManager.clearAll();
-		
+		simulationEngine.clearAll();
 		$models.forEach(modelData => {
 			addModelToScene(modelData);
 		});
-		
-		roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
-		if (roamingAnimationManager.getActiveModelCount() > 0 && !$isRoamingActive) {
-			startRoamingAnimation();
-		}
 	}
 }
 
@@ -347,97 +323,16 @@ function removeModelFromScene(modelId: string) {
 	}
 
 	removeEntityById(modelDataSource, modelId);
-	roamingAnimationManager.removeModel(modelId);
-	roamingModelCount.set(roamingAnimationManager.getActiveModelCount());
 	simulationEngine.removeModel(modelId);
 	simulationEntityCount.set(simulationEngine.entityCount);
 }
 
-// Roaming animation functions
-function startRoamingAnimation() {
-	if ($isRoamingActive) return;
-	isRoamingActive.set(true);
-	animateRoamingModels();
-	logger.info('Roaming animation started', { component: 'Cesium', operation: 'startRoaming' });
-}
-
-function stopRoamingAnimation() {
-	if (!$isRoamingActive) return;
-	isRoamingActive.set(false);
-	if (roamingAnimationFrameId) {
-		cancelAnimationFrame(roamingAnimationFrameId);
-		roamingAnimationFrameId = null;
-	}
-	logger.info('Roaming animation stopped', { component: 'Cesium', operation: 'stopRoaming' });
-}
-
-function animateRoamingModels() {
-	if (!$isRoamingActive || !cesiumViewer || !modelDataSource) return;
-
-	roamingAnimationManager.tick();
-
-	for (const roamingModel of roamingAnimationManager.getAllRoamingModels()) {
-		const position = roamingAnimationManager.getModelPosition(roamingModel.id);
-		if (!position) continue;
-
-		const entity = modelDataSource.entities.getById(roamingModel.id);
-		if (entity) {
-			const newPosition = Cartesian3.fromDegrees(
-				position.longitude,
-				position.latitude,
-				position.height
-			);
-			entity.position = newPosition;
-			entity.orientation = Transforms.headingPitchRollQuaternion(
-				newPosition,
-				new HeadingPitchRoll(
-					CesiumMath.toRadians(position.heading),
-					CesiumMath.toRadians(roamingModel.modelData.transform.pitch),
-					CesiumMath.toRadians(roamingModel.modelData.transform.roll)
-				)
-			);
-		}
-	}
-
-	roamingAnimationFrameId = requestAnimationFrame(animateRoamingModels);
-}
-
-function updateRoamingModel(modelData: ModelData) {
-	roamingAnimationManager.updateModel(modelData);
+function updateSimulationModel(modelData: ModelData) {
 	simulationEngine.updateModel(modelData);
 	simulationEntityCount.set(simulationEngine.entityCount);
-
-	if (modelData.roaming?.isEnabled && !$isRoamingActive) {
-		startRoamingAnimation();
-	}
 	if (simulationEngine.entityCount > 0 && !$isSimulationRunning) {
 		startSimulation();
 	}
-}
-
-// ─── Herd Terrain Height Cache ───────────────────────────────
-const herdHeightCache = new Map<string, number>();
-let lastTerrainSampleTime = 0;
-const TERRAIN_SAMPLE_INTERVAL_MS = 250;
-
-async function sampleHerdHeights(
-  memberPositions: Array<{ key: string; lon: number; lat: number }>
-) {
-  if (!cesiumViewer || memberPositions.length === 0) return;
-  const now = performance.now();
-  if (now - lastTerrainSampleTime < TERRAIN_SAMPLE_INTERVAL_MS) return;
-  lastTerrainSampleTime = now;
-
-  const cartesians = memberPositions.map(p => Cartesian3.fromDegrees(p.lon, p.lat, 0));
-  try {
-    const clamped = await cesiumViewer.scene.clampToHeightMostDetailed(cartesians);
-    for (let i = 0; i < memberPositions.length; i++) {
-      if (clamped[i]) {
-        const carto = Cesium.Cartographic.fromCartesian(clamped[i]);
-        herdHeightCache.set(memberPositions[i].key, carto.height);
-      }
-    }
-  } catch { /* terrain not ready yet */ }
 }
 
 // ─── Simulation Engine Loop ──────────────────────────────────
@@ -483,12 +378,6 @@ function animateSimulation() {
 	const updates = simulationEngine.tick();
 
 	for (const update of updates) {
-		// Skip models that are already handled by legacy roaming
-		const simEntity = simulationEngine.getAllEntities().find(e => e.id === update.modelId);
-		if (!simEntity) continue;
-		const beh = simEntity.behavior;
-		if (beh.type === 'roam' && !simEntity.modelData.behavior) continue;
-
 		const entity = modelDataSource.entities.getById(update.modelId);
 		if (entity) {
 			const newPosition = Cartesian3.fromDegrees(
@@ -507,7 +396,7 @@ function animateSimulation() {
 			);
 		}
 
-		// Herd members: apply local offsets via ENU frame + terrain clamping
+		// Herd members: apply local offsets via ENU frame
 		if (update.herdMembers && update.herdMembers.length > 0) {
 			const canvasCartesian = Cartesian3.fromDegrees(
 				update.position.longitude,
@@ -516,8 +405,6 @@ function animateSimulation() {
 			);
 			const enu = Transforms.eastNorthUpToFixedFrame(canvasCartesian);
 			const canvasHeading = CesiumMath.toRadians(update.position.heading);
-
-			const sampleRequests: Array<{ key: string; lon: number; lat: number }> = [];
 
 			for (const member of update.herdMembers) {
 				const memberEntity = modelDataSource.entities.getById(`${update.modelId}_${member.memberId}`);
@@ -531,29 +418,13 @@ function animateSimulation() {
 				const offset = new Cartesian3(rx, ry, 0);
 				const worldPos = Cesium.Matrix4.multiplyByPoint(enu, offset, new Cartesian3());
 
-				const carto = Cesium.Cartographic.fromCartesian(worldPos);
-				const cacheKey = `${update.modelId}_${member.memberId}`;
-				const cachedH = herdHeightCache.get(cacheKey);
-				if (cachedH !== undefined) {
-					carto.height = cachedH;
-				}
-				const finalPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
-
-				sampleRequests.push({
-					key: cacheKey,
-					lon: CesiumMath.toDegrees(carto.longitude),
-					lat: CesiumMath.toDegrees(carto.latitude),
-				});
-
-				memberEntity.position = finalPos;
+				memberEntity.position = worldPos;
 				const memberHeading = canvasHeading + CesiumMath.toRadians(member.localHeading);
 				memberEntity.orientation = Transforms.headingPitchRollQuaternion(
-					finalPos,
+					worldPos,
 					new HeadingPitchRoll(memberHeading, 0, 0)
 				);
 			}
-
-			sampleHerdHeights(sampleRequests);
 		}
 	}
 
@@ -1091,7 +962,6 @@ function handleCoordinatePick(result: any) {
 		roamingArea?.cleanup();
 		pathDrawing?.cleanup();
 		destroyTouchTiltHandler();
-		stopRoamingAnimation();
 		stopSimulation();
 		simulationEngine.clearAll();
 

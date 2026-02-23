@@ -152,12 +152,6 @@ export interface ModelData {
   url?: string;
   file?: File;
   timestamp: string;
-  /** @deprecated Use behavior field instead. Kept for backward compat. */
-  roaming?: {
-    isEnabled: boolean;
-    area: AreaBounds | null;
-    speed: number;
-  };
   behavior?: Behavior;
 }
 

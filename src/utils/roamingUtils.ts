@@ -2,7 +2,6 @@
  * Roaming utilities for handling model roaming behavior
  */
 
-import type { ModelData } from '../types';
 
 export interface RoamingAreaBounds {
   north: number;
@@ -41,34 +40,9 @@ export function calculateDistance(
 }
 
 /**
- * Calculate time to reach destination at given speed
- */
-export function calculateTravelTime(
-  fromLat: number,
-  fromLon: number,
-  toLat: number,
-  toLon: number,
-  speedMps: number
-): number {
-  const distance = calculateDistance(fromLat, fromLon, toLat, toLon);
-  return distance / speedMps; // seconds
-}
-
-/**
  * Generate a random heading (0-360 degrees)
  */
 export function getRandomHeading(): number {
   return Math.random() * 360;
-}
-
-/**
- * Check if a model should start roaming based on its configuration
- */
-export function shouldStartRoaming(model: ModelData): boolean {
-  const result = model.roaming?.isEnabled === true && 
-         model.roaming?.area !== null &&
-         model.roaming?.speed > 0;
-  
-  return result;
 }
 

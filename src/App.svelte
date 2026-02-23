@@ -26,11 +26,8 @@
   let cesiumComponent: Cesium | null = null;
   let layersMenuComponent: LayersMenu | null = null;
 
-  // Roaming animation functions from Cesium component
-  let updateRoamingModel: ((modelData: any) => void) | undefined = undefined;
-
-  // Expose updateRoamingModel to the model editor service
-  $: modelEditorService.setUpdateRoamingModel(updateRoamingModel);
+  let updateSimulationModel: ((modelData: any) => void) | undefined = undefined;
+  $: modelEditorService.setUpdateSimulationModel(updateSimulationModel);
 
   function handleAddModel() {
     modelEditorService.handleAddModel();
@@ -67,7 +64,7 @@
   {:else}
     <div class="gridcontainer"><Grid on:gridReady={() => gridReady.set(true)} /></div>
     {#if $gridReady}
-      <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateRoamingModel /></div>
+      <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
     {/if}
     <div class="infoboxcontainer"><Infobox isVisible={isVisible} /></div>
     <AdvertisingBanner />

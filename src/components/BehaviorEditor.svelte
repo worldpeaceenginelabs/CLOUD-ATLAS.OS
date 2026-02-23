@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, afterUpdate } from 'svelte';
+  import { onMount } from 'svelte';
   import type { Behavior, AreaBounds, LatLon } from '../types';
   import {
     models,
@@ -13,11 +13,6 @@
   import GlassmorphismButton from './GlassmorphismButton.svelte';
 
   export let behavior: Behavior | null = null;
-
-  // Legacy compat props (still used by parent for backward compat)
-  export let isRoamingEnabled = false;
-  export let roamingSpeed = 1.0;
-  export let roamingArea: AreaBounds | null = null;
 
   type BehaviorType = 'none' | 'roam' | 'path' | 'orbit' | 'follow' | 'herd';
   let selectedType: BehaviorType = 'none';
@@ -62,11 +57,10 @@
   // Available target models (excluding current model being edited)
   $: targetModels = $models.filter(m => m.id !== $editingModelId);
 
-  // Roaming local state (for paint area UX)
   let isPaintingArea = false;
   let areaBounds: AreaBounds | null = null;
-  let roamingSpeedValue = roamingSpeed.toString();
-  let lastPropSpeed = roamingSpeed;
+  let roamSpeed = 1.0;
+  let roamSpeedValue = '1.0';
 
   // Hydrate local state from behavior prop on mount (one-time, avoids cycles)
   onMount(() => {
@@ -74,10 +68,8 @@
     selectedType = behavior.type;
     if (behavior.type === 'roam') {
       areaBounds = behavior.area;
-      roamingSpeedValue = behavior.speed.toString();
-      isRoamingEnabled = true;
-      roamingSpeed = behavior.speed;
-      roamingArea = behavior.area;
+      roamSpeed = behavior.speed;
+      roamSpeedValue = behavior.speed.toString();
     } else if (behavior.type === 'path') {
       localWaypoints = [...behavior.waypoints];
       pathSpeed = behavior.speed;
@@ -113,8 +105,7 @@
     }
   });
 
-  // Sync numeric strings
-  $: roamingSpeed = parseFloat(roamingSpeedValue) || 1.0;
+  $: roamSpeed = parseFloat(roamSpeedValue) || 1.0;
   $: pathSpeed = parseFloat(pathSpeedValue) || 2.0;
   $: herdCount = parseInt(herdCountValue) || 10;
   $: herdMotionRadius = parseFloat(herdMotionRadiusValue) || 5;
@@ -126,17 +117,8 @@
   $: followOffsetZ = parseFloat(followOffsetZValue) || 0;
   $: followSpeed = parseFloat(followSpeedValue) || 2;
 
-  afterUpdate(() => {
-    if (roamingSpeed !== lastPropSpeed) {
-      roamingSpeedValue = roamingSpeed.toString();
-      lastPropSpeed = roamingSpeed;
-    }
-  });
-
-  // Sync roaming area bounds from store
   $: if ($roamingAreaBounds) {
     areaBounds = $roamingAreaBounds;
-    roamingArea = $roamingAreaBounds;
   }
 
   // Sync path waypoints from store
@@ -144,15 +126,11 @@
     localWaypoints = [...$pathWaypoints];
   }
 
-  // Emit behavior changes upward
   $: {
     if (selectedType === 'none') {
       behavior = null;
-      isRoamingEnabled = false;
     } else if (selectedType === 'roam' && areaBounds) {
-      behavior = { type: 'roam', area: areaBounds, speed: roamingSpeed };
-      isRoamingEnabled = true;
-      roamingArea = areaBounds;
+      behavior = { type: 'roam', area: areaBounds, speed: roamSpeed };
     } else if (selectedType === 'path' && localWaypoints.length >= 2) {
       behavior = {
         type: 'path',
@@ -161,7 +139,6 @@
         loop: pathLoop,
         clampToGround: pathClampToGround,
       };
-      isRoamingEnabled = false;
     } else if (selectedType === 'orbit' && orbitTargetModelId) {
       behavior = {
         type: 'orbit',
@@ -170,7 +147,6 @@
         speed: orbitSpeed,
         axis: orbitAxis,
       };
-      isRoamingEnabled = false;
     } else if (selectedType === 'follow' && followTargetModelId) {
       behavior = {
         type: 'follow',
@@ -178,10 +154,9 @@
         offset: { x: followOffsetX, y: followOffsetY, z: followOffsetZ },
         speed: followSpeed,
       };
-      isRoamingEnabled = false;
     } else if (selectedType === 'herd') {
       const canvasBehavior = herdCanvasType === 'roam' && areaBounds
-        ? { type: 'roam' as const, area: areaBounds, speed: roamingSpeed }
+        ? { type: 'roam' as const, area: areaBounds, speed: roamSpeed }
         : localWaypoints.length >= 2
           ? { type: 'path' as const, waypoints: localWaypoints, speed: pathSpeed, loop: pathLoop, clampToGround: true }
           : null;
@@ -196,7 +171,6 @@
           canvas: canvasBehavior,
         };
       }
-      isRoamingEnabled = false;
     }
   }
 
@@ -231,7 +205,6 @@
     selectedType = type;
     if (type === 'none') {
       behavior = null;
-      isRoamingEnabled = false;
     }
   }
 
@@ -246,7 +219,6 @@
   function confirmArea() {
     if (areaBounds) {
       roamingAreaBounds.set(areaBounds);
-      roamingArea = areaBounds;
     }
     isPaintingArea = false;
     isRoamingAreaMode.set(false);
@@ -261,7 +233,6 @@
   function clearArea() {
     areaBounds = null;
     roamingAreaBounds.set(null);
-    roamingArea = null;
     roamingClearSignal.update(n => n + 1);
   }
 
@@ -346,7 +317,7 @@
         <div class="painting-hint">Click two points on the map to define the area.</div>
       {/if}
 
-      <FormInput type="number" bind:value={roamingSpeedValue} label="Speed (m/s)" min="0.1" max="20" step="0.1" />
+      <FormInput type="number" bind:value={roamSpeedValue} label="Speed (m/s)" min="0.1" max="20" step="0.1" />
     </div>
   {/if}
 
@@ -493,7 +464,7 @@
         {#if isPaintingArea}
           <div class="painting-hint">Click two points to paint the roaming area.</div>
         {/if}
-        <FormInput type="number" bind:value={roamingSpeedValue} label="Herd Speed (m/s)" min="0.1" max="20" step="0.1" />
+        <FormInput type="number" bind:value={roamSpeedValue} label="Herd Speed (m/s)" min="0.1" max="20" step="0.1" />
       {:else}
         <div class="area-controls">
           <GlassmorphismButton variant="primary" size="small" onClick={handleDrawPathClick}>

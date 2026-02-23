@@ -208,6 +208,10 @@ export class SimulationEngine {
     };
   }
 
+  getEntity(modelId: string): SimEntity | undefined {
+    return this.entities.get(modelId);
+  }
+
   getAllEntities(): SimEntity[] {
     return Array.from(this.entities.values());
   }
@@ -433,17 +437,7 @@ export class SimulationEngine {
 // ─── Helpers ─────────────────────────────────────────────────
 
 function resolveBehavior(model: ModelData): Behavior | null {
-  if (model.behavior) return model.behavior;
-
-  if (model.roaming?.isEnabled && model.roaming.area && model.roaming.speed > 0) {
-    return {
-      type: 'roam',
-      area: model.roaming.area,
-      speed: model.roaming.speed,
-    };
-  }
-
-  return null;
+  return model.behavior ?? null;
 }
 
 function lerp(a: number, b: number, t: number): number {

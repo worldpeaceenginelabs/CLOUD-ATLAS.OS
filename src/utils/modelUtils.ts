@@ -74,9 +74,6 @@ export function createFinalModelData(
     heading: number;
     pitch: number;
     roll: number;
-    isRoamingEnabled?: boolean;
-    roamingSpeed?: number;
-    roamingArea?: { north: number; south: number; east: number; west: number } | null;
     behavior?: Behavior | null;
   },
   isEditMode = false,
@@ -106,19 +103,6 @@ export function createFinalModelData(
 
   if (formData.behavior) {
     modelData.behavior = formData.behavior;
-    if (formData.behavior.type === 'roam') {
-      modelData.roaming = {
-        isEnabled: true,
-        area: formData.behavior.area,
-        speed: formData.behavior.speed,
-      };
-    }
-  } else if (formData.isRoamingEnabled && formData.roamingArea) {
-    modelData.roaming = {
-      isEnabled: formData.isRoamingEnabled,
-      area: formData.roamingArea,
-      speed: formData.roamingSpeed || 1.0
-    };
   }
 
   return modelData;

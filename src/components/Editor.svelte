@@ -15,8 +15,6 @@
     formHeading,
     formPitch,
     formRoll,
-    formIsRoamingEnabled,
-    formRoamingSpeed,
     formRoamingArea,
     formBehavior,
   } from '../utils/modelEditorService';
@@ -70,7 +68,7 @@
   $: {
     $formSelectedSource; $formGltfFile; $formGltfUrl; $formModelName; $formModelDescription;
     $formScale; $formHeight; $formHeightOffset; $formHeading; $formPitch; $formRoll;
-    $formIsRoamingEnabled; $formRoamingSpeed; $formRoamingArea; $formBehavior;
+    $formRoamingArea; $formBehavior;
     modelEditorService.updatePreview();
   }
 
@@ -150,9 +148,6 @@
       bind:heading={$formHeading}
       bind:pitch={$formPitch}
       bind:roll={$formRoll}
-      bind:isRoamingEnabled={$formIsRoamingEnabled}
-      bind:roamingSpeed={$formRoamingSpeed}
-      bind:roamingArea={$formRoamingArea}
       bind:behavior={$formBehavior}
       onOpenPlayCanvas={openPlayCanvas}
     />

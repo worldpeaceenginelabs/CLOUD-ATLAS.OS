@@ -39,9 +39,7 @@ export const formHeading: Writable<number> = writable(0);
 export const formPitch: Writable<number> = writable(0);
 export const formRoll: Writable<number> = writable(0);
 
-// Roaming state (legacy, kept for backward compat)
-export const formIsRoamingEnabled: Writable<boolean> = writable(false);
-export const formRoamingSpeed: Writable<number> = writable(1.0);
+// Roaming area bounds (used by BehaviorEditor for roam area painting)
 export const formRoamingArea: Writable<{
   north: number;
   south: number;
@@ -49,19 +47,15 @@ export const formRoamingArea: Writable<{
   west: number;
 } | null> = writable(null);
 
-// Behavior state (new unified system)
 export const formBehavior: Writable<Behavior | null> = writable(null);
-
-// ─── Internal State ──────────────────────────────────────────────────
-
-let _updateRoamingModel: ((modelData: any) => void) | undefined = undefined;
 
 // ─── Service Class ───────────────────────────────────────────────────
 
+let _updateSimulationModel: ((modelData: any) => void) | undefined = undefined;
+
 class ModelEditorService {
-  /** Called by App.svelte to pass the Cesium roaming callback */
-  setUpdateRoamingModel(fn: ((modelData: any) => void) | undefined) {
-    _updateRoamingModel = fn;
+  setUpdateSimulationModel(fn: ((modelData: any) => void) | undefined) {
+    _updateSimulationModel = fn;
   }
 
   /** Reset all form state to defaults */
@@ -85,8 +79,6 @@ class ModelEditorService {
     formHeading.set(0);
     formPitch.set(0);
     formRoll.set(0);
-    formIsRoamingEnabled.set(false);
-    formRoamingSpeed.set(1.0);
     formRoamingArea.set(null);
     formBehavior.set(null);
   }
@@ -105,8 +97,6 @@ class ModelEditorService {
       heading: get(formHeading),
       pitch: get(formPitch),
       roll: get(formRoll),
-      isRoamingEnabled: get(formIsRoamingEnabled),
-      roamingSpeed: get(formRoamingSpeed),
       roamingArea: get(formRoamingArea),
       behavior: get(formBehavior),
     };
@@ -153,9 +143,7 @@ class ModelEditorService {
       formGltfFile.set(null);
     }
 
-    formIsRoamingEnabled.set(modelData.roaming?.isEnabled || false);
-    formRoamingSpeed.set(modelData.roaming?.speed || 1.0);
-    formRoamingArea.set(modelData.roaming?.area || null);
+    formRoamingArea.set(modelData.behavior?.type === 'roam' ? modelData.behavior.area : null);
     formBehavior.set(modelData.behavior || null);
 
     // Clear any existing temporary model
@@ -200,9 +188,6 @@ class ModelEditorService {
         heading: form.heading,
         pitch: form.pitch,
         roll: form.roll,
-        isRoamingEnabled: form.isRoamingEnabled,
-        roamingSpeed: form.roamingSpeed,
-        roamingArea: form.roamingArea,
         behavior: form.behavior,
       },
       !!editId,
@@ -277,9 +262,6 @@ class ModelEditorService {
           heading: form.heading,
           pitch: form.pitch,
           roll: form.roll,
-          isRoamingEnabled: form.isRoamingEnabled,
-          roamingSpeed: form.roamingSpeed,
-          roamingArea: form.roamingArea,
           behavior: form.behavior,
         },
         !!editId,
@@ -304,26 +286,14 @@ class ModelEditorService {
           temporaryModelId.set(null);
         }
 
-        if (_updateRoamingModel && originalModelData.roaming?.isEnabled) {
-          _updateRoamingModel(originalModelData);
-        }
+        _updateSimulationModel?.(originalModelData);
       } else if (tempId) {
-        // Persist the temporary model
         await persistTemporaryModel(tempId);
         logger.info(`Model added: ${modelData.name}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
         temporaryModelId.set(null);
-
-        if (_updateRoamingModel && modelData.roaming?.isEnabled) {
-          _updateRoamingModel(modelData);
-        }
       } else {
-        // Fallback: add as new model
         await addModel(modelData);
         logger.info(`Model added: ${modelData.name}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
-
-        if (_updateRoamingModel && modelData.roaming?.isEnabled) {
-          _updateRoamingModel(modelData);
-        }
       }
 
       roamingClearSignal.update(n => n + 1);
