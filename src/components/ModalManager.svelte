@@ -65,15 +65,39 @@
       {#if modal.id === 'model-details' && modal.data?.model}
         {@const model = modal.data.model}
         <div class="modal-record">
-          <div>
-            <p class="title">{model.name}</p>
-            <p class="text">{model.description || '3D Model'}</p>
-            <p class="model-info">Scale: {model.transform.scale}x | Height: {model.transform.height}m | Source: {model.source}</p>
+          <p class="title">{model.name}</p>
+          <p class="text">{model.description || '3D Model'}</p>
+
+          <div class="info-grid">
+            <span class="info-label">Scale</span>
+            <span class="info-value">{model.transform.scale}x</span>
+            <span class="info-label">Height</span>
+            <span class="info-value">{model.transform.height}m</span>
+            <span class="info-label">Source</span>
+            <span class="info-value">{model.source}</span>
+            {#if model.behavior}
+              <span class="info-label">Behavior</span>
+              <span class="info-value behavior-tag {model.behavior.type}">
+                {#if model.behavior.type === 'herd'}
+                  Herd · {model.behavior.count} members · {model.behavior.motionPattern}
+                {:else if model.behavior.type === 'path'}
+                  Path · {model.behavior.waypoints.length} waypoints{model.behavior.loop ? ' · loop' : ''}
+                {:else if model.behavior.type === 'roam'}
+                  Roam · {model.behavior.speed} m/s
+                {:else if model.behavior.type === 'orbit'}
+                  Orbit · r {model.behavior.radius}m · {model.behavior.speed} m/s
+                {:else if model.behavior.type === 'follow'}
+                  Follow · {model.behavior.speed} m/s
+                {/if}
+              </span>
+            {/if}
           </div>
-          <div>
-            <p class="created">CREATED {formatTimestamp(model.timestamp)}</p>
-            <p><GlassmorphismButton variant="primary" onClick={() => handleModelEdit(model)}>EDIT MODEL</GlassmorphismButton></p>
-            <p><GlassmorphismButton variant="danger" onClick={() => handleModelRemove(model)}>REMOVE MODEL</GlassmorphismButton></p>
+
+          <p class="created">CREATED {formatTimestamp(model.timestamp)}</p>
+
+          <div class="actions">
+            <GlassmorphismButton variant="primary" onClick={() => handleModelEdit(model)}>EDIT MODEL</GlassmorphismButton>
+            <GlassmorphismButton variant="danger" onClick={() => handleModelRemove(model)}>REMOVE MODEL</GlassmorphismButton>
           </div>
         </div>
       {:else if modal.id === 'simulation'}
@@ -151,40 +175,75 @@
   .modal-record {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.25rem;
+    padding: 1.25rem;
   }
 
   .modal-record .title {
-    font-size: 1.2rem;
-    font-weight: bold;
-    margin: 0 0 0.5rem 0;
-    color: #333;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.95);
   }
 
   .modal-record .text {
-    font-size: 1rem;
-    margin: 0 0 1rem 0;
-    color: #666;
+    font-size: 0.95rem;
+    margin: 0 0 0.75rem 0;
+    color: rgba(255, 255, 255, 0.6);
     line-height: 1.4;
   }
 
-  .modal-record .model-info {
-    font-size: 0.9rem;
-    margin: 0 0 1rem 0;
-    color: #888;
-    font-style: italic;
+  .modal-record .info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
-  .modal-record .created {
+  .modal-record .info-label {
     font-size: 0.8rem;
-    margin: 0 0 1rem 0;
-    color: #999;
+    color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
+  .modal-record .info-value {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+  }
+
+  .modal-record .behavior-tag {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .modal-record .behavior-tag.herd   { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+  .modal-record .behavior-tag.path   { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+  .modal-record .behavior-tag.roam   { background: rgba(234, 179, 8, 0.2); color: #fde68a; }
+  .modal-record .behavior-tag.orbit  { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
+  .modal-record .behavior-tag.follow { background: rgba(236, 72, 153, 0.2); color: #f9a8d4; }
+
+  .modal-record .created {
+    font-size: 0.75rem;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .modal-record .actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
   .modal-record p {
-    margin: 0.5rem 0;
+    margin: 0.25rem 0;
   }
 </style>
