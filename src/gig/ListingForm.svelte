@@ -41,7 +41,7 @@
   let relayCount = 0;
   let relayTotal = 0;
 
-  $: needsLocation = mode === 'in-person' || mode === 'both';
+  $: needsLocation = mode === 'in-person' || mode === 'both' || !!config.defaultMode;
 
   $: contactValid = contact.trim() && (!config.contactPattern || new RegExp(config.contactPattern).test(contact.trim()));
 
