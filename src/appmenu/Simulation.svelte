@@ -4,14 +4,14 @@
 
 <main transition:fade={{ duration: 500 }}>
   <div class="simulation-container">
-    <div class="coming-soon">
+    <div class="open-beta">
       <div class="icon">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
       <h1>HOLODECK & OMNIPEDIA CREATOR</h1>
-      <p class="coming-soon-text">Coming Soon</p>
+      <p class="open-beta-text">OPEN BETA</p>
       <p class="description">
         Connect 3D models into a scene to create Apps, Games, and Experiences. Run simulations and scenarios on the map. Visualize what does not fit into words.<br><br>Create OMNIPEDIA — Transform 6 million Wikipedia articles into immersive 3D models, scenes, and worlds on a live global map.<br><br>These articles, which act now as living agents in a planetary simulation, enabling you to build apps, games, and experiences in seconds with the HOLODECK — no coding required.
       </p>
@@ -55,7 +55,7 @@
     pointer-events: none;
   }
 
-  .coming-soon {
+  .open-beta {
     text-align: center;
     max-width: 500px;
     position: relative;
@@ -84,7 +84,7 @@
     -webkit-text-fill-color: transparent;
   }
 
-  .coming-soon-text {
+  .open-beta-text {
     font-size: 1.5em;
     font-weight: bold;
     color: #4CAF50;
@@ -123,7 +123,7 @@
       font-size: 2em;
     }
 
-    .coming-soon-text {
+    .open-beta-text {
       font-size: 1.2em;
     }
 

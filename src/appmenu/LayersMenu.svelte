@@ -14,6 +14,7 @@
   import { getSharedNostr } from '../services/nostrPool';
   import { idb } from '../idb';
   import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
+  import { verticalIconSvg } from '../gig/verticalIcons';
   import type { Listing, ListingVertical } from '../types';
 
   export let onAddModel: (() => void) | undefined = undefined;
@@ -64,6 +65,11 @@
 
   function handleInfoClick(item: string, event: Event) {
     event.stopPropagation();
+    switch (item) {
+      case 'model':
+        modalService.showSimulation();
+        return;
+    }
     if (showInfoPanel && hoveredItem === item) {
       showInfoPanel = false;
       hoveredItem = '';
@@ -71,14 +77,6 @@
     }
     hoveredItem = item;
     showInfoPanel = true;
-    switch (item) {
-      case 'model':
-        infoPanelContent = 'Add 3D models to the map. Upload GLTF/GLB files or provide URLs to place interactive 3D objects at specific locations.';
-        break;
-      case 'simulation':
-        infoPanelContent = 'Connect 3D models into a scene to create Apps, Games, and Experiences. Run simulations and scenarios on the map. Visualize what does not fit into words.';
-        break;
-    }
   }
 
   function handleItemClick(item: string) {
@@ -88,9 +86,6 @@
     switch (item) {
       case 'model':
         if (onAddModel) onAddModel();
-        break;
-      case 'simulation':
-        modalService.showSimulation();
         break;
       case 'omnipedia':
         modalService.showOmnipedia();
@@ -388,11 +383,11 @@
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('model')}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M3.27 6.96L12 12.01l8.73-5.05" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Add 3D Model</span>
+          <span class="item-text">Holodeck</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'model'}
@@ -409,37 +404,6 @@
           </button>
         </div>
 
-        <!-- Add Simulation -->
-        <div 
-          class="dropdown-item" 
-          role="button"
-          tabindex="0"
-          on:click={() => handleItemClick('simulation')}
-          on:keydown={(e) => e.key === 'Enter' && handleItemClick('simulation')}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="item-text">Add 3D Scene</span>
-          <button 
-            class="info-icon" 
-            class:active={showInfoPanel && hoveredItem === 'simulation'}
-            on:click={(e) => handleInfoClick('simulation', e)}
-            on:keydown={(e) => e.key === 'Enter' && handleInfoClick('simulation', e)}
-            tabindex="0"
-            aria-label="Show info for Simulation"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-
         <div 
           class="dropdown-item"
           role="button"
@@ -447,7 +411,11 @@
           on:click={() => handleItemClick('omnipedia')}
           on:keydown={(e) => e.key === 'Enter' && handleItemClick('omnipedia')}
         >
-          <span class="layer-dot coming-soon-dot"></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
           <span class="item-text">Omnipedia</span>
           <span class="coming-soon-badge">COMING SOON</span>
         </div>
@@ -469,7 +437,9 @@
               {#if isLoading}
                 <span class="layer-spinner"></span>
               {:else}
-                <span class="layer-dot" style="background: {color}"></span>
+                <span class="layer-icon" style="color: {color}">
+                  {@html verticalIconSvg(layerItem.id, 16)}
+                </span>
               {/if}
               <span class="item-text">{layerItem.label}</span>
               {#if isOn}
@@ -736,18 +706,6 @@
     flex-shrink: 0;
   }
 
-  .layer-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    opacity: 0.85;
-  }
-
-  .coming-soon-dot {
-    background: rgba(255, 255, 255, 0.3);
-  }
-
   .coming-soon-badge {
     font-size: 0.55rem;
     font-weight: 700;
@@ -771,6 +729,15 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  .layer-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
   }
 
   .layer-error {
