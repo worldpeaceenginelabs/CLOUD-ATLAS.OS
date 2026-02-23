@@ -161,7 +161,7 @@
       0 0 60px rgba(255, 215, 0, 0.06),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     max-width: 520px;
-    width: calc(100% - 40px);
+    width: calc(100% - 48px);
     max-height: 85vh;
     overflow-y: auto;
     color: #fff;
@@ -315,6 +315,7 @@
       padding: 28px 24px 24px;
       border-radius: 16px;
       max-height: 80vh;
+      width: calc(100% - 40px);
     }
 
     .headline {
@@ -330,7 +331,7 @@
     .main_div {
       padding: 24px 18px 20px;
       border-radius: 14px;
-      width: calc(100% - 24px);
+      width: calc(100% - 32px);
     }
 
     .headline {
