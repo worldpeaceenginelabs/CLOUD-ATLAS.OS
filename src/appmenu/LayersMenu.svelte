@@ -423,7 +423,7 @@
             <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Add 3D Scence</span>
+          <span class="item-text">Add 3D Scene</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'simulation'}
