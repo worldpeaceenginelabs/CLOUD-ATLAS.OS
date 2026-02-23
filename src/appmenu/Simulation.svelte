@@ -13,7 +13,7 @@
       <h1>HOLODECK & OMNIPEDIA CREATOR</h1>
       <p class="coming-soon-text">Coming Soon</p>
       <p class="description">
-        Connect 3D models into a dynamic scene and run simulations to test how different parameters shape your virtual environment.<br><br> Create OMNIPEDIA — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the HOLODECK — no coding required.
+        Connect 3D models into a scene to create Apps, Games, and Experiences. Run simulations and scenarios on the map. Visualize what does not fit into words.<br><br>Create OMNIPEDIA — Transform 6 million Wikipedia articles into immersive 3D models, scenes, and worlds on a live global map.<br><br>These articles, which act now as living agents in a planetary simulation, enabling you to build apps, games, and experiences in seconds with the HOLODECK — no coding required.
       </p>
     </div>
   </div>

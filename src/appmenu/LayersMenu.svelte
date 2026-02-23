@@ -73,10 +73,10 @@
     showInfoPanel = true;
     switch (item) {
       case 'model':
-        infoPanelContent = 'Add 3D models to the map. Upload GLTF files or provide URLs to place interactive 3D objects at specific locations.';
+        infoPanelContent = 'Add 3D models to the map. Upload GLTF/GLB files or provide URLs to place interactive 3D objects at specific locations.';
         break;
       case 'simulation':
-        infoPanelContent = 'Connect 3D models into a scene. Run simulations and scenarios on the map. Visualize what does not fit into words.';
+        infoPanelContent = 'Connect 3D models into a scene to create Apps, Games, and Experiences. Run simulations and scenarios on the map. Visualize what does not fit into words.';
         break;
     }
   }
@@ -373,8 +373,8 @@
           </div>
         {/if}
 
-        <!-- Create sub-header -->
-        <div class="sub-header">Create</div>
+        <!-- Holodeck sub-header -->
+        <div class="sub-header">Holodeck</div>
 
         <!-- Add Model -->
         <div 
@@ -389,7 +389,7 @@
             <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Add Model</span>
+          <span class="item-text">Add 3D Model</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'model'}
@@ -420,7 +420,7 @@
             <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Add Simulation</span>
+          <span class="item-text">Add 3D Scence</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'simulation'}
@@ -435,15 +435,6 @@
               <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-        </div>
-
-        <!-- Beyond the Horizon -->
-        <div class="sub-header">Immersive Worlds</div>
-
-        <div class="dropdown-item coming-soon-item" title="Coming Soon">
-          <span class="layer-dot coming-soon-dot"></span>
-          <span class="item-text">Holodeck</span>
-          <span class="coming-soon-badge">COMING SOON</span>
         </div>
 
         <div class="dropdown-item coming-soon-item" title="Coming Soon">

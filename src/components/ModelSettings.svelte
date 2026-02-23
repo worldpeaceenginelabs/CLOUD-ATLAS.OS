@@ -203,7 +203,7 @@
           
           <div class="form-group">
             <label id="source-file" for="source-file">Model Source</label>
-            <p class="source-description">Drag & drop a GLTF/GLB file, upload a file, or provide a URL to place a 3D model on the map</p>
+            <p class="source-description">Upload a GLTF/GLB file, or provide a URL to place a 3D model on the map</p>
             <div class="source-options" role="radiogroup" aria-labelledby="source-file">
               <label class="radio-option">
                 <input 
@@ -229,7 +229,7 @@
           <!-- File upload -->
           {#if selectedSource === 'file'}
             <div class="form-group">
-              <label for="gltfFile">GLTF/GLB File</label>
+              <label for="gltfFile">Choose GLTF/GLB File</label>
               <input
                 id="gltfFile"
                 type="file"
@@ -250,7 +250,7 @@
           <!-- URL input -->
           {#if selectedSource === 'url'}
             <div class="form-group">
-              <label for="gltfUrl">GLTF/GLB URL</label>
+              <label for="gltfUrl">Enter URL</label>
               <input
                 id="gltfUrl"
                 type="url"
