@@ -522,6 +522,30 @@
     cursor: default;
   }
 
+  @media (min-width: 768px) {
+    .online-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .online-loadmore,
+    .online-empty {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .online-panel {
+      max-width: 640px;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .online-panel {
+      max-width: 780px;
+    }
+  }
+
   @media (max-width: 768px) {
     .online-overlay {
       padding: 0;
