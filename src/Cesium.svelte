@@ -79,6 +79,7 @@
 	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
 	import { initPathDrawing, type PathDrawingHandle } from './utils/cesiumPathDrawing';
 	import { loadCityLabels } from './utils/cesiumCityLabels';
+	import SimulationControls from './components/SimulationControls.svelte';
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
@@ -415,6 +416,31 @@ function updateRoamingModel(modelData: ModelData) {
 	}
 }
 
+// ─── Herd Terrain Height Cache ───────────────────────────────
+const herdHeightCache = new Map<string, number>();
+let lastTerrainSampleTime = 0;
+const TERRAIN_SAMPLE_INTERVAL_MS = 250;
+
+async function sampleHerdHeights(
+  memberPositions: Array<{ key: string; lon: number; lat: number }>
+) {
+  if (!cesiumViewer || memberPositions.length === 0) return;
+  const now = performance.now();
+  if (now - lastTerrainSampleTime < TERRAIN_SAMPLE_INTERVAL_MS) return;
+  lastTerrainSampleTime = now;
+
+  const cartesians = memberPositions.map(p => Cartesian3.fromDegrees(p.lon, p.lat, 0));
+  try {
+    const clamped = await cesiumViewer.scene.clampToHeightMostDetailed(cartesians);
+    for (let i = 0; i < memberPositions.length; i++) {
+      if (clamped[i]) {
+        const carto = Cesium.Cartographic.fromCartesian(clamped[i]);
+        herdHeightCache.set(memberPositions[i].key, carto.height);
+      }
+    }
+  } catch { /* terrain not ready yet */ }
+}
+
 // ─── Simulation Engine Loop ──────────────────────────────────
 let simulationFrameId: number | null = null;
 
@@ -466,7 +492,7 @@ function animateSimulation() {
 			);
 		}
 
-		// Herd members: apply local offsets via ENU frame
+		// Herd members: apply local offsets via ENU frame + terrain clamping
 		if (update.herdMembers && update.herdMembers.length > 0) {
 			const canvasCartesian = Cartesian3.fromDegrees(
 				update.position.longitude,
@@ -475,6 +501,8 @@ function animateSimulation() {
 			);
 			const enu = Transforms.eastNorthUpToFixedFrame(canvasCartesian);
 			const canvasHeading = CesiumMath.toRadians(update.position.heading);
+
+			const sampleRequests: Array<{ key: string; lon: number; lat: number }> = [];
 
 			for (const member of update.herdMembers) {
 				const memberEntity = modelDataSource.entities.getById(`${update.modelId}_${member.memberId}`);
@@ -488,13 +516,29 @@ function animateSimulation() {
 				const offset = new Cartesian3(rx, ry, 0);
 				const worldPos = Cesium.Matrix4.multiplyByPoint(enu, offset, new Cartesian3());
 
-				memberEntity.position = worldPos;
+				const carto = Cesium.Cartographic.fromCartesian(worldPos);
+				const cacheKey = `${update.modelId}_${member.memberId}`;
+				const cachedH = herdHeightCache.get(cacheKey);
+				if (cachedH !== undefined) {
+					carto.height = cachedH;
+				}
+				const finalPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
+
+				sampleRequests.push({
+					key: cacheKey,
+					lon: CesiumMath.toDegrees(carto.longitude),
+					lat: CesiumMath.toDegrees(carto.latitude),
+				});
+
+				memberEntity.position = finalPos;
 				const memberHeading = canvasHeading + CesiumMath.toRadians(member.localHeading);
 				memberEntity.orientation = Transforms.headingPitchRollQuaternion(
-					worldPos,
+					finalPos,
 					new HeadingPitchRoll(memberHeading, 0, 0)
 				);
 			}
+
+			sampleHerdHeights(sampleRequests);
 		}
 	}
 
@@ -1125,7 +1169,7 @@ function handleCoordinatePick(result: any) {
   />
 {/if}
 
-
+<SimulationControls onStart={startSimulation} onStop={stopSimulation} />
 
 
 <style>

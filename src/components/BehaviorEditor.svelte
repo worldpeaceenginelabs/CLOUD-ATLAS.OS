@@ -2,10 +2,12 @@
   import { onMount, afterUpdate } from 'svelte';
   import type { Behavior, AreaBounds, LatLon } from '../types';
   import {
+    models,
     isRoamingAreaMode, roamingAreaBounds, roamingPaintSignal,
     roamingCancelSignal, roamingClearSignal,
     isPathDrawingMode, pathWaypoints, pathPaintSignal,
     pathCancelSignal, pathClearSignal,
+    editingModelId,
   } from '../store';
   import FormInput from './FormInput.svelte';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
@@ -38,6 +40,28 @@
   let herdMotionSpeedValue = '1.0';
   let herdCanvasType: 'roam' | 'path' = 'roam';
 
+  // Orbit state
+  let orbitTargetModelId = '';
+  let orbitRadius = 50;
+  let orbitRadiusValue = '50';
+  let orbitSpeed = 2;
+  let orbitSpeedValue = '2';
+  let orbitAxis: 'y' | 'x' | 'z' = 'y';
+
+  // Follow state
+  let followTargetModelId = '';
+  let followOffsetX = 0;
+  let followOffsetXValue = '0';
+  let followOffsetY = -10;
+  let followOffsetYValue = '-10';
+  let followOffsetZ = 0;
+  let followOffsetZValue = '0';
+  let followSpeed = 2;
+  let followSpeedValue = '2';
+
+  // Available target models (excluding current model being edited)
+  $: targetModels = $models.filter(m => m.id !== $editingModelId);
+
   // Roaming local state (for paint area UX)
   let isPaintingArea = false;
   let areaBounds: AreaBounds | null = null;
@@ -60,6 +84,23 @@
       pathSpeedValue = behavior.speed.toString();
       pathLoop = behavior.loop;
       pathClampToGround = behavior.clampToGround;
+    } else if (behavior.type === 'orbit') {
+      orbitTargetModelId = behavior.targetModelId;
+      orbitRadius = behavior.radius;
+      orbitRadiusValue = behavior.radius.toString();
+      orbitSpeed = behavior.speed;
+      orbitSpeedValue = behavior.speed.toString();
+      orbitAxis = behavior.axis;
+    } else if (behavior.type === 'follow') {
+      followTargetModelId = behavior.targetModelId;
+      followOffsetX = behavior.offset.x;
+      followOffsetXValue = behavior.offset.x.toString();
+      followOffsetY = behavior.offset.y;
+      followOffsetYValue = behavior.offset.y.toString();
+      followOffsetZ = behavior.offset.z;
+      followOffsetZValue = behavior.offset.z.toString();
+      followSpeed = behavior.speed;
+      followSpeedValue = behavior.speed.toString();
     } else if (behavior.type === 'herd') {
       herdCount = behavior.count;
       herdCountValue = behavior.count.toString();
@@ -78,6 +119,12 @@
   $: herdCount = parseInt(herdCountValue) || 10;
   $: herdMotionRadius = parseFloat(herdMotionRadiusValue) || 5;
   $: herdMotionSpeed = parseFloat(herdMotionSpeedValue) || 1.0;
+  $: orbitRadius = parseFloat(orbitRadiusValue) || 50;
+  $: orbitSpeed = parseFloat(orbitSpeedValue) || 2;
+  $: followOffsetX = parseFloat(followOffsetXValue) || 0;
+  $: followOffsetY = parseFloat(followOffsetYValue) || -10;
+  $: followOffsetZ = parseFloat(followOffsetZValue) || 0;
+  $: followSpeed = parseFloat(followSpeedValue) || 2;
 
   afterUpdate(() => {
     if (roamingSpeed !== lastPropSpeed) {
@@ -113,6 +160,23 @@
         speed: pathSpeed,
         loop: pathLoop,
         clampToGround: pathClampToGround,
+      };
+      isRoamingEnabled = false;
+    } else if (selectedType === 'orbit' && orbitTargetModelId) {
+      behavior = {
+        type: 'orbit',
+        targetModelId: orbitTargetModelId,
+        radius: orbitRadius,
+        speed: orbitSpeed,
+        axis: orbitAxis,
+      };
+      isRoamingEnabled = false;
+    } else if (selectedType === 'follow' && followTargetModelId) {
+      behavior = {
+        type: 'follow',
+        targetModelId: followTargetModelId,
+        offset: { x: followOffsetX, y: followOffsetY, z: followOffsetZ },
+        speed: followSpeed,
       };
       isRoamingEnabled = false;
     } else if (selectedType === 'herd') {
@@ -239,11 +303,16 @@
 </script>
 
 <div class="behavior-section">
-  <!-- Behavior type picker -->
+  <!-- Behavior type picker (row 1) -->
   <div class="type-picker">
     <button class="type-btn" class:active={selectedType === 'none'} on:click={() => selectType('none')}>None</button>
     <button class="type-btn" class:active={selectedType === 'roam'} on:click={() => selectType('roam')}>Roam</button>
     <button class="type-btn" class:active={selectedType === 'path'} on:click={() => selectType('path')}>Path</button>
+  </div>
+  <!-- Behavior type picker (row 2) -->
+  <div class="type-picker">
+    <button class="type-btn" class:active={selectedType === 'orbit'} on:click={() => selectType('orbit')}>Orbit</button>
+    <button class="type-btn" class:active={selectedType === 'follow'} on:click={() => selectType('follow')}>Follow</button>
     <button class="type-btn" class:active={selectedType === 'herd'} on:click={() => selectType('herd')}>Herd</button>
   </div>
 
@@ -317,6 +386,65 @@
         <input type="checkbox" bind:checked={pathClampToGround} />
         <span>Clamp to ground</span>
       </label>
+    </div>
+  {/if}
+
+  <!-- ═══ ORBIT ═══ -->
+  {#if selectedType === 'orbit'}
+    <div class="behavior-body">
+      <p class="behavior-hint">The model orbits around another model at a set radius and speed.</p>
+
+      <div class="form-group">
+        <div class="form-label" id="orbit-target-label">Target Model</div>
+        {#if targetModels.length === 0}
+          <div class="painting-hint">No other models on the map. Add a model first, then set this one to orbit it.</div>
+        {:else}
+          <select class="app-select" bind:value={orbitTargetModelId} aria-labelledby="orbit-target-label">
+            <option value="">Select a model…</option>
+            {#each targetModels as m}
+              <option value={m.id}>{m.name}</option>
+            {/each}
+          </select>
+        {/if}
+      </div>
+
+      <FormInput type="number" bind:value={orbitRadiusValue} label="Radius (m)" min="1" max="10000" step="1" />
+      <FormInput type="number" bind:value={orbitSpeedValue} label="Speed (m/s)" min="0.1" max="100" step="0.1" />
+
+      <div class="form-group">
+        <div class="form-label" id="orbit-axis-label">Orbit Axis</div>
+        <div class="type-picker compact" role="group" aria-labelledby="orbit-axis-label">
+          <button class="type-btn" class:active={orbitAxis === 'y'} on:click={() => orbitAxis = 'y'}>Y (up)</button>
+          <button class="type-btn" class:active={orbitAxis === 'x'} on:click={() => orbitAxis = 'x'}>X</button>
+          <button class="type-btn" class:active={orbitAxis === 'z'} on:click={() => orbitAxis = 'z'}>Z</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- ═══ FOLLOW ═══ -->
+  {#if selectedType === 'follow'}
+    <div class="behavior-body">
+      <p class="behavior-hint">The model follows another model at a fixed offset, smoothly catching up.</p>
+
+      <div class="form-group">
+        <div class="form-label" id="follow-target-label">Target Model</div>
+        {#if targetModels.length === 0}
+          <div class="painting-hint">No other models on the map. Add a model first, then set this one to follow it.</div>
+        {:else}
+          <select class="app-select" bind:value={followTargetModelId} aria-labelledby="follow-target-label">
+            <option value="">Select a model…</option>
+            {#each targetModels as m}
+              <option value={m.id}>{m.name}</option>
+            {/each}
+          </select>
+        {/if}
+      </div>
+
+      <FormInput type="number" bind:value={followOffsetXValue} label="Offset X (m)" min="-500" max="500" step="1" />
+      <FormInput type="number" bind:value={followOffsetYValue} label="Offset Y (m)" min="-500" max="500" step="1" />
+      <FormInput type="number" bind:value={followOffsetZValue} label="Offset Z (m)" min="-500" max="500" step="1" />
+      <FormInput type="number" bind:value={followSpeedValue} label="Speed (m/s)" min="0.1" max="100" step="0.1" />
     </div>
   {/if}
 
@@ -519,5 +647,31 @@
     color: rgba(255, 255, 255, 0.7);
     font-weight: 500;
     font-size: 0.82rem;
+  }
+
+  .app-select {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: white;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  .app-select:focus {
+    outline: none;
+    border-color: rgba(74, 222, 128, 0.5);
+  }
+  .app-select option {
+    background: #1a1a2e;
+    color: white;
   }
 </style>
