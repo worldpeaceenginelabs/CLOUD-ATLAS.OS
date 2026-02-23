@@ -106,6 +106,7 @@
     justify-content: center;
     border: none;
     border-radius: 8px;
+    padding: 0;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.15s ease;

@@ -461,13 +461,20 @@ function stopSimulation() {
 	}
 }
 
-// React to SimulationControls toggling the store directly
-$: if ($isSimulationRunning && !simulationFrameId && cesiumViewer) {
-	animateSimulation();
-}
-$: if (!$isSimulationRunning && simulationFrameId) {
-	cancelAnimationFrame(simulationFrameId);
-	simulationFrameId = null;
+// React to SimulationControls toggling the store from within the editor
+let simStoreUnsub: (() => void) | null = null;
+function initSimStoreWatch() {
+	if (simStoreUnsub) return;
+	simStoreUnsub = isSimulationRunning.subscribe(running => {
+		if (running && !simulationFrameId && cesiumViewer) {
+			simulationEngine.start();
+			animateSimulation();
+		} else if (!running && simulationFrameId) {
+			simulationEngine.pause();
+			cancelAnimationFrame(simulationFrameId);
+			simulationFrameId = null;
+		}
+	});
 }
 
 function animateSimulation() {
@@ -828,6 +835,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	// Initialization on mount
 	onMount(async () => {
+	initSimStoreWatch();
 	// Hydrate user Ion key from IDB, fall back to env default
 	try {
 		await idb.openDB();
@@ -1076,6 +1084,7 @@ function handleCoordinatePick(result: any) {
 
 	onDestroy(() => {
 		if (unsubFlyTo) unsubFlyTo();
+		if (simStoreUnsub) simStoreUnsub();
 
 		cameraMonitor?.cleanup();
 		userLocation?.cleanup();
