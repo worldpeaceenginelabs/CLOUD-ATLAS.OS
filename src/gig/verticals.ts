@@ -113,6 +113,8 @@ export interface ListingVerticalConfig extends BaseVerticalConfig {
   contactButtonLabel: string;
   /** Label for take-down button in ListingDetail */
   takeDownLabel: string;
+  /** Noun used in the Buckminster Fuller directive banner (governance verticals only) */
+  directiveNoun?: string;
 }
 
 export type VerticalConfig = MatchingVerticalConfig | ListingVerticalConfig;
@@ -283,6 +285,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     liveHint: 'Your brainstorm session will appear on the map for 14 days. People can join via the Zoom link. You can take it down anytime by tapping your marker on the map.',
     contactButtonLabel: 'Join Brainstorm',
     takeDownLabel: 'Take Down Brainstorm',
+    directiveNoun: 'solution',
   },
 
   meetanddo: {
@@ -307,6 +310,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     liveHint: 'Your mission will appear on the map for 14 days. People can join via Telegram. You can take it down anytime by tapping your marker on the map.',
     contactButtonLabel: 'Join Mission',
     takeDownLabel: 'Take Down Mission',
+    directiveNoun: 'meeting',
   },
 
   petition: {
@@ -331,6 +335,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     liveHint: 'Your petition will appear on the map for 14 days. People can sign it via the link. You can take it down anytime by tapping your marker on the map.',
     contactButtonLabel: 'Sign Petition',
     takeDownLabel: 'Take Down Petition',
+    directiveNoun: 'Petition',
   },
 
   crowdfunding: {
@@ -355,6 +360,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     liveHint: 'Your campaign will appear on the map for 14 days. People can donate via the link. You can take it down anytime by tapping your marker on the map.',
     contactButtonLabel: 'Donate',
     takeDownLabel: 'Take Down Campaign',
+    directiveNoun: 'Crowdfunding',
   },
 };
 

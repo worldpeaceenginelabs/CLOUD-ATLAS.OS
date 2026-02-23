@@ -136,6 +136,20 @@
     <h3 class="gig-form-title">{config.formTitle}</h3>
     <p class="gig-form-subtitle">{config.formSubtitle}</p>
 
+    {#if config.directiveNoun}
+      <div class="directive-banner">
+        <p class="directive-quote">
+          <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity,
+          in the shortest possible time, through spontaneous cooperation, without ecological
+          offense or the disadvantage of anyone." — Buckminster Fuller
+        </p>
+        <p class="directive-rule">
+          <strong>One Rule:</strong> If your {config.directiveNoun} does not meet this standard,
+          iterating a better one is mandatory.
+        </p>
+      </div>
+    {/if}
+
     <div class="gig-mode-selector">
       <button class="gig-mode-btn" class:active={mode === 'in-person'} on:click={() => mode = 'in-person'}>In-Person</button>
       <button class="gig-mode-btn" class:active={mode === 'online'} on:click={() => mode = 'online'}>Online</button>
@@ -268,6 +282,30 @@
   }
 
   .date-input { color-scheme: dark; }
+
+  .directive-banner {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-left: 3px solid rgba(255, 202, 40, 0.7);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 0.25rem 0;
+  }
+
+  .directive-quote {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.5;
+    margin: 0 0 0.5rem 0;
+    font-style: italic;
+  }
+
+  .directive-rule {
+    font-size: 0.82rem;
+    color: rgba(255, 202, 40, 0.9);
+    line-height: 1.4;
+    margin: 0;
+  }
 
   .live-success {
     display: flex;
