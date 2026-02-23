@@ -7,13 +7,16 @@
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
+  import OnlineTopBar from "./components/OnlineTopBar.svelte";
+  import OnlineListings from "./gig/OnlineListings.svelte";
   import { 
     showPicture,
     gridReady,
     isVisible,
     basemapProgress,
     tilesetProgress,
-    isInitialLoadComplete
+    isInitialLoadComplete,
+    onlinePanelOpen
   } from './store';
   import { modelEditorService } from './utils/modelEditorService';
 
@@ -73,6 +76,10 @@
       bind:this={layersMenuComponent} 
       onAddModel={handleAddModel}
     />
+    <OnlineTopBar />
+    {#if $onlinePanelOpen}
+      <OnlineListings />
+    {/if}
     <ModalManager />
   {/if}
 </div>

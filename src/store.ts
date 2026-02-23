@@ -94,3 +94,7 @@ export const activeMapLayers = resettable<Set<string>>(new Set());
 export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
 export const layerListings = resettable<Record<string, Listing[]>>({});
+
+// ─── Online Listings ─────────────────────────────────────────
+/** Whether the online listings panel is open */
+export const onlinePanelOpen = resettable(false);
