@@ -4,6 +4,8 @@
   import Roaming from './Roaming.svelte';
   import RoamingControls from './RoamingControls.svelte';
   import BehaviorEditor from './BehaviorEditor.svelte';
+  import SimulationControls from './SimulationControls.svelte';
+  import SceneSection from './SceneSection.svelte';
   import type { Behavior } from '../types';
 
   export let coordinates: { latitude: string; longitude: string; height: number };
@@ -37,7 +39,7 @@
   let fileInput: HTMLInputElement;
   let isDragOver = false;
 
-  type SectionId = 'source' | 'details' | 'transform' | 'roaming';
+  type SectionId = 'source' | 'details' | 'transform' | 'roaming' | 'scene';
   let openSection: SectionId = 'source';
 
   let copyButtonText = 'Copy';
@@ -148,6 +150,9 @@
   role="region"
   aria-label="Model settings"
 >
+  <!-- ═══ SIMULATION CONTROLS (inline) ═══ -->
+  <SimulationControls />
+
   <!-- ═══ SOURCE SECTION ═══ -->
   <button class="section-header" class:open={openSection === 'source'} on:click={() => toggleSection('source')}>
     <div class="section-left">
@@ -311,6 +316,22 @@
       {#if isRoamingEnabled}
         <RoamingControls />
       {/if}
+    </div>
+  {/if}
+
+  <!-- ═══ SCENE SECTION ═══ -->
+  <button class="section-header" class:open={openSection === 'scene'} on:click={() => toggleSection('scene')}>
+    <div class="section-left">
+      <svg class="section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Scene</span>
+    </div>
+    <div class="section-right">
+      <svg class="chevron" class:rotated={openSection === 'scene'} width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </button>
+  {#if openSection === 'scene'}
+    <div class="section-body">
+      <SceneSection />
     </div>
   {/if}
 </div>

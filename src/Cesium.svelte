@@ -79,7 +79,6 @@
 	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
 	import { initPathDrawing, type PathDrawingHandle } from './utils/cesiumPathDrawing';
 	import { loadCityLabels } from './utils/cesiumCityLabels';
-	import SimulationControls from './components/SimulationControls.svelte';
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
@@ -460,6 +459,15 @@ function stopSimulation() {
 		cancelAnimationFrame(simulationFrameId);
 		simulationFrameId = null;
 	}
+}
+
+// React to SimulationControls toggling the store directly
+$: if ($isSimulationRunning && !simulationFrameId && cesiumViewer) {
+	animateSimulation();
+}
+$: if (!$isSimulationRunning && simulationFrameId) {
+	cancelAnimationFrame(simulationFrameId);
+	simulationFrameId = null;
 }
 
 function animateSimulation() {
@@ -1169,7 +1177,6 @@ function handleCoordinatePick(result: any) {
   />
 {/if}
 
-<SimulationControls onStart={startSimulation} onStop={stopSimulation} />
 
 
 <style>
