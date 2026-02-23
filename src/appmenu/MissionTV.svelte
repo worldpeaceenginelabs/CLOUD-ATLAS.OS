@@ -14,7 +14,7 @@
       <h1>MissionTV</h1>
       <p class="coming-soon-text">Coming Soon</p>
       <p class="description">
-        Watch live missions, community projects, and collaborative efforts unfolding in real-time on the globe.<br>Broadcast them and get paid for the issues you love.
+        Stream your mission progress, earn tips, and inspire action. Transform social change into engaging entertainment where audiences don't just watch—they fund projects and contribute expertise through live video chat while you're in the field. Making impact visible, collaborative, and rewarding.<br><br>With Mission TV, we're creating a new kind of influencer — the Human 4.0 — a being evolving beyond ego and competition, striving to become the best version of themselves. We celebrate those who gain recognition not for attention, but for ascension — by doing good, inspiring others to do the same, and rising together toward their highest potential.
       </p>
     </div>
   </div>
