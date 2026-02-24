@@ -71,7 +71,7 @@
     <LocationPicker
       lat={destinationLat}
       lon={destinationLon}
-      label={config.mapPickLabel}
+      label={config.chosenLocationLabel}
       onLocationSelected={onDestinationSelected}
       onClear={onDestinationClear}
     />

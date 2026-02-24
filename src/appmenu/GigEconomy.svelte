@@ -322,7 +322,7 @@
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
-        text: matchingConfig.mapLabel,
+        text: 'Pickup',
         font: '12px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
@@ -348,6 +348,17 @@
           color: Cesium.Color.fromCssColorString(matchingConfig.mapDestColor),
           outlineColor: Cesium.Color.WHITE,
           outlineWidth: 1,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: 'Drop',
+          font: '12px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -16),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
@@ -417,14 +428,14 @@
     if (!matchingConfig) return;
 
     if (matchingConfig.hasDestination && (!destinationLat || !destinationLon)) {
-      showError(`Please pick a ${matchingConfig.mapPickLabel.toLowerCase()} on the map first.`);
+      showError('Pick a location on the map or search an address.');
       return;
     }
 
     const ctx = prepareService();
     if (!ctx) return;
 
-    const mapPickLocation = matchingConfig.hasDestination ? {
+    const chosenLocation = matchingConfig.hasDestination ? {
       latitude: parseFloat(destinationLat),
       longitude: parseFloat(destinationLon),
     } : undefined;
@@ -432,9 +443,9 @@
     const request: GigRequest = {
       id: crypto.randomUUID(),
       pubkey: service!.pubkey,
-      startLocation: matchingConfig.reverseLocations && mapPickLocation ? mapPickLocation : ctx.location,
+      startLocation: matchingConfig.pickupSource === 'chosen' && chosenLocation ? chosenLocation : ctx.location,
       destination: matchingConfig.hasDestination
-        ? (matchingConfig.reverseLocations ? ctx.location : mapPickLocation)
+        ? (matchingConfig.pickupSource === 'chosen' ? ctx.location : chosenLocation)
         : undefined,
       status: 'open',
       matchedProviderPubkey: null,

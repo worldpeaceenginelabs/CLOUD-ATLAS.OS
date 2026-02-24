@@ -42,15 +42,15 @@ export interface MatchingVerticalConfig extends BaseVerticalConfig {
   offerLabel: string;
   offerDesc: string;
 
-  // Whether the "need" form includes a map-pick for a second location
+  // Whether the need form includes a second location (chosen on map or by address)
   hasDestination: boolean;
 
-  // When true, the map-pick is the start (pickup) and GPS is the destination (dropoff)
-  reverseLocations: boolean;
+  // Which input is pickup: GPS or chosen location. The other is drop.
+  pickupSource: 'gps' | 'chosen';
 
   // Labels for the two location fields in the need form
   gpsLocationLabel: string;
-  mapPickLabel: string;
+  chosenLocationLabel: string;
 
   // Extra form fields beyond GPS location (+ optional destination)
   needFields: GigFormField[];
@@ -68,11 +68,11 @@ export interface MatchingVerticalConfig extends BaseVerticalConfig {
   // Match screen
   matchTitle: string;
   matchMessage: string;
+  matchMessageProvider: string;
 
   // Cesium map entity styles
   mapColor: string;
   mapDestColor: string;
-  mapLabel: string;
 }
 
 export interface ListingVerticalConfig extends BaseVerticalConfig {
@@ -172,9 +172,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     offerLabel: 'I offer Rides',
     offerDesc: 'Drive people in your area',
     hasDestination: true,
-    reverseLocations: false,
+    pickupSource: 'gps',
     gpsLocationLabel: 'Your Location',
-    mapPickLabel: 'Destination',
+    chosenLocationLabel: 'Destination',
     needFields: [],
     offerFields: [],
     requesterNoun: 'rider',
@@ -182,9 +182,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     requestNoun: 'ride',
     matchTitle: 'Ride Matched!',
     matchMessage: 'Your ride has been confirmed.',
+    matchMessageProvider: "You've been matched to a ride.",
     mapColor: '#4285F4',
     mapDestColor: '#34A853',
-    mapLabel: 'Ride',
   },
 
   delivery: {
@@ -197,9 +197,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     offerLabel: 'I deliver',
     offerDesc: 'Deliver items in your area',
     hasDestination: true,
-    reverseLocations: true,
+    pickupSource: 'chosen',
     gpsLocationLabel: 'Deliver to (Your Location)',
-    mapPickLabel: 'Pickup Location',
+    chosenLocationLabel: 'Pickup Location',
     needFields: [
       { key: 'item', label: 'Description', type: 'text', placeholder: 'What needs to be delivered?', required: true, maxLength: 500 },
     ],
@@ -215,9 +215,9 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     requestNoun: 'delivery',
     matchTitle: 'Delivery Matched!',
     matchMessage: 'A courier has been matched to your delivery.',
+    matchMessageProvider: "You've been matched to a delivery.",
     mapColor: '#FF6D00',
     mapDestColor: '#34A853',
-    mapLabel: 'Delivery',
   },
 
   helpouts: {
