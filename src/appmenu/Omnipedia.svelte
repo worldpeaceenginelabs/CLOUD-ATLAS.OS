@@ -19,7 +19,7 @@
       <p class="subtitle">The Virtual Encyclopedia</p>
       <p class="coming-soon-text">Coming Soon</p>
       <p class="description">
-        Over 6 Million Wikipedia articles sourced into immersive, animated 3D objects and scenes — geolocated on a global map and powered by BitTorrent. The more people explore, the smarter and faster it gets.
+        Over 6 Million Wikipedia articles sourced into immersive, animated 3D objects and scenes — geolocated on a global map and powered by Nostr and BitTorrent. The more people explore, the smarter and faster it gets.
       </p>
       <p class="description">
         Truth-checking happens by exploration: users naturally flag anomalies while navigating the world. Imagine spotting a green giraffe sipping coffee at Starbucks—an anomaly that hints at a factual error or absurdity in the source Wikipedia article, and automatically flags a correction request from the Cloud Atlas OS community to the Wikipedia community.

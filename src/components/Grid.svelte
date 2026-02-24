@@ -10,16 +10,16 @@
   let isGridReady = false;
   const messages = [
     "An independent, community-owned Google Earth, free from centralized servers and overpowered entities, owned solely by you and the public!",
-    "IT'S FREE! More users mean more app storage and computational power. No back-end needed! Syncs via public tracker networks. Now using BitTorrent, with Nostr as a fallback coming soon...",
+    "IT'S FREE! More users mean more app storage and computational power. No back-end needed! Syncs via public tracker networks. Now using Nostr and BitTorrent",
     "Decentralization places the globe within your grasp, ensuring your voice resonates daily, not merely at the ballot box every few years. It's about making your voice count every day, not just delegating it during elections.",
     "Pick what suits your flow: Unreal Engine 5, Unity 3D, HTML, CSS, JS, APIs (JAMstack), WASM or WebContainers.",
-    "Reach out to me and our community anytime on GitHub, Gitter.im, or during our upcoming weekly Zoom brainstorming sessions on YouTube.",
+    "Reach out to me and our community anytime on GitHub, Keet, or during our upcoming weekly Cloud Atlas OS Zoom brainstorming",
     "They always said it's impossible and then one came who didn't know that and just did<br> - Multiple Authors",
     "A function of civil society is to organize ourselves to collectively stand up to those who add to the suffering of others.<br> - Ira Chaleff",
-    "Get paid for the subject you love!<br> - Cloud Atlas",
+    "Get paid for the subject you love!<br> - Cloud Atlas OS",
     "Create and participate in missions addressing <strong>local and global</strong> issues. <strong>Brainstorm (Zoom.us)</strong> solutions, realize them with <strong>ActionEvents (Telegram)</strong>, enhance public spaces via <strong>Petition (change.org)</strong>, and turn your ideas into reality with <strong>Crowdfunding (gofundme.com).</strong>",
     "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone.<br> - B. Fuller",
-    "The Settings Icon (BOTTOM RIGHT) enables you to propose, create, and implement new applications, enhancements, and bug fixes directly - in Browser - all without the need for installing a coding environment. Contributions can be made effortlessly via a simple pull request.",
+    "The Live Edit in the Layers Menu enables you to propose, create, and implement new applications, enhancements, and bug fixes directly - in Browser - all without the need for installing a coding environment. Contributions can be made effortlessly via a simple pull request.",
     "You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.<br>- Buckminster Fuller",
   ];
   let fadeDuration = 5; // Duration in seconds
