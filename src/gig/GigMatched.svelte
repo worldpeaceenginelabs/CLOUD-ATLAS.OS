@@ -11,6 +11,20 @@
 
   $: hasContact = !!(providerDetails.phone || providerDetails.messenger);
   $: showContact = role === 'requester' && hasContact;
+
+  let copiedWhich: 'phone' | 'messenger' | null = null;
+
+  async function copyToClipboard(text: string, which: 'phone' | 'messenger') {
+    const value = String(text).trim();
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(which === 'phone' ? value.replace(/\s/g, '') : ensureProtocol(value));
+      copiedWhich = which;
+      setTimeout(() => { copiedWhich = null; }, 2000);
+    } catch {
+      copiedWhich = null;
+    }
+  }
 </script>
 
 <div class="matched" transition:slide={{ duration: 300 }}>
@@ -30,13 +44,19 @@
       {#if providerDetails.phone}
         <div class="contact-row">
           <span class="contact-label">Phone</span>
-          <a class="contact-value" href="tel:{providerDetails.phone.replace(/\s/g, '')}">{providerDetails.phone}</a>
+          <span class="contact-value">{String(providerDetails.phone)}</span>
+          <button type="button" class="copy-btn" on:click={() => copyToClipboard(providerDetails.phone ?? '', 'phone')}>
+            {copiedWhich === 'phone' ? 'Copied!' : 'Copy'}
+          </button>
         </div>
       {/if}
       {#if providerDetails.messenger}
         <div class="contact-row">
           <span class="contact-label">Messenger</span>
           <a class="contact-value link" href={ensureProtocol(providerDetails.messenger)} target="_blank" rel="noopener noreferrer">{providerDetails.messenger}</a>
+          <button type="button" class="copy-btn" on:click={() => copyToClipboard(providerDetails.messenger ?? '', 'messenger')}>
+            {copiedWhich === 'messenger' ? 'Copied!' : 'Copy'}
+          </button>
         </div>
       {/if}
     </div>
@@ -121,6 +141,27 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .copy-btn {
+    margin-left: auto;
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: inherit;
+  }
+
+  .copy-btn:hover {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
   .contact-label {
