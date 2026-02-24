@@ -1,24 +1,26 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
   import type { MatchingVerticalConfig } from './verticals';
-  import { ensureProtocol } from '../utils/urlUtils';
+  import { ensureProtocol, formatLatLon } from '../utils/urlUtils';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
 
   export let config: MatchingVerticalConfig;
   export let onDone: () => void;
   export let role: 'requester' | 'provider' | null = null;
   export let providerDetails: Record<string, string> = {};
+  export let pickup: { latitude: number; longitude: number } | null = null;
+  export let drop: { latitude: number; longitude: number } | null = null;
 
   $: hasContact = !!(providerDetails.phone || providerDetails.messenger);
   $: showContact = role === 'requester' && hasContact;
 
-  let copiedWhich: 'phone' | 'messenger' | null = null;
+  let copiedWhich: 'phone' | 'messenger' | 'pickup' | 'drop' | null = null;
 
-  async function copyToClipboard(text: string, which: 'phone' | 'messenger') {
+  async function copyToClipboard(text: string, which: 'phone' | 'messenger' | 'pickup' | 'drop') {
     const value = String(text).trim();
     if (!value) return;
     try {
-      await navigator.clipboard.writeText(which === 'phone' ? value.replace(/\s/g, '') : ensureProtocol(value));
+      await navigator.clipboard.writeText(which === 'phone' ? value.replace(/\s/g, '') : which === 'messenger' ? ensureProtocol(value) : value);
       copiedWhich = which;
       setTimeout(() => { copiedWhich = null; }, 2000);
     } catch {
@@ -56,6 +58,30 @@
           <a class="contact-value link" href={ensureProtocol(providerDetails.messenger)} target="_blank" rel="noopener noreferrer">{providerDetails.messenger}</a>
           <button type="button" class="copy-btn" on:click={() => copyToClipboard(providerDetails.messenger ?? '', 'messenger')}>
             {copiedWhich === 'messenger' ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {#if pickup || drop}
+    <div class="contact-card" style="--accent: {config.color}">
+      <span class="contact-heading">Locations</span>
+      {#if pickup}
+        <div class="contact-row">
+          <span class="contact-label">Pickup</span>
+          <span class="contact-value">{formatLatLon(pickup.latitude, pickup.longitude)}</span>
+          <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(pickup.latitude, pickup.longitude), 'pickup')}>
+            {copiedWhich === 'pickup' ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      {/if}
+      {#if drop}
+        <div class="contact-row">
+          <span class="contact-label">Drop</span>
+          <span class="contact-value">{formatLatLon(drop.latitude, drop.longitude)}</span>
+          <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(drop.latitude, drop.longitude), 'drop')}>
+            {copiedWhich === 'drop' ? 'Copied!' : 'Copy'}
           </button>
         </div>
       {/if}

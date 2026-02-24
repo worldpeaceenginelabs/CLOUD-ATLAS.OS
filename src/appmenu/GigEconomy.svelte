@@ -273,7 +273,7 @@
     }
 
     const wasShowing = matchedRequest?.id === requestId;
-    if (wasShowing) {
+    if (wasShowing && currentView !== 'matched') {
       matchedRequest = null;
       awaitingConfirmation = false;
     }
@@ -282,7 +282,7 @@
     removeGigEntitiesFromMap(requestId);
     nearbyCount = requestQueue.length;
 
-    if (wasShowing && requestQueue.length > 0) {
+    if (wasShowing && currentView !== 'matched' && requestQueue.length > 0) {
       matchedRequest = requestQueue[0];
     }
   }
@@ -649,7 +649,14 @@
 
   <!-- ═══════════════ MATCHED VIEW ═══════════════════ -->
   {:else if currentView === 'matched' && matchingConfig}
-    <GigMatched config={matchingConfig} onDone={finishAndReset} role={$userGigRole} providerDetails={matchedProviderDetails} />
+    <GigMatched
+      config={matchingConfig}
+      onDone={finishAndReset}
+      role={$userGigRole}
+      providerDetails={matchedProviderDetails}
+      pickup={$userGigRole === 'requester' ? myRequest?.startLocation ?? null : matchedRequest?.startLocation ?? null}
+      drop={$userGigRole === 'requester' ? myRequest?.destination ?? null : matchedRequest?.destination ?? null}
+    />
   {/if}
 </div>
 
