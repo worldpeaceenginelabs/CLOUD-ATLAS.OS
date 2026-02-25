@@ -33,7 +33,7 @@
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
 import type { GigRequest, GigVertical } from '../types';
-import { REQUEST_TTL_SECS, EXPAND_INTERVAL_SECS } from '../gig/constants';
+import { REQUEST_TTL_SECS, EXPAND_WHEN_EMPTY_SECS, EXPAND_WHEN_NO_MATCH_SECS } from '../gig/constants';
 import { cells3x3, cells4x4, cellsInG5 } from '../utils/geohash';
 
 // ─── Constants ────────────────────────────────────────────────
@@ -94,10 +94,12 @@ export class GigService {
   private expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private dmSubId: string | null = null;
 
-  // Expand subscription when 0 matches every EXPAND_INTERVAL_SECS (1 → 9 → 16 → 32 cells)
-  private expandTimer: ReturnType<typeof setTimeout> | null = null;
+  // Expand subscription based on visibility / match status (1 → 9 → 16 → 32 cells)
+  private expandEmptyTimer: ReturnType<typeof setTimeout> | null = null;
+  private expandNoMatchTimer: ReturnType<typeof setTimeout> | null = null;
   private expandLevel = 0; // 0=1 cell, 1=9, 2=16, 3=32 (G5)
   private sinceAtStart = 0;
+  private hasMatch = false;
 
   // Stored for heartbeat re-publish
   private myRequest: GigRequest | null = null;
@@ -127,6 +129,7 @@ export class GigService {
   startAsRequester(geohash: string, request: GigRequest): void {
     this.myRequest = request;
     this.myGeohash = geohash;
+    this.hasMatch = false;
 
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
@@ -145,6 +148,9 @@ export class GigService {
     this.dmSubId = this.nostr.subscribeDMs(REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
       const dm = payload as AcceptDM;
       if (dm?.type === 'accept' && dm.requestId === this.myRequest?.id) {
+        // A provider explicitly wants to match with us
+        this.hasMatch = true;
+        this.clearExpandTimers();
         this.callbacks.onProviderAccepted(fromPubkey, dm.requestId, dm.details);
       }
     });
@@ -161,7 +167,7 @@ export class GigService {
       since: this.sinceAtStart,
     }, (event: NostrEvent) => this.handleProviderAvailEvent(event));
 
-    this.scheduleExpandTimer();
+    this.scheduleExpandTimers();
     logger.info(`Requester started in cell ${geohash} [${this.needTag}]`, { component: 'GigService', operation: 'startAsRequester' });
   }
 
@@ -171,7 +177,7 @@ export class GigService {
    */
   confirmMatch(request: GigRequest, providerPubkey: string): void {
     this.clearHeartbeat();
-    this.clearExpandTimer();
+    this.clearExpandTimers();
 
     const updated: GigRequest = {
       ...request,
@@ -187,7 +193,7 @@ export class GigService {
   /** Requester cancels their request. Updates event status to 'cancelled'. */
   cancelRequest(request: GigRequest): void {
     this.clearHeartbeat();
-    this.clearExpandTimer();
+    this.clearExpandTimers();
 
     const updated: GigRequest = {
       ...request,
@@ -215,6 +221,7 @@ export class GigService {
     this.myGeohash = geohash;
     this.myProviderLocation = location;
     this.myProviderDetails = details;
+    this.hasMatch = false;
 
     this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
@@ -245,7 +252,7 @@ export class GigService {
       since: this.sinceAtStart,
     }, (event: NostrEvent) => this.handleRequestEvent(event));
 
-    this.scheduleExpandTimer();
+    this.scheduleExpandTimers();
     logger.info(`Provider started in cell ${geohash} [${this.offerTag}]`, { component: 'GigService', operation: 'startAsProvider' });
   }
 
@@ -317,31 +324,60 @@ export class GigService {
     }
   }
 
-  // ─── Expand subscription (0 matches → wider radius every EXPAND_INTERVAL_SECS) ───
+  // ─── Expand subscription ────────────────────────────────────
 
-  private scheduleExpandTimer(): void {
-    this.clearExpandTimer();
-    this.expandTimer = setTimeout(() => this.onExpandTick(), EXPAND_INTERVAL_SECS * 1000);
+  /** Start both expansion timers (empty-list and no-match). */
+  private scheduleExpandTimers(): void {
+    this.clearExpandTimers();
+    if (!this.myGeohash) return;
+
+    // After EXPAND_WHEN_EMPTY_SECS: expand if list is still empty.
+    this.expandEmptyTimer = setTimeout(() => {
+      this.handleExpandTrigger('empty');
+      // Re-schedule only if we can still expand and there is no match.
+      if (!this.hasMatch && this.expandLevel < 3) {
+        this.expandEmptyTimer = setTimeout(() => this.handleExpandTrigger('empty'), EXPAND_WHEN_EMPTY_SECS * 1000);
+      }
+    }, EXPAND_WHEN_EMPTY_SECS * 1000);
+
+    // After EXPAND_WHEN_NO_MATCH_SECS: expand when still no match.
+    this.expandNoMatchTimer = setTimeout(() => {
+      this.handleExpandTrigger('no-match');
+      if (!this.hasMatch && this.expandLevel < 3) {
+        this.expandNoMatchTimer = setTimeout(() => this.handleExpandTrigger('no-match'), EXPAND_WHEN_NO_MATCH_SECS * 1000);
+      }
+    }, EXPAND_WHEN_NO_MATCH_SECS * 1000);
   }
 
-  private clearExpandTimer(): void {
-    if (this.expandTimer) {
-      clearTimeout(this.expandTimer);
-      this.expandTimer = null;
+  /** Stop all expansion timers and reset expansion level. */
+  private clearExpandTimers(): void {
+    if (this.expandEmptyTimer) {
+      clearTimeout(this.expandEmptyTimer);
+      this.expandEmptyTimer = null;
+    }
+    if (this.expandNoMatchTimer) {
+      clearTimeout(this.expandNoMatchTimer);
+      this.expandNoMatchTimer = null;
     }
     this.expandLevel = 0;
   }
 
-  private onExpandTick(): void {
-    this.expandTimer = null;
+  /**
+   * Handle an expansion trigger:
+   * - reason 'empty': list still empty?
+   * - reason 'no-match': still no match?
+   */
+  private handleExpandTrigger(reason: 'empty' | 'no-match'): void {
     const geohash = this.myGeohash;
-    if (!geohash) return;
+    if (!geohash || this.expandLevel >= 3 || this.hasMatch) return;
 
     const asRequester = !!this.myRequest;
-    const hasMatch = asRequester ? this.knownProviders.size > 0 : this.knownRequests.size > 0;
-    if (hasMatch || this.expandLevel >= 3) {
-      this.clearExpandTimer();
-      return;
+
+    if (reason === 'empty') {
+      const isEmpty = asRequester ? this.knownProviders.size === 0 : this.knownRequests.size === 0;
+      if (!isEmpty) return;
+    } else {
+      if (this.hasMatch) return;
     }
 
     const nextLevel = this.expandLevel + 1;
@@ -367,11 +403,10 @@ export class GigService {
     }
 
     this.expandLevel = nextLevel;
-    logger.info(`Subscription expanded to ${cells.length} cells (level ${nextLevel})`, { component: 'GigService', operation: 'onExpandTick' });
-
-    if (nextLevel < 3) {
-      this.expandTimer = setTimeout(() => this.onExpandTick(), EXPAND_INTERVAL_SECS * 1000);
-    }
+    logger.info(
+      `Subscription expanded (${reason}) to ${cells.length} cells (level ${nextLevel})`,
+      { component: 'GigService', operation: 'handleExpandTrigger' },
+    );
   }
 
   /** Called when the event's TTL is below MIN_VIABLE_TTL_SECS or gone from relay. */
@@ -419,6 +454,11 @@ export class GigService {
 
       if (this.knownRequests.has(request.id)) {
         if (request.status === 'taken' || request.status === 'cancelled') {
+          // If we are the winner, that counts as a match (provider side)
+          if (request.status === 'taken' && request.matchedProviderPubkey === this.pubkey) {
+            this.hasMatch = true;
+            this.clearExpandTimers();
+          }
           this.knownRequests.delete(request.id);
           this.clearExpirationTimer(`req:${request.id}`);
           this.callbacks.onRequestGone(request.id, request.matchedProviderPubkey);
@@ -526,7 +566,7 @@ export class GigService {
    */
   stop(): void {
     this.clearHeartbeat();
-    this.clearExpandTimer();
+    this.clearExpandTimers();
 
     for (const timer of this.expirationTimers.values()) clearTimeout(timer);
     this.expirationTimers.clear();
