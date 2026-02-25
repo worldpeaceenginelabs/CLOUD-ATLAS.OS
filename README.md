@@ -66,15 +66,15 @@ proving that AGI doesn’t require trillion-dollar labs or massive data centers.
 
 This project is licensed under the **AGPL v3.0** (see https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS?tab=AGPL-3.0-1-ov-file).
 
-"Cloud Atlas OS" is a trademark of **Boris Kowalczuk**.  
+"Cloud Atlas OS" is a trademark of **World Peace Engine Labs**.  
 While the code is open source, the name and branding are protected.
 
 If you fork or derive from this project, you must:
 1. Use a different project name and branding  
-2. Clearly state: "Based on Cloud Atlas OS by Boris Kowalczuk"  
+2. Clearly state: "Based on Cloud Atlas OS by World Peace Engine Labs"  
 3. Link back to this original repository: https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS
 
-Cloud Atlas OS™ © Boris Kowalczuk. All rights reserved regarding trademarks.
+Cloud Atlas OS™ © World Peace Engine Labs. All rights reserved regarding trademarks.
 <br><br><br>
 
 # Core Components
