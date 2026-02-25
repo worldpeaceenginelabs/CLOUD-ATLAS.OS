@@ -10,7 +10,7 @@ But that's just the beginning.<br>
 
 Govern your city through **SWARM GOVERNANCE** — brainstorm, petition, crowdfund, and organize real change. Stream your impact live on **MissionTV** and get paid for the causes you love. Explore **OMNIPEDIA** — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the **HOLODECK** — no coding required.<br>
 
-Think Google Maps, Wikipedia, Twitch, Kickstarter, and an App Store — raised by the open-source community. 🔥<br>
+Think Google Maps, Wikipedia, Uber, DoorDash, UpWork, Fiverr, the whole gig economy, Twitch, Kickstarter, and an App Store with Genie 3 and spatial AGI — raised by the open-source community. 🔥 <br>
 
 Community-owned. Open-source. Yours. **Redefine the way we live together.**<br><br>
 
