@@ -22,7 +22,7 @@
 
       <div style="text-align:center;">
         <h2><strong>What if the world was run by You and Me?</strong></h2>
-        <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></p>
+        <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary<br><strong>Social Network application</strong></p>
 
         <iframe width="100%" height="480"
           src="https://www.youtube.com/embed/O6CHRdYSaH0"
@@ -82,11 +82,11 @@
           <strong>No need for back-end servers!</strong> Cloud Atlas syncs via public tracker networks using BitTorrent, with Nostr as a fallback coming soon. However, persistent storage and computational power (cloud/servers) can be simply added if needed.</p>
       </div>
 
-      <div class="center"><p><strong>What's stopping you from creating right now? Your imagination is the only limit.</strong></p>
+      <div class="center"><p><strong>What's stopping you from creating right now?<br>Your imagination is the only limit.</strong></p>
 
-        <a class="cta-link" target="_blank" href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS">Check out our GitHub</a><br>
+        <a class="cta-link" target="_blank" href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS">Check out our GitHub</a><br><br>
 
-        <p><strong>Want more apps? Reach out to me and our community anytime on GitHub, Element.io (DEVChat), or during our upcoming weekly Zoom brainstorming sessions on YouTube.</strong></p><br>
+        <p><strong>Want more apps? Reach out to me and our community anytime on GitHub, Keet Chat, or during our upcoming weekly Zoom brainstorming sessions on YouTube.</strong></p><br>
 
         <p><strong>Cloud Atlas, my passion project, intentionally remains non-profit and free forever. Why I Need Your Support? While Cloud Atlas is my passion, I also have to meet my day-to-day living expenses. Instead of requesting large sums of money to hire developers or to cover substantial project costs, I've decided to take a more sustainable and humble approach. I am seeking support to continue my journey as a digital nomad, which allows me to live and work full-time on Cloud Atlas with minimal expenses. With just €6,000 a year, I can live comfortably in Southeast Asia, dedicating all my time and energy to developing and growing Cloud Atlas. This amount covers my living costs and allows me to focus on what truly matters—building this platform for the benefit of all. Please consider supporting me by contributing to my Bitcoin address <a target="_blank" href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp">bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp</a> or via <a target="_blank" href="https://paypal.me/worldpeaceengine">PayPal Me</a>. Everything above €6,000 a year will flow directly into enhancing Cloud Atlas OS.</strong></p>
       </div>
