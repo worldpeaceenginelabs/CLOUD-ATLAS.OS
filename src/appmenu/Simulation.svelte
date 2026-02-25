@@ -15,7 +15,8 @@
       <p class="description">
         Connect 3D models into scenes. Build apps, games, and experiences from those scenes. Run simulations on a live global map. Visualize what does not fit into words.<br><br>
 OMNIPEDIA brings this to all of Wikipedia — 6 million articles, each translated into 3D objects, environments, and scenes on a shared spatial map.<br><br>
-Because every object follows the same logic, they recombine instantly. You stop building from scratch and start drawing from the full structure of human knowledge — no coding required.
+Because every object follows the same logic, they recombine instantly. You stop building from scratch and start drawing from the full structure of human knowledge — no coding required.<br><br>
+And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class spatial AGI emerges from it.
       </p>
     </div>
   </div>
