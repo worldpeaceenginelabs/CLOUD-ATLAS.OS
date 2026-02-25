@@ -36,9 +36,9 @@
 
       <p class="accent">But that's just the beginning.</p>
 
-      <p>Govern your city through <strong>SWARM GOVERNANCE</strong> — brainstorm, petition, crowdfund, and organize real change. Stream your impact live on <strong>MissionTV</strong> and get paid for the causes you love. Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK</strong> — no coding required.</p>
+      <p>Govern your city through <strong>SWARM GOVERNANCE</strong> — brainstorm, petition, crowdfund, and organize real change. Stream your impact live on <strong>MissionTV</strong> and get paid for the causes you love. Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK</strong> — no coding required. And as the community shapes Omnipedia and in turn the HOLODECK, a Genie 3 class spatial AGI emerges from it.</p>
 
-      <p>Think Google Maps, Wikipedia, Uber, DoorDash, UpWork, Fiverr, the whole gig economy, Twitch, Kickstarter, and an App Store with Genie 3 and spatial AGI — raised by the open-source community. 🔥</p>
+      <p>Think Google Maps, Wikipedia, Uber, DoorDash, UpWork, Fiverr, the whole gig economy, Twitch, Kickstarter, and an App Store with Genie 3 class spatial AGI — raised by the open-source community. 🔥</p>
 
       <p class="cta">Community-owned. Open-source. Yours.<br/>Redefine the way we live together.</p>
     </div>
