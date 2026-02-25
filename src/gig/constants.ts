@@ -10,3 +10,6 @@ export const GEOHASH_PRECISION_LISTING = 4;
 
 /** NIP-40 expiration: seconds from now until matching events expire on relays. */
 export const REQUEST_TTL_SECS = 60;
+
+/** Expand subscription radius after this many seconds when still 0 matches. */
+export const EXPAND_INTERVAL_SECS = 20;

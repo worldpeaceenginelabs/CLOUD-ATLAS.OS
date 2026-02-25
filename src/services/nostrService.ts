@@ -292,6 +292,23 @@ export class NostrService {
     }
   }
 
+  /**
+   * Update an existing subscription with a new filter (same id, same callbacks).
+   * Sends CLOSE then REQ with the new filter to all connected relays.
+   * Use for expanding radius (e.g. more #g cells) without tearing down the subscription.
+   */
+  updateSubscription(id: string, newFilter: object): void {
+    const sub = this.subscriptions.get(id);
+    if (!sub) return;
+    sub.filter = newFilter;
+    for (const ws of this.sockets.values()) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(['CLOSE', id]));
+        ws.send(JSON.stringify(['REQ', id, newFilter]));
+      }
+    }
+  }
+
   // ─── Encrypted DMs (NIP-44) ────────────────────────────────
 
   /**

@@ -33,7 +33,8 @@
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
 import type { GigRequest, GigVertical } from '../types';
-import { REQUEST_TTL_SECS } from '../gig/constants';
+import { REQUEST_TTL_SECS, EXPAND_INTERVAL_SECS } from '../gig/constants';
+import { cells3x3, cells4x4, cellsInG5 } from '../utils/geohash';
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -93,6 +94,11 @@ export class GigService {
   private expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private dmSubId: string | null = null;
 
+  // Expand subscription when 0 matches every EXPAND_INTERVAL_SECS (1 → 9 → 16 → 32 cells)
+  private expandTimer: ReturnType<typeof setTimeout> | null = null;
+  private expandLevel = 0; // 0=1 cell, 1=9, 2=16, 3=32 (G5)
+  private sinceAtStart = 0;
+
   // Stored for heartbeat re-publish
   private myRequest: GigRequest | null = null;
   private myGeohash: string | null = null;
@@ -143,15 +149,19 @@ export class GigService {
       }
     });
 
+    this.sinceAtStart = Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS;
+    this.expandLevel = 0;
+
     // Subscribe to provider availability events to show count
     this.nostr.subscribe('provider-avail', {
       kinds: [REPLACEABLE_KIND],
       '#g': [geohash],
       '#t': [this.offerTag],
       '#L': [RELAY_LABEL],
-      since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
+      since: this.sinceAtStart,
     }, (event: NostrEvent) => this.handleProviderAvailEvent(event));
 
+    this.scheduleExpandTimer();
     logger.info(`Requester started in cell ${geohash} [${this.needTag}]`, { component: 'GigService', operation: 'startAsRequester' });
   }
 
@@ -161,6 +171,7 @@ export class GigService {
    */
   confirmMatch(request: GigRequest, providerPubkey: string): void {
     this.clearHeartbeat();
+    this.clearExpandTimer();
 
     const updated: GigRequest = {
       ...request,
@@ -176,6 +187,7 @@ export class GigService {
   /** Requester cancels their request. Updates event status to 'cancelled'. */
   cancelRequest(request: GigRequest): void {
     this.clearHeartbeat();
+    this.clearExpandTimer();
 
     const updated: GigRequest = {
       ...request,
@@ -221,15 +233,19 @@ export class GigService {
       '#L': [RELAY_LABEL],
     }, (event: NostrEvent) => this.handleOwnEvent(event));
 
+    this.sinceAtStart = Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS;
+    this.expandLevel = 0;
+
     // Subscribe to requests in this cell
     this.nostr.subscribe('need-requests', {
       kinds: [REPLACEABLE_KIND],
       '#g': [geohash],
       '#t': [this.needTag],
       '#L': [RELAY_LABEL],
-      since: Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS,
+      since: this.sinceAtStart,
     }, (event: NostrEvent) => this.handleRequestEvent(event));
 
+    this.scheduleExpandTimer();
     logger.info(`Provider started in cell ${geohash} [${this.offerTag}]`, { component: 'GigService', operation: 'startAsProvider' });
   }
 
@@ -298,6 +314,63 @@ export class GigService {
     if (this.heartbeatTimer) {
       clearTimeout(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+  }
+
+  // ─── Expand subscription (0 matches → wider radius every EXPAND_INTERVAL_SECS) ───
+
+  private scheduleExpandTimer(): void {
+    this.clearExpandTimer();
+    this.expandTimer = setTimeout(() => this.onExpandTick(), EXPAND_INTERVAL_SECS * 1000);
+  }
+
+  private clearExpandTimer(): void {
+    if (this.expandTimer) {
+      clearTimeout(this.expandTimer);
+      this.expandTimer = null;
+    }
+    this.expandLevel = 0;
+  }
+
+  private onExpandTick(): void {
+    this.expandTimer = null;
+    const geohash = this.myGeohash;
+    if (!geohash) return;
+
+    const asRequester = !!this.myRequest;
+    const hasMatch = asRequester ? this.knownProviders.size > 0 : this.knownRequests.size > 0;
+    if (hasMatch || this.expandLevel >= 3) {
+      this.clearExpandTimer();
+      return;
+    }
+
+    const nextLevel = this.expandLevel + 1;
+    const cells = nextLevel === 1 ? cells3x3(geohash) : nextLevel === 2 ? cells4x4(geohash) : cellsInG5(geohash);
+    const base = {
+      kinds: [REPLACEABLE_KIND],
+      '#L': [RELAY_LABEL],
+      since: this.sinceAtStart,
+    };
+
+    if (asRequester) {
+      this.nostr.updateSubscription('provider-avail', {
+        ...base,
+        '#g': cells,
+        '#t': [this.offerTag],
+      });
+    } else {
+      this.nostr.updateSubscription('need-requests', {
+        ...base,
+        '#g': cells,
+        '#t': [this.needTag],
+      });
+    }
+
+    this.expandLevel = nextLevel;
+    logger.info(`Subscription expanded to ${cells.length} cells (level ${nextLevel})`, { component: 'GigService', operation: 'onExpandTick' });
+
+    if (nextLevel < 3) {
+      this.expandTimer = setTimeout(() => this.onExpandTick(), EXPAND_INTERVAL_SECS * 1000);
     }
   }
 
@@ -453,6 +526,7 @@ export class GigService {
    */
   stop(): void {
     this.clearHeartbeat();
+    this.clearExpandTimer();
 
     for (const timer of this.expirationTimers.values()) clearTimeout(timer);
     this.expirationTimers.clear();
