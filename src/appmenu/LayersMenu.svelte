@@ -387,7 +387,7 @@
             <path d="M3.27 6.96L12 12.01l8.73-5.05" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
-          <span class="item-text">Holodeck</span>
+          <span class="item-text">Holodeck Editor</span>
           <button 
             class="info-icon" 
             class:active={showInfoPanel && hoveredItem === 'model'}

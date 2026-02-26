@@ -127,7 +127,7 @@
     <button class="header-btn close" on:click={handleCancel} aria-label="Close editor">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
-    <h2 class="panel-title">{isEditMode ? 'HOLODECK' : 'HOLODECK'}</h2>
+    <h2 class="panel-title">{isEditMode ? 'HOLODECK EDITOR' : 'HOLODECK EDITOR'}</h2>
     <button class="header-btn save" on:click={handleSave}>
       {isEditMode ? 'Save' : 'Add'}
     </button>
