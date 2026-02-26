@@ -67,6 +67,7 @@
   {#if pickup || drop}
     <div class="contact-card" style="--accent: {config.color}">
       <span class="contact-heading">Locations</span>
+      <p class="coordinates-hint">Use these coordinates in your favorite maps app for a precise meeting point.</p>
       {#if pickup}
         <div class="contact-row">
           <span class="contact-label">Pickup</span>
@@ -161,6 +162,13 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.6);
+  }
+
+  .coordinates-hint {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.4;
   }
 
   .contact-row {
