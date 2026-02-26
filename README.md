@@ -8,7 +8,7 @@ Cloud Atlas OS is a community-owned super-app where the entire gig economy lives
 
 But that's just the beginning.<br>
 
-Govern your city through **SWARM GOVERNANCE** — brainstorm, petition, crowdfund, and organize real change. Stream your impact live on **MissionTV** and get paid for the causes you love. Explore **OMNIPEDIA** — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the **HOLODECK** — no coding required.<br>
+Govern your city through **SWARM GOVERNANCE** — brainstorm, petition, crowdfund, and organize real change. Stream your impact live on **MissionTV** and get paid for the causes you love — launching as our first communities organize. Explore **OMNIPEDIA** — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the **HOLODECK** — no coding required.<br>
 And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class spatial AGI emerges from it.<br>
 
 Think Google Maps, Wikipedia, Uber, DoorDash, UpWork, Fiverr, the whole gig economy, Twitch, Kickstarter, and an App Store with Genie 3 class spatial AGI — raised by the open-source community. 🔥 <br>
