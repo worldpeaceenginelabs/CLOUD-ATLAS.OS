@@ -326,21 +326,25 @@ export class GigService {
 
   // ─── Expand subscription ────────────────────────────────────
 
-  /** Start both expansion timers (empty-list and no-match). */
+  /** Start or restart both expansion timers (empty in 15s, no-match in 30s). Does not reset expandLevel. */
   private scheduleExpandTimers(): void {
-    this.clearExpandTimers();
+    if (this.expandEmptyTimer) {
+      clearTimeout(this.expandEmptyTimer);
+      this.expandEmptyTimer = null;
+    }
+    if (this.expandNoMatchTimer) {
+      clearTimeout(this.expandNoMatchTimer);
+      this.expandNoMatchTimer = null;
+    }
     if (!this.myGeohash) return;
 
-    // After EXPAND_WHEN_EMPTY_SECS: expand if list is still empty.
     this.expandEmptyTimer = setTimeout(() => {
       this.handleExpandTrigger('empty');
-      // Re-schedule only if we can still expand and there is no match.
       if (!this.hasMatch && this.expandLevel < 3) {
         this.expandEmptyTimer = setTimeout(() => this.handleExpandTrigger('empty'), EXPAND_WHEN_EMPTY_SECS * 1000);
       }
     }, EXPAND_WHEN_EMPTY_SECS * 1000);
 
-    // After EXPAND_WHEN_NO_MATCH_SECS: expand when still no match.
     this.expandNoMatchTimer = setTimeout(() => {
       this.handleExpandTrigger('no-match');
       if (!this.hasMatch && this.expandLevel < 3) {
@@ -407,6 +411,7 @@ export class GigService {
       `Subscription expanded (${reason}) to ${cells.length} cells (level ${nextLevel})`,
       { component: 'GigService', operation: 'handleExpandTrigger' },
     );
+    if (nextLevel < 3) this.scheduleExpandTimers();
   }
 
   /** Called when the event's TTL is below MIN_VIABLE_TTL_SECS or gone from relay. */
