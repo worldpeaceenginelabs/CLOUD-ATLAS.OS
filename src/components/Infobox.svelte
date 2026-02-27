@@ -109,27 +109,6 @@
         Community-owned. Open-source. Yours.<br/>
         Redefine the way we live together.
       </div>
-
-      <div class="bottom-icons">
-        <a href="https://worldpeaceenginelabs.org/" target="_blank">
-          <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
-        </a>
-        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" target="_blank">
-          <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
-        </a>
-        <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyspuj43rxynu6yk68759erbex9txpag8fbwrobgrjkwwz5tz8dpyabr8yoq7paqw4ryi9a5973qmu5qz458iitgce3mxwekm9rpa6smoyedsyrto9tmowno15sqjmbd7wsgqq4jy" target="_blank">
-          <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on Keet" height="30" width="30">
-        </a>
-        <a href="https://twitter.com/cloudatlasos" target="_blank">
-          <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
-        </a>
-        <a href="https://www.youtube.com/@cloudatlasos" target="_blank">
-          <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
-        </a>
-        <a href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp" target="_blank">
-          <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
-        </a>
-      </div>
     </div>
   </div>
 {/if}
@@ -252,30 +231,6 @@
 
   .center {
     text-align: center;
-  }
-
-  .bottom-icons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 5px;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 215, 0, 0.15);
-  }
-
-  .bottomicon {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(10px);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 2.5px;
-    transition: all 0.2s ease;
-  }
-
-  .bottomicon:hover {
-    background: rgba(255, 215, 0, 0.2);
   }
 
   a {

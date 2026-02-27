@@ -294,10 +294,11 @@
   </button>
 
   {#if isDropdownVisible}
-    <div class="layermenu-container" transition:slide={{ duration: 500, axis: 'y' }}>
+    <div class="layermenu-container">
+      <div class="layermenu-inner" transition:slide={{ duration: 500, axis: 'y' }}>
 
-      <!-- ═══ LAYERS ═══════════════════════════════════════ -->
-      <div class="dropdown-menu">
+        <!-- ═══ LAYERS ═══════════════════════════════════════ -->
+        <div class="dropdown-menu">
         <div class="section-label">Layers</div>
 
         <!-- Map sub-header -->
@@ -452,37 +453,59 @@
         {#if layerError}
           <div class="layer-error">{layerError}</div>
         {/if}
-      </div>
-
-      <!-- Bottom section: Utility -->
-      <div class="utility-menu">
-        <div 
-          class="dropdown-item"
-          role="button"
-          tabindex="0"
-          on:click={toggleAbout}
-          on:keydown={(e) => e.key === 'Enter' && toggleAbout()}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <span class="item-text">About</span>
         </div>
 
-        <div 
-          class="dropdown-item"
-          role="button"
-          tabindex="0"
-          on:click={openLiveEdit}
-          on:keydown={(e) => e.key === 'Enter' && openLiveEdit()}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="item-text">Live Edit</span>
+        <!-- Bottom section: Utility -->
+        <div class="utility-menu">
+          <div 
+            class="dropdown-item"
+            role="button"
+            tabindex="0"
+            on:click={toggleAbout}
+            on:keydown={(e) => e.key === 'Enter' && toggleAbout()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span class="item-text">About</span>
+          </div>
+
+          <div 
+            class="dropdown-item"
+            role="button"
+            tabindex="0"
+            on:click={openLiveEdit}
+            on:keydown={(e) => e.key === 'Enter' && openLiveEdit()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="item-text">Live Edit</span>
+          </div>
+
+          <div class="utility-links">
+            <a href="https://worldpeaceenginelabs.org/" target="_blank" rel="noopener">
+              <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
+            </a>
+            <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" target="_blank" rel="noopener">
+              <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
+            </a>
+            <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyspuj43rxynu6yk68759erbex9txpag8fbwrobgrjkwwz5tz8dpyabr8yoq7paqw4ryi9a5973qmu5qz458iitgce3mxwekm9rpa6smoyedsyrto9tmowno15sqjmbd7wsgqq4jy" target="_blank" rel="noopener">
+              <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on Keet" height="30" width="30">
+            </a>
+            <a href="https://twitter.com/cloudatlasos" target="_blank" rel="noopener">
+              <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
+            </a>
+            <a href="https://www.youtube.com/@cloudatlasos" target="_blank" rel="noopener">
+              <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
+            </a>
+            <a href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp" target="_blank" rel="noopener">
+              <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -576,6 +599,13 @@
     gap: 8px;
     z-index: 60;
     max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+
+  .layermenu-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .dropdown-menu {
@@ -585,9 +615,6 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     min-width: 250px;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
   }
 
   .dropdown-item {
@@ -881,6 +908,33 @@
     border-radius: 12px;
     overflow: hidden;
     min-width: 250px;
+  }
+
+  .utility-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .utility-links a {
+    display: inline-flex;
+  }
+
+  .utility-links .bottomicon {
+    width: 22px;
+    height: 22px;
+    padding: 2px;
+    border-radius: 8px;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.15);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .utility-links .bottomicon:hover {
+    transform: translateY(-1px) scale(1.05);
+    background: rgba(255, 215, 0, 0.2);
   }
 
   .info-panel {
