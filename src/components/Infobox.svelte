@@ -91,7 +91,7 @@
           Think owning collectively Google Maps, Wikipedia, Amazon, Airbnb, Couchsurfing, Uber, DoorDash, UpWork, Fiverr, Spontacts, the whole gig, meet, and marketplace economy, Twitch, Kickstarter, and an App & Game Store with Genie 3 class worldmodel with spatial AGI — raised by the open-source community. 🔥
 
         </p>
-        <p class="ps">P.S. In case it didn't sink in — you just became a co-owner of a Decentralized Autonomous Organization. No CEO. No board. No headquarters. Just people, running it together, for themselves. Every ride, every delivery, every job, every sale on this platform? Yours. Not a CEO's. Not a shareholder's. Yours. Spread the word. It's your business now.</p>
+        <p class="ps">P.S. In case it didn't sink in — you just became a co-owner of a Decentralized Autonomous Organization. No crypto. No CEO. No board. No headquarters. Just people, running it together, for themselves. Every ride, every delivery, every job, every sale on this platform? Yours. Not a CEO's. Not a shareholder's. Yours. Spread the word. It's your business now.</p>
         <p>
           <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br><br>
           

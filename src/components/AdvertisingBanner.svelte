@@ -46,7 +46,7 @@
 
       <p class="cta">Community-owned. Open-source. Yours.<br/>Redefine the way we live together.</p>
 
-      <p class="ps">P.S. In case it didn't sink in — you just became a co-owner of a Decentralized Autonomous Organization. No CEO. No board. No headquarters. Just people, running it together, for themselves. Every ride, every delivery, every job, every sale on this platform? Yours. Not a CEO's. Not a shareholder's. Yours. Spread the word. It's your business now.</p>
+      <p class="ps">P.S. In case it didn't sink in — you just became a co-owner of a Decentralized Autonomous Organization. No crypto. No CEO. No board. No headquarters. Just people, running it together, for themselves. Every ride, every delivery, every job, every sale on this platform? Yours. Not a CEO's. Not a shareholder's. Yours. Spread the word. It's your business now.</p>
     </div>
   </div>
 {/if}
