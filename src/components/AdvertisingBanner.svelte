@@ -36,9 +36,13 @@
 
       <p class="accent">But that's just the beginning.</p>
 
-      <p>Govern your city through <strong>SWARM GOVERNANCE</strong> — brainstorm, petition, crowdfund, and organize real change. Stream your impact live on <strong>MissionTV</strong> and get paid for the causes you love — launching as our first communities organize. Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK</strong> — no coding required. And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class spatial AGI emerges from it.</p>
+      <p>Govern your city through <strong>SWARM GOVERNANCE</strong> —  live brainstorming sessions, Telegram groups with up to 20,000 live positions in the field, Change.org petitions, GoFundMe crowdfunding, and real change — organized by you.<br><br>
+        
+        Stream your impact live on <strong>MissionTV</strong> and get paid for the causes you love — launching as our first communities organize.<br><br>
+        
+        Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK</strong> — no coding required. And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class worldmodel with spatial AGI emerges from it.</p>
 
-      <p>Think Google Maps, Wikipedia, Uber, DoorDash, UpWork, Fiverr, the whole gig economy, Twitch, Kickstarter, and an App Store with Genie 3 class spatial AGI — raised by the open-source community. 🔥</p>
+      <p>Think owning collectively Google Maps, Wikipedia, Amazon, Airbnb, Couchsurfing, Uber, DoorDash, UpWork, Fiverr, Spontacts, the whole gig, meet, and marketplace economy, Twitch, Kickstarter, and an App & Game Store with Genie 3 class worldmodel with spatial AGI — raised by the open-source community. 🔥</p>
 
       <p class="cta">Community-owned. Open-source. Yours.<br/>Redefine the way we live together.</p>
     </div>
