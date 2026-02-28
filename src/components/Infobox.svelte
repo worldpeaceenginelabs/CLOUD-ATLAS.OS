@@ -17,11 +17,11 @@
   <div class="main_div" transition:fade={{ duration: 300 }}>
     <CloseButton onClose={toggleInfobox} top="14px" right="16px" />
     <div class="textbox">
-      <p class="headline">Cloud Atlas OS</p>
+      <p class="headline">What if the world was run by You and Me?</p>
       <p class="tagline">Science fiction meets the real world.</p>
 
       <div style="text-align:center;">
-        <h2><strong>What if the world was run by You and Me?</strong></h2>
+      
         <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary<br><strong>Social Network application</strong></p>
 
         <iframe width="100%" height="480"
@@ -44,29 +44,61 @@
 
       <div style="text-align:justify;">
         <p>
-          <strong>What is Cloud Atlas OS?</strong><br>
-          <strong>Cloud Atlas OS</strong> is a <strong>real-world platform owned by the community</strong> — like a mix of <strong>Google Earth</strong>, <strong>Wikipedia (coming soon)</strong>, and an <strong>App Store (coming soon)</strong> — but without big companies or central servers in control.<br>
-          It runs on a <strong>network of people's devices</strong>, so it's <strong>scalable</strong>, <strong>doesn't need servers</strong>, and is <strong>free to use</strong>.<br>
-          It's fully owned by <strong>you and everyone</strong>, working as a <strong>Global Public Collective Computer</strong> — a worldwide system owned by everyone, powered by everyone, where data, apps, and smart tools are spread around the world instead of being locked in company systems.
-          <br><br>
-          The name <strong>Cloud Atlas</strong> reflects its vision: a living, global 'atlas' of everything happening on Earth — powered by a decentralized, human-powered 'cloud' of people, devices, and places. It's not just a platform — it's the foundation of a new, open internet.
-          <br><br>
+          <strong>Why?</strong><br><br>
 
-          <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br>
-          <strong>Where Your Vision Meets Collective Action...</strong><br>
-          The <strong>Home Screen</strong> is a social network for crowdengineering good deeds where you can actively create and participate in missions addressing <strong>local and global</strong> issues. It offers a space to <strong>brainstorm (zoom.us)</strong> solutions,  with people from all walks of life, realize your solutions through collaborations or sheer manpower with <strong>in-person ActionEvents (Telegram's live location lets up to 200,000 users coordinate in real time on a single map)</strong>, secure eventually necessary permissions to enhance public spaces via <strong>Petition (change.org)</strong>, and turn your visionary ideas into reality with the power of <strong>Crowdfunding (gofundme.com).</strong><br><br><br>
+          Something has always felt wrong.<br><br>
+
+          You work hard. You do the right things. And somehow, at the end of the month, there's never quite enough. Meanwhile the platforms take their cut, the landlords raise the rent, the corporations write off their taxes, and the gap just keeps growing.<br><br>
+
+          You're not lazy. You're not failing. The game was just never designed for you to win.<br><br>
+
+          Buckminster Fuller saw this coming. Decades ago he asked one question — how do we make the world work for everyone? Not some people. Everyone. He called it the World Peace Game.<br><br>
+
+          Not peace as in no war. Peace as in no one left behind.<br><br>
+
+          Cloud Atlas is that game. Running. Right now. On your phone.<br><br>
+
+          It's an app where you keep 100% of what you earn. Where your phone is the server and no company sits between you and your money. Where you find the right people, in the right place, who care about exactly what you care about.<br><br>
+
+          Work, travel, organize, build, connect — all of it. Community owned. Zero commissions. No catch.<br><br>
+
+          And the first thing it tells you when you open it —<br><br>
+
+          <span class="accent">Enter the World Peace Game.</span><br><br>
+
+          Because that's what this is. Not an app launch. Not a startup. A different way of doing this. For everyone. Finally.<br><br>
+
+          Cloud Atlas OS is that game. On your phone. Right now.
+        </p>
+      </div>
+
+      <br><br>
+
+      <div style="text-align:justify;">
+        <p>
+          <strong>What is Cloud Atlas OS?</strong><br><br>
+
+          Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof — ridesharing, delivery, freelance, spontaneous connections — with zero commissions. <strong>Keep 100% of what you earn.</strong> We'll teach you how to keep it, legally.<br><br>
+
+          <span class="accent">But that's just the beginning.</span><br><br>
+
+          Govern your city through <strong>SWARM GOVERNANCE</strong> — live brainstorming sessions, Telegram groups with up to 20,000 live positions in the field, Change.org petitions, GoFundMe crowdfunding, and real change — organized by you.<br><br>
+
+          Stream your impact live on <strong>MissionTV</strong> and get paid for the causes you love — launching as our first communities organize.<br><br>
+
+          Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK</strong> — no coding required. And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class worldmodel with spatial AGI emerges from it.<br><br>
+
+          Think owning collectively Google Maps, Wikipedia, Amazon, Airbnb, Couchsurfing, Uber, DoorDash, UpWork, Fiverr, Spontacts, the whole gig, meet, and marketplace economy, Twitch, Kickstarter, and an App & Game Store with Genie 3 class worldmodel with spatial AGI — raised by the open-source community. 🔥<br><br>
+
+          <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br><br>
+          
         </p>
       </div>
 
       <div style="text-align: center;"><strong>FOR DEVELOPERS</strong></div><br>
 
       <div style="text-align:justify;">
-        <p><strong>For new apps built specifically for Cloud Atlas OS</strong>, you can focus entirely on the front-end, with the back-end taken care of for you. The only consideration is the structure of your database. It's as simple as building your app and letting Cloud Atlas OS handle the rest.<br><br> <strong>For existing apps, transitioning to Cloud Atlas OS is just as easy.</strong> You'll only need to replace your back-end driver with ours—typically just three lines of code—allowing your app to integrate seamlessly into the decentralized network without major changes.<br><br>
-          <strong>Your creations will never be limited to just one environment again...</strong><br>
-          The <strong>Dapp Store</strong> is a dedicated space designed to prominently feature your digital creations, each uniquely associated with coordinates on the map—where every coordinate tells a story: <strong>posts, profiles, links, API, streams, live-stream, apps, games (including your Steam, Epic,... games), your non-profit business, your for-profit business</strong> - you name it - Literally! For mobile, desktop, AR, and VR out of the box!<br><br>
-
-          <strong>In-Browser Development:</strong> The <strong>Stackblitz IDE</strong> is seamlessly integrated (settings icon bottom-right), enabling you to propose, create, and implement new applications, enhancements, and bug fixes directly - <strong>in Browser</strong> — all without the need for installing a coding environment. Contributions are easy via a simple pull request. (For developers and non-technicians: <a target="_blank" href="https://githubnext.com/projects/copilot-workspace">GitHub Copilot Workspace coming - "If you can describe it, you can code it"</a>)<br><br>
-
+        <p>
           <strong>Don't get hung up on the tools:</strong><br>
           Pick what suits your flow. Elevate your concepts using:</p>
           <ul>
@@ -76,19 +108,8 @@
             <li><strong>WASM</strong> (C, C++, C#, and Rust, but for the Web)</li>
             <li><strong>WebContainers</strong> (Node.js in the browser)</li>
           </ul>
-          <p>Then continue with <strong>Stackblitz IDE Integration</strong> (Live Edit).</p>
 
-          <p><strong>It's free and scales 99% autonomously!</strong> More users mean more app storage and computational power.
-          <strong>No need for back-end servers!</strong> Cloud Atlas syncs via public tracker networks using BitTorrent, with Nostr as a fallback coming soon. However, persistent storage and computational power (cloud/servers) can be simply added if needed.</p>
-      </div>
-
-      <div class="center"><p><strong>What's stopping you from creating right now?<br>Your imagination is the only limit.</strong></p>
-
-        <a class="cta-link" target="_blank" href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS">Check out our GitHub</a><br><br>
-
-        <p><strong>Want more apps? Reach out to me and our community anytime on GitHub, Keet Chat, or during our upcoming weekly Zoom brainstorming sessions on YouTube.</strong></p><br>
-
-        <p><strong>Cloud Atlas, my passion project, intentionally remains non-profit and free forever. Why I Need Your Support? While Cloud Atlas is my passion, I also have to meet my day-to-day living expenses. Instead of requesting large sums of money to hire developers or to cover substantial project costs, I've decided to take a more sustainable and humble approach. I am seeking support to continue my journey as a digital nomad, which allows me to live and work full-time on Cloud Atlas with minimal expenses. With just €6,000 a year, I can live comfortably in Southeast Asia, dedicating all my time and energy to developing and growing Cloud Atlas. This amount covers my living costs and allows me to focus on what truly matters—building this platform for the benefit of all. Please consider supporting me by contributing to my Bitcoin address <a target="_blank" href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp">bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp</a> or via <a target="_blank" href="https://paypal.me/worldpeaceengine">PayPal Me</a>. Everything above €6,000 a year will flow directly into enhancing Cloud Atlas OS.</strong></p>
+          
       </div>
 
       <br><br>
@@ -102,6 +123,14 @@
           3. If a member seeks help, we champion a culture where everyone pitches in to assist.<br><br>
           4. Together, we'll create a space that's collaborative, respectful, and leaderless. Thank you for contributing to our collective journey.<br><br>
           5. This introduction reinforces the idea that even those who help ensure the meeting runs smoothly are not taking on a leadership role, but rather contributing to the group's collective operation.
+        </p>
+      </div>
+      <br><br>
+      <div style="text-align:justify;">
+        <p>
+          <strong>Support the Mission</strong><br><br>
+          Cloud Atlas is intentionally non-profit and free forever. One person building it, living as a digital nomad in Southeast Asia on €6,000 a year — so every hour goes into this, not overhead.<br><br>
+          If this resonates, consider supporting via Bitcoin. Everything above €6,000 goes directly into Cloud Atlas OS.
         </p>
       </div>
 
@@ -213,37 +242,8 @@
     line-height: 1.5;
   }
 
-  .cta-link {
-    display: inline-block;
-    background: rgba(255, 215, 0, 0.12);
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    border-radius: 10px;
-    padding: 8px 20px;
-    color: #FFD700;
-    font-weight: 700;
-    transition: all 0.2s ease;
-  }
-
-  .cta-link:hover {
-    background: rgba(255, 215, 0, 0.22);
-    color: #FFD700;
-  }
-
   .center {
     text-align: center;
-  }
-
-  a {
-    color: rgba(255, 215, 0, 0.85);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  a:visited { text-decoration: none; color: rgba(255, 215, 0, 0.85); }
-  a:active { text-decoration: none; color: rgba(255, 215, 0, 0.85); }
-
-  a:hover {
-    color: #FFD700;
   }
 
   .textbox ul {
