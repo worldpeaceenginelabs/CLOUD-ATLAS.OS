@@ -22,7 +22,7 @@
 
       <div style="text-align:center;">
       
-        <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary<br><strong>Social Network application</strong></p>
+        <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary<strong>Social Network application</strong></p>
 
         <iframe width="100%" height="480"
           src="https://www.youtube.com/embed/O6CHRdYSaH0"
@@ -37,39 +37,7 @@
         <p class="accent">Turning ideas into action just got easier.</p>
         <p class="accent">Small changes that change everything. One at a time.</p>
         <img src="butterfly.gif" width="200" height="200" alt="Butterfly" />
-        <p><strong>"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." Buckminster Fuller</strong></p>
-      </div>
-
-      <br><br>
-
-      <div style="text-align:justify;">
-        <p>
-          <strong>Why?</strong><br><br>
-
-          Something has always felt wrong.<br><br>
-
-          You work hard. You do the right things. And somehow, at the end of the month, there's never quite enough. Meanwhile the platforms take their cut, the landlords raise the rent, the corporations write off their taxes, and the gap just keeps growing.<br><br>
-
-          You're not lazy. You're not failing. The game was just never designed for you to win.<br><br>
-
-          Buckminster Fuller saw this coming. Decades ago he asked one question — how do we make the world work for everyone? Not some people. Everyone. He called it the World Peace Game.<br><br>
-
-          Not peace as in no war. Peace as in no one left behind.<br><br>
-
-          Cloud Atlas is that game. Running. Right now. On your phone.<br><br>
-
-          It's an app where you keep 100% of what you earn. Where your phone is the server and no company sits between you and your money. Where you find the right people, in the right place, who care about exactly what you care about.<br><br>
-
-          Work, travel, organize, build, connect — all of it. Community owned. Zero commissions. No catch.<br><br>
-
-          And the first thing it tells you when you open it —<br><br>
-
-          <span class="accent">Enter the World Peace Game.</span><br><br>
-
-          Because that's what this is. Not an app launch. Not a startup. A different way of doing this. For everyone. Finally.<br><br>
-
-          Cloud Atlas OS is that game. On your phone. Right now.
-        </p>
+        <p>"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete." <strong>Buckminster Fuller</strong></p>
       </div>
 
       <br><br>
@@ -92,9 +60,39 @@
 
         </p>
         <p class="ps">P.S. In case it didn't sink in — you just became a co-owner of a Decentralized Autonomous Organization. No crypto. No CEO. No board. No headquarters. Just people, running it together, for themselves. Every ride, every delivery, every job, every sale on this platform? Yours. Not a CEO's. Not a shareholder's. Yours. Spread the word. It's your business now.</p>
+        
+        <div style="text-align:justify;">
+          <p>
+            <strong>Why?</strong><br><br>
+  
+            Something has always felt wrong.<br><br>
+  
+            You work hard. You do the right things. And somehow, at the end of the month, there's never quite enough. Meanwhile the platforms take their cut, the landlords raise the rent, the corporations write off their taxes, and the gap just keeps growing.<br><br>
+  
+            You're not lazy. You're not failing. The game was just never designed for you to win.<br><br>
+  
+            Buckminster Fuller saw this coming. Decades ago he asked one question — how do we make the world work for everyone? Not some people. Everyone. He called it the World Peace Game.<br><br>
+  
+            Not peace as in no war. Peace as in no one left behind.<br><br>
+  
+            Cloud Atlas is that game. Running. Right now. On your phone.<br><br>
+  
+            It's an app where you keep 100% of what you earn. Where your phone is the server and no company sits between you and your money. Where you find the right people, in the right place, who care about exactly what you care about.<br><br>
+  
+            Work, travel, organize, build, connect — all of it. Community owned. Zero commissions. No catch.<br><br>
+  
+            And the first thing it tells you when you open it —<br><br>
+  
+            <span class="accent">"Enter the World Peace Game"</span><br><br>
+  
+            Because that's what this is. Not an app launch. Not a startup. A different way of doing this. For everyone. Finally.<br><br>
+  
+            Cloud Atlas OS is that game. On your phone. Right now.
+          </p>
+        </div>
+        <br>
         <p>
           <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br><br>
-          
         </p>
       </div>
 
@@ -224,14 +222,6 @@
 
   .textbox p:last-child {
     margin-bottom: 0;
-  }
-
-  h2 {
-    color: #FFD700;
-    font-weight: 800;
-    font-size: 18px;
-    line-height: 1.3;
-    margin: 0 0 10px;
   }
 
   .cta {
