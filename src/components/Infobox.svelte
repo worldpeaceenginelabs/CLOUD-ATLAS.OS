@@ -88,8 +88,11 @@
 
           Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK</strong> — no coding required. And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class worldmodel with spatial AGI emerges from it.<br><br>
 
-          Think owning collectively Google Maps, Wikipedia, Amazon, Airbnb, Couchsurfing, Uber, DoorDash, UpWork, Fiverr, Spontacts, the whole gig, meet, and marketplace economy, Twitch, Kickstarter, and an App & Game Store with Genie 3 class worldmodel with spatial AGI — raised by the open-source community. 🔥<br><br>
+          Think owning collectively Google Maps, Wikipedia, Amazon, Airbnb, Couchsurfing, Uber, DoorDash, UpWork, Fiverr, Spontacts, the whole gig, meet, and marketplace economy, Twitch, Kickstarter, and an App & Game Store with Genie 3 class worldmodel with spatial AGI — raised by the open-source community. 🔥
 
+        </p>
+        <p class="ps">P.S. In case it didn't sink in — you just became a co-owner of a Decentralized Autonomous Organization. No CEO. No board. No headquarters. Just people, running it together, for themselves. Every ride, every delivery, every job, every sale on this platform? Yours. Not a CEO's. Not a shareholder's. Yours. Spread the word. It's your business now.</p>
+        <p>
           <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br><br>
           
         </p>
@@ -168,7 +171,7 @@
       0 24px 80px rgba(0, 0, 0, 0.4),
       0 0 60px rgba(255, 215, 0, 0.06),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    max-width: 520px;
+    max-width: 720px;
     width: calc(100% - 48px);
     max-height: 85vh;
     overflow-y: auto;
@@ -242,6 +245,14 @@
     line-height: 1.5;
   }
 
+  .ps {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    font-style: italic;
+    text-align: center;
+    margin-top: 14px !important;
+  }
+
   .center {
     text-align: center;
   }
@@ -263,6 +274,14 @@
 
   .textbox img {
     border-radius: 8px;
+  }
+
+  .ps {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    font-style: italic;
+    text-align: center;
+    margin-top: 14px !important;
   }
 
   @media (max-width: 600px) {
