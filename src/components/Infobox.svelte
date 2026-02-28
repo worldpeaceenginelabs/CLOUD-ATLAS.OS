@@ -54,7 +54,7 @@
 
           Stream your impact live on <strong>MissionTV</strong> and get paid for the causes you love — launching as our first communities organize.<br><br>
 
-          Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK</strong> — no coding required. And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class worldmodel with spatial AGI emerges from it.<br><br>
+          Explore <strong>OMNIPEDIA</strong> — 6 million Wikipedia articles transformed into immersive 3D worlds on a live global map. Build apps, games, and experiences in seconds with the <strong>HOLODECK EDITOR</strong> — no coding required. And as the community shapes OMNIPEDIA and in turn the HOLODECK, a Genie 3 class worldmodel with spatial AGI emerges from it.<br><br>
 
           Think owning collectively Google Maps, Wikipedia, Amazon, Airbnb, Couchsurfing, Uber, DoorDash, UpWork, Fiverr, Spontacts, the whole gig, meet, and marketplace economy, Twitch, Kickstarter, and an App & Game Store with Genie 3 class worldmodel with spatial AGI — raised by the open-source community. 🔥
 
