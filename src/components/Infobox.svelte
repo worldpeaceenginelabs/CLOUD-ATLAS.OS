@@ -86,8 +86,6 @@
             <span class="accent">"Enter the World Peace Game"</span><br><br>
   
             Because that's what this is. Not an app launch. Not a startup. A different way of doing this. For everyone. Finally.<br><br>
-  
-            Cloud Atlas OS is that game. On your phone. Right now.
           </p>
         </div>
         <br>
