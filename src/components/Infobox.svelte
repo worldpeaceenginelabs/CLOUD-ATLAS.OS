@@ -90,8 +90,13 @@
         </div>
         <br>
         <p>
-          <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br><br><br>
+          <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br>
         </p>
+        <p class="directive-rule">
+          <strong>One Rule:</strong> If your solution does not meet this standard,
+          iterating a better one is mandatory.
+        </p>
+        <br><br>
       </div>
 
       <div style="text-align: center;"><strong>FOR DEVELOPERS</strong></div><br>
@@ -239,6 +244,13 @@
     font-style: italic;
     text-align: center;
     margin-top: 14px !important;
+  }
+
+  .directive-rule {
+    font-size: 0.82rem;
+    color: rgba(255, 202, 40, 0.9);
+    line-height: 1.4;
+    margin: 0;
   }
 
   .center {
