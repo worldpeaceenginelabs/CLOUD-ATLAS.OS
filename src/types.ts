@@ -186,6 +186,8 @@ export interface Listing {
   address?: string;     // human-readable address from Nominatim
   timestamp: string;
   geohash?: string;
+  /** Set when fetched from Swarm Governance combined feed (from event #t). */
+  vertical?: ListingVertical;
 }
 
 export interface GigRequest {

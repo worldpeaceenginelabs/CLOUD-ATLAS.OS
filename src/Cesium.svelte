@@ -68,8 +68,8 @@
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
 	import RadialGigMenu from './components/RadialGigMenu.svelte';
-	import { preselectedGigVertical, showRadialGigMenu, layerListings } from './store';
-	import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
+	import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers } from './store';
+	import { LISTING_VERTICALS, VERTICALS, SWARM_GOVERNANCE_VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
@@ -882,20 +882,35 @@ function handleListingTakenDown(listingId: string) {
   const cfg = VERTICALS[selectedListing.vertical] as ListingVerticalConfig;
   const entities = layerEntities[selectedListing.vertical] ?? [];
   removeMarkerById(cesiumViewer, entities, cfg.mapPrefix, listingId);
+  if (SWARM_GOVERNANCE_VERTICALS.includes(selectedListing.vertical)) {
+    layerListings.update(all => ({
+      ...all,
+      swarmGovernance: (all['swarmGovernance'] ?? []).filter(l => l.id !== listingId),
+    }));
+  }
   selectedListing = null;
 }
 
 let prevLayerSnapshot: Record<string, Listing[]> = {};
+function sameList(a: Listing[], b: Listing[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((l, i) => l.id === b[i]?.id);
+}
 $: {
   const all = $layerListings;
+  const layersOn = $activeMapLayers;
+  const nextSnapshot: Record<string, Listing[]> = {};
   for (const v of LISTING_VERTICALS) {
-    const cur = all[v] ?? [];
+    const cur = SWARM_GOVERNANCE_VERTICALS.includes(v)
+      ? (layersOn.has(v) ? (all['swarmGovernance'] ?? []).filter(l => l.vertical === v) : [])
+      : (all[v] ?? []);
     const prev = prevLayerSnapshot[v] ?? [];
-    if (cur !== prev) {
+    if (!sameList(cur, prev)) {
       onLayerChanged(v, cur);
     }
+    nextSnapshot[v] = cur;
   }
-  prevLayerSnapshot = { ...all };
+  prevLayerSnapshot = nextSnapshot;
 }
 
 /** Handle radial menu category selection → open gig panel to that vertical. */

@@ -381,6 +381,11 @@ export const LISTING_VERTICALS: ListingVertical[] = [
   'helpouts', 'social', 'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
 ];
 
+/** Swarm Governance verticals: one combined global feed, four visibility toggles. */
+export const SWARM_GOVERNANCE_VERTICALS: ListingVertical[] = [
+  'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
+];
+
 /**
  * Unified radial menu items — single ring, 8 items at 45° intervals.
  *
