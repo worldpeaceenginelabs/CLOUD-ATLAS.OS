@@ -104,6 +104,38 @@ class IndexedDBManager {
     }));
   }
 
+  /** Last DELETE fetch cursor (unix s). Used for moving since. */
+  async getLastDeleteFetchSince(): Promise<number> {
+    const raw = await this.loadSetting('lastDeleteFetchSince');
+    if (raw == null || raw === '') return 0;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  async setLastDeleteFetchSince(unixSec: number): Promise<void> {
+    await this.saveSetting('lastDeleteFetchSince', String(unixSec));
+  }
+
+  /**
+   * Apply deletions to all listing cache entries (IDB).
+   * deletedSet: Set of 'id:pubkey' strings. Removes any listing with matching id+pubkey.
+   */
+  async applyDeletionsToAllListings(deletedSet: Set<string>): Promise<void> {
+    if (deletedSet.size === 0) return;
+    const store = this.store('listings', 'readwrite');
+    const all = await this.req(store.getAll()) as Array<{ cell: string; listings: Listing[]; fetchedAt: number; oldestTimestamp?: number | null }>;
+    for (const row of all) {
+      const key = row.cell;
+      const before = row.listings.length;
+      const listings = row.listings.filter((l) => !deletedSet.has(`${l.id}:${l.pubkey}`));
+      if (listings.length !== before) {
+        const next: Record<string, unknown> = { cell: key, listings, fetchedAt: row.fetchedAt };
+        if (row.oldestTimestamp !== undefined) next['oldestTimestamp'] = row.oldestTimestamp;
+        await this.req(store.put(next));
+      }
+    }
+  }
+
   // ─── Nostr Keypair ─────────────────────────────────────────
 
   async saveKeypair(sk: Uint8Array, pk: string): Promise<void> {

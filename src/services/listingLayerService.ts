@@ -20,6 +20,7 @@
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { idb } from '../idb';
 import { logger } from '../utils/logger';
+import { fetchDeletions, applyDeletions } from './listingDeletionService';
 import type { Listing } from '../types';
 
 /** Fallback timeout if relay never sends EOSE (ms). */
@@ -62,10 +63,14 @@ export class ListingLayerService {
       }
     }
 
-    // Fetch from relay
+    // Fetch from relay and DELETEs in parallel; write listing result then apply DELETEs
     try {
-      const listings = await this.fetchFromRelay(geohash4);
+      const [listings, deletedSet] = await Promise.all([
+        this.fetchFromRelay(geohash4),
+        fetchDeletions(this.nostr),
+      ]);
       await idb.saveListings(this.cacheType, geohash4, listings, Date.now());
+      await applyDeletions(deletedSet);
       return listings;
     } catch (e) {
       logger.warn(`Relay fetch failed for cell ${geohash4}, trying cache`, {
@@ -106,7 +111,7 @@ export class ListingLayerService {
         '#g': [geohash4],
         '#t': [this.listingTag],
         '#L': [RELAY_LABEL],
-        since: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60,
+        since: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60,
       }, (event: NostrEvent) => {
         if (!event.content) return;
         if (seen.has(event.id)) return;

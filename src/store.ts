@@ -107,6 +107,18 @@ export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
 export const layerListings = resettable<Record<string, Listing[]>>({});
 
+/** Remove listings that match deletedSet (entries are 'id:pubkey'). Used after applying DELETEs from relay. */
+export function applyDeletionsToLayerListings(deletedSet: Set<string>): void {
+  if (deletedSet.size === 0) return;
+  layerListings.update((all) => {
+    const next: Record<string, Listing[]> = {};
+    for (const k of Object.keys(all)) {
+      next[k] = all[k].filter((l) => !deletedSet.has(`${l.id}:${l.pubkey}`));
+    }
+    return next;
+  });
+}
+
 // ─── Online Listings ─────────────────────────────────────────
 /** Whether the online listings panel is open */
 export const onlinePanelOpen = resettable(false);

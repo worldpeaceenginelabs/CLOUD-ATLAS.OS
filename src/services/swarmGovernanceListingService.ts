@@ -3,19 +3,20 @@
  *
  * One combined global feed for brainstorming, meetanddo, petition, crowdfunding.
  * Fetches on start and every 30 min; only requests verticals that are currently on.
- * Append-on-refetch with until cursor; on relay failure uses cache (listings < 14 days).
+ * Append-on-refetch with until cursor; on relay failure uses cache (listings < 7 days).
  */
 
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { idb } from '../idb';
 import { logger } from '../utils/logger';
+import { fetchDeletions, applyDeletions } from './listingDeletionService';
 import type { Listing, ListingVertical } from '../types';
 import { VERTICALS, SWARM_GOVERNANCE_VERTICALS } from '../gig/verticals';
 import type { ListingVerticalConfig } from '../gig/verticals';
 
 const FETCH_TIMEOUT_MS = 8000;
 const PAGE_SIZE = 50;
-const LISTING_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function listingTagToVertical(tag: string): ListingVertical | null {
   for (const v of SWARM_GOVERNANCE_VERTICALS) {
@@ -34,7 +35,7 @@ export class SwarmGovernanceListingService {
 
   /**
    * Run fetch: only for active verticals. First page or append via until.
-   * On relay failure returns cached listings < 14 days old.
+   * On relay failure returns cached listings < 7 days old.
    */
   async run(activeVerticalIds: ListingVertical[]): Promise<Listing[]> {
     const active = activeVerticalIds.filter(v => SWARM_GOVERNANCE_VERTICALS.includes(v));
@@ -46,7 +47,10 @@ export class SwarmGovernanceListingService {
       const cached = await idb.loadSwarmGovernanceCache();
       const until = cached?.oldestTimestamp ?? undefined;
 
-      const page = await this.fetchFromRelay(listingTags, until);
+      const [page, deletedSet] = await Promise.all([
+        this.fetchFromRelay(listingTags, until),
+        fetchDeletions(this.nostr),
+      ]);
       const merged = cached?.listings ?? [];
       const seen = new Set(merged.map(l => l.id));
       for (const l of page.listings) {
@@ -56,6 +60,7 @@ export class SwarmGovernanceListingService {
         }
       }
       await idb.saveSwarmGovernanceCache(merged, Date.now(), page.oldestTimestamp ?? cached?.oldestTimestamp ?? null);
+      await applyDeletions(deletedSet);
       return merged;
     } catch (e) {
       logger.warn('Swarm Governance relay fetch failed', { component: 'SwarmGovernanceListingService', operation: 'run' });
@@ -88,7 +93,7 @@ export class SwarmGovernanceListingService {
         kinds: [REPLACEABLE_KIND],
         '#t': listingTags,
         '#L': [RELAY_LABEL],
-        since: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60,
+        since: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60,
         limit: PAGE_SIZE,
       };
       if (until != null) filter['until'] = until;

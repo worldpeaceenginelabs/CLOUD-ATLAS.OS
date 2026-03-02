@@ -11,6 +11,7 @@
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { idb } from '../idb';
 import { logger } from '../utils/logger';
+import { fetchDeletions, applyDeletions } from './listingDeletionService';
 import type { Listing } from '../types';
 
 const FETCH_TIMEOUT_MS = 8000;
@@ -61,8 +62,12 @@ export class OnlineListingService {
     }
 
     try {
-      const page = await this.fetchFromRelay(category, until);
+      const [page, deletedSet] = await Promise.all([
+        this.fetchFromRelay(category, until),
+        fetchDeletions(this.nostr),
+      ]);
       await idb.saveListings(this.cacheType, cacheKey, page.listings, Date.now());
+      await applyDeletions(deletedSet);
       return page;
     } catch (e) {
       logger.warn(`Online relay fetch failed (${this.cacheType}, cat=${category ?? 'all'})`, {
@@ -109,7 +114,7 @@ export class OnlineListingService {
         kinds: [REPLACEABLE_KIND],
         '#t': [this.listingTag],
         '#L': [RELAY_LABEL],
-        since: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60,
+        since: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60,
         limit: PAGE_SIZE,
       };
 

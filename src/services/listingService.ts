@@ -2,14 +2,14 @@
  * Listing Service
  *
  * Publish-only service for long-lived listings (Helpouts, Social, etc.).
- * No matching protocol — listings are published with a 14-day TTL
+ * No matching protocol — listings are published with a 7-day TTL
  * and discovered via map layers.
  *
  * Parameterized by listing tag so one class serves all listing verticals.
  *
  * Uses the shared Nostr connection pool. Protocol:
  *   - Publish-only (no subscriptions needed for the publisher)
- *   - 14-day NIP-40 TTL (no heartbeat)
+ *   - 7-day NIP-40 TTL (no heartbeat)
  *   - Single replaceable event per listing
  *   - Take-down via 1-second TTL replacement (handled in detail cards)
  */
@@ -20,8 +20,8 @@ import type { Listing } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────
 
-/** 14 days in seconds. */
-const LISTING_TTL_SECS = 14 * 24 * 60 * 60;
+/** 7 days in seconds. */
+const LISTING_TTL_SECS = 7 * 24 * 60 * 60;
 
 /** Current unix timestamp + LISTING_TTL_SECS. */
 const freshExpiration = (): number => Math.floor(Date.now() / 1000) + LISTING_TTL_SECS;
@@ -69,7 +69,7 @@ export class ListingService {
   }
 
   /**
-   * Publish a listing with 14-day TTL.
+   * Publish a listing with 7-day TTL.
    * Uses a stable d-tag so re-publishing replaces the previous listing.
    */
   publishListing(listing: Listing): void {

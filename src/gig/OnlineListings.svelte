@@ -55,7 +55,7 @@
     if (cooldownTimer) clearInterval(cooldownTimer);
   });
 
-  async function loadPage(paginate: boolean) {
+  async function loadPage(paginate: boolean, forceRefresh = false) {
     const svc = services[activeTab];
     if (!svc || loading) return;
 
@@ -63,6 +63,7 @@
     const page: OnlinePage = await svc.fetchPage(
       selectedCategory || undefined,
       paginate ? (paginationCursor ?? undefined) : undefined,
+      forceRefresh,
     );
 
     if (paginate) {
@@ -138,6 +139,7 @@
   function handleListingTakenDown(listingId: string) {
     listings = listings.filter(l => l.id !== listingId);
     selectedListing = null;
+    loadPage(false, true);
   }
 </script>
 

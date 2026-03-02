@@ -68,7 +68,7 @@
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
 	import RadialGigMenu from './components/RadialGigMenu.svelte';
-	import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers } from './store';
+	import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers, layerRefresh } from './store';
 	import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
@@ -887,6 +887,7 @@ function handleListingTakenDown(listingId: string) {
     ...all,
     [v]: (all[v] ?? []).filter(l => l.id !== listingId),
   }));
+  layerRefresh.update(r => ({ ...r, [v]: (r[v] ?? 0) + 1 }));
   selectedListing = null;
 }
 

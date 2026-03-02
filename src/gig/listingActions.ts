@@ -1,30 +1,36 @@
 /**
  * Shared listing actions (e.g. take-down) used by ListingDetail.
+ *
+ * Take-down publishes a replaceable event with t=DELETE and expiration set to
+ * the leftover time since the listing was published (so it expires when the
+ * original would have). No #g or #c; who deleted = event.pubkey.
  */
 
 import type { Listing } from '../types';
 import { getSharedNostr } from '../services/nostrPool';
 
+const LISTING_TTL_SECS = 7 * 24 * 60 * 60;
+
 /**
- * Take down a listing by publishing a replacement event with a 1-second TTL.
- * Works for any listing vertical by passing the appropriate tag prefix.
+ * Take down a listing by publishing a replaceable event with t=DELETE and
+ * expiration = leftover from publish (listing.timestamp + 7 days).
  */
 export async function takeDownListing(
   listing: Listing,
-  tagPrefix: string,
+  _tagPrefix: string,
   onTakenDown?: (listingId: string) => void,
   onClose?: () => void,
 ): Promise<void> {
   const nostr = await getSharedNostr();
 
-  const expiration = String(Math.floor(Date.now() / 1000) + 1);
+  const publishedAt = Math.floor(new Date(listing.timestamp).getTime() / 1000);
+  const expiration = String(publishedAt + LISTING_TTL_SECS);
   const tags: string[][] = [
-    ['t', tagPrefix],
+    ['t', 'DELETE'],
     ['expiration', expiration],
   ];
-  if (listing.geohash) tags.push(['g', listing.geohash]);
 
-  nostr.publishReplaceable(listing.id, tags, JSON.stringify(listing));
+  nostr.publishReplaceable(listing.id, tags, '');
 
   onTakenDown?.(listing.id);
   onClose?.();
