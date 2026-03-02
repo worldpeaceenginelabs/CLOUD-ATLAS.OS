@@ -257,7 +257,7 @@
       {/if}
       <div class="gig-summary-row">
         <span class="gig-summary-label">Expires</span>
-        <span class="gig-summary-value">14 days</span>
+        <span class="gig-summary-value">7 days</span>
       </div>
     </div>
 
