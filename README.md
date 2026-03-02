@@ -8,7 +8,7 @@ Cloud Atlas OS is a community-owned super-app where the entire gig economy lives
 
 But that's just the beginning.<br>
 
-Govern your city through **SWARM GOVERNANCE** —  live brainstorming sessions, Telegram groups with up to 20,000 live positions in the field, Change.org petitions, GoFundMe crowdfunding, and real change — organized by you.<br>
+Govern your city through **SWARM GOVERNANCE** —  live brainstorming sessions, Telegram groups with hundreds of live positions in the field, Change.org petitions, GoFundMe crowdfunding, and real change — organized by you.<br>
 
 Stream your impact live on **MissionTV** and get paid for the causes you love — launching as our first communities organize.<br>
 
