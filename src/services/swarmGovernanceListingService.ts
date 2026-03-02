@@ -2,8 +2,9 @@
  * Swarm Governance Listing Service
  *
  * One combined global feed for brainstorming, meetanddo, petition, crowdfunding.
- * Fetches on start and every 30 min; only requests verticals that are currently on.
- * Append-on-refetch with until cursor; on relay failure uses cache (listings < 7 days).
+ * Fetches on start and every 30 min. Each run: fetch new (since newestTimestamp),
+ * fetch one page older (until oldestTimestamp), merge, trim to 7 days, save both cursors.
+ * On relay failure uses cache (listings < 7 days).
  */
 
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
@@ -34,34 +35,65 @@ export class SwarmGovernanceListingService {
   }
 
   /**
-   * Run fetch: only for active verticals. First page or append via until.
-   * On relay failure returns cached listings < 7 days old.
+   * Run fetch: only for active verticals. Fetches new (since newest) + one page older (until oldest),
+   * merges with cache, trims to 7 days, saves both cursors. On relay failure uses cache.
    */
   async run(activeVerticalIds: ListingVertical[]): Promise<Listing[]> {
     const active = activeVerticalIds.filter(v => SWARM_GOVERNANCE_VERTICALS.includes(v));
     if (active.length === 0) return [];
 
     const listingTags = active.map(v => (VERTICALS[v] as ListingVerticalConfig).listingTag);
+    const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
 
     try {
       const cached = await idb.loadSwarmGovernanceCache();
-      const until = cached?.oldestTimestamp ?? undefined;
+      const newPromise = this.fetchFromRelay(listingTags, {
+        since: cached?.newestTimestamp ?? sevenDaysAgo,
+      });
+      const oldPromise =
+        cached?.oldestTimestamp != null
+          ? this.fetchFromRelay(listingTags, { until: cached.oldestTimestamp })
+          : Promise.resolve({ listings: [], oldestTimestamp: null, resolvedByEose: true });
 
-      const [page, deletedSet] = await Promise.all([
-        this.fetchFromRelay(listingTags, until),
+      const [newPage, oldPage, deletedSet] = await Promise.all([
+        newPromise,
+        oldPromise,
         fetchDeletions(this.nostr),
       ]);
-      const merged = cached?.listings ?? [];
-      const seen = new Set(merged.map(l => l.id));
-      for (const l of page.listings) {
+
+      const seen = new Set<string>();
+      const merged: Listing[] = [];
+      for (const l of newPage.listings) {
         if (!seen.has(l.id)) {
           seen.add(l.id);
           merged.push(l);
         }
       }
-      await idb.saveSwarmGovernanceCache(merged, Date.now(), page.oldestTimestamp ?? cached?.oldestTimestamp ?? null);
+      for (const l of oldPage.listings) {
+        if (!seen.has(l.id)) {
+          seen.add(l.id);
+          merged.push(l);
+        }
+      }
+      for (const l of cached?.listings ?? []) {
+        if (!seen.has(l.id)) {
+          seen.add(l.id);
+          merged.push(l);
+        }
+      }
+
+      const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+      const trimmed = merged.filter(l => new Date(l.timestamp).getTime() > cutoff);
+      const timestamps = trimmed.map(l => Math.floor(new Date(l.timestamp).getTime() / 1000));
+      const oldestTimestamp = timestamps.length === 0 ? null : Math.min(...timestamps);
+      const newestTimestamp =
+        newPage.resolvedByEose && timestamps.length > 0
+          ? Math.max(...timestamps)
+          : cached?.newestTimestamp ?? null;
+
+      await idb.saveSwarmGovernanceCache(trimmed, Date.now(), oldestTimestamp, newestTimestamp);
       await applyDeletions(deletedSet);
-      return merged;
+      return trimmed;
     } catch (e) {
       logger.warn('Swarm Governance relay fetch failed', { component: 'SwarmGovernanceListingService', operation: 'run' });
       const cached = await idb.loadSwarmGovernanceCache();
@@ -71,7 +103,10 @@ export class SwarmGovernanceListingService {
     }
   }
 
-  private fetchFromRelay(listingTags: string[], until?: number): Promise<{ listings: Listing[]; oldestTimestamp: number | null }> {
+  private fetchFromRelay(
+    listingTags: string[],
+    opts: { since?: number; until?: number } = {},
+  ): Promise<{ listings: Listing[]; oldestTimestamp: number | null; resolvedByEose: boolean }> {
     return new Promise((resolve) => {
       const listings: Listing[] = [];
       const seen = new Set<string>();
@@ -79,24 +114,26 @@ export class SwarmGovernanceListingService {
       let resolved = false;
       let oldestCreatedAt = Infinity;
 
-      const done = () => {
+      const done = (byEose: boolean) => {
         if (resolved) return;
         resolved = true;
         this.nostr.unsubscribe(subId);
         resolve({
           listings,
           oldestTimestamp: oldestCreatedAt === Infinity ? null : oldestCreatedAt,
+          resolvedByEose: byEose,
         });
       };
 
+      const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
       const filter: Record<string, unknown> = {
         kinds: [REPLACEABLE_KIND],
         '#t': listingTags,
         '#L': [RELAY_LABEL],
-        since: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60,
+        since: opts.since ?? sevenDaysAgo,
         limit: PAGE_SIZE,
       };
-      if (until != null) filter['until'] = until;
+      if (opts.until != null) filter['until'] = opts.until;
 
       this.nostr.subscribe(subId, filter, (event: NostrEvent) => {
         if (!event.content) return;
@@ -114,9 +151,9 @@ export class SwarmGovernanceListingService {
           listing.vertical = vertical;
           listings.push(listing);
         } catch { /* malformed */ }
-      }, done);
+      }, () => done(true));
 
-      setTimeout(done, FETCH_TIMEOUT_MS);
+      setTimeout(() => done(false), FETCH_TIMEOUT_MS);
     });
   }
 }

@@ -84,23 +84,30 @@ class IndexedDBManager {
     return result ? { listings: result.listings, fetchedAt: result.fetchedAt ?? 0 } : null;
   }
 
-  /** Global listing feed: one key, append-on-refetch with cursor. */
-  async loadSwarmGovernanceCache(): Promise<{ listings: Listing[]; fetchedAt: number; oldestTimestamp: number | null } | null> {
+  /** Global listing feed: one key; stores newest/oldest for since/until fetches. */
+  async loadSwarmGovernanceCache(): Promise<{ listings: Listing[]; fetchedAt: number; oldestTimestamp: number | null; newestTimestamp: number | null } | null> {
     const result = await this.req(this.store('listings').get('listingsGlobal'));
     if (!result) return null;
     return {
       listings: result.listings ?? [],
       fetchedAt: result.fetchedAt ?? 0,
       oldestTimestamp: result.oldestTimestamp ?? null,
+      newestTimestamp: result.newestTimestamp ?? null,
     };
   }
 
-  async saveSwarmGovernanceCache(listings: Listing[], fetchedAt: number, oldestTimestamp: number | null): Promise<void> {
+  async saveSwarmGovernanceCache(
+    listings: Listing[],
+    fetchedAt: number,
+    oldestTimestamp: number | null,
+    newestTimestamp: number | null,
+  ): Promise<void> {
     await this.req(this.store('listings', 'readwrite').put({
       cell: 'listingsGlobal',
       listings,
       fetchedAt,
       oldestTimestamp,
+      newestTimestamp,
     }));
   }
 
@@ -123,7 +130,7 @@ class IndexedDBManager {
   async applyDeletionsToAllListings(deletedSet: Set<string>): Promise<void> {
     if (deletedSet.size === 0) return;
     const store = this.store('listings', 'readwrite');
-    const all = await this.req(store.getAll()) as Array<{ cell: string; listings: Listing[]; fetchedAt: number; oldestTimestamp?: number | null }>;
+    const all = await this.req(store.getAll()) as Array<{ cell: string; listings: Listing[]; fetchedAt: number; oldestTimestamp?: number | null; newestTimestamp?: number | null }>;
     for (const row of all) {
       const key = row.cell;
       const before = row.listings.length;
@@ -131,6 +138,7 @@ class IndexedDBManager {
       if (listings.length !== before) {
         const next: Record<string, unknown> = { cell: key, listings, fetchedAt: row.fetchedAt };
         if (row.oldestTimestamp !== undefined) next['oldestTimestamp'] = row.oldestTimestamp;
+        if (row.newestTimestamp !== undefined) next['newestTimestamp'] = row.newestTimestamp;
         await this.req(store.put(next));
       }
     }

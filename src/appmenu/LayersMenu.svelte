@@ -45,6 +45,7 @@
   let globalFeedTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let persistListingLayersTimer: ReturnType<typeof setTimeout> | null = null;
   let mounted = true;
+  let globalFeedFetchInFlight = false;
 
   // Ion API key state
   let ionKeyInput = '';
@@ -225,6 +226,8 @@
   }
 
   async function runGlobalFeedFetch() {
+    if (globalFeedFetchInFlight) return;
+    globalFeedFetchInFlight = true;
     try {
       const nostr = await getSharedNostr();
       const svc = new SwarmGovernanceListingService(nostr);
@@ -248,6 +251,7 @@
       }
     } catch { /* nostr unavailable or run failed */ }
     finally {
+      globalFeedFetchInFlight = false;
       if (mounted) globalFeedTimeoutId = setTimeout(runGlobalFeedFetch, GLOBAL_FEED_INTERVAL_MS);
     }
   }
