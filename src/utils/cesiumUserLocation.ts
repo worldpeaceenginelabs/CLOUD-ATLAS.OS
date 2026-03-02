@@ -40,7 +40,6 @@ export function initUserLocation(
         color: new Cesium.Color(0.26, 0.52, 0.96, 0.04),
         outlineColor: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.7),
         outlineWidth: 2,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
 
@@ -52,7 +51,6 @@ export function initUserLocation(
         color: new Cesium.Color(1.0, 0.43, 0.0, 0.04),
         outlineColor: Cesium.Color.fromCssColorString('#FF6D00').withAlpha(0.7),
         outlineWidth: 2,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
 
@@ -62,7 +60,6 @@ export function initUserLocation(
       point: {
         pixelSize: 4,
         color: Cesium.Color.WHITE.withAlpha(0.85),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
 
@@ -80,7 +77,6 @@ export function initUserLocation(
         width: 52,
         height: 52,
         color: new Cesium.Color(1, 1, 1, 0.01),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
 

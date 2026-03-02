@@ -36,7 +36,6 @@ export function initRoamingArea(
           color: Cesium.Color.YELLOW,
           outlineColor: Cesium.Color.BLACK,
           outlineWidth: 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
     } else {

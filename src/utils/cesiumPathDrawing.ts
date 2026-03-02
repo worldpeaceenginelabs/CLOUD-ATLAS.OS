@@ -58,7 +58,6 @@ export function initPathDrawing(
         color: Cesium.Color.CYAN,
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
         text: String(index + 1),
@@ -69,7 +68,6 @@ export function initPathDrawing(
         outlineColor: Cesium.Color.BLACK,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -16),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
   }

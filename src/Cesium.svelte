@@ -902,12 +902,14 @@ $: {
   for (const v of LISTING_VERTICALS) {
     const cur = layersOn.has(v) ? (all[v] ?? []) : [];
     const prev = prevLayerSnapshot[v] ?? [];
-    if (!sameList(cur, prev)) {
+    if (!sameList(cur, prev) && initialZoomComplete) {
       onLayerChanged(v, cur);
     }
     nextSnapshot[v] = cur;
   }
-  prevLayerSnapshot = nextSnapshot;
+  if (initialZoomComplete) {
+    prevLayerSnapshot = nextSnapshot;
+  }
 }
 
 /** Handle radial menu category selection → open gig panel to that vertical. */

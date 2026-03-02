@@ -319,7 +319,6 @@
         color: Cesium.Color.fromCssColorString(matchingConfig.mapColor),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
         text: 'Pickup',
@@ -330,7 +329,6 @@
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -16),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
     gigEntities.push(startEntity);
@@ -348,7 +346,6 @@
           color: Cesium.Color.fromCssColorString(matchingConfig.mapDestColor),
           outlineColor: Cesium.Color.WHITE,
           outlineWidth: 1,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
           text: 'Drop',
@@ -359,7 +356,6 @@
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -16),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
       gigEntities.push(destEntity);

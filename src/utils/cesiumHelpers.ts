@@ -164,7 +164,6 @@ export function addPickedPointMarker(
       color: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.04),
       outlineColor: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.7),
       outlineWidth: 2,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
 
@@ -176,7 +175,6 @@ export function addPickedPointMarker(
       color: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.04),
       outlineColor: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.7),
       outlineWidth: 2,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
 
@@ -186,7 +184,6 @@ export function addPickedPointMarker(
     point: {
       pixelSize: 4,
       color: Cesium.Color.WHITE.withAlpha(0.85),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
 
@@ -204,7 +201,6 @@ export function addPickedPointMarker(
       width: 52,
       height: 52,
       color: new Cesium.Color(1, 1, 1, 0.01),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
 
@@ -245,7 +241,7 @@ export async function renderListingMarkers(
         color: Color.fromCssColorString(options.pointColor),
         outlineColor: Color.WHITE,
         outlineWidth: 1.5,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        disableDepthTestDistance: 50000,
       },
       label: {
         text: options.getLabelText(listing),
@@ -256,7 +252,7 @@ export async function renderListingMarkers(
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -12),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        disableDepthTestDistance: 50000,
       },
       properties: { [options.propertyKey]: listing },
     });
