@@ -117,6 +117,8 @@ export interface ListingVerticalConfig extends BaseVerticalConfig {
   directiveNoun?: string;
   /** When set, the In-Person/Online/Both selector is hidden and this mode is used. */
   defaultMode?: ListingMode;
+  /** How listings are fetched: by geohash cell (map) or global feed. */
+  fetchStrategy?: 'geohash' | 'global';
 }
 
 export type VerticalConfig = MatchingVerticalConfig | ListingVerticalConfig;
@@ -240,6 +242,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     liveHint: 'Your helpout will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
     contactButtonLabel: 'Contact',
     takeDownLabel: 'Take Down Listing',
+    fetchStrategy: 'geohash',
   },
 
   social: {
@@ -263,6 +266,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     liveHint: 'Your event will appear on the map for 14 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
     contactButtonLabel: 'Contact Host',
     takeDownLabel: 'Take Down Event',
+    fetchStrategy: 'geohash',
   },
 
   brainstorming: {
@@ -288,7 +292,8 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactButtonLabel: 'Join Brainstorm',
     takeDownLabel: 'Take Down Brainstorm',
     directiveNoun: 'solution',
-    defaultMode: 'online',
+    defaultMode: 'both',
+    fetchStrategy: 'global',
   },
 
   meetanddo: {
@@ -315,6 +320,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     takeDownLabel: 'Take Down Mission',
     directiveNoun: 'meeting',
     defaultMode: 'in-person',
+    fetchStrategy: 'global',
   },
 
   petition: {
@@ -340,7 +346,8 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactButtonLabel: 'Sign Petition',
     takeDownLabel: 'Take Down Petition',
     directiveNoun: 'Petition',
-    defaultMode: 'online',
+    defaultMode: 'both',
+    fetchStrategy: 'global',
   },
 
   crowdfunding: {
@@ -366,7 +373,8 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactButtonLabel: 'Donate',
     takeDownLabel: 'Take Down Campaign',
     directiveNoun: 'Crowdfunding',
-    defaultMode: 'online',
+    defaultMode: 'both',
+    fetchStrategy: 'global',
   },
 };
 
@@ -381,10 +389,10 @@ export const LISTING_VERTICALS: ListingVertical[] = [
   'helpouts', 'social', 'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
 ];
 
-/** Swarm Governance verticals: one combined global feed, four visibility toggles. */
-export const SWARM_GOVERNANCE_VERTICALS: ListingVertical[] = [
-  'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
-];
+/** Listing verticals that use the global feed (derived from config). */
+export const SWARM_GOVERNANCE_VERTICALS: ListingVertical[] = LISTING_VERTICALS.filter(
+  (v) => (VERTICALS[v] as ListingVerticalConfig).fetchStrategy === 'global',
+);
 
 /**
  * Unified radial menu items — single ring, 8 items at 45° intervals.

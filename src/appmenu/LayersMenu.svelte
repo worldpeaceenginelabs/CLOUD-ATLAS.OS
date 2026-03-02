@@ -14,6 +14,10 @@
   import { getSharedNostr } from '../services/nostrPool';
   import { idb } from '../idb';
   import { LISTING_VERTICALS, VERTICALS, SWARM_GOVERNANCE_VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
+
+  function isGlobalVertical(v: ListingVertical): boolean {
+    return (VERTICALS[v] as ListingVerticalConfig).fetchStrategy === 'global';
+  }
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { Listing, ListingVertical } from '../types';
   import { SwarmGovernanceListingService } from '../services/swarmGovernanceListingService';
@@ -36,11 +40,11 @@
   let layerLoading: Record<string, boolean> = {};
 
   const CACHE_TTL_MS = 30 * 60 * 1000;
-  const SWARM_GOVERNANCE_INTERVAL_MS = 30 * 60 * 1000;
+  const GLOBAL_FEED_INTERVAL_MS = 30 * 60 * 1000;
   let layerError = '';
-  let swarmGovernanceTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  let persistSgLayersTimer: ReturnType<typeof setTimeout> | null = null;
-  let sgMounted = true;
+  let globalFeedTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let persistListingLayersTimer: ReturnType<typeof setTimeout> | null = null;
+  let mounted = true;
 
   // Ion API key state
   let ionKeyInput = '';
@@ -137,7 +141,7 @@
   }
 
   async function fetchLayer(verticalId: ListingVertical, forceRefresh = false) {
-    if (SWARM_GOVERNANCE_VERTICALS.includes(verticalId)) return;
+    if (isGlobalVertical(verticalId)) return;
     const cfg = VERTICALS[verticalId] as ListingVerticalConfig;
     const loc = $userLiveLocation;
     if (!loc) return;
@@ -166,55 +170,53 @@
     const layers = new Set($activeMapLayers);
     const wasOn = layers.has(verticalId);
 
-    if (SWARM_GOVERNANCE_VERTICALS.includes(verticalId)) {
-      if (wasOn) layers.delete(verticalId);
-      else layers.add(verticalId);
-      activeMapLayers.set(layers);
-      schedulePersistSgLayers();
-      return;
-    }
-
     if (wasOn) {
       layers.delete(verticalId);
       activeMapLayers.set(layers);
       layerListings.update(all => ({ ...all, [verticalId]: [] }));
+      schedulePersistListingLayers();
       return;
     }
 
     layers.add(verticalId);
     activeMapLayers.set(layers);
+    schedulePersistListingLayers();
+
+    if (isGlobalVertical(verticalId)) {
+      runGlobalFeedFetch();
+      return;
+    }
 
     const cache = layerCaches[verticalId];
     if (cache && cache.listings.length > 0 && (Date.now() - cache.cachedAt) < CACHE_TTL_MS) {
       layerListings.update(all => ({ ...all, [verticalId]: cache.listings }));
     }
-
     await fetchLayer(verticalId);
   }
 
-  async function persistSwarmGovernanceLayers() {
-    const on = SWARM_GOVERNANCE_VERTICALS.filter(v => $activeMapLayers.has(v));
+  async function persistListingLayers() {
+    const on = LISTING_VERTICALS.filter(v => $activeMapLayers.has(v));
     try {
       await idb.openDB();
-      await idb.saveSetting('swarmGovernanceLayers', JSON.stringify(on));
+      await idb.saveSetting('activeListingLayers', JSON.stringify(on));
     } catch { /* non-critical */ }
   }
 
-  function schedulePersistSgLayers() {
-    if (persistSgLayersTimer) clearTimeout(persistSgLayersTimer);
-    persistSgLayersTimer = setTimeout(() => {
-      persistSgLayersTimer = null;
-      persistSwarmGovernanceLayers();
+  function schedulePersistListingLayers() {
+    if (persistListingLayersTimer) clearTimeout(persistListingLayersTimer);
+    persistListingLayersTimer = setTimeout(() => {
+      persistListingLayersTimer = null;
+      persistListingLayers();
     }, 250);
   }
 
-  async function loadSwarmGovernanceToggles() {
+  async function loadListingLayers() {
     try {
       await idb.openDB();
-      const raw = await idb.loadSetting('swarmGovernanceLayers');
+      const raw = await idb.loadSetting('activeListingLayers');
+      const on = raw ? (JSON.parse(raw) as ListingVertical[]) : [...SWARM_GOVERNANCE_VERTICALS];
       const layers = new Set($activeMapLayers);
-      const on = raw ? (JSON.parse(raw) as ListingVertical[]) : SWARM_GOVERNANCE_VERTICALS;
-      for (const v of SWARM_GOVERNANCE_VERTICALS) {
+      for (const v of LISTING_VERTICALS) {
         if (on.includes(v)) layers.add(v);
         else layers.delete(v);
       }
@@ -222,29 +224,47 @@
     } catch { /* use defaults */ }
   }
 
-  async function runSwarmGovernanceFetch() {
+  async function runGlobalFeedFetch() {
     try {
       const nostr = await getSharedNostr();
       const svc = new SwarmGovernanceListingService(nostr);
       const active = SWARM_GOVERNANCE_VERTICALS.filter(v => $activeMapLayers.has(v));
-      const listings = await svc.run(active);
-      layerListings.update(all => ({ ...all, swarmGovernance: listings }));
+      if (active.length === 0) {
+        layerListings.update(all => {
+          const next = { ...all };
+          for (const v of SWARM_GOVERNANCE_VERTICALS) next[v] = [];
+          return next;
+        });
+      } else {
+        const listings = await svc.run(active);
+        const withLocation = listings.filter(l => l.location);
+        layerListings.update(all => {
+          const next = { ...all };
+          for (const v of SWARM_GOVERNANCE_VERTICALS) {
+            next[v] = withLocation.filter(l => l.vertical === v);
+          }
+          return next;
+        });
+      }
     } catch { /* nostr unavailable or run failed */ }
     finally {
-      if (sgMounted) swarmGovernanceTimeoutId = setTimeout(runSwarmGovernanceFetch, SWARM_GOVERNANCE_INTERVAL_MS);
+      if (mounted) globalFeedTimeoutId = setTimeout(runGlobalFeedFetch, GLOBAL_FEED_INTERVAL_MS);
     }
   }
 
   let lastRefreshSnapshot: Record<string, number> = {};
   $: {
     const current = $layerRefresh;
+    let needGlobalFetch = false;
     for (const v of LISTING_VERTICALS) {
       const cur = current[v] ?? 0;
       const last = lastRefreshSnapshot[v] ?? 0;
-      if (cur !== last && $activeMapLayers.has(v) && layerServices[v]) {
-        fetchLayer(v, true);
+      if (cur !== last && $activeMapLayers.has(v)) {
+        if (isGlobalVertical(v)) needGlobalFetch = true;
+        else if (layerServices[v]) fetchLayer(v, true);
       }
     }
+    if (needGlobalFetch) runGlobalFeedFetch();
     lastRefreshSnapshot = { ...current };
   }
 
@@ -322,12 +342,12 @@
   onMount(() => {
     window.addEventListener('keydown', handleKeyDown);
     loadIonKey();
-    loadSwarmGovernanceToggles().then(() => runSwarmGovernanceFetch());
+    loadListingLayers().then(() => runGlobalFeedFetch());
     return () => {
-      sgMounted = false;
+      mounted = false;
       window.removeEventListener('keydown', handleKeyDown);
-      if (swarmGovernanceTimeoutId != null) clearTimeout(swarmGovernanceTimeoutId);
-      if (persistSgLayersTimer != null) clearTimeout(persistSgLayersTimer);
+      if (globalFeedTimeoutId != null) clearTimeout(globalFeedTimeoutId);
+      if (persistListingLayersTimer != null) clearTimeout(persistListingLayersTimer);
     };
   });
 </script>

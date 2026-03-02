@@ -84,9 +84,9 @@ class IndexedDBManager {
     return result ? { listings: result.listings, fetchedAt: result.fetchedAt ?? 0 } : null;
   }
 
-  /** Swarm Governance: one key, append-on-refetch with cursor. */
+  /** Global listing feed: one key, append-on-refetch with cursor. */
   async loadSwarmGovernanceCache(): Promise<{ listings: Listing[]; fetchedAt: number; oldestTimestamp: number | null } | null> {
-    const result = await this.req(this.store('listings').get('swarmGovernance'));
+    const result = await this.req(this.store('listings').get('listingsGlobal'));
     if (!result) return null;
     return {
       listings: result.listings ?? [],
@@ -97,7 +97,7 @@ class IndexedDBManager {
 
   async saveSwarmGovernanceCache(listings: Listing[], fetchedAt: number, oldestTimestamp: number | null): Promise<void> {
     await this.req(this.store('listings', 'readwrite').put({
-      cell: 'swarmGovernance',
+      cell: 'listingsGlobal',
       listings,
       fetchedAt,
       oldestTimestamp,

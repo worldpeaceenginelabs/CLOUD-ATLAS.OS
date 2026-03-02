@@ -233,7 +233,6 @@ export async function renderListingMarkers(
   if (!viewer) return result;
 
   for (const listing of listings) {
-    if (!listing.location) continue;
     const position = await clampToSurface(
       listing.location.longitude,
       listing.location.latitude,

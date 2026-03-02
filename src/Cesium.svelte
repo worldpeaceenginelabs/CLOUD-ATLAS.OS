@@ -69,7 +69,7 @@
 	import ListingDetail from './gig/ListingDetail.svelte';
 	import RadialGigMenu from './components/RadialGigMenu.svelte';
 	import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers } from './store';
-	import { LISTING_VERTICALS, VERTICALS, SWARM_GOVERNANCE_VERTICALS, type ListingVerticalConfig } from './gig/verticals';
+	import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
@@ -879,15 +879,14 @@ async function onLayerChanged(verticalId: ListingVertical, listings: Listing[]) 
 
 function handleListingTakenDown(listingId: string) {
   if (!selectedListing) return;
-  const cfg = VERTICALS[selectedListing.vertical] as ListingVerticalConfig;
-  const entities = layerEntities[selectedListing.vertical] ?? [];
+  const v = selectedListing.vertical;
+  const cfg = VERTICALS[v] as ListingVerticalConfig;
+  const entities = layerEntities[v] ?? [];
   removeMarkerById(cesiumViewer, entities, cfg.mapPrefix, listingId);
-  if (SWARM_GOVERNANCE_VERTICALS.includes(selectedListing.vertical)) {
-    layerListings.update(all => ({
-      ...all,
-      swarmGovernance: (all['swarmGovernance'] ?? []).filter(l => l.id !== listingId),
-    }));
-  }
+  layerListings.update(all => ({
+    ...all,
+    [v]: (all[v] ?? []).filter(l => l.id !== listingId),
+  }));
   selectedListing = null;
 }
 
@@ -901,9 +900,7 @@ $: {
   const layersOn = $activeMapLayers;
   const nextSnapshot: Record<string, Listing[]> = {};
   for (const v of LISTING_VERTICALS) {
-    const cur = SWARM_GOVERNANCE_VERTICALS.includes(v)
-      ? (layersOn.has(v) ? (all['swarmGovernance'] ?? []).filter(l => l.vertical === v) : [])
-      : (all[v] ?? []);
+    const cur = layersOn.has(v) ? (all[v] ?? []) : [];
     const prev = prevLayerSnapshot[v] ?? [];
     if (!sameList(cur, prev)) {
       onLayerChanged(v, cur);
