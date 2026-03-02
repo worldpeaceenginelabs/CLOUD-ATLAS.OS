@@ -291,7 +291,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     contactMaxLength: 256,
     submitLabel: 'Publish Brainstorm',
     liveTitle: 'Your Brainstorm is Live!',
-    liveHint: 'Your brainstorm session will appear on the map for 7 days. People can join via the Zoom link. You can take it down anytime by tapping your marker on the map.',
+    liveHint: 'Your brainstorm session will appear on the map for 7 days. People can join via the Zoom or Keet link. You can take it down anytime by tapping your marker on the map.',
     contactButtonLabel: 'Join Brainstorm',
     takeDownLabel: 'Take Down Brainstorm',
     directiveNoun: 'solution',

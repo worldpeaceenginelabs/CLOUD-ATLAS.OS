@@ -22,9 +22,7 @@
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Auto-fill from map clicks via coordinates store
-  let skipFirst = true;
   const unsubCoords = coordinates.subscribe(value => {
-    if (skipFirst) { skipFirst = false; return; }
     if (value.latitude && value.longitude) {
       displayName = '';
       onLocationSelected(value.latitude, value.longitude);
