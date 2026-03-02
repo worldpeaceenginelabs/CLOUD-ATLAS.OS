@@ -101,6 +101,8 @@ export interface ListingVerticalConfig extends BaseVerticalConfig {
   contactPattern?: string;
   /** Hint shown when the contact pattern fails */
   contactPatternHint?: string;
+  /** Max length for the contact input (default 120). Use e.g. 256 for pear/keet links. */
+  contactMaxLength?: number;
   /** Whether this vertical has an event date field */
   hasEventDate?: boolean;
   /** Submit button label */
@@ -281,11 +283,12 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     titleLabel: 'Mission Title',
     titlePlaceholder: 'Enter a short, powerful mission name — max 100 chars',
     descriptionPlaceholder: "What's the mission in a nutshell?",
-    contactLabel: 'Zoom Link',
-    contactPlaceholder: 'https://us05web.zoom.us/j/ID?pwd=12345',
-    contactHint: 'Zoom meeting link where the brainstorm takes place',
-    contactPattern: '^https:\\/\\/(us05web\\.)?zoom\\.us\\/j\\/\\d+',
-    contactPatternHint: 'Must be a valid Zoom link (https://zoom.us/j/...)',
+    contactLabel: 'Join Link',
+    contactPlaceholder: 'https://zoom.us/j/... or pear://keet/...',
+    contactHint: 'Zoom or Keet (pear://keet/...) link where the brainstorm takes place',
+    contactPattern: '^(?:https:\\/\\/([a-zA-Z0-9.-]*\\.)?zoom\\.us\\/j\\/\\d+|pear:\\/\\/keet\\/[a-zA-Z0-9]+)$',
+    contactPatternHint: 'Must be a valid Zoom link (https://zoom.us/j/...) or Keet link (pear://keet/...)',
+    contactMaxLength: 256,
     submitLabel: 'Publish Brainstorm',
     liveTitle: 'Your Brainstorm is Live!',
     liveHint: 'Your brainstorm session will appear on the map for 7 days. People can join via the Zoom link. You can take it down anytime by tapping your marker on the map.',

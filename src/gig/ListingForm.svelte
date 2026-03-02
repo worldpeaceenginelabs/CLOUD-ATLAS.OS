@@ -204,7 +204,7 @@
 
     <div class="gig-form-group">
       <label class="gig-field-label" for="contact-link">{config.contactLabel} <span class="gig-required">*</span></label>
-      <input id="contact-link" class="gig-field-input" type="text" placeholder={config.contactPlaceholder} bind:value={contact} maxlength={120} />
+      <input id="contact-link" class="gig-field-input" type="text" placeholder={config.contactPlaceholder} bind:value={contact} maxlength={config.contactMaxLength ?? 120} />
       <span class="gig-field-hint">{config.contactHint}</span>
       {#if config.contactPatternHint && contact.trim() && !contactValid}
         <span class="gig-field-hint" style="color: rgba(252, 165, 165, 0.9)">{config.contactPatternHint}</span>
