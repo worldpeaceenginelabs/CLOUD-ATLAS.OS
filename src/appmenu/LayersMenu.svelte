@@ -574,7 +574,7 @@
             <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" target="_blank" rel="noopener">
               <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
             </a>
-            <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyspuj43rxynu6yk68759erbex9txpag8fbwrobgrjkwwz5tz8dpyabr8yoq7paqw4ryi9a5973qmu5qz458iitgce3mxwekm9rpa6smoyedsyrto9tmowno15sqjmbd7wsgqq4jy" target="_blank" rel="noopener">
+            <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyiibz9oytfjaz693afxajydenrw7tntfs48zicfd3bkpjhfi1imqdpaiio6xbjw7bjpcgrqerto1ejqwrwus8eocka1boxydb5is4sm1yederk6cuy1wixs96b37niw8sxuobfcr" target="_blank" rel="noopener">
               <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on Keet" height="30" width="30">
             </a>
             <a href="https://twitter.com/cloudatlasos" target="_blank" rel="noopener">

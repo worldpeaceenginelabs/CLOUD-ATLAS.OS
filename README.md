@@ -25,7 +25,7 @@ Community-owned. Open-source. Yours. **Redefine the way we live together.**<br><
 # Join our Community:
 [Developer Chat auf Keet/Holepunch](https://keet.io/)<br>
 
-pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyspuj43rxynu6yk68759erbex9txpag8fbwrobgrjkwwz5tz8dpyabr8yoq7paqw4ryi9a5973qmu5qz458iitgce3mxwekm9rpa6smoyedsyrto9tmowno15sqjmbd7wsgqq4jy<br>
+pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyiibz9oytfjaz693afxajydenrw7tntfs48zicfd3bkpjhfi1imqdpaiio6xbjw7bjpcgrqerto1ejqwrwus8eocka1boxydb5is4sm1yederk6cuy1wixs96b37niw8sxuobfcr<br>
 
 Become a part of Cloud Atlas today and join an exciting community that’s shaping a brighter future. Together, we can forge a better world for ourselves and the generations to come.
 <br><br>

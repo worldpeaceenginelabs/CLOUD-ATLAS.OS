@@ -107,6 +107,9 @@ export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
 export const layerListings = resettable<Record<string, Listing[]>>({});
 
+// Remember where the gig radial menu was opened from (user location vs picked point)
+export const gigRadialOrigin = resettable<'user-location' | 'picked-point' | null>(null);
+
 /** Remove listings that match deletedSet (entries are 'id:pubkey'). Used after applying DELETEs from relay. */
 export function applyDeletionsToLayerListings(deletedSet: Set<string>): void {
   if (deletedSet.size === 0) return;

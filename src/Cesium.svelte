@@ -15,7 +15,7 @@
 	} from 'cesium';
 	import * as Cesium from 'cesium';
 	import "cesium/Build/Cesium/Widgets/widgets.css";
-	import { 
+import { 
 		coordinates, 
 		models, 
 		resetAllStores, 
@@ -68,7 +68,7 @@
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
 	import RadialGigMenu from './components/RadialGigMenu.svelte';
-	import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers, layerRefresh } from './store';
+import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers, layerRefresh, gigRadialOrigin } from './store';
 	import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
@@ -290,11 +290,16 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && c
 // Reopen radial menu when signalled by back buttons in the gig panel
 $: if ($showRadialGigMenu) {
 	showRadialGigMenu.set(false);
-	openRadialMenuCentered();
+	if ($gigRadialOrigin === 'picked-point') {
+		openRadialMenuAtPickedPoint();
+	} else {
+		openRadialMenuCentered();
+	}
 }
 
 /** Open radial menu centered on screen and fly camera to user location. */
 function openRadialMenuCentered() {
+	gigRadialOrigin.set('user-location');
 	radialScreenX = window.innerWidth / 2;
 	radialScreenY = window.innerHeight / 2;
 	showRadialMenu = true;
@@ -305,6 +310,7 @@ function openRadialMenuCentered() {
 
 /** Open radial menu centered on screen and fly camera to the picked point. */
 function openRadialMenuAtPickedPoint() {
+	gigRadialOrigin.set('picked-point');
 	radialScreenX = window.innerWidth / 2;
 	radialScreenY = window.innerHeight / 2;
 	showRadialMenu = true;
