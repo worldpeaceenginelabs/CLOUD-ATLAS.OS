@@ -216,6 +216,44 @@ export interface ListingMarkerOptions {
   pointColor: string;
   getLabelText: (listing: Listing) => string;
   propertyKey: string;
+  shape?: 'point' | 'fire';
+}
+
+const FIRE_SVG_TEMPLATE = (hexColor: string): string => `
+<svg width="48" height="64" viewBox="0 0 48 64" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M24 2
+       C21 9 16 13 16 21
+       C16 23 16.5 25 17.5 27
+       C13 26 9 22 9 16
+       C5 22 4 27 4 32
+       C4 44 12 54 24 54
+       C36 54 44 44 44 32
+       C44 23 40 15 34 10
+       C34 17 31 22 27 24
+       C28 21 28.5 18.5 28.5 17
+       C28.5 11.5 26 7 24 2Z"
+    fill="${hexColor}"
+  />
+  <path
+    d="M24 20
+       C20 25 18 29 18 34
+       C18 40 21.5 44 24 46
+       C26.5 44 30 40 30 34
+       C30 30 28.5 27 26 24
+       C26.2 26.2 25.8 28.2 25 30
+       C23.8 28.2 23.5 24.5 24 20Z"
+    fill="#FFE7B3"
+  />
+</svg>
+`;
+
+function fireSvgDataUrl(color: string): string {
+  const svg = FIRE_SVG_TEMPLATE(color);
+  const encoded = encodeURIComponent(svg)
+    .replace(/'/g, '%27')
+    .replace(/"/g, '%22');
+  return `data:image/svg+xml,${encoded}`;
 }
 
 export async function renderListingMarkers(
@@ -228,21 +266,18 @@ export async function renderListingMarkers(
   const result: Entity[] = [];
   if (!viewer) return result;
 
+  const useFire = options.shape === 'fire';
+  const fireImageUrl = useFire ? fireSvgDataUrl(options.pointColor) : null;
+
   for (const listing of listings) {
     const position = await clampToSurface(
       listing.location.longitude,
       listing.location.latitude,
     );
-    const entity = viewer.entities.add({
+
+    const base: any = {
       id: `${options.idPrefix}${listing.id}`,
       position,
-      point: {
-        pixelSize: 10,
-        color: Color.fromCssColorString(options.pointColor),
-        outlineColor: Color.WHITE,
-        outlineWidth: 1.5,
-        disableDepthTestDistance: 50000,
-      },
       label: {
         text: options.getLabelText(listing),
         font: 'bold 12px sans-serif',
@@ -255,7 +290,27 @@ export async function renderListingMarkers(
         disableDepthTestDistance: 50000,
       },
       properties: { [options.propertyKey]: listing },
-    });
+    };
+
+    if (useFire && fireImageUrl) {
+      base.billboard = {
+        image: fireImageUrl,
+        width: 32,
+        height: 44,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        disableDepthTestDistance: 50000,
+      };
+    } else {
+      base.point = {
+        pixelSize: 10,
+        color: Color.fromCssColorString(options.pointColor),
+        outlineColor: Color.WHITE,
+        outlineWidth: 1.5,
+        disableDepthTestDistance: 50000,
+      };
+    }
+
+    const entity = viewer.entities.add(base);
     result.push(entity);
   }
   return result;
