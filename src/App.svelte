@@ -99,7 +99,7 @@
   }
 
   .infoboxcontainer {
-    z-index: 30;
+    z-index: 1001;
     position: absolute;
   }
 
