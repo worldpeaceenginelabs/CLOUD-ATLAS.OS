@@ -57,17 +57,18 @@
     <Modal
       isVisible={true}
       onClose={() => hideModal(modal.id)}
-      title={
-        modal.id === 'model-details'
-          ? '3D Model Details'
-          : modal.id === 'layers-menu'
-            ? 'Layers'
-            : ''
-      }
+      title={modal.id === 'model-details' ? '3D Model Details' : ''}
       maxWidth={NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
-      showCloseButton={!NOTIFICATION_MODALS.has(modal.id)}
-      closeOnBackdropClick={!NOTIFICATION_MODALS.has(modal.id)}
-      modalType={NOTIFICATION_MODALS.has(modal.id) ? 'notification' : 'default'}
+      showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id)}
+      closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id)}
+      modalType={
+        modal.id === 'layers-menu'
+          ? 'overlay'
+          : NOTIFICATION_MODALS.has(modal.id)
+            ? 'notification'
+            : 'default'
+      }
+      customClass={modal.id === 'layers-menu' ? 'layers-menu-modal' : ''}
       forwardInputs={NOTIFICATION_MODALS.has(modal.id)}
     >
       {#if modal.id === 'model-details' && modal.data?.model}

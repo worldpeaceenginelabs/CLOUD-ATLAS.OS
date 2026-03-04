@@ -14,6 +14,7 @@ export const modalService = {
   hideMissionTV:      ()                  => hideModal('mission-tv'),
   showLayersMenu:     ()                  => showModal('layers-menu'),
   hideLayersMenu:     ()                  => hideModal('layers-menu'),
+  toggleLayersMenu:   ()                  => toggleModal('layers-menu'),
   showGigEconomy:     ()                  => showModal('gig-economy'),
   hideGigEconomy:     ()                  => hideModal('gig-economy'),
   showZoomRequired:   ()                  => showModal('zoom-required'),

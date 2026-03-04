@@ -150,6 +150,29 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
+  /* Layers menu: compact card under the top-right button */
+  .modal.overlay.layers-menu-modal {
+    position: fixed;
+    top: calc(20px + env(safe-area-inset-top, 0px) + 40px + 8px);
+    right: 10px;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    background: transparent;
+  }
+
+  .modal.overlay.layers-menu-modal .modal-content {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    width: auto;
+    max-width: unset;
+    padding: 0;
+  }
+
   .modal-content {
     background: rgba(10, 15, 25, 0.82);
     backdrop-filter: blur(16px);
