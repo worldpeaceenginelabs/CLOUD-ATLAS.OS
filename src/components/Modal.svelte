@@ -156,7 +156,7 @@
     top: calc(20px + env(safe-area-inset-top, 0px) + 40px + 8px);
     right: 10px;
     left: auto;
-    bottom: auto;
+    bottom: 10px;
     transform: none;
     display: flex;
     justify-content: flex-end;
@@ -171,6 +171,9 @@
     width: auto;
     max-width: unset;
     padding: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
   }
 
   .modal-content {
