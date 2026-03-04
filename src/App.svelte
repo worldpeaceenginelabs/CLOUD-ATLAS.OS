@@ -3,7 +3,6 @@
   import Cesium from "./Cesium.svelte";
   import Infobox from "./components/Infobox.svelte";
   import Grid from "./components/Grid.svelte";
-  import LayersMenu from "./appmenu/LayersMenu.svelte";
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
@@ -19,23 +18,13 @@
     isInitialLoadComplete,
     onlinePanelOpen
   } from './store';
-  import { modelEditorService } from './utils/modelEditorService';
 
   let quote = "\"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.\" Buckminster Fuller";
 
   // Component references (only those actually used)
   let cesiumComponent: Cesium | null = null;
-  let layersMenuComponent: LayersMenu | null = null;
 
   let updateSimulationModel: ((modelData: any) => void) | undefined = undefined;
-  $: modelEditorService.setUpdateSimulationModel(updateSimulationModel);
-
-  function handleAddModel() {
-    modelEditorService.handleAddModel();
-    if (layersMenuComponent) {
-      layersMenuComponent.closeMenu();
-    }
-  }
 
   onDestroy(() => {
     showPicture.set(false);
@@ -71,10 +60,6 @@
     <AdvertisingBanner />
     <PwaInstallBanner />
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
-    <LayersMenu 
-      bind:this={layersMenuComponent} 
-      onAddModel={handleAddModel}
-    />
     <OnlineTopBar />
     {#if $onlinePanelOpen}
       <OnlineListings />

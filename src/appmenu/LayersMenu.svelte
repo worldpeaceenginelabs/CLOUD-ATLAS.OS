@@ -21,8 +21,7 @@
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { Listing, ListingVertical } from '../types';
   import { SwarmGovernanceListingService } from '../services/swarmGovernanceListingService';
-
-  export let onAddModel: (() => void) | undefined = undefined;
+  import { modelEditorService } from '../utils/modelEditorService';
 
   // ─── Component state ──────────────────────────────────────
   let hoveredItem = '';
@@ -78,7 +77,8 @@
     hoveredItem = '';
     switch (item) {
       case 'model':
-        if (onAddModel) onAddModel();
+        modelEditorService.handleAddModel();
+        modalService.hideLayersMenu();
         break;
       case 'omnipedia':
         modalService.showOmnipedia();
