@@ -174,6 +174,8 @@
     height: 100%;
     max-height: 100%;
     overflow-y: auto;
+    border-radius: 0;
+    overflow: visible;
   }
 
   .modal-content {
