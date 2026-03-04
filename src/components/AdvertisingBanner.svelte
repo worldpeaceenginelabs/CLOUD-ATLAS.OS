@@ -31,7 +31,7 @@
     <div class="banner-content">
       <p class="headline">What if the world was run by you and me?</p>
       <p class="tagline">Science fiction meets the real world.</p>
-
+      <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></p>
       <p>Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof — ridesharing, delivery, freelance, spontaneous connections — with zero commissions. <strong>Keep 100% of what you earn.</strong> We'll teach you how to keep it, legally.</p>
 
       <p class="accent">But that's just the beginning.</p>

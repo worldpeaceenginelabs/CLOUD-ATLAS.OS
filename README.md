@@ -4,7 +4,10 @@
 
 **What if the world was run by you and me?** Science fiction meets the real world.<br>
 
-Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof — ridesharing, delivery, freelance, spontaneous connections — with **zero commissions.** Keep 100% of what you earn. We'll teach you how to keep it, legally.<br>
+We've evolved **Crowd Engineering** into a revolutionary **Social Network application**
+
+Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof — ridesharing, delivery, freelance, spontaneous connections — with **zero commissions.**<br>
+**Keep 100% of what you earn.** We'll teach you how to keep it, legally.<br>
 
 But that's just the beginning.<br>
 

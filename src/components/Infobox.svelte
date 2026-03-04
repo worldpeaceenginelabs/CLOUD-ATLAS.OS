@@ -22,7 +22,7 @@
 
       <div style="text-align:center;">
       
-        <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary<strong>Social Network application</strong></p>
+        <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></p>
 
         <iframe width="100%" height="480"
           src="https://www.youtube.com/embed/O6CHRdYSaH0"
