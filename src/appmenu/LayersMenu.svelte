@@ -685,6 +685,9 @@
     z-index: 60;
     max-height: calc(100vh - 80px);
     overflow-y: auto;
+    /* Ensure smooth, native touch scrolling on mobile devices */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   .layermenu-inner {
