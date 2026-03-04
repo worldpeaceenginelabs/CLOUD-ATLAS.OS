@@ -5,6 +5,8 @@
   import Simulation from '../appmenu/Simulation.svelte';
   import Omnipedia from '../appmenu/Omnipedia.svelte';
   import MissionTV from '../appmenu/MissionTV.svelte';
+  // @ts-ignore Svelte component default export is provided by the Svelte compiler
+  import LayersMenu from '../appmenu/LayersMenu.svelte';
   import GigEconomy from '../appmenu/GigEconomy.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
@@ -55,7 +57,13 @@
     <Modal
       isVisible={true}
       onClose={() => hideModal(modal.id)}
-      title={modal.id === 'model-details' ? '3D Model Details' : ''}
+      title={
+        modal.id === 'model-details'
+          ? '3D Model Details'
+          : modal.id === 'layers-menu'
+            ? 'Layers'
+            : ''
+      }
       maxWidth={NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
       showCloseButton={!NOTIFICATION_MODALS.has(modal.id)}
       closeOnBackdropClick={!NOTIFICATION_MODALS.has(modal.id)}
@@ -106,6 +114,8 @@
         <Omnipedia />
       {:else if modal.id === 'mission-tv'}
         <MissionTV />
+      {:else if modal.id === 'layers-menu'}
+        <LayersMenu />
       {:else if modal.id === 'zoom-required'}
         <p>Zoom in closer to pick a precise location.</p>
       {/if}

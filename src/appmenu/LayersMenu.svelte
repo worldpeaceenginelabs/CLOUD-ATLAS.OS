@@ -25,7 +25,6 @@
   export let onAddModel: (() => void) | undefined = undefined;
 
   // ─── Component state ──────────────────────────────────────
-  let isDropdownVisible = false;
   let hoveredItem = '';
   let showInfoPanel = false;
   let infoPanelContent = '';
@@ -56,22 +55,6 @@
   $: tiles3dOn = $enable3DTileset;
 
   // ─── Menu actions ─────────────────────────────────────────
-
-  function toggleDropdown() {
-    isDropdownVisible = !isDropdownVisible;
-    if (!isDropdownVisible) {
-      hoveredItem = '';
-      showInfoPanel = false;
-      ionKeyExpanded = false;
-    }
-  }
-
-  export function closeMenu() {
-    isDropdownVisible = false;
-    hoveredItem = '';
-    showInfoPanel = false;
-    ionKeyExpanded = false;
-  }
 
   function handleInfoClick(item: string, event: Event) {
     event.stopPropagation();
@@ -105,11 +88,9 @@
 
   function toggleAbout() {
     isVisible.update(v => !v);
-    closeMenu();
   }
 
   function openLiveEdit() {
-    closeMenu();
     const newWindow = window.open(
       'https://stackblitz.com/github/worldpeaceenginelabs/CLOUD-ATLAS-OS/tree/main?file=src/DAPPS/HomeScreen.svelte:L294',
       '_blank',
@@ -117,15 +98,6 @@
     );
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
       alert('The popup was blocked. Please disable your popup blocker for this site to continue.');
-    }
-  }
-
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      isDropdownVisible = false;
-      hoveredItem = '';
-      showInfoPanel = false;
-      ionKeyExpanded = false;
     }
   }
 
@@ -344,43 +316,18 @@
   // ─── Lifecycle ────────────────────────────────────────────
 
   onMount(() => {
-    window.addEventListener('keydown', handleKeyDown);
     loadIonKey();
     loadListingLayers().then(() => runGlobalFeedFetch());
     return () => {
       mounted = false;
-      window.removeEventListener('keydown', handleKeyDown);
       if (globalFeedTimeoutId != null) clearTimeout(globalFeedTimeoutId);
       if (persistListingLayersTimer != null) clearTimeout(persistListingLayersTimer);
     };
   });
 </script>
 
-<div class="add-button-container">
-  <button 
-    class="add-button" 
-    on:click={toggleDropdown}
-    class:active={isDropdownVisible}
-    class:has-coordinates={hasCoordinates}
-  >
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-    </svg>
-    {#if hasCoordinates}
-      <div class="coordinate-indicator">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.3639 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-    {/if}
-  </button>
-
-  {#if isDropdownVisible}
-    <div class="layermenu-container">
-      <div class="layermenu-inner" transition:slide={{ duration: 500, axis: 'y' }}>
+<div class="layermenu-container">
+  <div class="layermenu-inner" transition:slide={{ duration: 500, axis: 'y' }}>
 
         <!-- ═══ LAYERS ═══════════════════════════════════════ -->
         <div class="dropdown-menu">
@@ -594,7 +541,6 @@
         </div>
       </div>
     </div>
-  {/if}
 
   {#if showInfoPanel && infoPanelContent}
     <div class="info-panel slide-in">
@@ -603,82 +549,11 @@
       </div>
     </div>
   {/if}
-</div>
 
 
 <style>
-  .add-button-container {
-    position: fixed;
-    top: calc(20px + env(safe-area-inset-top, 0px));
-    right: 10px;
-    z-index: 50;
-    display: inline-block;
-  }
-
-  .add-button {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 8px;
-    position: relative;
-    z-index: 50;
-    color: white;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s ease;
-  }
-
-  .add-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .add-button.active {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .add-button.has-coordinates {
-    background: rgba(74, 222, 128, 0.2);
-    border-color: rgba(74, 222, 128, 0.4);
-  }
-
-  .add-button.has-coordinates:hover {
-    background: rgba(74, 222, 128, 0.3);
-    border-color: rgba(74, 222, 128, 0.5);
-  }
-
-  .add-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .coordinate-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #4ade80;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.1); }
-  }
-
   .layermenu-container {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 8px;
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 8px;
