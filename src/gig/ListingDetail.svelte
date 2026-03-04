@@ -3,7 +3,7 @@
   import type { Listing, ListingVertical } from '../types';
   import { VERTICALS, LISTING_CATEGORIES, type ListingVerticalConfig } from './verticals';
   import { getCategoryName } from './categoryUtils';
-  import { ensureProtocol } from '../utils/urlUtils';
+  import { ensureProtocol, isKeetUrl } from '../utils/urlUtils';
   import { takeDownListing } from './listingActions';
 
   export let listing: Listing;
@@ -30,6 +30,8 @@
   $: formattedDate = cfg.hasEventDate && listing.eventDate
     ? new Date(listing.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
     : null;
+
+  $: isKeetContact = isKeetUrl(listing?.contact);
 
   function openContact() {
     window.open(ensureProtocol(listing.contact), '_blank', 'noopener');
@@ -80,9 +82,32 @@
     <p class="gig-detail-desc">{listing.description}</p>
 
     <div class="gig-detail-actions">
-      <button class="action-btn-primary" style="background: {accentBtnBg}; color: {accentColor}; border: 1px solid {accentBtnBorder}" on:click={openContact}>
-        {cfg.contactButtonLabel}
-      </button>
+      {#if isKeetContact}
+        <button
+          class="action-btn-primary"
+          style="background: {accentBtnBg}; color: {accentColor}; border: 1px solid {accentBtnBorder}"
+          on:click={openContact}
+        >
+          Open in Keet
+        </button>
+
+        <a
+          class="secondary-link"
+          href="https://keet.io/download/"
+          target="_blank"
+          rel="noopener"
+        >
+          Don’t have Keet? Install it
+        </a>
+      {:else}
+        <button
+          class="action-btn-primary"
+          style="background: {accentBtnBg}; color: {accentColor}; border: 1px solid {accentBtnBorder}"
+          on:click={openContact}
+        >
+          {cfg.contactButtonLabel}
+        </button>
+      {/if}
 
       {#if isOwner}
         <button class="gig-action-btn-danger" on:click={takeDown} disabled={isTakingDown}>
@@ -115,4 +140,12 @@
   }
   .action-btn-primary:hover:not(:disabled) { filter: brightness(1.3); }
   .action-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .secondary-link {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #ccc;
+    text-decoration: underline;
+  }
 </style>

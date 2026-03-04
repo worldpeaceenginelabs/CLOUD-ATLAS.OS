@@ -14,3 +14,10 @@ export function ensureProtocol(url: string): string {
 export function formatLatLon(lat: number, lon: number, precision = 5): string {
   return `${lat.toFixed(precision)}, ${lon.toFixed(precision)}`;
 }
+
+/** Returns true if the URL is a Keet (pear://) link. */
+export function isKeetUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const trimmed = url.trim().toLowerCase();
+  return trimmed.startsWith('pear://keet/');
+}
