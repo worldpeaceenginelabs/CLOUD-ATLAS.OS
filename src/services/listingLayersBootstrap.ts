@@ -4,7 +4,7 @@
  * activeMapLayers starts with SG verticals on (store init); only user toggles change it.
  */
 
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { idb } from '../idb';
 import { getSharedNostr } from './nostrPool';
 import { ListingLayerService } from './listingLayerService';
@@ -96,7 +96,7 @@ export async function runGlobalFeedFetch(): Promise<void> {
 
     const nostr = await getSharedNostr();
     const svc = new SwarmGovernanceListingService(nostr);
-    const active = SWARM_GOVERNANCE_VERTICALS.filter((v) => activeMapLayers.get().has(v));
+    const active = SWARM_GOVERNANCE_VERTICALS.filter((v) => get(activeMapLayers).has(v));
     if (active.length === 0) {
       layerListings.update((all) => {
         const next = { ...all };
@@ -137,7 +137,7 @@ async function ensureLayerService(tag: string): Promise<ListingLayerService | nu
 export async function fetchLayer(verticalId: ListingVertical, forceRefresh = false): Promise<void> {
   if (isGlobalVertical(verticalId)) return;
   const cfg = VERTICALS[verticalId] as ListingVerticalConfig;
-  const loc = userLiveLocation.get();
+  const loc = get(userLiveLocation);
   if (!loc) return;
 
   if (!layerServices[verticalId]) {
@@ -164,7 +164,7 @@ export async function fetchLayer(verticalId: ListingVertical, forceRefresh = fal
 
 export async function toggleLayer(verticalId: ListingVertical): Promise<void> {
   layerError.set('');
-  const layers = new Set(activeMapLayers.get());
+  const layers = new Set(get(activeMapLayers));
   const wasOn = layers.has(verticalId);
 
   if (wasOn) {
@@ -225,7 +225,7 @@ function startLayerRefreshWatch(): void {
     for (const v of LISTING_VERTICALS) {
       const cur = current[v] ?? 0;
       const last = lastRefreshSnapshot[v] ?? 0;
-      if (cur !== last && activeMapLayers.get().has(v)) {
+      if (cur !== last && get(activeMapLayers).has(v)) {
         if (isGlobalVertical(v)) needGlobalFetch = true;
         else if (layerServices[v]) fetchLayer(v, true);
       }
