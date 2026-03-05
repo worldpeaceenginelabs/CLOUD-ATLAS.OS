@@ -64,6 +64,10 @@ let globalFeedTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let globalFeedFetchInFlight = false;
 let lastRefreshSnapshot: Record<string, number> = {};
 
+function setLayerError(message: string): void {
+  layerError.set(message);
+}
+
 // ─── Ion key load ───────────────────────────────────────────
 
 export async function loadIonKey(): Promise<void> {
@@ -105,7 +109,7 @@ export async function runGlobalFeedFetch(): Promise<void> {
     } else {
       const listings = await runGlobalFeedMap(nostr, active);
       const withLocation = listings.filter((l) => l.location);
-      layerListings.update(applyGlobalFeedMapToLayerListings(withLocation, get(activeMapLayers)));
+      layerListings.update(applyGlobalFeedMapToLayerListings(withLocation, currentActiveLayers));
     }
   } catch {
     /* nostr unavailable or run failed */
@@ -122,7 +126,7 @@ async function ensureLayerService(tag: string): Promise<GeohashListingFeed | nul
     const nostr = await getSharedNostr();
     return new GeohashListingFeed(nostr, tag);
   } catch {
-    layerError.set('Storage unavailable');
+    setLayerError('Storage unavailable');
     return null;
   }
 }
@@ -158,7 +162,7 @@ export async function fetchLayer(verticalId: ListingVertical, forceRefresh = fal
 // ─── Toggle layer (called by menu) ────────────────────────────
 
 export async function toggleLayer(verticalId: ListingVertical): Promise<void> {
-  layerError.set('');
+  setLayerError('');
   const layers = new Set(get(activeMapLayers));
   const wasOn = layers.has(verticalId);
 
@@ -195,7 +199,7 @@ export async function saveIonKey(value: string): Promise<void> {
     userIonAccessToken.set(trimmed);
     ionKeySaved.set(true);
   } catch {
-    layerError.set('Failed to save API key');
+    setLayerError('Failed to save API key');
   }
 }
 

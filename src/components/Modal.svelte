@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import CloseButton from './CloseButton.svelte';
+  import { onEnter } from '../utils/keyboard';
 
   export let isVisible = false;
   export let onClose: (() => void) | undefined = undefined;
@@ -67,7 +68,7 @@
       aria-modal="true" 
       tabindex="-1"
       on:click={handleBackdropClick}
-      on:keydown={(e) => e.key === 'Enter' && handleBackdropClick(e)}
+      on:keydown={(e) => onEnter(e, () => handleBackdropClick(e))}
     >
       <div class="modal-content" style="max-width: {maxWidth};" class:forward-inputs={forwardInputs}>
         {#if showCloseButton}

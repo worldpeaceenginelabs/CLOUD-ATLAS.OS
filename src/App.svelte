@@ -19,6 +19,7 @@
     isInitialLoadComplete,
     onlinePanelOpen
   } from './store';
+  import { onEnter } from './utils/keyboard';
 
   let quote = "\"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.\" Buckminster Fuller";
 
@@ -37,7 +38,7 @@
 
 <div class="app-container">
   {#if $showPicture}
-    <div class="picture-container" on:click={() => showPicture.set(false)} on:keydown={(e) => e.key === 'Enter' && showPicture.set(false)} role="button" tabindex="0">
+    <div class="picture-container" on:click={() => showPicture.set(false)} on:keydown={(e) => onEnter(e, () => showPicture.set(false))} role="button" tabindex="0">
       <video
   autoplay
   loop

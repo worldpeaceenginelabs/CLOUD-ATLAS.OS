@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import ModelSettings from './ModelSettings.svelte';
   import { roamingAreaBounds, coordinates, isEditorOpen } from '../store';
+  import { onEnter } from '../utils/keyboard';
   import {
     modelEditorService,
     formSelectedSource,
@@ -107,7 +108,7 @@
   <div
     class="sheet-handle"
     on:click={toggleSheet}
-    on:keydown={(e) => e.key === 'Enter' && toggleSheet()}
+    on:keydown={(e) => onEnter(e, toggleSheet)}
     on:touchstart={handleTouchStart}
     on:touchmove={handleTouchMove}
     on:touchend={handleTouchEnd}

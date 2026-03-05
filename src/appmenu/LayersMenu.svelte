@@ -4,7 +4,7 @@
 
   import { isVisible, activeMapLayers, enable3DTileset } from '../store';
   import { modalService } from '../utils/modalService';
-  import { VERTICALS } from '../gig/verticals';
+  import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { ListingVertical } from '../types';
   import { modelEditorService } from '../utils/modelEditorService';
@@ -17,6 +17,7 @@
     saveIonKey,
     clearIonKey,
   } from '../services/listingLayersBootstrap';
+  import { onEnter } from '../utils/keyboard';
 
   // ─── Component state (UI only) ─────────────────────────────
   let showIonKey = false;
@@ -83,25 +84,30 @@
     clearIonKey();
   }
 
-  function onEnter(e: KeyboardEvent, fn: () => void) {
-    if (e.key === 'Enter') fn();
-  }
-
   // ─── Layer groups for menu display ─────────────────────────
 
+  type LayerGroupHeader = 'Social' | 'Gig Economy' | 'Swarm Governance';
+
   interface LayerGroup {
-    header: string;
+    header: LayerGroupHeader;
     items: ListingVertical[];
   }
 
-  const layerGroups: LayerGroup[] = [
-    { header: 'Social', items: ['social'] },
-    { header: 'Gig Economy', items: ['helpouts'] },
-    {
-      header: 'Swarm Governance',
-      items: ['brainstorming', 'meetanddo', 'petition', 'crowdfunding'],
-    },
-  ];
+  const layerGroups: LayerGroup[] = (() => {
+    const groups: Record<LayerGroupHeader, ListingVertical[]> = {
+      Social: [],
+      'Gig Economy': [],
+      'Swarm Governance': [],
+    };
+    for (const verticalId of LISTING_VERTICALS) {
+      const cfg = VERTICALS[verticalId] as ListingVerticalConfig;
+      const header: LayerGroupHeader = cfg.layerGroup ?? 'Swarm Governance';
+      groups[header].push(verticalId);
+    }
+    return Object.entries(groups)
+      .map(([header, items]) => ({ header: header as LayerGroupHeader, items }))
+      .filter((group) => group.items.length > 0);
+  })();
 </script>
 
 <div class="layermenu-container">
@@ -326,7 +332,8 @@
     gap: 8px;
   }
 
-  .dropdown-menu {
+  .dropdown-menu,
+  .utility-menu {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -609,16 +616,6 @@
   .ion-key-btn.clear:hover {
     background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.7);
-  }
-
-  .utility-menu {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    overflow: hidden;
-    min-width: 250px;
   }
 
   .utility-links {

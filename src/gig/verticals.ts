@@ -4,6 +4,9 @@
  * Each vertical defines labels, form fields, Nostr tags, and map styles.
  * Matching verticals use the real-time need/offer protocol.
  * Listing verticals use a publish-only model with longer TTL.
+ *
+ * This file is the single source of truth for vertical IDs, names, colors,
+ * grouping, and radial menu behavior. Start here when changing verticals.
  */
 
 import type { GigVertical, ListingVertical, ListingCategory, ListingMode } from '../types';
@@ -31,6 +34,8 @@ interface BaseVerticalConfig {
   id: GigVertical;
   name: string;
   color: string;
+  /** Optional description used in radial menu or marketing copy. */
+  radialDescription?: string;
 }
 
 export interface MatchingVerticalConfig extends BaseVerticalConfig {
@@ -77,6 +82,8 @@ export interface MatchingVerticalConfig extends BaseVerticalConfig {
 
 export interface ListingVerticalConfig extends BaseVerticalConfig {
   mode: 'listing';
+  /** High-level group shown in the Layers menu. */
+  layerGroup?: 'Social' | 'Gig Economy' | 'Swarm Governance';
   /** Nostr '#t' tag suffix, e.g. 'helpouts' → tag 'listing-helpouts' */
   listingTag: string;
   /** Entity prefix on the Cesium map, e.g. 'helpout_' */
@@ -229,6 +236,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Helpout',
     color: '#00BCD4',
     mode: 'listing',
+    layerGroup: 'Gig Economy',
     listingTag: 'listing-helpouts',
     mapPrefix: 'helpout_',
     formTitle: 'Offer a Helpout',
@@ -252,6 +260,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Spontaneous Contacts',
     color: '#FF4081',
     mode: 'listing',
+    layerGroup: 'Social',
     listingTag: 'listing-social',
     mapPrefix: 'social_',
     formTitle: 'Host an Event',
@@ -276,6 +285,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Brainstorming',
     color: '#FFCA28',
     mode: 'listing',
+    layerGroup: 'Swarm Governance',
     listingTag: 'listing-brainstorming',
     mapPrefix: 'brainstorm_',
     formTitle: 'Start a Brainstorm',
@@ -304,6 +314,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'MeetandDo',
     color: '#66BB6A',
     mode: 'listing',
+    layerGroup: 'Swarm Governance',
     listingTag: 'listing-meetanddo',
     mapPrefix: 'meetanddo_',
     formTitle: 'Organize a Mission',
@@ -324,6 +335,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     directiveNoun: 'meeting',
     defaultMode: 'in-person',
     fetchStrategy: 'global',
+    radialDescription: 'From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.',
   },
 
   petition: {
@@ -331,6 +343,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Petition',
     color: '#AB47BC',
     mode: 'listing',
+    layerGroup: 'Swarm Governance',
     listingTag: 'listing-petition',
     mapPrefix: 'petition_',
     formTitle: 'Start a Petition',
@@ -351,6 +364,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     directiveNoun: 'Petition',
     defaultMode: 'both',
     fetchStrategy: 'global',
+    radialDescription: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.',
   },
 
   crowdfunding: {
@@ -358,6 +372,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     name: 'Crowdfunding',
     color: '#EF5350',
     mode: 'listing',
+    layerGroup: 'Swarm Governance',
     listingTag: 'listing-crowdfunding',
     mapPrefix: 'crowdfunding_',
     formTitle: 'Launch a Campaign',
@@ -378,6 +393,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     directiveNoun: 'Crowdfunding',
     defaultMode: 'both',
     fetchStrategy: 'global',
+    radialDescription: 'Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.',
   },
 };
 
@@ -414,16 +430,15 @@ export interface RadialMenuItem {
 }
 
 export const RADIAL_MENU_ITEMS: RadialMenuItem[] = [
-  { kind: 'vertical', id: 'social',        name: 'Spontaneous Contacts', color: '#FF4081' },
-  { kind: 'vertical', id: 'brainstorming', name: 'Brainstorming',        color: '#FFCA28',
-    description: 'Flip the script on every bad news! Take every flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure\u2014or any everyday issue, whether local or global\u2014and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to brainstorm their own challenges and co-create innovative products, services, and solutions.' },
-  { kind: 'vertical', id: 'meetanddo',     name: 'MeetandDo',            color: '#66BB6A',
-    description: 'From idea to impact\u2014organize real-world missions with local teams. Rally your community, show up, and take action where it counts.' },
-  { kind: 'vertical', id: 'petition',      name: 'Petition',             color: '#AB47BC',
-    description: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.' },
-  { kind: 'vertical', id: 'crowdfunding',  name: 'Crowdfunding',         color: '#EF5350',
-    description: 'Fuel your mission. Raise the resources to launch your project and solutions\u2014and turn bold ideas into real-world transformations.' },
-  { kind: 'vertical', id: 'helpouts',      name: 'Helpout',              color: '#00BCD4' },
-  { kind: 'vertical', id: 'delivery',      name: 'Delivery',             color: '#FF6D00' },
-  { kind: 'vertical', id: 'rides',         name: 'Rideshare',            color: '#4285F4' },
+  // Clockwise from top, matching VERTICAL_LIST
+  ...VERTICAL_LIST.map((id) => {
+    const cfg = VERTICALS[id];
+    return {
+      kind: 'vertical' as const,
+      id,
+      name: cfg.name,
+      color: cfg.color,
+      description: cfg.radialDescription,
+    };
+  }),
 ];
