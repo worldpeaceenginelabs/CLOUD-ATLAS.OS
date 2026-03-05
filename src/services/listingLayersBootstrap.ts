@@ -82,10 +82,11 @@ export async function runGlobalFeedFetch(): Promise<void> {
           const t = new Date(l.timestamp).getTime();
           return Number.isFinite(t) && t > cutoff;
         });
+        const stillActive = get(activeMapLayers);
         layerListings.update((all) => {
           const next = { ...all };
           for (const v of SWARM_GOVERNANCE_VERTICALS) {
-            next[v] = withLocation.filter((l) => l.vertical === v);
+            next[v] = stillActive.has(v) ? withLocation.filter((l) => l.vertical === v) : [];
           }
           return next;
         });
@@ -98,18 +99,22 @@ export async function runGlobalFeedFetch(): Promise<void> {
     const svc = new SwarmGovernanceListingService(nostr);
     const active = SWARM_GOVERNANCE_VERTICALS.filter((v) => get(activeMapLayers).has(v));
     if (active.length === 0) {
+      const stillActive = get(activeMapLayers);
       layerListings.update((all) => {
         const next = { ...all };
-        for (const v of SWARM_GOVERNANCE_VERTICALS) next[v] = [];
+        for (const v of SWARM_GOVERNANCE_VERTICALS) {
+          next[v] = stillActive.has(v) ? all[v] : [];
+        }
         return next;
       });
     } else {
       const listings = await svc.run(active);
       const withLocation = listings.filter((l) => l.location);
+      const stillActive = get(activeMapLayers);
       layerListings.update((all) => {
         const next = { ...all };
         for (const v of SWARM_GOVERNANCE_VERTICALS) {
-          next[v] = withLocation.filter((l) => l.vertical === v);
+          next[v] = stillActive.has(v) ? withLocation.filter((l) => l.vertical === v) : [];
         }
         return next;
       });
@@ -136,6 +141,7 @@ async function ensureLayerService(tag: string): Promise<ListingLayerService | nu
 
 export async function fetchLayer(verticalId: ListingVertical, forceRefresh = false): Promise<void> {
   if (isGlobalVertical(verticalId)) return;
+  if (layerLoadingState[verticalId]) return;
   const cfg = VERTICALS[verticalId] as ListingVerticalConfig;
   const loc = get(userLiveLocation);
   if (!loc) return;
@@ -151,6 +157,7 @@ export async function fetchLayer(verticalId: ListingVertical, forceRefresh = fal
   try {
     const cell = geohashEncode(loc.latitude, loc.longitude, 4);
     const listings = await layerServices[verticalId]!.fetchListings(cell, forceRefresh);
+    if (!get(activeMapLayers).has(verticalId)) return;
     const filtered = listings.filter((l) => l.location);
     layerCaches[verticalId] = { listings: filtered, cachedAt: Date.now() };
     layerListings.update((all) => ({ ...all, [verticalId]: filtered }));
