@@ -39,6 +39,7 @@
 
   const CACHE_TTL_MS = 30 * 60 * 1000;
   const GLOBAL_FEED_INTERVAL_MS = 30 * 60 * 1000;
+  const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
   let layerError = '';
   let globalFeedTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let persistListingLayersTimer: ReturnType<typeof setTimeout> | null = null;
@@ -201,6 +202,29 @@
     if (globalFeedFetchInFlight) return;
     globalFeedFetchInFlight = true;
     try {
+      // Render from cached swarm governance listings immediately (<= 7 days).
+      try {
+        await idb.openDB();
+        const cached = await idb.loadSwarmGovernanceCache();
+        if (cached) {
+          const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+          const withLocation = cached.listings.filter((l) => {
+            if (!l.location) return false;
+            const t = new Date(l.timestamp).getTime();
+            return Number.isFinite(t) && t > cutoff;
+          });
+          layerListings.update(all => {
+            const next = { ...all };
+            for (const v of SWARM_GOVERNANCE_VERTICALS) {
+              next[v] = withLocation.filter(l => l.vertical === v);
+            }
+            return next;
+          });
+        }
+      } catch {
+        // If IDB is unavailable, we still proceed with relay fetch below.
+      }
+
       const nostr = await getSharedNostr();
       const svc = new SwarmGovernanceListingService(nostr);
       const active = SWARM_GOVERNANCE_VERTICALS.filter(v => $activeMapLayers.has(v));

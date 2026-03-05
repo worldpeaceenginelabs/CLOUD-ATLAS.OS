@@ -15,7 +15,8 @@ import { fetchDeletions, applyDeletions } from './listingDeletionService';
 import type { Listing } from '../types';
 
 const FETCH_TIMEOUT_MS = 8000;
-const CACHE_TTL_MS = 30 * 60 * 1000;
+/** Maximum age for listings we render/keep (7 days). */
+const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
 
 export interface OnlinePage {
@@ -50,13 +51,20 @@ export class OnlineListingService {
     if (!forceRefresh) {
       try {
         const cached = await idb.loadListings(this.cacheType, cacheKey);
-        if (cached && (Date.now() - cached.fetchedAt) < CACHE_TTL_MS) {
-          const listings = cached.listings;
+        if (cached) {
+          const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+          const recent = cached.listings.filter((l) => {
+            const t = new Date(l.timestamp).getTime();
+            return Number.isFinite(t) && t > cutoff;
+          });
+          if (recent.length > 0) {
+            const listings = recent;
           return {
             listings,
             oldestTimestamp: this.getOldestTimestamp(listings),
             exhausted: listings.length < PAGE_SIZE,
           };
+          }
         }
       } catch { /* proceed to relay */ }
     }
@@ -66,9 +74,18 @@ export class OnlineListingService {
         this.fetchFromRelay(category, until),
         fetchDeletions(this.nostr),
       ]);
-      await idb.saveListings(this.cacheType, cacheKey, page.listings, Date.now());
+      const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+      const trimmedListings = page.listings.filter((l) => {
+        const t = new Date(l.timestamp).getTime();
+        return Number.isFinite(t) && t > cutoff;
+      });
+      await idb.saveListings(this.cacheType, cacheKey, trimmedListings, Date.now());
       await applyDeletions(deletedSet);
-      return page;
+      return {
+        listings: trimmedListings,
+        oldestTimestamp: this.getOldestTimestamp(trimmedListings),
+        exhausted: trimmedListings.length < PAGE_SIZE,
+      };
     } catch (e) {
       logger.warn(`Online relay fetch failed (${this.cacheType}, cat=${category ?? 'all'})`, {
         component: 'OnlineListingService',
@@ -77,10 +94,16 @@ export class OnlineListingService {
       try {
         const cached = await idb.loadListings(this.cacheType, cacheKey);
         if (cached) {
+          const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+          const recent = cached.listings.filter((l) => {
+            const t = new Date(l.timestamp).getTime();
+            return Number.isFinite(t) && t > cutoff;
+          });
+          const effective = recent;
           return {
-            listings: cached.listings,
-            oldestTimestamp: this.getOldestTimestamp(cached.listings),
-            exhausted: cached.listings.length < PAGE_SIZE,
+            listings: effective,
+            oldestTimestamp: this.getOldestTimestamp(effective),
+            exhausted: effective.length < PAGE_SIZE,
           };
         }
       } catch { /* no cache either */ }

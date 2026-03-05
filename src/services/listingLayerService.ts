@@ -26,8 +26,8 @@ import type { Listing } from '../types';
 /** Fallback timeout if relay never sends EOSE (ms). */
 const FETCH_TIMEOUT_MS = 5000;
 
-/** Cache is considered fresh for 30 minutes. */
-const CACHE_TTL_MS = 30 * 60 * 1000;
+/** Maximum age for listings we render/keep (7 days). */
+const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export class ListingLayerService {
   private nostr: NostrService;
@@ -47,16 +47,27 @@ export class ListingLayerService {
 
   /**
    * Fetch listings for a geohash-4 cell.
-   * Uses IDB cache if fresh (< 30 min), otherwise fetches from relay.
-   * Pass forceRefresh=true to bypass staleness check (e.g. after publishing).
+   * Uses IDB cache (<= 7 days old by listing timestamp) for
+   * immediate rendering. Optionally refreshes from relay.
+   * Pass forceRefresh=true to bypass cache and force a relay fetch.
    */
   async fetchListings(geohash4: string, forceRefresh = false): Promise<Listing[]> {
-    // Check cache first (unless forced)
+    let cached: { listings: Listing[]; fetchedAt: number } | null = null;
+
+    // Check cache first (unless forced). We treat any listing with
+    // timestamp <= 7 days old as valid for rendering.
     if (!forceRefresh) {
       try {
-        const cached = await idb.loadListings(this.cacheType, geohash4);
-        if (cached && (Date.now() - cached.fetchedAt) < CACHE_TTL_MS) {
-          return cached.listings;
+        cached = await idb.loadListings(this.cacheType, geohash4);
+        if (cached) {
+          const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+          const recent = cached.listings.filter((l) => {
+            const t = new Date(l.timestamp).getTime();
+            return Number.isFinite(t) && t > cutoff;
+          });
+          if (recent.length > 0) {
+            return recent;
+          }
         }
       } catch {
         // IDB read failed, proceed to relay
@@ -69,9 +80,14 @@ export class ListingLayerService {
         this.fetchFromRelay(geohash4),
         fetchDeletions(this.nostr),
       ]);
-      await idb.saveListings(this.cacheType, geohash4, listings, Date.now());
+      const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+      const trimmed = listings.filter((l) => {
+        const t = new Date(l.timestamp).getTime();
+        return Number.isFinite(t) && t > cutoff;
+      });
+      await idb.saveListings(this.cacheType, geohash4, trimmed, Date.now());
       await applyDeletions(deletedSet);
-      return listings;
+      return trimmed;
     } catch (e) {
       logger.warn(`Relay fetch failed for cell ${geohash4}, trying cache`, {
         component: 'ListingLayerService',
@@ -79,8 +95,13 @@ export class ListingLayerService {
       });
       // Fall back to cache regardless of age
       try {
-        const cached = await idb.loadListings(this.cacheType, geohash4);
-        return cached?.listings ?? [];
+        const fallback = await idb.loadListings(this.cacheType, geohash4);
+        if (!fallback) return [];
+        const cutoff = Date.now() - LISTING_MAX_AGE_MS;
+        return fallback.listings.filter((l) => {
+          const t = new Date(l.timestamp).getTime();
+          return Number.isFinite(t) && t > cutoff;
+        });
       } catch {
         return [];
       }
