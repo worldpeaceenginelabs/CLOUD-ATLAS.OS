@@ -86,21 +86,22 @@ export async function runGlobalFeedFetch(): Promise<void> {
   if (globalFeedFetchInFlight) return;
   globalFeedFetchInFlight = true;
   try {
+    const currentActiveLayers = get(activeMapLayers);
     try {
       await idb.openDB();
       const cached = await idb.loadListingCache('global:map');
       if (cached) {
         const withLocation = trimByMaxAge(cached.listings, LISTING_MAX_AGE_MS).filter((l) => l.location);
-        layerListings.update(applyGlobalFeedMapToLayerListings(withLocation, get(activeMapLayers)));
+        layerListings.update(applyGlobalFeedMapToLayerListings(withLocation, currentActiveLayers));
       }
     } catch {
       /* proceed to relay */
     }
 
     const nostr = await getSharedNostr();
-    const active = GLOBAL_FEED_MAP_VERTICALS.filter((v) => get(activeMapLayers).has(v));
+    const active = GLOBAL_FEED_MAP_VERTICALS.filter((v) => currentActiveLayers.has(v));
     if (active.length === 0) {
-      layerListings.update(applyGlobalFeedMapToLayerListings(null, get(activeMapLayers)));
+      layerListings.update(applyGlobalFeedMapToLayerListings(null, currentActiveLayers));
     } else {
       const listings = await runGlobalFeedMap(nostr, active);
       const withLocation = listings.filter((l) => l.location);

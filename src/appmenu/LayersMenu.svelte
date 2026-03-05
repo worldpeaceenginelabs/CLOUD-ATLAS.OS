@@ -83,24 +83,23 @@
     clearIonKey();
   }
 
+  function onEnter(e: KeyboardEvent, fn: () => void) {
+    if (e.key === 'Enter') fn();
+  }
+
   // ─── Layer groups for menu display ─────────────────────────
 
   interface LayerGroup {
     header: string;
-    items: { id: ListingVertical; label: string }[];
+    items: ListingVertical[];
   }
 
   const layerGroups: LayerGroup[] = [
-    { header: 'Social', items: [{ id: 'social', label: 'Spontaneous Contacts' }] },
-    { header: 'Gig Economy', items: [{ id: 'helpouts', label: 'Helpouts' }] },
+    { header: 'Social', items: ['social'] },
+    { header: 'Gig Economy', items: ['helpouts'] },
     {
       header: 'Swarm Governance',
-      items: [
-        { id: 'brainstorming', label: 'Brainstorming' },
-        { id: 'meetanddo', label: 'MeetandDo' },
-        { id: 'petition', label: 'Petition' },
-        { id: 'crowdfunding', label: 'Crowdfunding' },
-      ],
+      items: ['brainstorming', 'meetanddo', 'petition', 'crowdfunding'],
     },
   ];
 </script>
@@ -117,7 +116,7 @@
         role="button"
         tabindex="0"
         on:click={handleTilesCardClick}
-        on:keydown={(e) => e.key === 'Enter' && handleTilesCardClick()}
+        on:keydown={(e) => onEnter(e, handleTilesCardClick)}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 3L2 8l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -149,7 +148,7 @@
                 type="text"
                 placeholder="Paste Ion access token"
                 bind:value={$ionKeyInput}
-                on:keydown={(e) => e.key === 'Enter' && onSaveIonKey()}
+                on:keydown={(e) => onEnter(e, onSaveIonKey)}
               />
             {:else}
               <input
@@ -157,7 +156,7 @@
                 type="password"
                 placeholder="Paste Ion access token"
                 bind:value={$ionKeyInput}
-                on:keydown={(e) => e.key === 'Enter' && onSaveIonKey()}
+                on:keydown={(e) => onEnter(e, onSaveIonKey)}
               />
             {/if}
             <button class="ion-key-eye" on:click={() => (showIonKey = !showIonKey)} title={showIonKey ? 'Hide' : 'Show'}>
@@ -185,7 +184,7 @@
         role="button"
         tabindex="0"
         on:click={() => handleItemClick('model')}
-        on:keydown={(e) => e.key === 'Enter' && handleItemClick('model')}
+        on:keydown={(e) => onEnter(e, () => handleItemClick('model'))}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -196,7 +195,7 @@
         <button
           class="info-icon"
           on:click={(e) => handleInfoClick('model', e)}
-          on:keydown={(e) => e.key === 'Enter' && handleInfoClick('model', e)}
+          on:keydown={(e) => onEnter(e, () => handleInfoClick('model', e))}
           tabindex="0"
           aria-label="Show info for Model"
         >
@@ -213,7 +212,7 @@
         role="button"
         tabindex="0"
         on:click={() => handleItemClick('omnipedia')}
-        on:keydown={(e) => e.key === 'Enter' && handleItemClick('omnipedia')}
+        on:keydown={(e) => onEnter(e, () => handleItemClick('omnipedia'))}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -226,25 +225,26 @@
 
       {#each layerGroups as group}
         <div class="sub-header">{group.header}</div>
-        {#each group.items as layerItem}
-          {@const isOn = $activeMapLayers.has(layerItem.id)}
-          {@const isLoading = $layerLoading[layerItem.id] ?? false}
-          {@const color = VERTICALS[layerItem.id].color}
+        {#each group.items as verticalId}
+          {@const isOn = $activeMapLayers.has(verticalId)}
+          {@const isLoading = $layerLoading[verticalId] ?? false}
+          {@const vertical = VERTICALS[verticalId]}
+          {@const color = vertical.color}
           <div
             class="dropdown-item"
             role="button"
             tabindex="0"
-            on:click={() => onToggleLayer(layerItem.id)}
-            on:keydown={(e) => e.key === 'Enter' && onToggleLayer(layerItem.id)}
+            on:click={() => onToggleLayer(verticalId)}
+            on:keydown={(e) => onEnter(e, () => onToggleLayer(verticalId))}
           >
             {#if isLoading}
               <span class="layer-spinner"></span>
             {:else}
               <span class="layer-icon" style="color: {color}">
-                {@html verticalIconSvg(layerItem.id, 16)}
+                {@html verticalIconSvg(verticalId, 16)}
               </span>
             {/if}
-            <span class="item-text">{layerItem.label}</span>
+            <span class="item-text">{vertical.name}</span>
             {#if isOn}
               <span class="layer-badge">ON</span>
             {/if}
@@ -263,7 +263,7 @@
         role="button"
         tabindex="0"
         on:click={toggleAbout}
-        on:keydown={(e) => e.key === 'Enter' && toggleAbout()}
+        on:keydown={(e) => onEnter(e, toggleAbout)}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -278,7 +278,7 @@
         role="button"
         tabindex="0"
         on:click={openLiveEdit}
-        on:keydown={(e) => e.key === 'Enter' && openLiveEdit()}
+        on:keydown={(e) => onEnter(e, openLiveEdit)}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
