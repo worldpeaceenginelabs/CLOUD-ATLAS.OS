@@ -1,57 +1,37 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
 
   import {
-    coordinates, isVisible,
-    activeMapLayers, userLiveLocation, layerRefresh, layerListings,
-    enable3DTileset, userIonAccessToken,
+    coordinates,
+    isVisible,
+    activeMapLayers,
+    enable3DTileset,
   } from '../store';
   import { modalService } from '../utils/modalService';
-  import { encode as geohashEncode } from '../utils/geohash';
-  import { ListingLayerService } from '../services/listingLayerService';
-  import { getSharedNostr } from '../services/nostrPool';
-  import { idb } from '../idb';
-  import { LISTING_VERTICALS, VERTICALS, SWARM_GOVERNANCE_VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
-
-  function isGlobalVertical(v: ListingVertical): boolean {
-    return (VERTICALS[v] as ListingVerticalConfig).fetchStrategy === 'global';
-  }
+  import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
-  import type { Listing, ListingVertical } from '../types';
-  import { SwarmGovernanceListingService } from '../services/swarmGovernanceListingService';
+  import type { ListingVertical } from '../types';
   import { modelEditorService } from '../utils/modelEditorService';
+  import {
+    layerLoading,
+    layerError,
+    ionKeyInput,
+    ionKeySaved,
+    toggleLayer as bootstrapToggleLayer,
+    schedulePersistListingLayers,
+    saveIonKey,
+    clearIonKey,
+  } from '../services/listingLayersBootstrap';
 
-  // ─── Component state ──────────────────────────────────────
+  // ─── Component state (UI only) ─────────────────────────────
   let hoveredItem = '';
   let showInfoPanel = false;
   let infoPanelContent = '';
-
-  $: hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
-
-  // ─── Generic layer state ──────────────────────────────────
-  const layerServices: Record<string, ListingLayerService | null> = {};
-  const layerCaches: Record<string, { listings: Listing[]; cachedAt: number }> = {};
-  const layerLoadingState: Record<string, boolean> = {};
-
-  let layerLoading: Record<string, boolean> = {};
-
-  const CACHE_TTL_MS = 30 * 60 * 1000;
-  const GLOBAL_FEED_INTERVAL_MS = 30 * 60 * 1000;
-  const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-  let layerError = '';
-  let globalFeedTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  let persistListingLayersTimer: ReturnType<typeof setTimeout> | null = null;
-  let mounted = true;
-  let globalFeedFetchInFlight = false;
-
-  // Ion API key state
-  let ionKeyInput = '';
-  let ionKeySaved = false;
   let showIonKey = false;
   let ionKeyExpanded = false;
 
+  $: hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
   $: tiles3dOn = $enable3DTileset;
 
   // ─── Menu actions ─────────────────────────────────────────
@@ -88,7 +68,7 @@
   }
 
   function toggleAbout() {
-    isVisible.update(v => !v);
+    isVisible.update((v) => !v);
   }
 
   function openLiveEdit() {
@@ -102,170 +82,24 @@
     }
   }
 
-  // ─── Generic layer logic ──────────────────────────────────
-
-  async function ensureLayerService(tag: string): Promise<ListingLayerService | null> {
-    try {
-      const nostr = await getSharedNostr();
-      return new ListingLayerService(nostr, tag);
-    } catch {
-      layerError = 'Storage unavailable';
-      return null;
+  function handleTilesCardClick() {
+    if ($ionKeySaved) {
+      enable3DTileset.set(!$enable3DTileset);
+    } else {
+      ionKeyExpanded = !ionKeyExpanded;
     }
   }
 
-  async function fetchLayer(verticalId: ListingVertical, forceRefresh = false) {
-    if (isGlobalVertical(verticalId)) return;
-    const cfg = VERTICALS[verticalId] as ListingVerticalConfig;
-    const loc = $userLiveLocation;
-    if (!loc) return;
-
-    if (!layerServices[verticalId]) {
-      layerServices[verticalId] = await ensureLayerService(cfg.listingTag);
-      if (!layerServices[verticalId]) return;
-    }
-
-    layerLoadingState[verticalId] = true;
-    layerLoading = { ...layerLoading, [verticalId]: true };
-
-    const cell = geohashEncode(loc.latitude, loc.longitude, 4);
-    const listings = await layerServices[verticalId]!.fetchListings(cell, forceRefresh);
-    const filtered = listings.filter(l => l.location);
-
-    layerCaches[verticalId] = { listings: filtered, cachedAt: Date.now() };
-    layerListings.update(all => ({ ...all, [verticalId]: filtered }));
-
-    layerLoadingState[verticalId] = false;
-    layerLoading = { ...layerLoading, [verticalId]: false };
+  function onToggleLayer(verticalId: ListingVertical) {
+    bootstrapToggleLayer(verticalId);
   }
 
-  async function toggleLayer(verticalId: ListingVertical) {
-    layerError = '';
-    const layers = new Set($activeMapLayers);
-    const wasOn = layers.has(verticalId);
-
-    if (wasOn) {
-      layers.delete(verticalId);
-      activeMapLayers.set(layers);
-      layerListings.update(all => ({ ...all, [verticalId]: [] }));
-      schedulePersistListingLayers();
-      return;
-    }
-
-    layers.add(verticalId);
-    activeMapLayers.set(layers);
-    schedulePersistListingLayers();
-
-    if (isGlobalVertical(verticalId)) {
-      runGlobalFeedFetch();
-      return;
-    }
-
-    const cache = layerCaches[verticalId];
-    if (cache && cache.listings.length > 0 && (Date.now() - cache.cachedAt) < CACHE_TTL_MS) {
-      layerListings.update(all => ({ ...all, [verticalId]: cache.listings }));
-    }
-    await fetchLayer(verticalId);
+  function onSaveIonKey() {
+    saveIonKey($ionKeyInput);
   }
 
-  async function persistListingLayers() {
-    const on = LISTING_VERTICALS.filter(v => $activeMapLayers.has(v));
-    try {
-      await idb.openDB();
-      await idb.saveSetting('activeListingLayers', JSON.stringify(on));
-    } catch { /* non-critical */ }
-  }
-
-  function schedulePersistListingLayers() {
-    if (persistListingLayersTimer) clearTimeout(persistListingLayersTimer);
-    persistListingLayersTimer = setTimeout(() => {
-      persistListingLayersTimer = null;
-      persistListingLayers();
-    }, 250);
-  }
-
-  async function loadListingLayers() {
-    try {
-      await idb.openDB();
-      const raw = await idb.loadSetting('activeListingLayers');
-      const on = raw ? (JSON.parse(raw) as ListingVertical[]) : [...SWARM_GOVERNANCE_VERTICALS];
-      const layers = new Set($activeMapLayers);
-      for (const v of LISTING_VERTICALS) {
-        if (on.includes(v)) layers.add(v);
-        else layers.delete(v);
-      }
-      activeMapLayers.set(layers);
-    } catch { /* use defaults */ }
-  }
-
-  async function runGlobalFeedFetch() {
-    if (globalFeedFetchInFlight) return;
-    globalFeedFetchInFlight = true;
-    try {
-      // Render from cached swarm governance listings immediately (<= 7 days).
-      try {
-        await idb.openDB();
-        const cached = await idb.loadSwarmGovernanceCache();
-        if (cached) {
-          const cutoff = Date.now() - LISTING_MAX_AGE_MS;
-          const withLocation = cached.listings.filter((l) => {
-            if (!l.location) return false;
-            const t = new Date(l.timestamp).getTime();
-            return Number.isFinite(t) && t > cutoff;
-          });
-          layerListings.update(all => {
-            const next = { ...all };
-            for (const v of SWARM_GOVERNANCE_VERTICALS) {
-              next[v] = withLocation.filter(l => l.vertical === v);
-            }
-            return next;
-          });
-        }
-      } catch {
-        // If IDB is unavailable, we still proceed with relay fetch below.
-      }
-
-      const nostr = await getSharedNostr();
-      const svc = new SwarmGovernanceListingService(nostr);
-      const active = SWARM_GOVERNANCE_VERTICALS.filter(v => $activeMapLayers.has(v));
-      if (active.length === 0) {
-        layerListings.update(all => {
-          const next = { ...all };
-          for (const v of SWARM_GOVERNANCE_VERTICALS) next[v] = [];
-          return next;
-        });
-      } else {
-        const listings = await svc.run(active);
-        const withLocation = listings.filter(l => l.location);
-        layerListings.update(all => {
-          const next = { ...all };
-          for (const v of SWARM_GOVERNANCE_VERTICALS) {
-            next[v] = withLocation.filter(l => l.vertical === v);
-          }
-          return next;
-        });
-      }
-    } catch { /* nostr unavailable or run failed */ }
-    finally {
-      globalFeedFetchInFlight = false;
-      if (mounted) globalFeedTimeoutId = setTimeout(runGlobalFeedFetch, GLOBAL_FEED_INTERVAL_MS);
-    }
-  }
-
-  let lastRefreshSnapshot: Record<string, number> = {};
-  $: {
-    const current = $layerRefresh;
-    let needGlobalFetch = false;
-    for (const v of LISTING_VERTICALS) {
-      const cur = current[v] ?? 0;
-      const last = lastRefreshSnapshot[v] ?? 0;
-      if (cur !== last && $activeMapLayers.has(v)) {
-        if (isGlobalVertical(v)) needGlobalFetch = true;
-        else if (layerServices[v]) fetchLayer(v, true);
-      }
-    }
-    if (needGlobalFetch) runGlobalFeedFetch();
-    lastRefreshSnapshot = { ...current };
+  function onClearIonKey() {
+    clearIonKey();
   }
 
   // ─── Layer groups for menu display ─────────────────────────
@@ -276,304 +110,234 @@
   }
 
   const layerGroups: LayerGroup[] = [
-    { header: 'Social', items: [
-      { id: 'social', label: 'Spontaneous Contacts' },
-    ]},
-    { header: 'Gig Economy', items: [
-      { id: 'helpouts', label: 'Helpouts' },
-    ]},
-    { header: 'Swarm Governance', items: [
-      { id: 'brainstorming', label: 'Brainstorming' },
-      { id: 'meetanddo', label: 'MeetandDo' },
-      { id: 'petition', label: 'Petition' },
-      { id: 'crowdfunding', label: 'Crowdfunding' },
-    ]},
+    { header: 'Social', items: [{ id: 'social', label: 'Spontaneous Contacts' }] },
+    { header: 'Gig Economy', items: [{ id: 'helpouts', label: 'Helpouts' }] },
+    {
+      header: 'Swarm Governance',
+      items: [
+        { id: 'brainstorming', label: 'Brainstorming' },
+        { id: 'meetanddo', label: 'MeetandDo' },
+        { id: 'petition', label: 'Petition' },
+        { id: 'crowdfunding', label: 'Crowdfunding' },
+      ],
+    },
   ];
-
-  // ─── Ion key persistence ──────────────────────────────────
-
-  async function loadIonKey() {
-    try {
-      await idb.openDB();
-      const stored = await idb.loadSetting('ionAccessToken');
-      if (stored) {
-        ionKeyInput = stored;
-        userIonAccessToken.set(stored);
-        ionKeySaved = true;
-      }
-    } catch {}
-  }
-
-  async function saveIonKey() {
-    const trimmed = ionKeyInput.trim();
-    if (!trimmed) return;
-    try {
-      await idb.openDB();
-      await idb.saveSetting('ionAccessToken', trimmed);
-      userIonAccessToken.set(trimmed);
-      ionKeySaved = true;
-    } catch {
-      layerError = 'Failed to save API key';
-    }
-  }
-
-  async function clearIonKey() {
-    ionKeyInput = '';
-    ionKeySaved = false;
-    showIonKey = false;
-    enable3DTileset.set(false);
-    try {
-      await idb.openDB();
-      await idb.saveSetting('ionAccessToken', '');
-      userIonAccessToken.set('');
-    } catch {}
-  }
-
-  function handleTilesCardClick() {
-    if (ionKeySaved) {
-      enable3DTileset.set(!$enable3DTileset);
-    } else {
-      ionKeyExpanded = !ionKeyExpanded;
-    }
-  }
-
-  // ─── Lifecycle ────────────────────────────────────────────
-
-  onMount(() => {
-    loadIonKey();
-    loadListingLayers().then(() => runGlobalFeedFetch());
-    return () => {
-      mounted = false;
-      if (globalFeedTimeoutId != null) clearTimeout(globalFeedTimeoutId);
-      if (persistListingLayersTimer != null) clearTimeout(persistListingLayersTimer);
-    };
-  });
 </script>
 
 <div class="layermenu-container">
   <div class="layermenu-inner" transition:slide={{ duration: 500, axis: 'y' }}>
+    <div class="dropdown-menu">
+      <div class="section-label">Layers</div>
 
-        <!-- ═══ LAYERS ═══════════════════════════════════════ -->
-        <div class="dropdown-menu">
-        <div class="section-label">Layers</div>
+      <div class="sub-header">Map</div>
 
-        <!-- Map sub-header -->
-        <div class="sub-header">Map</div>
-
-        <!-- 3D Tiles -->
-        <div 
-          class="dropdown-item"
-          role="button"
-          tabindex="0"
-          on:click={handleTilesCardClick}
-          on:keydown={(e) => e.key === 'Enter' && handleTilesCardClick()}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 3L2 8l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 16l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="item-text">3D Tiles</span>
-          {#if tiles3dOn}
-            <span class="layer-badge">ON</span>
-          {:else if !ionKeySaved}
-            <span class="layer-hint">Add API key</span>
-          {/if}
-          {#if ionKeySaved}
-            <button class="tiles3d-edit" on:click|stopPropagation={() => ionKeyExpanded = !ionKeyExpanded} aria-label="Edit Ion key">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-          {/if}
-        </div>
-
-        <!-- Ion key panel (expands directly below 3D Tiles) -->
-        {#if ionKeyExpanded}
-          <div class="ion-panel-inline" transition:slide={{ duration: 200 }}>
-            <p class="ion-hint">
-              Get a free key at <a href="https://ion.cesium.com" target="_blank" rel="noopener">ion.cesium.com</a> to unlock Google Photorealistic 3D Tiles.
-            </p>
-            <div class="ion-key-row">
-              {#if showIonKey}
-                <input
-                  class="ion-key-input"
-                  type="text"
-                  placeholder="Paste Ion access token"
-                  bind:value={ionKeyInput}
-                  on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
-                />
-              {:else}
-                <input
-                  class="ion-key-input"
-                  type="password"
-                  placeholder="Paste Ion access token"
-                  bind:value={ionKeyInput}
-                  on:keydown={(e) => e.key === 'Enter' && saveIonKey()}
-                />
-              {/if}
-              <button class="ion-key-eye" on:click={() => showIonKey = !showIonKey} title={showIonKey ? 'Hide' : 'Show'}>
-                {#if showIonKey}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                {:else}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                {/if}
-              </button>
-            </div>
-            <div class="ion-key-actions">
-              <button class="ion-key-btn save" on:click={saveIonKey} disabled={!ionKeyInput.trim()}>Save</button>
-              {#if ionKeySaved}
-                <button class="ion-key-btn clear" on:click={clearIonKey}>Reset</button>
-              {/if}
-              <button class="ion-key-btn clear" on:click={() => ionKeyExpanded = false}>Cancel</button>
-            </div>
-          </div>
+      <div
+        class="dropdown-item"
+        role="button"
+        tabindex="0"
+        on:click={handleTilesCardClick}
+        on:keydown={(e) => e.key === 'Enter' && handleTilesCardClick()}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3L2 8l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 16l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="item-text">3D Tiles</span>
+        {#if tiles3dOn}
+          <span class="layer-badge">ON</span>
+        {:else if !$ionKeySaved}
+          <span class="layer-hint">Add API key</span>
         {/if}
-
-        <!-- Holodeck sub-header -->
-        <div class="sub-header">Holodeck</div>
-
-        <!-- Add Model -->
-        <div 
-          class="dropdown-item" 
-          role="button"
-          tabindex="0"
-          on:click={() => handleItemClick('model')}
-          on:keydown={(e) => e.key === 'Enter' && handleItemClick('model')}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M3.27 6.96L12 12.01l8.73-5.05" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          </svg>
-          <span class="item-text">Holodeck Editor</span>
-          <button 
-            class="info-icon" 
-            class:active={showInfoPanel && hoveredItem === 'model'}
-            on:click={(e) => handleInfoClick('model', e)}
-            on:keydown={(e) => e.key === 'Enter' && handleInfoClick('model', e)}
-            tabindex="0"
-            aria-label="Show info for Model"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+        {#if $ionKeySaved}
+          <button class="tiles3d-edit" on:click|stopPropagation={() => (ionKeyExpanded = !ionKeyExpanded)} aria-label="Edit Ion key">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-        </div>
-
-        <div 
-          class="dropdown-item"
-          role="button"
-          tabindex="0"
-          on:click={() => handleItemClick('omnipedia')}
-          on:keydown={(e) => e.key === 'Enter' && handleItemClick('omnipedia')}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-          <span class="item-text">Omnipedia</span>
-          <span class="coming-soon-badge">COMING SOON</span>
-        </div>
-
-        <!-- Listing layer groups -->
-        {#each layerGroups as group}
-          <div class="sub-header">{group.header}</div>
-          {#each group.items as layerItem}
-            {@const isOn = $activeMapLayers.has(layerItem.id)}
-            {@const isLoading = layerLoading[layerItem.id] ?? false}
-            {@const color = VERTICALS[layerItem.id].color}
-            <div 
-              class="dropdown-item"
-              role="button"
-              tabindex="0"
-              on:click={() => toggleLayer(layerItem.id)}
-              on:keydown={(e) => e.key === 'Enter' && toggleLayer(layerItem.id)}
-            >
-              {#if isLoading}
-                <span class="layer-spinner"></span>
-              {:else}
-                <span class="layer-icon" style="color: {color}">
-                  {@html verticalIconSvg(layerItem.id, 16)}
-                </span>
-              {/if}
-              <span class="item-text">{layerItem.label}</span>
-              {#if isOn}
-                <span class="layer-badge">ON</span>
-              {/if}
-            </div>
-          {/each}
-        {/each}
-
-        {#if layerError}
-          <div class="layer-error">{layerError}</div>
         {/if}
-        </div>
+      </div>
 
-        <!-- Bottom section: Utility -->
-        <div class="utility-menu">
-          <div 
+      {#if ionKeyExpanded}
+        <div class="ion-panel-inline" transition:slide={{ duration: 200 }}>
+          <p class="ion-hint">
+            Get a free key at <a href="https://ion.cesium.com" target="_blank" rel="noopener">ion.cesium.com</a> to unlock Google Photorealistic 3D Tiles.
+          </p>
+          <div class="ion-key-row">
+            {#if showIonKey}
+              <input
+                class="ion-key-input"
+                type="text"
+                placeholder="Paste Ion access token"
+                bind:value={$ionKeyInput}
+                on:keydown={(e) => e.key === 'Enter' && onSaveIonKey()}
+              />
+            {:else}
+              <input
+                class="ion-key-input"
+                type="password"
+                placeholder="Paste Ion access token"
+                bind:value={$ionKeyInput}
+                on:keydown={(e) => e.key === 'Enter' && onSaveIonKey()}
+              />
+            {/if}
+            <button class="ion-key-eye" on:click={() => (showIonKey = !showIonKey)} title={showIonKey ? 'Hide' : 'Show'}>
+              {#if showIonKey}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              {:else}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              {/if}
+            </button>
+          </div>
+          <div class="ion-key-actions">
+            <button class="ion-key-btn save" on:click={onSaveIonKey} disabled={!$ionKeyInput.trim()}>Save</button>
+            {#if $ionKeySaved}
+              <button class="ion-key-btn clear" on:click={onClearIonKey}>Reset</button>
+            {/if}
+            <button class="ion-key-btn clear" on:click={() => (ionKeyExpanded = false)}>Cancel</button>
+          </div>
+        </div>
+      {/if}
+
+      <div class="sub-header">Holodeck</div>
+
+      <div
+        class="dropdown-item"
+        role="button"
+        tabindex="0"
+        on:click={() => handleItemClick('model')}
+        on:keydown={(e) => e.key === 'Enter' && handleItemClick('model')}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M3.27 6.96L12 12.01l8.73-5.05" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span class="item-text">Holodeck Editor</span>
+        <button
+          class="info-icon"
+          class:active={showInfoPanel && hoveredItem === 'model'}
+          on:click={(e) => handleInfoClick('model', e)}
+          on:keydown={(e) => e.key === 'Enter' && handleInfoClick('model', e)}
+          tabindex="0"
+          aria-label="Show info for Model"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div
+        class="dropdown-item"
+        role="button"
+        tabindex="0"
+        on:click={() => handleItemClick('omnipedia')}
+        on:keydown={(e) => e.key === 'Enter' && handleItemClick('omnipedia')}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <span class="item-text">Omnipedia</span>
+        <span class="coming-soon-badge">COMING SOON</span>
+      </div>
+
+      {#each layerGroups as group}
+        <div class="sub-header">{group.header}</div>
+        {#each group.items as layerItem}
+          {@const isOn = $activeMapLayers.has(layerItem.id)}
+          {@const isLoading = $layerLoading[layerItem.id] ?? false}
+          {@const color = VERTICALS[layerItem.id].color}
+          <div
             class="dropdown-item"
             role="button"
             tabindex="0"
-            on:click={toggleAbout}
-            on:keydown={(e) => e.key === 'Enter' && toggleAbout()}
+            on:click={() => onToggleLayer(layerItem.id)}
+            on:keydown={(e) => e.key === 'Enter' && onToggleLayer(layerItem.id)}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span class="item-text">About</span>
+            {#if isLoading}
+              <span class="layer-spinner"></span>
+            {:else}
+              <span class="layer-icon" style="color: {color}">
+                {@html verticalIconSvg(layerItem.id, 16)}
+              </span>
+            {/if}
+            <span class="item-text">{layerItem.label}</span>
+            {#if isOn}
+              <span class="layer-badge">ON</span>
+            {/if}
           </div>
+        {/each}
+      {/each}
 
-          <div 
-            class="dropdown-item"
-            role="button"
-            tabindex="0"
-            on:click={openLiveEdit}
-            on:keydown={(e) => e.key === 'Enter' && openLiveEdit()}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span class="item-text">Live Edit</span>
-          </div>
-
-          <div class="utility-links">
-            <a href="https://worldpeaceenginelabs.org/" target="_blank" rel="noopener">
-              <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
-            </a>
-            <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" target="_blank" rel="noopener">
-              <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
-            </a>
-            <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyiibz9oytfjaz693afxajydenrw7tntfs48zicfd3bkpjhfi1imqdpaiio6xbjw7bjpcgrqerto1ejqwrwus8eocka1boxydb5is4sm1yederk6cuy1wixs96b37niw8sxuobfcr" target="_blank" rel="noopener">
-              <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on Keet" height="30" width="30">
-            </a>
-            <a href="https://twitter.com/cloudatlasos" target="_blank" rel="noopener">
-              <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
-            </a>
-            <a href="https://www.youtube.com/@cloudatlasos" target="_blank" rel="noopener">
-              <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
-            </a>
-            <a href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp" target="_blank" rel="noopener">
-              <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
-            </a>
-          </div>
-        </div>
-      </div>
+      {#if $layerError}
+        <div class="layer-error">{$layerError}</div>
+      {/if}
     </div>
 
-  {#if showInfoPanel && infoPanelContent}
-    <div class="info-panel slide-in">
-      <div class="info-content">
-        {infoPanelContent}
+    <div class="utility-menu">
+      <div
+        class="dropdown-item"
+        role="button"
+        tabindex="0"
+        on:click={toggleAbout}
+        on:keydown={(e) => e.key === 'Enter' && toggleAbout()}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="item-text">About</span>
+      </div>
+
+      <div
+        class="dropdown-item"
+        role="button"
+        tabindex="0"
+        on:click={openLiveEdit}
+        on:keydown={(e) => e.key === 'Enter' && openLiveEdit()}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="item-text">Live Edit</span>
+      </div>
+
+      <div class="utility-links">
+        <a href="https://worldpeaceenginelabs.org/" target="_blank" rel="noopener">
+          <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
+        </a>
+        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" target="_blank" rel="noopener">
+          <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
+        </a>
+        <a href="pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyiibz9oytfjaz693afxajydenrw7tntfs48zicfd3bkpjhfi1imqdpaiio6xbjw7bjpcgrqerto1ejqwrwus8eocka1boxydb5is4sm1yederk6cuy1wixs96b37niw8sxuobfcr" target="_blank" rel="noopener">
+          <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on Keet" height="30" width="30">
+        </a>
+        <a href="https://twitter.com/cloudatlasos" target="_blank" rel="noopener">
+          <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
+        </a>
+        <a href="https://www.youtube.com/@cloudatlasos" target="_blank" rel="noopener">
+          <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
+        </a>
+        <a href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp" target="_blank" rel="noopener">
+          <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
+        </a>
       </div>
     </div>
-  {/if}
+  </div>
+</div>
 
+{#if showInfoPanel && infoPanelContent}
+  <div class="info-panel slide-in">
+    <div class="info-content">
+      {infoPanelContent}
+    </div>
+  </div>
+{/if}
 
 <style>
   .layermenu-container {
@@ -697,7 +461,6 @@
     border-top: none;
   }
 
-  /* ── Layer badges & status ── */
   .layer-badge {
     font-size: 0.6rem;
     font-weight: 700;
@@ -737,7 +500,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .layer-icon {
@@ -772,7 +537,6 @@
     color: rgba(255, 255, 255, 0.7);
   }
 
-  /* ── Ion key panel (inline, inside dropdown-menu) ── */
   .ion-panel-inline {
     padding: 10px 16px 14px;
     border-top: 1px solid rgba(124, 77, 255, 0.2);

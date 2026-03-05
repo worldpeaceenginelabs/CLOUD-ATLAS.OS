@@ -9,7 +9,8 @@
   import PwaInstallBanner from "./components/PwaInstallBanner.svelte";
   import OnlineTopBar from "./components/OnlineTopBar.svelte";
   import OnlineListings from "./gig/OnlineListings.svelte";
-  import { 
+  import { initListingLayers } from './services/listingLayersBootstrap';
+  import {
     showPicture,
     gridReady,
     isVisible,
@@ -25,6 +26,8 @@
   let cesiumComponent: Cesium | null = null;
 
   let updateSimulationModel: ((modelData: any) => void) | undefined = undefined;
+
+  initListingLayers().catch(() => {});
 
   onDestroy(() => {
     showPicture.set(false);
