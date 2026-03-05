@@ -288,6 +288,9 @@ export async function renderListingMarkers(
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -12),
         disableDepthTestDistance: 50000,
+        showBackground: true,
+        backgroundColor: Color.fromCssColorString('#111827').withAlpha(0.9),
+        backgroundPadding: new Cesium.Cartesian2(8, 4),
       },
       properties: { [options.propertyKey]: listing },
     };

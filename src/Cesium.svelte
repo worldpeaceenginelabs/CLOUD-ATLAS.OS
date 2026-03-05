@@ -885,7 +885,7 @@ async function onLayerChanged(verticalId: ListingVertical, listings: Listing[]) 
   layerEntities[verticalId] = await renderListingMarkers(cesiumViewer, listings, existing, {
     idPrefix: cfg.mapPrefix,
     pointColor: cfg.color,
-    getLabelText: (l) => l.title || '?',
+    getLabelText: (l) => wrapLabelEveryNChars(l.title || '?', 25),
     propertyKey: 'listing',
     shape: isGlobalFeedMap ? 'fire' : 'point',
   });
@@ -925,6 +925,37 @@ $: {
   if (initialZoomComplete) {
     prevLayerSnapshot = nextSnapshot;
   }
+}
+
+function wrapLabelEveryNChars(text: string | null | undefined, max: number = 25): string {
+  if (!text) return '?';
+  const cleaned = text.trim();
+  if (!cleaned) return '?';
+
+  const words = cleaned.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    if (!current) {
+      // start new line
+      current = word;
+      continue;
+    }
+
+    const candidate = `${current} ${word}`;
+    if (candidate.length <= max) {
+      current = candidate;
+    } else {
+      // push current line and start a new one with this word
+      lines.push(current);
+      current = word;
+    }
+  }
+
+  if (current) lines.push(current);
+
+  return lines.join('\n');
 }
 
 /** Handle radial menu category selection → open gig panel to that vertical. */
