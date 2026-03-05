@@ -1,6 +1,6 @@
 import { writable, type Writable } from 'svelte/store';
 import type { Coordinates, ModelData, SceneData, LatLon, GigVertical, Listing } from './types';
-import { SWARM_GOVERNANCE_VERTICALS } from './gig/verticals';
+import { GLOBAL_FEED_MAP_VERTICALS } from './gig/verticals';
 
 // ─── Store registry ──────────────────────────────────────────
 type ResetFn = () => void;
@@ -102,7 +102,7 @@ export const flyToLocation = resettable<{ lat: number; lon: number } | null>(nul
 
 // ─── Map Layers ──────────────────────────────────────────────
 /** Set of currently active map layer IDs (e.g. 'helpouts', 'brainstorming'). Starts with SG verticals on, helpouts/social off. */
-export const activeMapLayers = resettable<Set<string>>(new Set(SWARM_GOVERNANCE_VERTICALS));
+export const activeMapLayers = resettable<Set<string>>(new Set(GLOBAL_FEED_MAP_VERTICALS));
 /** Per-vertical refresh counter — increment a key to force-refresh that layer */
 export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */

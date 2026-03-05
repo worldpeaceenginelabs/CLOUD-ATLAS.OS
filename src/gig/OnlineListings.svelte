@@ -3,7 +3,8 @@
   import { fly, slide } from 'svelte/transition';
   import { activeMapLayers, onlinePanelOpen } from '../store';
   import { getSharedNostr } from '../services/nostrPool';
-  import { OnlineListingService, type OnlinePage } from '../services/onlineListingService';
+  import { fetchGlobalFeedOnlinePage, type GlobalFeedOnlinePage } from '../services/globalListingFeed';
+  import type { NostrService } from '../services/nostrService';
   import { VERTICALS, LISTING_CATEGORIES, type ListingVerticalConfig } from './verticals';
   import { getCategoryName } from './categoryUtils';
   import type { Listing, ListingVertical } from '../types';
@@ -23,7 +24,7 @@
   let cooldownTimer: ReturnType<typeof setInterval> | null = null;
   const COOLDOWN_SECS = 60;
 
-  let services: Partial<Record<OnlineVertical, OnlineListingService>> = {};
+  let nostr: NostrService | null = null;
   let myPk = '';
 
   let selectedListing: Listing | null = null;
@@ -41,12 +42,8 @@
 
   onMount(async () => {
     try {
-      const nostr = await getSharedNostr();
+      nostr = await getSharedNostr();
       myPk = nostr.pubkey;
-      for (const v of ONLINE_VERTICALS) {
-        const vcfg = VERTICALS[v] as ListingVerticalConfig;
-        services[v] = new OnlineListingService(nostr, vcfg.listingTag);
-      }
       await loadPage(false);
     } catch { /* nostr unavailable */ }
   });
@@ -56,15 +53,14 @@
   });
 
   async function loadPage(paginate: boolean, forceRefresh = false) {
-    const svc = services[activeTab];
-    if (!svc || loading) return;
+    if (!nostr || loading) return;
 
     loading = true;
-    const page: OnlinePage = await svc.fetchPage(
-      selectedCategory || undefined,
-      paginate ? (paginationCursor ?? undefined) : undefined,
+    const page: GlobalFeedOnlinePage = await fetchGlobalFeedOnlinePage(nostr, activeTab, {
+      category: selectedCategory || undefined,
+      until: paginate ? (paginationCursor ?? undefined) : undefined,
       forceRefresh,
-    );
+    });
 
     if (paginate) {
       listings = [...listings, ...page.listings];

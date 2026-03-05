@@ -9,9 +9,7 @@
 import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
 import { idb } from '../idb';
 import { applyDeletionsToLayerListings } from '../store';
-
-const DELETE_FETCH_TIMEOUT_MS = 5000;
-const LISTING_WINDOW_SECS = 7 * 24 * 60 * 60;
+import { LISTING_MAX_AGE_SECS, FETCH_TIMEOUT_MS } from './listingConstants';
 
 /**
  * Fetch new DELETE events from the relay. Uses lastDeleteFetchSince so we only
@@ -21,7 +19,7 @@ export async function fetchDeletions(nostr: NostrService): Promise<Set<string>> 
   await idb.openDB();
   const lastSince = await idb.getLastDeleteFetchSince();
   const nowSec = Math.floor(Date.now() / 1000);
-  const since = Math.max(nowSec - LISTING_WINDOW_SECS, lastSince);
+  const since = Math.max(nowSec - LISTING_MAX_AGE_SECS, lastSince);
 
   return new Promise((resolve) => {
     const deletedSet = new Set<string>();
@@ -52,7 +50,7 @@ export async function fetchDeletions(nostr: NostrService): Promise<Set<string>> 
       done
     );
 
-    setTimeout(done, DELETE_FETCH_TIMEOUT_MS);
+    setTimeout(done, FETCH_TIMEOUT_MS);
   });
 }
 

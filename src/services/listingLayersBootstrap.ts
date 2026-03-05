@@ -1,14 +1,14 @@
 /**
  * Listing layers bootstrap: Ion key persistence, loading listings from IDB/Nostr,
  * and layer refresh. Runs on app start; LayersMenu shows state and calls these APIs on toggle.
- * activeMapLayers starts with SG verticals on (store init); only user toggles change it.
+ * activeMapLayers starts with global feed map verticals on (store init); only user toggles change it.
  */
 
 import { get, writable } from 'svelte/store';
 import { idb } from '../idb';
 import { getSharedNostr } from './nostrPool';
-import { ListingLayerService } from './listingLayerService';
-import { SwarmGovernanceListingService } from './swarmGovernanceListingService';
+import { GeohashListingFeed } from './geohashListingFeed';
+import { runGlobalFeedMap } from './globalListingFeed';
 import {
   activeMapLayers,
   layerListings,
@@ -21,17 +21,31 @@ import { encode as geohashEncode } from '../utils/geohash';
 import {
   LISTING_VERTICALS,
   VERTICALS,
-  SWARM_GOVERNANCE_VERTICALS,
+  GLOBAL_FEED_MAP_VERTICALS,
   type ListingVerticalConfig,
 } from '../gig/verticals';
 import type { Listing, ListingVertical } from '../types';
-
-const CACHE_TTL_MS = 30 * 60 * 1000;
-const GLOBAL_FEED_INTERVAL_MS = 30 * 60 * 1000;
-const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+import { LISTING_MAX_AGE_MS, LAYER_CACHE_TTL_MS, GLOBAL_FEED_INTERVAL_MS } from './listingConstants';
+import { trimByMaxAge } from './listingFeedHelpers';
 
 function isGlobalVertical(v: ListingVertical): boolean {
   return (VERTICALS[v] as ListingVerticalConfig).fetchStrategy === 'global';
+}
+
+/** Apply global feed (map) result to layerListings: only update verticals still active; clear the rest. */
+function applyGlobalFeedMapToLayerListings(
+  listingsWithLocation: Listing[] | null,
+  stillActive: Set<string>
+): (all: Record<string, Listing[]>) => Record<string, Listing[]> {
+  return (all) => {
+    const next = { ...all };
+    for (const v of GLOBAL_FEED_MAP_VERTICALS) {
+      next[v] = stillActive.has(v)
+        ? (listingsWithLocation ? listingsWithLocation.filter((l) => l.vertical === v) : all[v])
+        : [];
+    }
+    return next;
+  };
 }
 
 // ─── UI state (menu reads these) ─────────────────────────────
@@ -43,7 +57,7 @@ export const ionKeySaved = writable(false);
 
 // ─── Internal state ─────────────────────────────────────────
 
-const layerServices: Record<string, ListingLayerService | null> = {};
+const layerServices: Record<string, GeohashListingFeed | null> = {};
 const layerCaches: Record<string, { listings: Listing[]; cachedAt: number }> = {};
 const layerLoadingState: Record<string, boolean> = {};
 let globalFeedTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -66,7 +80,7 @@ export async function loadIonKey(): Promise<void> {
   }
 }
 
-// ─── Global swarm feed ──────────────────────────────────────
+// ─── Global feed (map) ───────────────────────────────────────
 
 export async function runGlobalFeedFetch(): Promise<void> {
   if (globalFeedFetchInFlight) return;
@@ -74,50 +88,23 @@ export async function runGlobalFeedFetch(): Promise<void> {
   try {
     try {
       await idb.openDB();
-      const cached = await idb.loadSwarmGovernanceCache();
+      const cached = await idb.loadListingCache('global:map');
       if (cached) {
-        const cutoff = Date.now() - LISTING_MAX_AGE_MS;
-        const withLocation = cached.listings.filter((l) => {
-          if (!l.location) return false;
-          const t = new Date(l.timestamp).getTime();
-          return Number.isFinite(t) && t > cutoff;
-        });
-        const stillActive = get(activeMapLayers);
-        layerListings.update((all) => {
-          const next = { ...all };
-          for (const v of SWARM_GOVERNANCE_VERTICALS) {
-            next[v] = stillActive.has(v) ? withLocation.filter((l) => l.vertical === v) : [];
-          }
-          return next;
-        });
+        const withLocation = trimByMaxAge(cached.listings, LISTING_MAX_AGE_MS).filter((l) => l.location);
+        layerListings.update(applyGlobalFeedMapToLayerListings(withLocation, get(activeMapLayers)));
       }
     } catch {
       /* proceed to relay */
     }
 
     const nostr = await getSharedNostr();
-    const svc = new SwarmGovernanceListingService(nostr);
-    const active = SWARM_GOVERNANCE_VERTICALS.filter((v) => get(activeMapLayers).has(v));
+    const active = GLOBAL_FEED_MAP_VERTICALS.filter((v) => get(activeMapLayers).has(v));
     if (active.length === 0) {
-      const stillActive = get(activeMapLayers);
-      layerListings.update((all) => {
-        const next = { ...all };
-        for (const v of SWARM_GOVERNANCE_VERTICALS) {
-          next[v] = stillActive.has(v) ? all[v] : [];
-        }
-        return next;
-      });
+      layerListings.update(applyGlobalFeedMapToLayerListings(null, get(activeMapLayers)));
     } else {
-      const listings = await svc.run(active);
+      const listings = await runGlobalFeedMap(nostr, active);
       const withLocation = listings.filter((l) => l.location);
-      const stillActive = get(activeMapLayers);
-      layerListings.update((all) => {
-        const next = { ...all };
-        for (const v of SWARM_GOVERNANCE_VERTICALS) {
-          next[v] = stillActive.has(v) ? withLocation.filter((l) => l.vertical === v) : [];
-        }
-        return next;
-      });
+      layerListings.update(applyGlobalFeedMapToLayerListings(withLocation, get(activeMapLayers)));
     }
   } catch {
     /* nostr unavailable or run failed */
@@ -129,10 +116,10 @@ export async function runGlobalFeedFetch(): Promise<void> {
 
 // ─── Geohash layer fetch ────────────────────────────────────
 
-async function ensureLayerService(tag: string): Promise<ListingLayerService | null> {
+async function ensureLayerService(tag: string): Promise<GeohashListingFeed | null> {
   try {
     const nostr = await getSharedNostr();
-    return new ListingLayerService(nostr, tag);
+    return new GeohashListingFeed(nostr, tag);
   } catch {
     layerError.set('Storage unavailable');
     return null;
@@ -156,7 +143,7 @@ export async function fetchLayer(verticalId: ListingVertical, forceRefresh = fal
 
   try {
     const cell = geohashEncode(loc.latitude, loc.longitude, 4);
-    const listings = await layerServices[verticalId]!.fetchListings(cell, forceRefresh);
+    const listings = await layerServices[verticalId]!.fetchListings(cell, forceRefresh, verticalId);
     if (!get(activeMapLayers).has(verticalId)) return;
     const filtered = listings.filter((l) => l.location);
     layerCaches[verticalId] = { listings: filtered, cachedAt: Date.now() };
@@ -190,7 +177,7 @@ export async function toggleLayer(verticalId: ListingVertical): Promise<void> {
   }
 
   const cache = layerCaches[verticalId];
-  if (cache && cache.listings.length > 0 && Date.now() - cache.cachedAt < CACHE_TTL_MS) {
+  if (cache && cache.listings.length > 0 && Date.now() - cache.cachedAt < LAYER_CACHE_TTL_MS) {
     layerListings.update((all) => ({ ...all, [verticalId]: cache.listings }));
   }
   await fetchLayer(verticalId);

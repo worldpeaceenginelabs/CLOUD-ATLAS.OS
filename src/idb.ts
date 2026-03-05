@@ -71,44 +71,39 @@ class IndexedDBManager {
     await this.req(this.store('scenes', 'readwrite').delete(sceneId));
   }
 
-  // ─── Listing Cache ─────────────────────────────────────────
+  // ─── Listing Cache (unified: geohash + global feed) ────────
 
-  async saveListings(type: string, cell: string, listings: Listing[], fetchedAt: number): Promise<void> {
-    const key = `${type}:${cell}`;
-    await this.req(this.store('listings', 'readwrite').put({ cell: key, listings, fetchedAt }));
-  }
-
-  async loadListings(type: string, cell: string): Promise<{ listings: Listing[]; fetchedAt: number } | null> {
-    const key = `${type}:${cell}`;
+  /** Payload shape for any listing cache entry. Cursors used by global feed only. */
+  async loadListingCache(key: string): Promise<{
+    listings: Listing[];
+    fetchedAt: number;
+    oldest?: number | null;
+    newest?: number | null;
+  } | null> {
     const result = await this.req(this.store('listings').get(key));
-    return result ? { listings: result.listings, fetchedAt: result.fetchedAt ?? 0 } : null;
-  }
-
-  /** Global listing feed: one key; stores newest/oldest for since/until fetches. */
-  async loadSwarmGovernanceCache(): Promise<{ listings: Listing[]; fetchedAt: number; oldestTimestamp: number | null; newestTimestamp: number | null } | null> {
-    const result = await this.req(this.store('listings').get('listingsGlobal'));
     if (!result) return null;
-    return {
+    const out: { listings: Listing[]; fetchedAt: number; oldest?: number | null; newest?: number | null } = {
       listings: result.listings ?? [],
       fetchedAt: result.fetchedAt ?? 0,
-      oldestTimestamp: result.oldestTimestamp ?? null,
-      newestTimestamp: result.newestTimestamp ?? null,
     };
+    if (result.oldest != null) out.oldest = result.oldest;
+    if (result.newest != null) out.newest = result.newest;
+    return out;
   }
 
-  async saveSwarmGovernanceCache(
-    listings: Listing[],
-    fetchedAt: number,
-    oldestTimestamp: number | null,
-    newestTimestamp: number | null,
+  async saveListingCache(
+    key: string,
+    payload: {
+      listings: Listing[];
+      fetchedAt: number;
+      oldest?: number | null;
+      newest?: number | null;
+    },
   ): Promise<void> {
-    await this.req(this.store('listings', 'readwrite').put({
-      cell: 'listingsGlobal',
-      listings,
-      fetchedAt,
-      oldestTimestamp,
-      newestTimestamp,
-    }));
+    const row: Record<string, unknown> = { cell: key, listings: payload.listings, fetchedAt: payload.fetchedAt };
+    if (payload.oldest !== undefined) row.oldest = payload.oldest;
+    if (payload.newest !== undefined) row.newest = payload.newest;
+    await this.req(this.store('listings', 'readwrite').put(row));
   }
 
   /** Last DELETE fetch cursor (unix s). Used for moving since. */
@@ -130,15 +125,14 @@ class IndexedDBManager {
   async applyDeletionsToAllListings(deletedSet: Set<string>): Promise<void> {
     if (deletedSet.size === 0) return;
     const store = this.store('listings', 'readwrite');
-    const all = await this.req(store.getAll()) as Array<{ cell: string; listings: Listing[]; fetchedAt: number; oldestTimestamp?: number | null; newestTimestamp?: number | null }>;
+    const all = await this.req(store.getAll()) as Array<{ cell: string; listings: Listing[]; fetchedAt: number; oldest?: number | null; newest?: number | null }>;
     for (const row of all) {
-      const key = row.cell;
       const before = row.listings.length;
       const listings = row.listings.filter((l) => !deletedSet.has(`${l.id}:${l.pubkey}`));
       if (listings.length !== before) {
-        const next: Record<string, unknown> = { cell: key, listings, fetchedAt: row.fetchedAt };
-        if (row.oldestTimestamp !== undefined) next['oldestTimestamp'] = row.oldestTimestamp;
-        if (row.newestTimestamp !== undefined) next['newestTimestamp'] = row.newestTimestamp;
+        const next: Record<string, unknown> = { cell: row.cell, listings, fetchedAt: row.fetchedAt };
+        if (row.oldest !== undefined) next.oldest = row.oldest;
+        if (row.newest !== undefined) next.newest = row.newest;
         await this.req(store.put(next));
       }
     }

@@ -392,8 +392,8 @@ export const LISTING_VERTICALS: ListingVertical[] = [
   'helpouts', 'social', 'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
 ];
 
-/** Listing verticals that use the global feed (derived from config). */
-export const SWARM_GOVERNANCE_VERTICALS: ListingVertical[] = LISTING_VERTICALS.filter(
+/** Single source: vertical IDs that use global feed, map mode (time-based, no geohash). */
+export const GLOBAL_FEED_MAP_VERTICALS: ListingVertical[] = LISTING_VERTICALS.filter(
   (v) => (VERTICALS[v] as ListingVerticalConfig).fetchStrategy === 'global',
 );
 
