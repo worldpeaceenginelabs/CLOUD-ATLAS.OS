@@ -69,7 +69,7 @@ import {
 	import ListingDetail from './gig/ListingDetail.svelte';
 	import RadialGigMenu from './components/RadialGigMenu.svelte';
 import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers, layerRefresh, gigRadialOrigin } from './store';
-import { LISTING_VERTICALS, VERTICALS, GLOBAL_FEED_MAP_VERTICALS, type ListingVerticalConfig } from './gig/verticals';
+import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
@@ -881,13 +881,11 @@ async function onLayerChanged(verticalId: ListingVertical, listings: Listing[]) 
     return;
   }
   await ensureMyPk();
-  const isGlobalFeedMap = GLOBAL_FEED_MAP_VERTICALS.includes(verticalId);
   layerEntities[verticalId] = await renderListingMarkers(cesiumViewer, listings, existing, {
     idPrefix: cfg.mapPrefix,
     pointColor: cfg.color,
     getLabelText: (l) => wrapLabelEveryNChars(l.title || '?', 25),
     propertyKey: 'listing',
-    shape: isGlobalFeedMap ? 'fire' : 'point',
   });
 }
 
