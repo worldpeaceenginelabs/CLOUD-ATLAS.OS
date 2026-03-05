@@ -1,7 +1,7 @@
 /**
- * Listing layers bootstrap: one place for restoring active layers, loading
- * listings from IDB/Nostr, Ion key persistence, and layer refresh. Runs on app
- * start; LayersMenu only shows state and calls these APIs on toggle.
+ * Listing layers bootstrap: Ion key persistence, loading listings from IDB/Nostr,
+ * and layer refresh. Runs on app start; LayersMenu shows state and calls these APIs on toggle.
+ * activeMapLayers starts with SG verticals on (store init); only user toggles change it.
  */
 
 import { writable } from 'svelte/store';
@@ -47,27 +47,10 @@ const layerServices: Record<string, ListingLayerService | null> = {};
 const layerCaches: Record<string, { listings: Listing[]; cachedAt: number }> = {};
 const layerLoadingState: Record<string, boolean> = {};
 let globalFeedTimeoutId: ReturnType<typeof setTimeout> | null = null;
-let persistListingLayersTimer: ReturnType<typeof setTimeout> | null = null;
 let globalFeedFetchInFlight = false;
 let lastRefreshSnapshot: Record<string, number> = {};
 
-// ─── Load / persist ────────────────────────────────────────
-
-export async function loadListingLayers(): Promise<void> {
-  try {
-    await idb.openDB();
-    const raw = await idb.loadSetting('activeListingLayers');
-    const on = raw ? (JSON.parse(raw) as ListingVertical[]) : [...SWARM_GOVERNANCE_VERTICALS];
-    const layers = new Set(activeMapLayers.get());
-    for (const v of LISTING_VERTICALS) {
-      if (on.includes(v)) layers.add(v);
-      else layers.delete(v);
-    }
-    activeMapLayers.set(layers);
-  } catch {
-    /* use defaults */
-  }
-}
+// ─── Ion key load ───────────────────────────────────────────
 
 export async function loadIonKey(): Promise<void> {
   try {
@@ -81,24 +64,6 @@ export async function loadIonKey(): Promise<void> {
   } catch {
     /* ignore */
   }
-}
-
-export async function persistListingLayers(): Promise<void> {
-  const on = LISTING_VERTICALS.filter((v) => activeMapLayers.get().has(v));
-  try {
-    await idb.openDB();
-    await idb.saveSetting('activeListingLayers', JSON.stringify(on));
-  } catch {
-    /* non-critical */
-  }
-}
-
-export function schedulePersistListingLayers(): void {
-  if (persistListingLayersTimer) clearTimeout(persistListingLayersTimer);
-  persistListingLayersTimer = setTimeout(() => {
-    persistListingLayersTimer = null;
-    persistListingLayers();
-  }, 250);
 }
 
 // ─── Global swarm feed ──────────────────────────────────────
@@ -206,13 +171,11 @@ export async function toggleLayer(verticalId: ListingVertical): Promise<void> {
     layers.delete(verticalId);
     activeMapLayers.set(layers);
     layerListings.update((all) => ({ ...all, [verticalId]: [] }));
-    schedulePersistListingLayers();
     return;
   }
 
   layers.add(verticalId);
   activeMapLayers.set(layers);
-  schedulePersistListingLayers();
 
   if (isGlobalVertical(verticalId)) {
     runGlobalFeedFetch();
@@ -276,7 +239,6 @@ function startLayerRefreshWatch(): void {
 
 export async function initListingLayers(): Promise<void> {
   await loadIonKey();
-  await loadListingLayers();
   await runGlobalFeedFetch();
   startLayerRefreshWatch();
 }

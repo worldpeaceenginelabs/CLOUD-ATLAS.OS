@@ -19,7 +19,6 @@
     ionKeyInput,
     ionKeySaved,
     toggleLayer as bootstrapToggleLayer,
-    schedulePersistListingLayers,
     saveIonKey,
     clearIonKey,
   } from '../services/listingLayersBootstrap';
