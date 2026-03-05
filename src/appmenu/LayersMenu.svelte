@@ -2,14 +2,9 @@
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
 
-  import {
-    coordinates,
-    isVisible,
-    activeMapLayers,
-    enable3DTileset,
-  } from '../store';
+  import { isVisible, activeMapLayers, enable3DTileset } from '../store';
   import { modalService } from '../utils/modalService';
-  import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
+  import { VERTICALS } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { ListingVertical } from '../types';
   import { modelEditorService } from '../utils/modelEditorService';
@@ -24,13 +19,9 @@
   } from '../services/listingLayersBootstrap';
 
   // ─── Component state (UI only) ─────────────────────────────
-  let hoveredItem = '';
-  let showInfoPanel = false;
-  let infoPanelContent = '';
   let showIonKey = false;
   let ionKeyExpanded = false;
 
-  $: hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
   $: tiles3dOn = $enable3DTileset;
 
   // ─── Menu actions ─────────────────────────────────────────
@@ -42,19 +33,10 @@
         modalService.showSimulation();
         return;
     }
-    if (showInfoPanel && hoveredItem === item) {
-      showInfoPanel = false;
-      hoveredItem = '';
-      return;
-    }
-    hoveredItem = item;
-    showInfoPanel = true;
   }
 
   function handleItemClick(item: string) {
     logger.debug('Clicked item: ' + item, { component: 'LayersMenu', operation: 'handleItemClick' });
-    showInfoPanel = false;
-    hoveredItem = '';
     switch (item) {
       case 'model':
         modelEditorService.handleAddModel();
@@ -213,7 +195,6 @@
         <span class="item-text">Holodeck Editor</span>
         <button
           class="info-icon"
-          class:active={showInfoPanel && hoveredItem === 'model'}
           on:click={(e) => handleInfoClick('model', e)}
           on:keydown={(e) => e.key === 'Enter' && handleInfoClick('model', e)}
           tabindex="0"
@@ -330,14 +311,6 @@
   </div>
 </div>
 
-{#if showInfoPanel && infoPanelContent}
-  <div class="info-panel slide-in">
-    <div class="info-content">
-      {infoPanelContent}
-    </div>
-  </div>
-{/if}
-
 <style>
   .layermenu-container {
     position: relative;
@@ -418,13 +391,6 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     color: white;
     transform: scale(1.1);
-  }
-
-  .info-icon.active {
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-    color: white;
-    transform: scale(1.05);
   }
 
   .info-icon:focus {
@@ -682,47 +648,7 @@
     background: rgba(255, 215, 0, 0.2);
   }
 
-  .info-panel {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 70;
-    max-width: 300px;
-    min-width: 250px;
-    opacity: 0;
-    transition: all 0.3s ease;
-  }
-
-  .info-panel.slide-in {
-    transform: translate(-50%, -50%);
-    opacity: 1;
-  }
-
-  .info-content {
-    padding: 16px;
-    color: white;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.5;
-  }
-
   @media (max-width: 768px) {
-    .info-panel {
-      max-width: 250px;
-      min-width: 200px;
-    }
-
-    .info-content {
-      font-size: 13px;
-      padding: 12px;
-    }
-
     .dropdown-menu {
       min-width: 220px;
     }
