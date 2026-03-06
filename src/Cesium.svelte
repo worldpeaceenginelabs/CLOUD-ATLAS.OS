@@ -131,7 +131,6 @@ let createdObjectURLs: string[] = [];
 export { addPreviewModelToScene, removePreviewModelFromScene, updatePreviewModelInScene, updateSimulationModel, hideOriginalModel, showOriginalModel };
 
 // Simple coordinate presence flag for UI badges
-$: hasCoordinates = $coordinates.latitude !== '' && $coordinates.longitude !== '';
   
 	const initializeData = async (): Promise<void> => {
 		setSceneCallbacks({ addModelToScene, removeModelFromScene });
@@ -1142,14 +1141,6 @@ function handleCoordinatePick(result: any) {
       <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
       <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
     </svg>
-    {#if hasCoordinates}
-      <div class="coordinate-indicator">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.3639 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-          <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </div>
-    {/if}
   </button>
 
   <!-- My Location button (bottom right) -->
@@ -1299,19 +1290,6 @@ function handleCoordinatePick(result: any) {
     background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .layers-menu-btn .coordinate-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #4ade80;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.1); }
   }
 
 	:global(.cesium-button.cesium-vrButton) {
