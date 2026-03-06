@@ -3,7 +3,7 @@
   import type { Listing, ListingVertical } from '../types';
   import { VERTICALS, LISTING_CATEGORIES, type ListingVerticalConfig } from './verticals';
   import { getCategoryName } from './categoryUtils';
-  import { ensureProtocol, isKeetUrl } from '../utils/urlUtils';
+  import { ensureProtocol, firstMatchingByPattern } from '../utils/urlUtils';
   import { takeDownListing } from './listingActions';
 
   export let listing: Listing;
@@ -31,7 +31,10 @@
     ? new Date(listing.eventDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
     : null;
 
-  $: isKeetContact = isKeetUrl(listing?.contact);
+  $: contactVariants = cfg.contactApps?.slice(1) ?? [];
+  $: selectedContactApp = firstMatchingByPattern(listing?.contact, contactVariants);
+  $: contactActionLabel = selectedContactApp?.openLabel ?? cfg.contactButtonLabel;
+  $: showInstallLink = !!selectedContactApp?.installHint && !!selectedContactApp?.installUrl;
 
   function openContact() {
     window.open(ensureProtocol(listing.contact), '_blank', 'noopener');
@@ -82,31 +85,23 @@
     <p class="gig-detail-desc">{listing.description}</p>
 
     <div class="gig-detail-actions">
-      {#if isKeetContact}
-        <button
-          class="action-btn-primary"
-          style="background: {accentBtnBg}; color: {accentColor}; border: 1px solid {accentBtnBorder}"
-          on:click={openContact}
-        >
-          Open in Keet
-        </button>
+      <button
+        class="action-btn-primary"
+        style="background: {accentBtnBg}; color: {accentColor}; border: 1px solid {accentBtnBorder}"
+        on:click={openContact}
+      >
+        {contactActionLabel}
+      </button>
 
+      {#if showInstallLink}
         <a
           class="secondary-link"
-          href="https://keet.io/download/"
+          href={selectedContactApp?.installUrl}
           target="_blank"
           rel="noopener"
         >
-          Don’t have Keet? Install it
+          {selectedContactApp?.installHint}
         </a>
-      {:else}
-        <button
-          class="action-btn-primary"
-          style="background: {accentBtnBg}; color: {accentColor}; border: 1px solid {accentBtnBorder}"
-          on:click={openContact}
-        >
-          {cfg.contactButtonLabel}
-        </button>
       {/if}
 
       {#if isOwner}

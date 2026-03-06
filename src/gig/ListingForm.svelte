@@ -13,6 +13,7 @@
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import RelayStatus from '../components/RelayStatus.svelte';
   import LocationPicker from '../components/LocationPicker.svelte';
+  import { matchesUrlPattern } from '../utils/urlUtils';
 
   export let config: ListingVerticalConfig;
   export let nostr: NostrService;
@@ -43,7 +44,18 @@
 
   $: needsLocation = mode === 'in-person' || mode === 'both' || !!config.defaultMode;
 
-  $: contactValid = contact.trim() && (!config.contactPattern || new RegExp(config.contactPattern).test(contact.trim()));
+  $: formContact = config.contactApps?.[0];
+  $: contactPlaceholder = formContact?.placeholderExamples?.length
+    ? formContact.placeholderExamples.join(' or ')
+    : config.contactPlaceholder;
+  $: contactMaxLength = formContact?.contactMaxLength ?? config.contactMaxLength ?? 120;
+  $: contactPatterns = (config.contactApps ?? [])
+    .map((v) => v.urlPattern)
+    .filter((p): p is string => !!p && p.trim().length > 0);
+  $: contactValid =
+    contact.trim().length > 0 &&
+    contactPatterns.length > 0 &&
+    contactPatterns.some((p) => matchesUrlPattern(contact, p));
 
   $: hasCategories = categories.length > 0;
 
@@ -203,12 +215,11 @@
     </div>
 
     <div class="gig-form-group">
-      <label class="gig-field-label" for="contact-link">{config.contactLabel} <span class="gig-required">*</span></label>
-      <input id="contact-link" class="gig-field-input" type="text" placeholder={config.contactPlaceholder} bind:value={contact} maxlength={config.contactMaxLength ?? 120} />
-      <span class="gig-field-hint">{config.contactHint}</span>
-      {#if config.contactPatternHint && contact.trim() && !contactValid}
-        <span class="gig-field-hint" style="color: rgba(252, 165, 165, 0.9)">{config.contactPatternHint}</span>
-      {/if}
+      <label class="gig-field-label" for="contact-link">
+        {formContact?.contactLabel ?? config.contactLabel} <span class="gig-required">*</span>
+      </label>
+      <input id="contact-link" class="gig-field-input" type="text" placeholder={contactPlaceholder} bind:value={contact} maxlength={contactMaxLength} />
+      <span class="gig-field-hint">{formContact?.contactHint ?? config.contactHint}</span>
     </div>
 
     <GlassmorphismButton variant="primary" fullWidth={true} onClick={submitListing} disabled={!canSubmit}>

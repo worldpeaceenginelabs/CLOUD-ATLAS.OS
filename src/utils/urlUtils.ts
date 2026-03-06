@@ -15,9 +15,27 @@ export function formatLatLon(lat: number, lon: number, precision = 5): string {
   return `${lat.toFixed(precision)}, ${lon.toFixed(precision)}`;
 }
 
-/** Returns true if the URL is a Keet (pear://) link. */
-export function isKeetUrl(url: string | null | undefined): boolean {
-  if (!url) return false;
-  const trimmed = url.trim().toLowerCase();
-  return trimmed.startsWith('pear://keet/');
+export function matchesUrlPattern(
+  url: string | null | undefined,
+  urlPattern: string | null | undefined
+): boolean {
+  const u = url?.trim();
+  const p = urlPattern?.trim();
+  if (!u || !p) return false;
+  try {
+    return new RegExp(p).test(u);
+  } catch {
+    return false;
+  }
+}
+
+export function firstMatchingByPattern<T extends { urlPattern?: string }>(
+  url: string | null | undefined,
+  variants: readonly T[] | null | undefined
+): T | null {
+  if (!variants?.length) return null;
+  for (const v of variants) {
+    if (matchesUrlPattern(url, v.urlPattern)) return v;
+  }
+  return null;
 }

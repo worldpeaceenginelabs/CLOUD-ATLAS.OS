@@ -110,6 +110,14 @@ export interface ListingVerticalConfig extends BaseVerticalConfig {
   contactPatternHint?: string;
   /** Max length for the contact input (default 120). Use e.g. 256 for pear/keet links. */
   contactMaxLength?: number;
+  /**
+   * Optional per-vertical contact variants.
+   *
+   * Convention used by this app:
+   * - entry 0: ListingForm UI (label/hint/maxLength/examples)
+   * - entry 1..n: ListingDetail variants (openLabel + urlPattern + optional install hint)
+   */
+  contactApps?: ListingContactApp[];
   /** Whether this vertical has an event date field */
   hasEventDate?: boolean;
   /** Submit button label */
@@ -131,6 +139,37 @@ export interface ListingVerticalConfig extends BaseVerticalConfig {
 }
 
 export type VerticalConfig = MatchingVerticalConfig | ListingVerticalConfig;
+
+export interface ListingContactApp {
+  // ListingForm (defaults from entry 0)
+  contactLabel?: string;
+  contactHint?: string;
+  contactMaxLength?: number;
+  placeholderExamples?: string[];
+
+  // ListingDetail (variants from entry 1..n)
+  openLabel?: string;
+  installHint?: string;
+  installUrl?: string;
+  /** Regex string. The first matching variant is used. */
+  urlPattern?: string;
+}
+
+export type ListingVerticalDraft = Omit<
+  ListingVerticalConfig,
+  | 'id'
+  | 'listingTag'
+  | 'mapPrefix'
+  | 'contactLabel'
+  | 'contactPlaceholder'
+  | 'contactHint'
+  | 'contactPattern'
+  | 'contactPatternHint'
+  | 'contactMaxLength'
+  | 'contactButtonLabel'
+> & {
+  contactApps: ListingContactApp[];
+};
 
 // ─── Helpout Categories ─────────────────────────────────────────
 
@@ -171,6 +210,252 @@ export const LISTING_CATEGORIES: Record<ListingVertical, ListingCategory[]> = {
 };
 
 // ─── Vertical Definitions ───────────────────────────────────────
+
+const LISTING_MAP_PREFIX_OVERRIDES: Partial<Record<ListingVertical, string>> = {
+  // Historical: singular prefix even though vertical id is plural.
+  helpouts: 'helpout_',
+  // Historical: short prefix without "-ing".
+  brainstorming: 'brainstorm_',
+};
+
+function toContactPlaceholder(examples: string[] | undefined): string {
+  const list = (examples ?? []).map(s => s.trim()).filter(Boolean);
+  if (list.length === 0) return '';
+  if (list.length === 1) return list[0];
+  return list.join(' or ');
+}
+
+function buildListingVerticalConfig(id: ListingVertical, draft: ListingVerticalDraft): ListingVerticalConfig {
+  const form = draft.contactApps[0] ?? {};
+  const variants = draft.contactApps.slice(1);
+  const defaultVariantLabel = variants.find(v => !!v.openLabel)?.openLabel;
+
+  return {
+    id,
+    name: draft.name,
+    color: draft.color,
+    mode: 'listing',
+    layerGroup: draft.layerGroup,
+    listingTag: `listing-${id}`,
+    mapPrefix: LISTING_MAP_PREFIX_OVERRIDES[id] ?? `${id}_`,
+
+    formTitle: draft.formTitle,
+    formSubtitle: draft.formSubtitle,
+    titleLabel: draft.titleLabel,
+    titlePlaceholder: draft.titlePlaceholder,
+    descriptionPlaceholder: draft.descriptionPlaceholder,
+
+    contactLabel: form.contactLabel ?? '',
+    contactPlaceholder: toContactPlaceholder(form.placeholderExamples),
+    contactHint: form.contactHint ?? '',
+    contactMaxLength: form.contactMaxLength,
+    contactApps: draft.contactApps,
+
+    hasEventDate: draft.hasEventDate,
+    submitLabel: draft.submitLabel,
+    liveTitle: draft.liveTitle,
+    liveHint: draft.liveHint,
+    // Kept for backwards compatibility in components that still read it.
+    contactButtonLabel: defaultVariantLabel ?? 'Open',
+    takeDownLabel: draft.takeDownLabel,
+    directiveNoun: draft.directiveNoun,
+    defaultMode: draft.defaultMode,
+    fetchStrategy: draft.fetchStrategy,
+    radialDescription: draft.radialDescription,
+  };
+}
+
+export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDraft> = {
+  helpouts: {
+    name: 'Helpout',
+    color: '#00BCD4',
+    mode: 'listing',
+    layerGroup: 'Gig Economy',
+    formTitle: 'Offer a Helpout',
+    formSubtitle: 'Share your expertise with people nearby',
+    titleLabel: 'Title',
+    titlePlaceholder: 'e.g. Guitar Lessons, Math Tutoring...',
+    descriptionPlaceholder: 'What can you help with? Describe your expertise...',
+    submitLabel: 'Publish Listing',
+    liveTitle: 'Your Listing is Live!',
+    liveHint: 'Your helpout will appear on the map for 7 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
+    takeDownLabel: 'Take Down Listing',
+    fetchStrategy: 'geohash',
+    contactApps: [
+      {
+        contactLabel: 'Contact Link',
+        contactHint: 'Telegram, WhatsApp, Signal, Zoom, or any link',
+        placeholderExamples: ['https://t.me/you', 'https://wa.me/123...'],
+      },
+      {
+        openLabel: 'Contact',
+        urlPattern: '^.+$',
+      },
+    ],
+  },
+
+  social: {
+    name: 'Spontaneous Contacts',
+    color: '#FF4081',
+    mode: 'listing',
+    layerGroup: 'Social',
+    formTitle: 'Host an Event',
+    formSubtitle: 'Organize a meetup or activity for people nearby',
+    titleLabel: 'Event Title',
+    titlePlaceholder: 'e.g. Saturday Morning Run, Board Game Night...',
+    descriptionPlaceholder: "What's the plan? Describe the activity...",
+    hasEventDate: true,
+    submitLabel: 'Publish Event',
+    liveTitle: 'Your Event is Live!',
+    liveHint: 'Your event will appear on the map for 7 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
+    takeDownLabel: 'Take Down Event',
+    fetchStrategy: 'geohash',
+    contactApps: [
+      {
+        contactLabel: 'Contact Link',
+        contactHint: 'Telegram, WhatsApp, Signal, or any link for attendees to reach you',
+        placeholderExamples: ['https://t.me/you', 'https://wa.me/123...'],
+      },
+      {
+        openLabel: 'Contact Host',
+        urlPattern: '^.+$',
+      },
+    ],
+  },
+
+  brainstorming: {
+    name: 'Brainstorming',
+    color: '#FFCA28',
+    mode: 'listing',
+    layerGroup: 'Swarm Governance',
+    formTitle: 'Start a Brainstorm',
+    formSubtitle: 'Turn any issue into a public brainstorm — open to everyone',
+    titleLabel: 'Mission Title',
+    titlePlaceholder: 'Enter a short, powerful mission name — max 100 chars',
+    descriptionPlaceholder: "What's the mission in a nutshell?",
+    submitLabel: 'Publish Brainstorm',
+    liveTitle: 'Your Brainstorm is Live!',
+    liveHint: 'Your brainstorm session will appear on the map for 7 days. People can join via the Zoom or Keet link. You can take it down anytime by tapping your marker on the map.',
+    takeDownLabel: 'Take Down Brainstorm',
+    directiveNoun: 'solution',
+    defaultMode: 'both',
+    fetchStrategy: 'global',
+    radialDescription: 'Flip the script on bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure - or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to tackle their own challenges and co-create innovative products, services, and solutions.',
+    contactApps: [
+      {
+        contactLabel: 'Join Link',
+        contactHint: 'Zoom or Keet (pear://keet/...) link where the brainstorm takes place',
+        contactMaxLength: 256,
+        placeholderExamples: ['https://zoom.us/j/...', 'pear://keet/...'],
+      },
+      {
+        openLabel: 'Join Brainstorm',
+        urlPattern: '^https:\\/\\/([a-zA-Z0-9.-]*\\.)?zoom\\.us\\/j\\/\\d+$',
+      },
+      {
+        openLabel: 'Open in Keet',
+        installHint: "Don't have Keet? Install it",
+        installUrl: 'https://keet.io/download/',
+        urlPattern: '^pear:\\/\\/keet\\/[a-zA-Z0-9]+$',
+      },
+    ],
+  },
+
+  meetanddo: {
+    name: 'MeetandDo',
+    color: '#66BB6A',
+    mode: 'listing',
+    layerGroup: 'Swarm Governance',
+    formTitle: 'Organize a Mission',
+    formSubtitle: 'Rally your community, show up, and take action',
+    titleLabel: 'Mission Title',
+    titlePlaceholder: 'e.g. Park Cleanup, Community Garden Build...',
+    descriptionPlaceholder: 'Describe the mission — what, where, when, and what people should bring',
+    submitLabel: 'Publish Mission',
+    liveTitle: 'Your Mission is Live!',
+    liveHint: 'Your mission will appear on the map for 7 days. People can join via Telegram. You can take it down anytime by tapping your marker on the map.',
+    takeDownLabel: 'Take Down Mission',
+    directiveNoun: 'meeting',
+    defaultMode: 'in-person',
+    fetchStrategy: 'global',
+    radialDescription: 'From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.',
+    contactApps: [
+      {
+        contactLabel: 'Telegram Group Link',
+        contactHint: 'Telegram group where participants coordinate',
+        placeholderExamples: ['https://t.me/+rtygFbFZrJE5NjIy'],
+      },
+      {
+        openLabel: 'Open in Telegram',
+        installHint: "Don't have Telegram? Install it",
+        installUrl: 'https://telegram.org',
+        urlPattern: '^(?:https?:\\/\\/)?(?:t\\.me|telegram\\.me|t\\.dog|telegram\\.dog)\\/(?:joinchat\\/|\\+)?([\\w-]+)$',
+      },
+    ],
+  },
+
+  petition: {
+    name: 'Petition',
+    color: '#AB47BC',
+    mode: 'listing',
+    layerGroup: 'Swarm Governance',
+    formTitle: 'Start a Petition',
+    formSubtitle: 'Push for change — win approvals and unlock collective power',
+    titleLabel: 'Petition Title',
+    titlePlaceholder: 'e.g. Save the Old Oak Tree, Bike Lane for Main St...',
+    descriptionPlaceholder: 'What change are you demanding? Why does it matter?',
+    submitLabel: 'Publish Petition',
+    liveTitle: 'Your Petition is Live!',
+    liveHint: 'Your petition will appear on the map for 7 days. People can sign it via the link. You can take it down anytime by tapping your marker on the map.',
+    takeDownLabel: 'Take Down Petition',
+    directiveNoun: 'Petition',
+    defaultMode: 'both',
+    fetchStrategy: 'global',
+    radialDescription: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.',
+    contactApps: [
+      {
+        contactLabel: 'Change.org Link',
+        contactHint: 'Link to the petition on Change.org',
+        placeholderExamples: ['https://www.change.org/p/your-petition-name'],
+      },
+      {
+        openLabel: 'Sign Petition',
+        urlPattern: '^https:\\/\\/(www\\.)?change\\.org\\/p\\/[a-zA-Z0-9-]+\\/?$',
+      },
+    ],
+  },
+
+  crowdfunding: {
+    name: 'Crowdfunding',
+    color: '#EF5350',
+    mode: 'listing',
+    layerGroup: 'Swarm Governance',
+    formTitle: 'Launch a Campaign',
+    formSubtitle: 'Raise resources to turn bold ideas into real-world impact',
+    titleLabel: 'Campaign Title',
+    titlePlaceholder: 'e.g. Solar Panels for Community Center...',
+    descriptionPlaceholder: 'What are you raising funds for? How will it make a difference?',
+    submitLabel: 'Publish Campaign',
+    liveTitle: 'Your Campaign is Live!',
+    liveHint: 'Your campaign will appear on the map for 7 days. People can donate via the link. You can take it down anytime by tapping your marker on the map.',
+    takeDownLabel: 'Take Down Campaign',
+    directiveNoun: 'Crowdfunding',
+    defaultMode: 'both',
+    fetchStrategy: 'global',
+    radialDescription: 'Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.',
+    contactApps: [
+      {
+        contactLabel: 'GoFundMe Link',
+        contactHint: 'Link to the campaign on GoFundMe',
+        placeholderExamples: ['https://www.gofundme.com/f/your-campaign-name'],
+      },
+      {
+        openLabel: 'Donate',
+        urlPattern: '^https:\\/\\/(www\\.)?gofundme\\.com\\/f\\/[a-zA-Z0-9-]+\\/?$',
+      },
+    ],
+  },
+};
 
 export const VERTICALS: Record<GigVertical, VerticalConfig> = {
   rides: {
@@ -230,172 +515,12 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     mapColor: '#FF6D00',
     mapDestColor: '#34A853',
   },
-
-  helpouts: {
-    id: 'helpouts',
-    name: 'Helpout',
-    color: '#00BCD4',
-    mode: 'listing',
-    layerGroup: 'Gig Economy',
-    listingTag: 'listing-helpouts',
-    mapPrefix: 'helpout_',
-    formTitle: 'Offer a Helpout',
-    formSubtitle: 'Share your expertise with people nearby',
-    titleLabel: 'Title',
-    titlePlaceholder: 'e.g. Guitar Lessons, Math Tutoring...',
-    descriptionPlaceholder: 'What can you help with? Describe your expertise...',
-    contactLabel: 'Contact Link',
-    contactPlaceholder: 'e.g. https://t.me/you, https://wa.me/123...',
-    contactHint: 'Telegram, WhatsApp, Signal, Zoom, or any link',
-    submitLabel: 'Publish Listing',
-    liveTitle: 'Your Listing is Live!',
-    liveHint: 'Your helpout will appear on the map for 7 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
-    contactButtonLabel: 'Contact',
-    takeDownLabel: 'Take Down Listing',
-    fetchStrategy: 'geohash',
-  },
-
-  social: {
-    id: 'social',
-    name: 'Spontaneous Contacts',
-    color: '#FF4081',
-    mode: 'listing',
-    layerGroup: 'Social',
-    listingTag: 'listing-social',
-    mapPrefix: 'social_',
-    formTitle: 'Host an Event',
-    formSubtitle: 'Organize a meetup or activity for people nearby',
-    titleLabel: 'Event Title',
-    titlePlaceholder: 'e.g. Saturday Morning Run, Board Game Night...',
-    descriptionPlaceholder: "What's the plan? Describe the activity...",
-    contactLabel: 'Contact Link',
-    contactPlaceholder: 'e.g. https://t.me/you, https://wa.me/123...',
-    contactHint: 'Telegram, WhatsApp, Signal, or any link for attendees to reach you',
-    hasEventDate: true,
-    submitLabel: 'Publish Event',
-    liveTitle: 'Your Event is Live!',
-    liveHint: 'Your event will appear on the map for 7 days. People can contact you directly via your contact link. You can take it down anytime by tapping your marker on the map.',
-    contactButtonLabel: 'Contact Host',
-    takeDownLabel: 'Take Down Event',
-    fetchStrategy: 'geohash',
-  },
-
-  brainstorming: {
-    id: 'brainstorming',
-    name: 'Brainstorming',
-    color: '#FFCA28',
-    mode: 'listing',
-    layerGroup: 'Swarm Governance',
-    listingTag: 'listing-brainstorming',
-    mapPrefix: 'brainstorm_',
-    formTitle: 'Start a Brainstorm',
-    formSubtitle: 'Turn any issue into a public brainstorm — open to everyone',
-    titleLabel: 'Mission Title',
-    titlePlaceholder: 'Enter a short, powerful mission name — max 100 chars',
-    descriptionPlaceholder: "What's the mission in a nutshell?",
-    contactLabel: 'Join Link',
-    contactPlaceholder: 'https://zoom.us/j/... or pear://keet/...',
-    contactHint: 'Zoom or Keet (pear://keet/...) link where the brainstorm takes place',
-    contactPattern: '^(?:https:\\/\\/([a-zA-Z0-9.-]*\\.)?zoom\\.us\\/j\\/\\d+|pear:\\/\\/keet\\/[a-zA-Z0-9]+)$',
-    contactPatternHint: 'Must be a valid Zoom link (https://zoom.us/j/...) or Keet link (pear://keet/...)',
-    contactMaxLength: 256,
-    submitLabel: 'Publish Brainstorm',
-    liveTitle: 'Your Brainstorm is Live!',
-    liveHint: 'Your brainstorm session will appear on the map for 7 days. People can join via the Zoom or Keet link. You can take it down anytime by tapping your marker on the map.',
-    contactButtonLabel: 'Join Brainstorm',
-    takeDownLabel: 'Take Down Brainstorm',
-    directiveNoun: 'solution',
-    defaultMode: 'both',
-    fetchStrategy: 'global',
-    radialDescription: 'Flip the script on bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure - or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to tackle their own challenges and co-create innovative products, services, and solutions.',
-  },
-
-  meetanddo: {
-    id: 'meetanddo',
-    name: 'MeetandDo',
-    color: '#66BB6A',
-    mode: 'listing',
-    layerGroup: 'Swarm Governance',
-    listingTag: 'listing-meetanddo',
-    mapPrefix: 'meetanddo_',
-    formTitle: 'Organize a Mission',
-    formSubtitle: 'Rally your community, show up, and take action',
-    titleLabel: 'Mission Title',
-    titlePlaceholder: 'e.g. Park Cleanup, Community Garden Build...',
-    descriptionPlaceholder: 'Describe the mission — what, where, when, and what people should bring',
-    contactLabel: 'Telegram Group Link',
-    contactPlaceholder: 'https://t.me/+rtygFbFZrJE5NjIy',
-    contactHint: 'Telegram group where participants coordinate',
-    contactPattern: '^(?:https?:\\/\\/)?(?:t\\.me|telegram\\.me|t\\.dog|telegram\\.dog)\\/(?:joinchat\\/|\\+)?([\\w-]+)$',
-    contactPatternHint: 'Must be a valid Telegram link (https://t.me/...)',
-    submitLabel: 'Publish Mission',
-    liveTitle: 'Your Mission is Live!',
-    liveHint: 'Your mission will appear on the map for 7 days. People can join via Telegram. You can take it down anytime by tapping your marker on the map.',
-    contactButtonLabel: 'Join Mission',
-    takeDownLabel: 'Take Down Mission',
-    directiveNoun: 'meeting',
-    defaultMode: 'in-person',
-    fetchStrategy: 'global',
-    radialDescription: 'From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.',
-  },
-
-  petition: {
-    id: 'petition',
-    name: 'Petition',
-    color: '#AB47BC',
-    mode: 'listing',
-    layerGroup: 'Swarm Governance',
-    listingTag: 'listing-petition',
-    mapPrefix: 'petition_',
-    formTitle: 'Start a Petition',
-    formSubtitle: 'Push for change — win approvals and unlock collective power',
-    titleLabel: 'Petition Title',
-    titlePlaceholder: 'e.g. Save the Old Oak Tree, Bike Lane for Main St...',
-    descriptionPlaceholder: 'What change are you demanding? Why does it matter?',
-    contactLabel: 'Change.org Link',
-    contactPlaceholder: 'https://www.change.org/p/your-petition-name',
-    contactHint: 'Link to the petition on Change.org',
-    contactPattern: '^https:\\/\\/(www\\.)?change\\.org\\/p\\/[a-zA-Z0-9-]+\\/?$',
-    contactPatternHint: 'Must be a valid Change.org petition link',
-    submitLabel: 'Publish Petition',
-    liveTitle: 'Your Petition is Live!',
-    liveHint: 'Your petition will appear on the map for 7 days. People can sign it via the link. You can take it down anytime by tapping your marker on the map.',
-    contactButtonLabel: 'Sign Petition',
-    takeDownLabel: 'Take Down Petition',
-    directiveNoun: 'Petition',
-    defaultMode: 'both',
-    fetchStrategy: 'global',
-    radialDescription: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.',
-  },
-
-  crowdfunding: {
-    id: 'crowdfunding',
-    name: 'Crowdfunding',
-    color: '#EF5350',
-    mode: 'listing',
-    layerGroup: 'Swarm Governance',
-    listingTag: 'listing-crowdfunding',
-    mapPrefix: 'crowdfunding_',
-    formTitle: 'Launch a Campaign',
-    formSubtitle: 'Raise resources to turn bold ideas into real-world impact',
-    titleLabel: 'Campaign Title',
-    titlePlaceholder: 'e.g. Solar Panels for Community Center...',
-    descriptionPlaceholder: 'What are you raising funds for? How will it make a difference?',
-    contactLabel: 'GoFundMe Link',
-    contactPlaceholder: 'https://www.gofundme.com/f/your-campaign-name',
-    contactHint: 'Link to the campaign on GoFundMe',
-    contactPattern: '^https:\\/\\/(www\\.)?gofundme\\.com\\/f\\/[a-zA-Z0-9-]+\\/?$',
-    contactPatternHint: 'Must be a valid GoFundMe link',
-    submitLabel: 'Publish Campaign',
-    liveTitle: 'Your Campaign is Live!',
-    liveHint: 'Your campaign will appear on the map for 7 days. People can donate via the link. You can take it down anytime by tapping your marker on the map.',
-    contactButtonLabel: 'Donate',
-    takeDownLabel: 'Take Down Campaign',
-    directiveNoun: 'Crowdfunding',
-    defaultMode: 'both',
-    fetchStrategy: 'global',
-    radialDescription: 'Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.',
-  },
+  helpouts: buildListingVerticalConfig('helpouts', LISTING_VERTICAL_DRAFTS.helpouts),
+  social: buildListingVerticalConfig('social', LISTING_VERTICAL_DRAFTS.social),
+  brainstorming: buildListingVerticalConfig('brainstorming', LISTING_VERTICAL_DRAFTS.brainstorming),
+  meetanddo: buildListingVerticalConfig('meetanddo', LISTING_VERTICAL_DRAFTS.meetanddo),
+  petition: buildListingVerticalConfig('petition', LISTING_VERTICAL_DRAFTS.petition),
+  crowdfunding: buildListingVerticalConfig('crowdfunding', LISTING_VERTICAL_DRAFTS.crowdfunding),
 };
 
 /** Ordered list of verticals for the selector UI. */
