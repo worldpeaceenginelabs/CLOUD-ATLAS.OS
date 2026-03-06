@@ -1096,7 +1096,6 @@ function handleCoordinatePick(result: any) {
     <LocationPicker
       lat={addressLat}
       lon={addressLon}
-      label="Go to"
       placeholder="Search an address or place..."
       onLocationSelected={handleAddressSelected}
       onClear={handleAddressClear}

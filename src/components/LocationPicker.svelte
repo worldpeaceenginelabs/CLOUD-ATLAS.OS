@@ -5,7 +5,6 @@
 
 export let lat: string = '';
 export let lon: string = '';
-export let label: string = 'Location';
 export let onLocationSelected: (lat: string, lon: string, displayName?: string) => void;
 export let onClear: (() => void) | undefined = undefined;
 export let required: boolean = false;
@@ -148,10 +147,29 @@ export let placeholder: string = 'Search an address or place...';
 </script>
 
 <div class="location-picker">
-  <span class="field-label">
-    {label}
-    {#if required}<span class="required">*</span>{/if}
-  </span>
+  {#if required}
+    <span class="field-label">
+      Location <span class="required">*</span>
+    </span>
+  {/if}
+
+  <!-- Selected location display -->
+  {#if lat && lon}
+    <div class="selected-location">
+      <div class="selected-header">
+        <span class="selected-label">Selected</span>
+        <button class="action-link" on:click={handleClear}>Clear</button>
+      </div>
+      <p class="coords-display">
+        {parseFloat(lat).toFixed(5)}, {parseFloat(lon).toFixed(5)}
+      </p>
+      {#if reverseLoading}
+        <span class="address-loading">Looking up address...</span>
+      {:else if displayName}
+        <p class="address-display">{displayName}</p>
+      {/if}
+    </div>
+  {/if}
 
   <!-- Search input -->
   <div class="search-wrapper">
@@ -196,24 +214,6 @@ export let placeholder: string = 'Search an address or place...';
       <div class="no-results suggestions-up">No results found</div>
     {/if}
   </div>
-
-  <!-- Selected location display -->
-  {#if lat && lon}
-    <div class="selected-location">
-      <div class="selected-header">
-        <span class="selected-label">Selected</span>
-        <button class="action-link" on:click={handleClear}>Clear</button>
-      </div>
-      <p class="coords-display">
-        {parseFloat(lat).toFixed(5)}, {parseFloat(lon).toFixed(5)}
-      </p>
-      {#if reverseLoading}
-        <span class="address-loading">Looking up address...</span>
-      {:else if displayName}
-        <p class="address-display">{displayName}</p>
-      {/if}
-    </div>
-  {/if}
 </div>
 
 <style>

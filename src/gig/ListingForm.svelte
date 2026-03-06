@@ -176,7 +176,7 @@
     </div>
 
     {#if needsLocation}
-      <LocationPicker lat={locationLat} lon={locationLon} label="Location" onLocationSelected={handleLocationSelected} onClear={handleLocationClear} />
+      <LocationPicker lat={locationLat} lon={locationLon} onLocationSelected={handleLocationSelected} onClear={handleLocationClear} />
     {/if}
 
     {#if hasCategories}
