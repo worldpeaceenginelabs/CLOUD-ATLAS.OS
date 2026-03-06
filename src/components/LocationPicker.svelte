@@ -9,6 +9,7 @@ export let onLocationSelected: (lat: string, lon: string, displayName?: string) 
 export let onClear: (() => void) | undefined = undefined;
 export let required: boolean = false;
 export let placeholder: string = 'Search an address or place...';
+export let openRadialOnSelect: boolean = false;
 
   let searchQuery = '';
   let suggestions: NominatimResult[] = [];
@@ -94,6 +95,7 @@ export let placeholder: string = 'Search an address or place...';
     flyToLocation.set({
       lat: parseFloat(result.lat),
       lon: parseFloat(result.lon),
+      openRadial: openRadialOnSelect,
     });
   }
 

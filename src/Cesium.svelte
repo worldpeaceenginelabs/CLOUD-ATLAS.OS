@@ -106,6 +106,8 @@ let myNostrPk = '';
 
 let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 
+let flySeq = 0;
+
 // Module handles (initialized in onMount)
 let userLocation: UserLocationHandle;
 let cameraMonitor: CameraMonitorHandle;
@@ -344,6 +346,20 @@ function handleAddressClear() {
 	addressLon = '';
 }
 
+function applyPickedPoint(cartesian: Cartesian3, openRadial: boolean) {
+	if (!cesiumViewer) return;
+	const carto = Cesium.Cartographic.fromCartesian(cartesian);
+	const lon = CesiumMath.toDegrees(carto.longitude);
+	const lat = CesiumMath.toDegrees(carto.latitude);
+	coordinates.set({
+		latitude: lat.toFixed(10),
+		longitude: lon.toFixed(10),
+		height: carto.height,
+	});
+	pointEntities = addPickedPointMarker(cesiumViewer, cartesian, pointEntities);
+	if (openRadial) openRadialMenuAtPickedPointNoFly();
+}
+
 // Remove model from scene
 function removeModelFromScene(modelId: string) {
 	// Remove herd member entities before removing the parent
@@ -417,7 +433,7 @@ function animateSimulation() {
 				update.position.latitude,
 				update.position.height
 			);
-			entity.position = newPosition;
+			entity.position = newPosition as any;
 			entity.orientation = Transforms.headingPitchRollQuaternion(
 				newPosition,
 				new HeadingPitchRoll(
@@ -425,7 +441,7 @@ function animateSimulation() {
 					0,
 					0
 				)
-			);
+			) as any;
 		}
 
 		// Herd members: apply local offsets via ENU frame
@@ -450,12 +466,12 @@ function animateSimulation() {
 				const offset = new Cartesian3(rx, ry, 0);
 				const worldPos = Cesium.Matrix4.multiplyByPoint(enu, offset, new Cartesian3());
 
-				memberEntity.position = worldPos;
+				memberEntity.position = worldPos as any;
 				const memberHeading = canvasHeading + CesiumMath.toRadians(member.localHeading);
 				memberEntity.orientation = Transforms.headingPitchRollQuaternion(
 					worldPos,
 					new HeadingPitchRoll(memberHeading, 0, 0)
-				);
+				) as any;
 			}
 		}
 	}
@@ -492,7 +508,7 @@ function addPreviewModelToScene(modelData: ModelData) {
 		const entity = previewModelDataSource.entities.add({
 			id: modelData.id,
 			name: modelData.name + ' (Preview)',
-			position,
+			position: position as any,
 			model: {
 				uri: modelUri,
 				scale: modelData.transform.scale,
@@ -500,7 +516,7 @@ function addPreviewModelToScene(modelData: ModelData) {
 				maximumScale: 20000,
 				show: true,
 			},
-			orientation,
+			orientation: orientation as any,
 			description: modelData.description || '3D Model Preview'
 		});
 
@@ -550,14 +566,14 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		if (!modelUri) { console.error('Invalid model source or missing URL/file for preview update'); return; }
 
 		const { position, orientation } = modelPositionAndOrientation(modelData);
-		entity.position = position;
+		entity.position = position as any;
 		entity.name = modelData.name + ' (Preview)';
-		entity.description = modelData.description || '3D Model Preview';
+		entity.description = (modelData.description || '3D Model Preview') as any;
 		if (entity.model) {
-			entity.model.uri = modelUri;
-			entity.model.scale = modelData.transform.scale;
+			(entity.model as any).uri = modelUri;
+			(entity.model as any).scale = modelData.transform.scale;
 		}
-		entity.orientation = orientation;
+		entity.orientation = orientation as any;
 
 		logger.info('Preview model updated in scene: ' + modelData.name, { component: 'Cesium', operation: 'updatePreviewModel' });
 	} catch (error) {
@@ -865,12 +881,12 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	  unsubFlyTo = flyToLocation.subscribe(loc => {
 	    if (loc && cesiumViewer) {
+	      const seq = ++flySeq;
 	      flyToLonLat(cesiumViewer, loc.lon, loc.lat, 5000, 1.5);
 	      clampToSurface(loc.lon, loc.lat).then(clamped => {
 	        if (!cesiumViewer) return;
-	        pointEntities = addPickedPointMarker(cesiumViewer, clamped, pointEntities);
-	        // Open the gig radial menu *without* triggering another camera fly.
-	        openRadialMenuAtPickedPointNoFly();
+	        if (seq !== flySeq) return;
+	        applyPickedPoint(clamped, !!loc.openRadial);
 	      });
 	      flyToLocation.set(null);
 	    }
@@ -1027,13 +1043,7 @@ function handleCoordinatePick(result: any) {
   const coords = pickPositionToLonLat(cesiumViewer, result.position);
   if (!coords) return;
 
-  coordinates.set({ 
-    latitude: coords.latitude.toFixed(10), 
-    longitude: coords.longitude.toFixed(10),
-    height: coords.height,
-  });
-
-  pointEntities = addPickedPointMarker(cesiumViewer, coords.cartesian, pointEntities);
+  applyPickedPoint(coords.cartesian, false);
 }
 
 	onDestroy(() => {
@@ -1097,6 +1107,7 @@ function handleCoordinatePick(result: any) {
       lat={addressLat}
       lon={addressLon}
       placeholder="Search an address or place..."
+      openRadialOnSelect={true}
       onLocationSelected={handleAddressSelected}
       onClear={handleAddressClear}
     />

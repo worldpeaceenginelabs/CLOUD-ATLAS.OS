@@ -6,6 +6,7 @@
     export let link;
   
     // Create a reactive variable for shareData
+    /** @type {{ text: string; url: string }} */
     let shareData;
   
     // Use reactive statements to update shareData whenever any prop changes

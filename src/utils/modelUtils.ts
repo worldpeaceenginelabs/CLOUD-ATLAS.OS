@@ -84,7 +84,7 @@ export function createFinalModelData(
     name: formData.modelName.trim(),
     description: formData.modelDescription.trim(),
     source: formData.selectedSource as 'file' | 'url',
-    file: formData.gltfFile,
+    file: formData.gltfFile ?? undefined,
     url: formData.gltfUrl.trim(),
     coordinates: {
       latitude: parseFloat(coordinates.latitude),
@@ -133,11 +133,12 @@ export async function persistTemporaryModel(tempModelId: string): Promise<void> 
 
   if (!tempModelData) throw new Error(`Temporary model not found: ${tempModelId}`);
 
+  const base = tempModelData as ModelData;
   const permanentData = {
-    ...tempModelData,
-    id: (tempModelData as ModelData).id.startsWith('temp_')
-      ? (tempModelData as ModelData).id.slice(5)
-      : `perm_${(tempModelData as ModelData).id}`
+    ...base,
+    id: base.id.startsWith('temp_')
+      ? base.id.slice(5)
+      : `perm_${base.id}`
   };
 
   await addModel(permanentData);

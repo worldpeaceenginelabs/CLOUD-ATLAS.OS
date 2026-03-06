@@ -142,6 +142,20 @@ export function addPickedPointMarker(
   existingEntities: Entity[],
 ): Entity[] {
   if (!viewer) return [];
+  // Remove any existing picked-point marker entities by ID first.
+  // This is more robust than relying on `existingEntities` being in sync,
+  // and prevents duplicate-ID errors on repeated picks/searches.
+  const fixedIds = [
+    'pickedPoint_outer',
+    'pickedPoint_inner',
+    'pickedPoint',
+    'pickedPoint_hitarea',
+  ];
+  for (const id of fixedIds) {
+    const e = viewer.entities?.getById?.(id);
+    if (e) viewer.entities.remove(e);
+  }
+
   removeMarkers(viewer, existingEntities);
 
   const t0 = Date.now();
@@ -229,6 +243,7 @@ export async function renderListingMarkers(
   if (!viewer) return result;
 
   for (const listing of listings) {
+    if (!listing.location) continue;
     const position = await clampToSurface(
       listing.location.longitude,
       listing.location.latitude,
