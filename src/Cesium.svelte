@@ -14,7 +14,8 @@
 	  Math as CesiumMath,
 	} from 'cesium';
 	import * as Cesium from 'cesium';
-	import "cesium/Build/Cesium/Widgets/widgets.css";
+import "cesium/Build/Cesium/Widgets/widgets.css";
+import LocationPicker from './components/LocationPicker.svelte';
 import { 
 		coordinates, 
 		models, 
@@ -93,6 +94,10 @@ let isBasemapLoaded = false;
 let isTilesetLoaded = false;
 let initialZoomComplete = false;
 let cesiumViewer: any = null;
+
+// Spatial address bar state
+let addressLat = '';
+let addressLon = '';
 
 // Map layer state
 const layerEntities: Record<string, Entity[]> = {};
@@ -319,6 +324,24 @@ function openRadialMenuAtPickedPoint() {
 	showRadialMenu = true;
 	const center = pointEntities.find(e => e.id === 'pickedPoint') ?? null;
 	flyToEntityPosition(cesiumViewer, center);
+}
+
+/** Open radial menu at picked point without moving the camera. */
+function openRadialMenuAtPickedPointNoFly() {
+	gigRadialOrigin.set('picked-point');
+	radialScreenX = window.innerWidth / 2;
+	radialScreenY = window.innerHeight / 2;
+	showRadialMenu = true;
+}
+
+function handleAddressSelected(lat: string, lon: string, _displayName?: string) {
+	addressLat = lat;
+	addressLon = lon;
+}
+
+function handleAddressClear() {
+	addressLat = '';
+	addressLon = '';
 }
 
 // Remove model from scene
@@ -846,6 +869,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	      clampToSurface(loc.lon, loc.lat).then(clamped => {
 	        if (!cesiumViewer) return;
 	        pointEntities = addPickedPointMarker(cesiumViewer, clamped, pointEntities);
+	        // Open the gig radial menu *without* triggering another camera fly.
+	        openRadialMenuAtPickedPointNoFly();
 	      });
 	      flyToLocation.set(null);
 	    }
@@ -1066,11 +1091,16 @@ function handleCoordinatePick(result: any) {
 <div style="width: 100%; display: flex; justify-content: center; align-items: center; position: relative;">
   <main id="cesiumContainer"></main>
   
-  
-  <!-- Height Display (bottom left) -->
-  <div class="height-display">
-    <div class="height-label">Height:</div>
-    <div class="height-value">{Math.round($currentHeight / 1000)}km</div>
+  <!-- Spatial browser address bar (bottom left) -->
+  <div class="addressbar">
+    <LocationPicker
+      lat={addressLat}
+      lon={addressLon}
+      label="Go to"
+      placeholder="Search an address or place..."
+      onLocationSelected={handleAddressSelected}
+      onClear={handleAddressClear}
+    />
   </div>
 
   <!-- MissionTV button (top left) -->
@@ -1147,37 +1177,14 @@ function handleCoordinatePick(result: any) {
 	}
 
 
-	/* Height display (bottom left) */
-	.height-display {
+	/* Spatial browser address bar (bottom left) */
+	.addressbar {
 	  position: fixed;
 	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 	  left: 10px;
 	  z-index: 1000;
-	  background: rgba(0, 0, 0, 0.7);
-	  padding: 10px 15px;
-	  border-radius: 8px;
-	  -webkit-backdrop-filter: blur(10px);
-	  backdrop-filter: blur(10px);
-	  border: 1px solid rgba(255, 255, 255, 0.2);
-	  display: flex;
-	  align-items: center;
-	  gap: 8px;
-	}
-
-	.height-label {
-	  color: rgba(255, 255, 255, 0.8);
-	  font-size: 12px;
-	  font-weight: 500;
-	  margin-bottom: 5px;
-	  text-transform: uppercase;
-	  letter-spacing: 0.5px;
-	}
-
-	.height-value {
-	  color: #ffffff;
-	  font-size: 18px;
-	  font-weight: bold;
-	  text-align: center;
+	  max-width: 320px;
+	  min-width: 220px;
 	}
 
 	/* My Location button (bottom right) */

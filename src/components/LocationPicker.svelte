@@ -3,13 +3,13 @@
   import { autocomplete, reverse, formatShortAddress, type NominatimResult } from '../services/nominatimService';
   import { coordinates, flyToLocation } from '../store';
 
-  export let lat: string = '';
-  export let lon: string = '';
-  export let label: string = 'Location';
-  export let onLocationSelected: (lat: string, lon: string, displayName?: string) => void;
-  export let onClear: (() => void) | undefined = undefined;
-  export let required: boolean = false;
-  export let placeholder: string = 'Search an address or place...';
+export let lat: string = '';
+export let lon: string = '';
+export let label: string = 'Location';
+export let onLocationSelected: (lat: string, lon: string, displayName?: string) => void;
+export let onClear: (() => void) | undefined = undefined;
+export let required: boolean = false;
+export let placeholder: string = 'Search an address or place...';
 
   let searchQuery = '';
   let suggestions: NominatimResult[] = [];
