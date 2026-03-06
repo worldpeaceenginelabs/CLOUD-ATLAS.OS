@@ -173,29 +173,29 @@ export let placeholder: string = 'Search an address or place...';
     {#if isLoading}
       <div class="search-spinner"></div>
     {/if}
-  </div>
 
-  <!-- Autocomplete dropdown -->
-  {#if showDropdown && suggestions.length > 0}
-    <ul class="suggestions-list">
-      {#each suggestions as suggestion, i}
-        <li>
-          <button
-            class="suggestion-item"
-            class:highlighted={i === selectedIndex}
-            on:mousedown|preventDefault={() => selectSuggestion(suggestion)}
-          >
-            <svg class="suggestion-pin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-            </svg>
-            <span class="suggestion-text">{formatShortAddress(suggestion)}</span>
-          </button>
-        </li>
-      {/each}
-    </ul>
-  {:else if showDropdown && searchQuery.trim().length >= 2 && !isLoading}
-    <div class="no-results">No results found</div>
-  {/if}
+    <!-- Autocomplete dropdown (opens upward) -->
+    {#if showDropdown && suggestions.length > 0}
+      <ul class="suggestions-list suggestions-up">
+        {#each suggestions as suggestion, i}
+          <li>
+            <button
+              class="suggestion-item"
+              class:highlighted={i === selectedIndex}
+              on:mousedown|preventDefault={() => selectSuggestion(suggestion)}
+            >
+              <svg class="suggestion-pin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              <span class="suggestion-text">{formatShortAddress(suggestion)}</span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {:else if showDropdown && searchQuery.trim().length >= 2 && !isLoading}
+      <div class="no-results suggestions-up">No results found</div>
+    {/if}
+  </div>
 
   <!-- Selected location display -->
   {#if lat && lon}
@@ -287,7 +287,15 @@ export let placeholder: string = 'Search an address or place...';
     to { transform: rotate(360deg); }
   }
 
-  /* Suggestions dropdown */
+  /* Suggestions dropdown (opens upward above the input) */
+  .suggestions-up {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 6px);
+    z-index: 20;
+  }
+
   .suggestions-list {
     list-style: none;
     margin: 0;
