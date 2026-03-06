@@ -26,6 +26,7 @@ export let openRadialOnSelect: boolean = false;
     if (value.latitude && value.longitude) {
       displayName = '';
       onLocationSelected(value.latitude, value.longitude);
+      inputEl?.blur();
     }
   });
 
@@ -97,6 +98,7 @@ export let openRadialOnSelect: boolean = false;
       lon: parseFloat(result.lon),
       openRadial: openRadialOnSelect,
     });
+    inputEl?.blur();
   }
 
   function handleKeydown(e: KeyboardEvent) {
