@@ -211,13 +211,6 @@ export const LISTING_CATEGORIES: Record<ListingVertical, ListingCategory[]> = {
 
 // ─── Vertical Definitions ───────────────────────────────────────
 
-const LISTING_MAP_PREFIX_OVERRIDES: Partial<Record<ListingVertical, string>> = {
-  // Historical: singular prefix even though vertical id is plural.
-  helpouts: 'helpout_',
-  // Historical: short prefix without "-ing".
-  brainstorming: 'brainstorm_',
-};
-
 function toContactPlaceholder(examples: string[] | undefined): string {
   const list = (examples ?? []).map(s => s.trim()).filter(Boolean);
   if (list.length === 0) return '';
@@ -237,7 +230,7 @@ function buildListingVerticalConfig(id: ListingVertical, draft: ListingVerticalD
     mode: 'listing',
     layerGroup: draft.layerGroup,
     listingTag: `listing-${id}`,
-    mapPrefix: LISTING_MAP_PREFIX_OVERRIDES[id] ?? `${id}_`,
+    mapPrefix: `${id}_`,
 
     formTitle: draft.formTitle,
     formSubtitle: draft.formSubtitle,
