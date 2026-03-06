@@ -1205,6 +1205,12 @@ function handleCoordinatePick(result: any) {
 	  z-index: 1000;
 	  max-width: 320px;
 	  min-width: 220px;
+	  border-radius: 10px;
+	  background: rgba(255, 255, 255, 0.1);
+	  border: 1px solid rgba(255, 255, 255, 0.3);
+	  -webkit-backdrop-filter: blur(10px);
+	  backdrop-filter: blur(10px);
+	  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 	}
 
 	/* My Location button (bottom right) */
