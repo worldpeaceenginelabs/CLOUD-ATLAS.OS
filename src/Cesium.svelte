@@ -287,14 +287,20 @@ $: if (userLocationInitialized && $userLiveLocation && userRingEntities.length >
 $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && cesiumViewer && userLocation) {
 	userLocationInitialized = true;
 	const { latitude, longitude } = $userLiveLocation;
-	(async () => {
-		const userPosition = await clampToSurface(longitude, latitude);
-		const entities = userLocation.createRing('Your Location!', userPosition);
-		entities.forEach(e => cesiumViewer!.entities.add(e));
-		userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
-		userRingEntities = entities;
-	})();
-	flyToLonLat(cesiumViewer, longitude, latitude, 20000000, 1.5);
+	const seq = ++flySeq;
+	cesiumViewer.camera.flyTo({
+		destination: Cartesian3.fromDegrees(longitude, latitude, 20000000),
+		duration: 1.5,
+		complete: async () => {
+			if (!cesiumViewer || seq !== flySeq) return;
+			const userPosition = await clampToSurface(longitude, latitude);
+			if (!cesiumViewer || seq !== flySeq) return;
+			const entities = userLocation.createRing('Your Location!', userPosition);
+			entities.forEach(e => cesiumViewer!.entities.add(e));
+			userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
+			userRingEntities = entities;
+		},
+	});
 }
 
 // Reopen radial menu when signalled by back buttons in the gig panel
@@ -882,11 +888,15 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  unsubFlyTo = flyToLocation.subscribe(loc => {
 	    if (loc && cesiumViewer) {
 	      const seq = ++flySeq;
-	      flyToLonLat(cesiumViewer, loc.lon, loc.lat, 5000, 1.5);
-	      clampToSurface(loc.lon, loc.lat).then(clamped => {
-	        if (!cesiumViewer) return;
-	        if (seq !== flySeq) return;
-	        applyPickedPoint(clamped, !!loc.openRadial);
+	      cesiumViewer.camera.flyTo({
+	        destination: Cartesian3.fromDegrees(loc.lon, loc.lat, 5000),
+	        duration: 1.5,
+	        complete: async () => {
+	          if (!cesiumViewer || seq !== flySeq) return;
+	          const clamped = await clampToSurface(loc.lon, loc.lat);
+	          if (!cesiumViewer || seq !== flySeq) return;
+	          applyPickedPoint(clamped, !!loc.openRadial);
+	        },
 	      });
 	      flyToLocation.set(null);
 	    }
