@@ -307,6 +307,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
     directiveNoun: 'solution',
     defaultMode: 'both',
     fetchStrategy: 'global',
+    radialDescription: 'Flip the script on bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure - or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to tackle their own challenges and co-create innovative products, services, and solutions.',
   },
 
   meetanddo: {
