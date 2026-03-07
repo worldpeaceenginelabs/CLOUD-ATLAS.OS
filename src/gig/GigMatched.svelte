@@ -99,7 +99,7 @@
   <div class="contact-card" style="--accent: {config.color}">
     <span class="contact-heading">Locations</span>
     <p class="coordinates-hint">Use these coordinates in your favorite maps app for a precise meeting point.</p>
-    <div class="contact-row">
+    <div class="location-block">
       <span class="contact-label">Pickup</span>
       <span class="contact-value location-value">
         <span class="coords-display">{pickup.latitude.toFixed(5)}, {pickup.longitude.toFixed(5)}</span>
@@ -113,7 +113,7 @@
         {copiedWhich === 'pickup' ? 'Copied!' : 'Copy'}
       </button>
     </div>
-    <div class="contact-row">
+    <div class="location-block">
       <span class="contact-label">Drop</span>
       <span class="contact-value location-value">
         <span class="coords-display">{drop.latitude.toFixed(5)}, {drop.longitude.toFixed(5)}</span>
@@ -209,6 +209,13 @@
     font-size: 0.78rem;
     color: rgba(255, 255, 255, 0.55);
     line-height: 1.4;
+  }
+
+  .location-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: flex-start;
   }
 
   .contact-row {
