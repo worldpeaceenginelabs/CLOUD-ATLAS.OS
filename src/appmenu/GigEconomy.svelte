@@ -74,6 +74,9 @@
   let matchedProviderDetails: Record<string, string> = {};
   let requestQueue: GigRequest[] = [];
 
+  $: requestForMatchedView =
+    currentView === 'matched' ? ($userGigRole === 'requester' ? myRequest : matchedRequest) : null;
+
   // ─── Error State ────────────────────────────────────────────
   let errorMessage: string | null = null;
   let errorTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -441,8 +444,8 @@
       pubkey: service!.pubkey,
       startLocation: matchingConfig.pickupSource === 'chosen' && chosenLocation ? chosenLocation : ctx.location,
       destination: matchingConfig.hasDestination
-        ? (matchingConfig.pickupSource === 'chosen' ? ctx.location : chosenLocation)
-        : undefined,
+        ? (matchingConfig.pickupSource === 'chosen' ? ctx.location : chosenLocation!)
+        : ctx.location,
       status: 'open',
       matchedProviderPubkey: null,
       geohash: ctx.geohash,
@@ -644,14 +647,14 @@
     />
 
   <!-- ═══════════════ MATCHED VIEW ═══════════════════ -->
-  {:else if currentView === 'matched' && matchingConfig}
+  {:else if currentView === 'matched' && matchingConfig && requestForMatchedView}
     <GigMatched
       config={matchingConfig}
       onDone={finishAndReset}
       role={$userGigRole}
       providerDetails={matchedProviderDetails}
-      pickup={$userGigRole === 'requester' ? myRequest?.startLocation ?? null : matchedRequest?.startLocation ?? null}
-      drop={$userGigRole === 'requester' ? myRequest?.destination ?? null : matchedRequest?.destination ?? null}
+      pickup={requestForMatchedView.startLocation}
+      drop={requestForMatchedView.destination}
     />
   {/if}
 </div>

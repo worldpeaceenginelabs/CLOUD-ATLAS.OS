@@ -9,8 +9,8 @@
   export let onDone: () => void;
   export let role: 'requester' | 'provider' | null = null;
   export let providerDetails: Record<string, string> = {};
-  export let pickup: { latitude: number; longitude: number } | null = null;
-  export let drop: { latitude: number; longitude: number } | null = null;
+  export let pickup: { latitude: number; longitude: number };
+  export let drop: { latitude: number; longitude: number };
 
   $: hasContact = !!(providerDetails.phone || providerDetails.messenger);
   $: showContact = role === 'requester' && hasContact;
@@ -22,7 +22,7 @@
   let pickupLastKey = '';
   let dropLastKey = '';
 
-  $: if (pickup) {
+  $: {
     const key = `${pickup.latitude}:${pickup.longitude}`;
     if (key !== pickupLastKey) {
       pickupLastKey = key;
@@ -32,12 +32,9 @@
         .then((result) => { if (result) pickupDisplayName = formatShortAddress(result); })
         .finally(() => { pickupReverseLoading = false; });
     }
-  } else {
-    pickupDisplayName = '';
-    pickupLastKey = '';
   }
 
-  $: if (drop) {
+  $: {
     const key = `${drop.latitude}:${drop.longitude}`;
     if (key !== dropLastKey) {
       dropLastKey = key;
@@ -47,9 +44,6 @@
         .then((result) => { if (result) dropDisplayName = formatShortAddress(result); })
         .finally(() => { dropReverseLoading = false; });
     }
-  } else {
-    dropDisplayName = '';
-    dropLastKey = '';
   }
 
   let copiedWhich: 'phone' | 'messenger' | 'pickup' | 'drop' | null = null;
@@ -102,44 +96,38 @@
     </div>
   {/if}
 
-  {#if pickup || drop}
-    <div class="contact-card" style="--accent: {config.color}">
-      <span class="contact-heading">Locations</span>
-      <p class="coordinates-hint">Use these coordinates in your favorite maps app for a precise meeting point.</p>
-      {#if pickup}
-        <div class="contact-row">
-          <span class="contact-label">Pickup</span>
-          <span class="contact-value location-value">
-            <span class="coords-display">{pickup.latitude.toFixed(5)}, {pickup.longitude.toFixed(5)}</span>
-            {#if pickupReverseLoading}
-              <span class="address-loading">Looking up address...</span>
-            {:else if pickupDisplayName}
-              <span class="address-display">{pickupDisplayName}</span>
-            {/if}
-          </span>
-          <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(pickup.latitude, pickup.longitude), 'pickup')}>
-            {copiedWhich === 'pickup' ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
-      {/if}
-      {#if drop}
-        <div class="contact-row">
-          <span class="contact-label">Drop</span>
-          <span class="contact-value location-value">
-            <span class="coords-display">{drop.latitude.toFixed(5)}, {drop.longitude.toFixed(5)}</span>
-            {#if dropReverseLoading}
-              <span class="address-loading">Looking up address...</span>
-            {:else if dropDisplayName}
-              <span class="address-display">{dropDisplayName}</span>
-            {/if}
-          </span>
-          <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(drop.latitude, drop.longitude), 'drop')}>
-            {copiedWhich === 'drop' ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
-      {/if}
+  <div class="contact-card" style="--accent: {config.color}">
+    <span class="contact-heading">Locations</span>
+    <p class="coordinates-hint">Use these coordinates in your favorite maps app for a precise meeting point.</p>
+    <div class="contact-row">
+      <span class="contact-label">Pickup</span>
+      <span class="contact-value location-value">
+        <span class="coords-display">{pickup.latitude.toFixed(5)}, {pickup.longitude.toFixed(5)}</span>
+        {#if pickupReverseLoading}
+          <span class="address-loading">Looking up address...</span>
+        {:else if pickupDisplayName}
+          <span class="address-display">{pickupDisplayName}</span>
+        {/if}
+      </span>
+      <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(pickup.latitude, pickup.longitude), 'pickup')}>
+        {copiedWhich === 'pickup' ? 'Copied!' : 'Copy'}
+      </button>
     </div>
-  {/if}
+    <div class="contact-row">
+      <span class="contact-label">Drop</span>
+      <span class="contact-value location-value">
+        <span class="coords-display">{drop.latitude.toFixed(5)}, {drop.longitude.toFixed(5)}</span>
+        {#if dropReverseLoading}
+          <span class="address-loading">Looking up address...</span>
+        {:else if dropDisplayName}
+          <span class="address-display">{dropDisplayName}</span>
+        {/if}
+      </span>
+      <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(drop.latitude, drop.longitude), 'drop')}>
+        {copiedWhich === 'drop' ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  </div>
 
   {#if config.id === 'rides'}
     <div class="safety-instructions">

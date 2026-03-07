@@ -197,7 +197,7 @@ export interface GigRequest {
     latitude: number;
     longitude: number;
   };
-  destination?: {
+  destination: {
     latitude: number;
     longitude: number;
   };
