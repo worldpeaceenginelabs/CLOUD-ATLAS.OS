@@ -13,11 +13,17 @@ export interface UserLocationHandle {
   cleanup(): void;
 }
 
+const DEG_THRESHOLD = 0.00015; // ~15 m in degrees
+const MIN_INTERVAL_MS = 10_000; // 10 sec
+
 export function initUserLocation(
   viewer: Cesium.Viewer,
   userLiveLocation: Writable<{ latitude: number; longitude: number } | null>,
 ): UserLocationHandle {
   let geoWatchId: number | null = null;
+  let lastLat: number | null = null;
+  let lastLon: number | null = null;
+  let lastUpdateTime = 0;
 
   function createRing(pointId: string, position: Cartesian3): Entity[] {
     const t0 = Date.now();
@@ -95,10 +101,27 @@ export function initUserLocation(
 
     geoWatchId = navigator.geolocation.watchPosition(
       (position) => {
-        userLiveLocation.set({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const now = Date.now();
+
+        if (lastLat === null || lastLon === null) {
+          userLiveLocation.set({ latitude: lat, longitude: lon });
+          lastLat = lat;
+          lastLon = lon;
+          lastUpdateTime = now;
+          return;
+        }
+
+        const overThreshold =
+          Math.abs(lat - lastLat) >= DEG_THRESHOLD || Math.abs(lon - lastLon) >= DEG_THRESHOLD;
+        const overInterval = now - lastUpdateTime >= MIN_INTERVAL_MS;
+        if (overThreshold && overInterval) {
+          userLiveLocation.set({ latitude: lat, longitude: lon });
+          lastLat = lat;
+          lastLon = lon;
+          lastUpdateTime = now;
+        }
       },
       (error) => {
         console.error('Geolocation error:', error);
