@@ -49,7 +49,7 @@
     <div class="pwa-text">
       <p class="pwa-title">Install Cloud Atlas OS</p>
       {#if $nativePrompt}
-        <p class="pwa-sub">Add to your home screen for your convinience.</p>
+        <p class="pwa-sub">Add to home screen → Your phone is the server. No middlemen between you and your money.</p>
       {:else}
         <p class="pwa-sub">{installInstructions[platform]}</p>
       {/if}
@@ -117,14 +117,14 @@
     margin: 0;
     font-size: 12px;
     color: rgba(255, 255, 255, 0.65);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     max-width: 260px;
   }
 
   .pwa-install-btn {
     flex-shrink: 0;
+    white-space: nowrap;
+    min-width: fit-content;
+    overflow: visible;
     background: #FFD700;
     color: #000;
     border: none;
@@ -172,7 +172,7 @@
     }
 
     .pwa-sub {
-      max-width: 180px;
+      max-width: 220px;
     }
   }
 </style>

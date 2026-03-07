@@ -20,10 +20,11 @@ export const platform: PwaPlatform = (() => {
   return 'desktop';
 })();
 
+const installCopy = 'Add to home screen → Your phone is the server. No middlemen between you and your money.';
 export const installInstructions: Record<PwaPlatform, string> = {
-  ios: 'Tap the Share icon → "Add to Home Screen"',
-  android: 'Tap the browser menu → "Add to Home Screen"',
-  desktop: 'Click the install icon in the address bar',
+  ios: `Tap the Share icon — ${installCopy}`,
+  android: `Tap the browser menu — ${installCopy}`,
+  desktop: `Click the install icon in the address bar — ${installCopy}`,
 };
 
 if (typeof window !== 'undefined') {
