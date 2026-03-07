@@ -2,7 +2,7 @@ import * as Cesium from 'cesium';
 import { Entity, Cartesian3 } from 'cesium';
 import type { Writable } from 'svelte/store';
 import { clampToSurface } from './clampToSurface';
-import { flyToLonLat } from './cesiumHelpers';
+import { flyToLonLat, isValidLonLat } from './cesiumHelpers';
 
 export interface UserLocationHandle {
   startTracking(): void;
@@ -106,6 +106,7 @@ export function initUserLocation(
         const lon = position.coords.longitude;
         const now = Date.now();
 
+        if (!isValidLonLat(lat, lon)) return;
         if (lastLat === null || lastLon === null) {
           userLiveLocation.set({ latitude: lat, longitude: lon });
           lastLat = lat;
@@ -155,6 +156,7 @@ export function initUserLocation(
       (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
+        if (!isValidLonLat(lat, lon)) return;
         const now = Date.now();
         userLiveLocation.set({ latitude: lat, longitude: lon });
         lastLat = lat;

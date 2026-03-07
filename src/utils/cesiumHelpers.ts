@@ -80,6 +80,15 @@ export function setModelVisibility(
   }
 }
 
+// ─── Coordinate validation ─────────────────────────────────────
+
+/** Returns false for 0,0 (Antarctica) and out-of-range lat/lon so we never fly there by mistake. */
+export function isValidLonLat(lat: number, lon: number): boolean {
+  if (lat === 0 && lon === 0) return false;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return false;
+  return true;
+}
+
 // ─── Camera Helpers ─────────────────────────────────────────────
 
 export function flyToLonLat(
@@ -89,7 +98,7 @@ export function flyToLonLat(
   height: number,
   duration?: number,
 ): void {
-  if (!viewer) return;
+  if (!viewer || !isValidLonLat(lat, lon)) return;
   viewer.camera.flyTo({
     destination: Cartesian3.fromDegrees(lon, lat, height),
     ...(duration != null && { duration }),
@@ -106,13 +115,10 @@ export function flyToEntityPosition(
   const pos = entity.position?.getValue(Cesium.JulianDate.now());
   if (!pos) return;
   const c = Cartographic.fromCartesian(pos);
-  flyToLonLat(
-    viewer,
-    CesiumMath.toDegrees(c.longitude),
-    CesiumMath.toDegrees(c.latitude),
-    height,
-    duration,
-  );
+  const lat = CesiumMath.toDegrees(c.latitude);
+  const lon = CesiumMath.toDegrees(c.longitude);
+  if (!isValidLonLat(lat, lon)) return;
+  flyToLonLat(viewer, lon, lat, height, duration);
 }
 
 // ─── Coordinate Helpers ─────────────────────────────────────────

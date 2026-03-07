@@ -63,6 +63,7 @@ import {
 		renderListingMarkers,
 		removeMarkers,
 		removeMarkerById,
+		isValidLonLat,
 	} from './utils/cesiumHelpers';
 	import { setupTouchTiltHandler, destroyTouchTiltHandler } from './utils/touchTiltHandler';
 	import { hasActiveGigSession } from './gig/gigRecovery';
@@ -283,7 +284,7 @@ $: if (userLocationInitialized && $userLiveLocation && userRingEntities.length >
 }
 
 // Create user location entities the instant both geolocation and initial load are ready
-$: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && cesiumViewer && userLocation) {
+$: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && isValidLonLat($userLiveLocation.latitude, $userLiveLocation.longitude) && cesiumViewer && userLocation) {
 	userLocationInitialized = true;
 	const { latitude, longitude } = $userLiveLocation;
 	const seq = ++flySeq;
@@ -886,7 +887,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  setupEventHandlers();
 
 	  unsubFlyTo = flyToLocation.subscribe(loc => {
-	    if (loc && cesiumViewer) {
+	    if (loc && isValidLonLat(loc.lat, loc.lon) && cesiumViewer) {
 	      const seq = ++flySeq;
 	      cesiumViewer.camera.flyTo({
 	        destination: Cartesian3.fromDegrees(loc.lon, loc.lat, 5000),
@@ -1025,7 +1026,7 @@ function handleRadialClose() {
 
 function flyToMyLocation() {
   const loc = $userLiveLocation;
-  if (loc && userLocation) {
+  if (loc && isValidLonLat(loc.latitude, loc.longitude) && userLocation) {
     userLocation.flyToMe(loc);
   }
   openRadialMenuCentered();
