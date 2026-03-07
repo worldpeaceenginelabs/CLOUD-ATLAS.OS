@@ -2,6 +2,7 @@
   import { slide } from 'svelte/transition';
   import type { MatchingVerticalConfig } from './verticals';
   import { ensureProtocol, formatLatLon } from '../utils/urlUtils';
+  import { reverse, formatShortAddress } from '../services/nominatimService';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
 
   export let config: MatchingVerticalConfig;
@@ -13,6 +14,43 @@
 
   $: hasContact = !!(providerDetails.phone || providerDetails.messenger);
   $: showContact = role === 'requester' && hasContact;
+
+  let pickupDisplayName = '';
+  let dropDisplayName = '';
+  let pickupReverseLoading = false;
+  let dropReverseLoading = false;
+  let pickupLastKey = '';
+  let dropLastKey = '';
+
+  $: if (pickup) {
+    const key = `${pickup.latitude}:${pickup.longitude}`;
+    if (key !== pickupLastKey) {
+      pickupLastKey = key;
+      pickupDisplayName = '';
+      pickupReverseLoading = true;
+      reverse(pickup.latitude, pickup.longitude)
+        .then((result) => { if (result) pickupDisplayName = formatShortAddress(result); })
+        .finally(() => { pickupReverseLoading = false; });
+    }
+  } else {
+    pickupDisplayName = '';
+    pickupLastKey = '';
+  }
+
+  $: if (drop) {
+    const key = `${drop.latitude}:${drop.longitude}`;
+    if (key !== dropLastKey) {
+      dropLastKey = key;
+      dropDisplayName = '';
+      dropReverseLoading = true;
+      reverse(drop.latitude, drop.longitude)
+        .then((result) => { if (result) dropDisplayName = formatShortAddress(result); })
+        .finally(() => { dropReverseLoading = false; });
+    }
+  } else {
+    dropDisplayName = '';
+    dropLastKey = '';
+  }
 
   let copiedWhich: 'phone' | 'messenger' | 'pickup' | 'drop' | null = null;
 
@@ -71,7 +109,14 @@
       {#if pickup}
         <div class="contact-row">
           <span class="contact-label">Pickup</span>
-          <span class="contact-value">{formatLatLon(pickup.latitude, pickup.longitude)}</span>
+          <span class="contact-value location-value">
+            <span class="coords-display">{pickup.latitude.toFixed(5)}, {pickup.longitude.toFixed(5)}</span>
+            {#if pickupReverseLoading}
+              <span class="address-loading">Looking up address...</span>
+            {:else if pickupDisplayName}
+              <span class="address-display">{pickupDisplayName}</span>
+            {/if}
+          </span>
           <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(pickup.latitude, pickup.longitude), 'pickup')}>
             {copiedWhich === 'pickup' ? 'Copied!' : 'Copy'}
           </button>
@@ -80,7 +125,14 @@
       {#if drop}
         <div class="contact-row">
           <span class="contact-label">Drop</span>
-          <span class="contact-value">{formatLatLon(drop.latitude, drop.longitude)}</span>
+          <span class="contact-value location-value">
+            <span class="coords-display">{drop.latitude.toFixed(5)}, {drop.longitude.toFixed(5)}</span>
+            {#if dropReverseLoading}
+              <span class="address-loading">Looking up address...</span>
+            {:else if dropDisplayName}
+              <span class="address-display">{dropDisplayName}</span>
+            {/if}
+          </span>
           <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(drop.latitude, drop.longitude), 'drop')}>
             {copiedWhich === 'drop' ? 'Copied!' : 'Copy'}
           </button>
@@ -210,6 +262,34 @@
     color: white;
     text-decoration: none;
     word-break: break-all;
+  }
+
+  .contact-value.location-value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .contact-value.location-value:hover {
+    text-decoration: none;
+  }
+
+  .contact-value .coords-display {
+    font-family: monospace;
+    font-size: 0.82rem;
+    color: rgba(74, 222, 128, 1);
+  }
+
+  .contact-value .address-loading {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+  }
+
+  .contact-value .address-display {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.75);
   }
 
   .contact-value:hover {

@@ -3,6 +3,7 @@
   import type { MatchingVerticalConfig } from './verticals';
   import { fieldValid, getGroups, groupsSatisfied as checkGroupsSatisfied, allPatternsValid as checkAllPatternsValid } from './formValidation';
   import { formatLatLon } from '../utils/urlUtils';
+  import { reverse, formatShortAddress } from '../services/nominatimService';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
   import LocationPicker from '../components/LocationPicker.svelte';
 
@@ -21,6 +22,27 @@
   $: groupHints = isNeed ? config.needFieldGroupHints : config.offerFieldGroupHints;
   $: formTitle = isNeed ? config.needLabel : config.offerLabel;
   $: locationLabel = isNeed ? config.gpsLocationLabel : 'Your Location';
+
+  let userLocationDisplayName = '';
+  let userLocationReverseLoading = false;
+  let userLocationLastKey = '';
+
+  $: if (userLiveLocation) {
+    const key = `${userLiveLocation.latitude}:${userLiveLocation.longitude}`;
+    if (key !== userLocationLastKey) {
+      userLocationLastKey = key;
+      userLocationDisplayName = '';
+      userLocationReverseLoading = true;
+      reverse(userLiveLocation.latitude, userLiveLocation.longitude)
+        .then((result) => {
+          if (result) userLocationDisplayName = formatShortAddress(result);
+        })
+        .finally(() => { userLocationReverseLoading = false; });
+    }
+  } else {
+    userLocationDisplayName = '';
+    userLocationLastKey = '';
+  }
 
   let fieldValues: Record<string, string> = {};
 
@@ -60,7 +82,12 @@
     <span class="gig-field-label">{locationLabel} <span class="gig-live-badge">LIVE</span></span>
     <p class="location-display">
       {#if userLiveLocation}
-        {formatLatLon(userLiveLocation.latitude, userLiveLocation.longitude)}
+        <span class="coords-display">{userLiveLocation.latitude.toFixed(5)}, {userLiveLocation.longitude.toFixed(5)}</span>
+        {#if userLocationReverseLoading}
+          <span class="address-loading">Looking up address...</span>
+        {:else if userLocationDisplayName}
+          <span class="address-display">{userLocationDisplayName}</span>
+        {/if}
       {:else}
         <span class="location-hint">Waiting for GPS... Enable location services if this persists.</span>
       {/if}
@@ -149,6 +176,22 @@
     font-size: 0.85rem;
     color: rgba(74, 222, 128, 1);
     font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .location-display .address-loading {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: inherit;
+  }
+
+  .location-display .address-display {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-family: inherit;
   }
 
   .location-hint {
