@@ -239,11 +239,17 @@ export let openRadialOnSelect: boolean = false;
     margin-left: 2px;
   }
 
-  /* Search input */
+  /* Search input – own glass panel (same as map buttons) */
   .search-wrapper {
     position: relative;
     display: flex;
     align-items: center;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
   .search-icon {
@@ -356,16 +362,19 @@ export let openRadialOnSelect: boolean = false;
     border-radius: 8px;
   }
 
-  /* Selected location */
+  /* Selected location – own glass panel (same as map buttons) */
   .selected-location {
     display: flex;
     flex-direction: column;
     gap: 3px;
     margin-top: 0.15rem;
     padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
   .selected-header {
