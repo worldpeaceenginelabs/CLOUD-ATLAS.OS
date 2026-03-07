@@ -298,6 +298,7 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && c
 			entities.forEach(e => cesiumViewer!.entities.add(e));
 			userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
 			userRingEntities = entities;
+			userLocation.forceRefreshFromGps();
 		},
 	});
 }
@@ -895,6 +896,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	          const clamped = await clampToSurface(loc.lon, loc.lat);
 	          if (!cesiumViewer || seq !== flySeq) return;
 	          applyPickedPoint(clamped, !!loc.openRadial);
+	          userLocation.forceRefreshFromGps();
 	        },
 	      });
 	      flyToLocation.set(null);
