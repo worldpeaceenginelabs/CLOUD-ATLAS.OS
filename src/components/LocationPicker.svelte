@@ -6,7 +6,6 @@
 export let lat: string = '';
 export let lon: string = '';
 export let onLocationSelected: (lat: string, lon: string, displayName?: string) => void;
-export let onClear: (() => void) | undefined = undefined;
 export let required: boolean = false;
 export let placeholder: string = 'Search an address or place...';
 export let openRadialOnSelect: boolean = false;
@@ -133,17 +132,6 @@ export let openRadialOnSelect: boolean = false;
     }, 200);
   }
 
-  function handleClear() {
-    lat = '';
-    lon = '';
-    displayName = '';
-    searchQuery = '';
-    suggestions = [];
-    showDropdown = false;
-    lastReversedKey = '';
-    if (onClear) onClear();
-  }
-
   onDestroy(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
     unsubCoords();
@@ -162,7 +150,6 @@ export let openRadialOnSelect: boolean = false;
     <div class="selected-location">
       <div class="selected-header">
         <span class="selected-label">Selected</span>
-        <button class="action-link" on:click={handleClear}>Clear</button>
       </div>
       <p class="coords-display">
         {parseFloat(lat).toFixed(5)}, {parseFloat(lon).toFixed(5)}
@@ -389,21 +376,6 @@ export let openRadialOnSelect: boolean = false;
     color: rgba(255, 255, 255, 0.45);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-  }
-
-  .action-link {
-    background: none;
-    border: none;
-    color: rgba(66, 133, 244, 0.8);
-    font-size: 0.72rem;
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-    font-family: inherit;
-  }
-
-  .action-link:hover {
-    color: rgba(66, 133, 244, 1);
   }
 
   .coords-display {

@@ -72,12 +72,6 @@
     locationAddress = displayName ?? '';
   }
 
-  function handleLocationClear() {
-    locationLat = '';
-    locationLon = '';
-    locationAddress = '';
-  }
-
   function submitListing() {
     if (!canSubmit) return;
     currentView = 'publishing';
@@ -176,7 +170,7 @@
     </div>
 
     {#if needsLocation}
-      <LocationPicker lat={locationLat} lon={locationLon} onLocationSelected={handleLocationSelected} onClear={handleLocationClear} />
+      <LocationPicker lat={locationLat} lon={locationLon} onLocationSelected={handleLocationSelected} />
     {/if}
 
     {#if hasCategories}

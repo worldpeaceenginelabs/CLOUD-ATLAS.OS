@@ -224,8 +224,6 @@
       goBackToRadial();
     } else if (currentView === 'need' || currentView === 'offer') {
       currentView = 'menu';
-      destinationLat = '';
-      destinationLon = '';
     }
   }
 
@@ -407,11 +405,6 @@
     destinationLon = lon;
   }
 
-  function handleDestinationClear() {
-    destinationLat = '';
-    destinationLon = '';
-  }
-
   function prepareService(): { geohash: string; location: { latitude: number; longitude: number } } | null {
     if (!$userLiveLocation) {
       showError('GPS location not available. Please enable location services and try again.');
@@ -525,8 +518,6 @@
     matchedProviderDetails = {};
     resetProviderState();
     config = null;
-    destinationLat = '';
-    destinationLon = '';
     closePanel();
   }
 
@@ -625,7 +616,6 @@
       {destinationLon}
       onBack={goBack}
       onDestinationSelected={handleDestinationSelected}
-      onDestinationClear={handleDestinationClear}
       onSubmit={currentView === 'need' ? submitRequest : submitOffer}
     />
 

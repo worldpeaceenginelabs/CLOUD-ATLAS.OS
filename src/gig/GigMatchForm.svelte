@@ -14,7 +14,6 @@
   export let destinationLon = '';
   export let onBack: () => void;
   export let onDestinationSelected: ((lat: string, lon: string, displayName?: string) => void) | undefined = undefined;
-  export let onDestinationClear: (() => void) | undefined = undefined;
   export let onSubmit: (details: Record<string, string>) => void;
 
   $: isNeed = role === 'need';
@@ -94,12 +93,11 @@
     </p>
   </div>
 
-  {#if isNeed && config.hasDestination && onDestinationSelected && onDestinationClear}
+  {#if isNeed && config.hasDestination && onDestinationSelected}
     <LocationPicker
       lat={destinationLat}
       lon={destinationLon}
       onLocationSelected={onDestinationSelected}
-      onClear={onDestinationClear}
     />
   {/if}
 

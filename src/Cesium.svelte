@@ -348,11 +348,6 @@ function handleAddressSelected(lat: string, lon: string, _displayName?: string) 
 	addressLon = lon;
 }
 
-function handleAddressClear() {
-	addressLat = '';
-	addressLon = '';
-}
-
 function applyPickedPoint(cartesian: Cartesian3, openRadial: boolean) {
 	if (!cesiumViewer) return;
 	const carto = Cesium.Cartographic.fromCartesian(cartesian);
@@ -1121,7 +1116,6 @@ function handleCoordinatePick(result: any) {
       placeholder="Search an address or place..."
       openRadialOnSelect={true}
       onLocationSelected={handleAddressSelected}
-      onClear={handleAddressClear}
     />
   </div>
 
