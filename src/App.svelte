@@ -80,7 +80,7 @@
   }
 
   .app-container {
-    height: 100vh;
+    height: 100dvh;
     width: 100vw;
     box-sizing: border-box;
   }
@@ -96,7 +96,7 @@
   .cesiumcontainer {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100dvh;
     width: 100vw;
     z-index: 20;
     position: relative;
@@ -114,7 +114,7 @@
     flex-direction: column;
     text-align: center;
     background-color: #000;
-    height: 100vh;
+    height: 100dvh;
     width: 100vw;
     position: relative;
     overflow: hidden;
@@ -205,6 +205,8 @@
     background: black;
     justify-content: center;
     align-items: center;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .picture {
@@ -215,7 +217,7 @@
   .quote {
     color: black;
     position: absolute;
-    bottom: 10%;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     font-size: 1.1em;
     padding: 0 1em;
     text-align: center;
