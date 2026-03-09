@@ -100,7 +100,6 @@ export let openRadialOnSelect: boolean = false;
     flyToLocation.set({
       lat: parseFloat(result.lat),
       lon: parseFloat(result.lon),
-      source: 'address',
       options,
     });
     inputEl?.blur();

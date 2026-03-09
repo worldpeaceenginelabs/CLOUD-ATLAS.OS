@@ -98,19 +98,18 @@ export const preselectedGigVertical = resettable<GigVertical | null>(null);
 export const showRadialGigMenu = resettable(false);
 
 // ─── Fly-to ──────────────────────────────────────────────────
-export type LocationSource = 'address' | 'map-pick' | 'gps';
-
 export type LocationOptions = {
   openRadial?: boolean;
   radialOrigin?: 'picked-point' | 'user-location';
-  /** When true, do not recreate the picked marker / coordinates (used for clicking existing markers). */
-  reuseExistingPick?: boolean;
+  /** Whether to update the coordinates store (defaults to true). */
+  updateCoordinates?: boolean;
+  /** Whether to create/move the green picked-point marker (defaults to true). */
+  createPickedMarker?: boolean;
 };
 
 export type FlyToLocationPayload = {
   lat: number;
   lon: number;
-  source: LocationSource;
   options?: LocationOptions;
 };
 
