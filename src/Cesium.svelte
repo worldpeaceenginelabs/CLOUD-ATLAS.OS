@@ -308,10 +308,44 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && i
 // Reopen radial menu when signalled by back buttons in the gig panel
 $: if ($showRadialGigMenu) {
 	showRadialGigMenu.set(false);
-	if ($gigRadialOrigin === 'picked-point') {
-		openRadialMenuAtPickedPoint();
-	} else {
-		openRadialMenuCentered();
+
+	// Recentre camera on the original radial origin, then reopen via unified workflow
+	if (cesiumViewer) {
+		if ($gigRadialOrigin === 'picked-point') {
+			const centerEntity = cesiumViewer.entities.getById('pickedPoint');
+			const pos = centerEntity?.position?.getValue(JulianDate.now());
+			if (pos) {
+				const carto = Cesium.Cartographic.fromCartesian(pos);
+				const lat = CesiumMath.toDegrees(carto.latitude);
+				const lon = CesiumMath.toDegrees(carto.longitude);
+				if (isValidLonLat(lat, lon)) {
+					flyToLocation.set({
+						lat,
+						lon,
+						options: {
+							openRadial: true,
+							radialOrigin: 'picked-point',
+							updateCoordinates: false,
+							createPickedMarker: false,
+						},
+					});
+				}
+			}
+		} else {
+			const loc = $userLiveLocation;
+			if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
+				flyToLocation.set({
+					lat: loc.latitude,
+					lon: loc.longitude,
+					options: {
+						openRadial: true,
+						radialOrigin: 'user-location',
+						updateCoordinates: false,
+						createPickedMarker: false,
+					},
+				});
+			}
+		}
 	}
 }
 
