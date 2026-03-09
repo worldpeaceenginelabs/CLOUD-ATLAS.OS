@@ -1193,13 +1193,25 @@ function handleCoordinatePick(result: any) {
   <main id="cesiumContainer"></main>
   
   <!-- Spatial browser address bar (bottom left) -->
-  <div class="addressbar">
+  <div class="addressbarcontainer">
     <LocationPicker
       lat={addressLat}
       lon={addressLon}
       placeholder="Search an address or place..."
       openRadialOnSelect={true}
       onLocationSelected={handleAddressSelected}
+      onSelectedClick={() => {
+        flyToLocation.set({
+          lat: parseFloat(addressLat),
+          lon: parseFloat(addressLon),
+          options: {
+            openRadial: true,
+            radialOrigin: 'picked-point',
+            updateCoordinates: false,
+            createPickedMarker: false,
+          },
+        });
+      }}
     />
   </div>
 
@@ -1288,7 +1300,7 @@ function handleCoordinatePick(result: any) {
 
 
 	/* Spatial browser address bar (bottom left) – layout only; glass is on LocationPicker panels */
-	.addressbar {
+	.addressbarcontainer {
 	  position: fixed;
 	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 	  left: 10px;

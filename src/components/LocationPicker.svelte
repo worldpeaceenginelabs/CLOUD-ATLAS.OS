@@ -6,6 +6,7 @@
 export let lat: string = '';
 export let lon: string = '';
 export let onLocationSelected: (lat: string, lon: string, displayName?: string) => void;
+export let onSelectedClick: (() => void) | null = null;
 export let required: boolean = false;
 export let placeholder: string = 'Search an address or place...';
 export let openRadialOnSelect: boolean = false;
@@ -143,7 +144,7 @@ export let openRadialOnSelect: boolean = false;
   });
 </script>
 
-<div class="location-picker">
+<div class="addressbar">
   {#if required}
     <span class="field-label">
       Location <span class="required">*</span>
@@ -152,7 +153,12 @@ export let openRadialOnSelect: boolean = false;
 
   <!-- Selected location display -->
   {#if lat && lon}
-    <div class="selected-location">
+    <div
+      class="selectcard"
+      on:click={() => {
+        if (onSelectedClick) onSelectedClick();
+      }}
+    >
       <div class="selected-header">
         <span class="selected-label">Selected</span>
       </div>
@@ -213,7 +219,7 @@ export let openRadialOnSelect: boolean = false;
 </div>
 
 <style>
-  .location-picker {
+  .addressbar {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
@@ -355,7 +361,7 @@ export let openRadialOnSelect: boolean = false;
   }
 
   /* Selected location – own glass panel (same as map buttons) */
-  .selected-location {
+  .selectcard {
     display: flex;
     flex-direction: column;
     gap: 3px;
