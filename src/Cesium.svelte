@@ -1021,10 +1021,13 @@ function handleRadialClose() {
 
 function flyToMyLocation() {
   const loc = $userLiveLocation;
-  if (loc && isValidLonLat(loc.latitude, loc.longitude) && userLocation) {
-    userLocation.flyToMe(loc);
+  if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
+    flyToLocation.set({
+      lat: loc.latitude,
+      lon: loc.longitude,
+      openRadial: true,
+    });
   }
-  openRadialMenuCentered();
 }
 
 /** Ensure we have the user's Nostr public key for ownership checks. */

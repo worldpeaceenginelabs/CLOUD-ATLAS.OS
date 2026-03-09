@@ -92,7 +92,13 @@ export function initUserLocation(
 
   function updateRingPositions(entities: Entity[], longitude: number, latitude: number) {
     clampToSurface(longitude, latitude).then(newPos => {
-      entities.forEach(e => { (e.position as any) = newPos; });
+      const positionProperty = new Cesium.ConstantPositionProperty(
+        newPos,
+        Cesium.ReferenceFrame.FIXED,
+      );
+      entities.forEach(e => {
+        e.position = positionProperty;
+      });
     });
   }
 
@@ -105,7 +111,6 @@ export function initUserLocation(
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
         const now = Date.now();
-
         if (!isValidLonLat(lat, lon)) return;
         if (lastLat === null || lastLon === null) {
           userLiveLocation.set({ latitude: lat, longitude: lon });
@@ -118,6 +123,7 @@ export function initUserLocation(
         const overThreshold =
           Math.abs(lat - lastLat) >= DEG_THRESHOLD || Math.abs(lon - lastLon) >= DEG_THRESHOLD;
         const overInterval = now - lastUpdateTime >= MIN_INTERVAL_MS;
+
         if (overThreshold && overInterval) {
           userLiveLocation.set({ latitude: lat, longitude: lon });
           lastLat = lat;
