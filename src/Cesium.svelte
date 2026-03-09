@@ -16,7 +16,7 @@
 	import * as Cesium from 'cesium';
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import LocationPicker from './components/LocationPicker.svelte';
-import { 
+import {
 		coordinates, 
 		models, 
 		resetAllStores, 
@@ -41,7 +41,9 @@ import {
 		isSimulationRunning,
 		simulationEntityCount,
 		userLiveLocation,
-		flyToLocation
+		flyToLocation,
+		type LocationOptions,
+		type LocationSource
 	} from './store';
 	import type { ModelData } from './types';
 	import { idb } from './idb';
@@ -348,18 +350,28 @@ function handleAddressSelected(lat: string, lon: string, _displayName?: string) 
 	addressLon = lon;
 }
 
-function applyPickedPoint(cartesian: Cartesian3, openRadial: boolean) {
+function applyPickedPoint(cartesian: Cartesian3, options?: LocationOptions) {
 	if (!cesiumViewer) return;
 	const carto = Cesium.Cartographic.fromCartesian(cartesian);
 	const lon = CesiumMath.toDegrees(carto.longitude);
 	const lat = CesiumMath.toDegrees(carto.latitude);
-	coordinates.set({
-		latitude: lat.toFixed(10),
-		longitude: lon.toFixed(10),
-		height: carto.height,
-	});
-	pointEntities = addPickedPointMarker(cesiumViewer, cartesian, pointEntities);
-	if (openRadial) openRadialMenuAtPickedPointNoFly();
+	if (!options?.reuseExistingPick) {
+		coordinates.set({
+			latitude: lat.toFixed(10),
+			longitude: lon.toFixed(10),
+			height: carto.height,
+		});
+		pointEntities = addPickedPointMarker(cesiumViewer, cartesian, pointEntities);
+	}
+
+	const openRadial = options?.openRadial ?? true;
+	if (openRadial) {
+		if (options?.radialOrigin === 'user-location') {
+			openRadialMenuCentered();
+		} else {
+			openRadialMenuAtPickedPointNoFly();
+		}
+	}
 }
 
 // Remove model from scene
@@ -716,12 +728,31 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				const id = pickedObject.id.id;
 
 				if (id === 'pickedPoint' || id?.startsWith('pickedPoint_')) {
-					openRadialMenuAtPickedPoint();
+					const centerEntity = cesiumViewer.entities.getById('pickedPoint');
+					if (centerEntity && centerEntity.position) {
+						const pos = centerEntity.position.getValue(JulianDate.now());
+						if (pos) {
+							const carto = Cesium.Cartographic.fromCartesian(pos);
+							const lat = CesiumMath.toDegrees(carto.latitude);
+							const lon = CesiumMath.toDegrees(carto.longitude);
+							goToLocation(lat, lon, 'map-pick', {
+								openRadial: true,
+								radialOrigin: 'picked-point',
+								reuseExistingPick: true
+							});
+						}
+					}
 					return;
 				}
 
 				if (id?.startsWith('Your Location!')) {
-					openRadialMenuCentered();
+					const loc = $userLiveLocation;
+					if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
+						goToLocation(loc.latitude, loc.longitude, 'gps', {
+							openRadial: true,
+							radialOrigin: 'user-location'
+						});
+					}
 				} else if (trySelectListingEntity(pickedObject)) {
 					// handled by trySelectListingEntity
 				} else if (id?.startsWith('model_')) {
@@ -753,6 +784,10 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 
 	let unsubFlyTo: (() => void) | null = null;
+
+	function goToLocation(lat: number, lon: number, source: LocationSource, options?: LocationOptions) {
+		flyToLocation.set({ lat, lon, source, options });
+	}
 
 	// Initialization on mount
 	onMount(async () => {
@@ -884,23 +919,16 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  unsubFlyTo = flyToLocation.subscribe(loc => {
 	    if (loc && isValidLonLat(loc.lat, loc.lon) && cesiumViewer) {
 	      const seq = ++flySeq;
+	      const options = loc.options;
 	      cesiumViewer.camera.flyTo({
 	        destination: Cartesian3.fromDegrees(loc.lon, loc.lat, 5000),
 	        duration: 1.5,
 	        complete: async () => {
 	          if (!cesiumViewer || seq !== flySeq) return;
 
-	          // Special-case GPS: don't create a picked-point marker, just optionally open radial on user ring
-	          if (loc.fromGps) {
-	            if (loc.openRadial) {
-	              openRadialMenuCentered();
-	            }
-	            return;
-	          }
-
 	          const clamped = await clampToSurface(loc.lon, loc.lat);
 	          if (!cesiumViewer || seq !== flySeq) return;
-	          applyPickedPoint(clamped, !!loc.openRadial);
+	          applyPickedPoint(clamped, options);
 	          userLocation.forceRefreshFromGps();
 	        },
 	      });
@@ -1031,11 +1059,9 @@ function handleRadialClose() {
 function flyToMyLocation() {
   const loc = $userLiveLocation;
   if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
-    flyToLocation.set({
-      lat: loc.latitude,
-      lon: loc.longitude,
+    goToLocation(loc.latitude, loc.longitude, 'gps', {
       openRadial: true,
-      fromGps: true,
+      radialOrigin: 'user-location'
     });
   }
 }
@@ -1063,7 +1089,10 @@ function handleCoordinatePick(result: any) {
   const coords = pickPositionToLonLat(cesiumViewer, result.position);
   if (!coords) return;
 
-  applyPickedPoint(coords.cartesian, false);
+  goToLocation(coords.latitude, coords.longitude, 'map-pick', {
+    openRadial: false,
+    radialOrigin: 'picked-point'
+  });
 }
 
 	onDestroy(() => {

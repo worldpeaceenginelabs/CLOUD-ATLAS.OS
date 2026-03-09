@@ -98,12 +98,23 @@ export const preselectedGigVertical = resettable<GigVertical | null>(null);
 export const showRadialGigMenu = resettable(false);
 
 // ─── Fly-to ──────────────────────────────────────────────────
-export const flyToLocation = resettable<{
+export type LocationSource = 'address' | 'map-pick' | 'gps';
+
+export type LocationOptions = {
+  openRadial?: boolean;
+  radialOrigin?: 'picked-point' | 'user-location';
+  /** When true, do not recreate the picked marker / coordinates (used for clicking existing markers). */
+  reuseExistingPick?: boolean;
+};
+
+export type FlyToLocationPayload = {
   lat: number;
   lon: number;
-  openRadial?: boolean;
-  fromGps?: boolean;
-} | null>(null);
+  source: LocationSource;
+  options?: LocationOptions;
+};
+
+export const flyToLocation = resettable<FlyToLocationPayload | null>(null);
 
 // ─── Map Layers ──────────────────────────────────────────────
 /** Set of currently active map layer IDs (e.g. 'helpouts', 'brainstorming'). Starts with SG verticals on, helpouts/social off. */

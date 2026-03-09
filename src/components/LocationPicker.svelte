@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { autocomplete, reverse, formatShortAddress, type NominatimResult } from '../services/nominatimService';
-  import { coordinates, flyToLocation } from '../store';
+  import { coordinates, flyToLocation, type LocationOptions } from '../store';
 
 export let lat: string = '';
 export let lon: string = '';
@@ -92,10 +92,16 @@ export let openRadialOnSelect: boolean = false;
     lastReversedKey = `${result.lat}:${result.lon}`;
     onLocationSelected(result.lat, result.lon, name);
 
+    const options: LocationOptions = {
+      openRadial: openRadialOnSelect,
+      radialOrigin: 'picked-point',
+    };
+
     flyToLocation.set({
       lat: parseFloat(result.lat),
       lon: parseFloat(result.lon),
-      openRadial: openRadialOnSelect,
+      source: 'address',
+      options,
     });
     inputEl?.blur();
   }
