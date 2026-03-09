@@ -98,7 +98,12 @@ export const preselectedGigVertical = resettable<GigVertical | null>(null);
 export const showRadialGigMenu = resettable(false);
 
 // ─── Fly-to ──────────────────────────────────────────────────
-export const flyToLocation = resettable<{ lat: number; lon: number; openRadial?: boolean } | null>(null);
+export const flyToLocation = resettable<{
+  lat: number;
+  lon: number;
+  openRadial?: boolean;
+  fromGps?: boolean;
+} | null>(null);
 
 // ─── Map Layers ──────────────────────────────────────────────
 /** Set of currently active map layer IDs (e.g. 'helpouts', 'brainstorming'). Starts with SG verticals on, helpouts/social off. */

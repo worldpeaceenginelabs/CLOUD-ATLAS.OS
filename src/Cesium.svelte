@@ -889,6 +889,15 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	        duration: 1.5,
 	        complete: async () => {
 	          if (!cesiumViewer || seq !== flySeq) return;
+
+	          // Special-case GPS: don't create a picked-point marker, just optionally open radial on user ring
+	          if (loc.fromGps) {
+	            if (loc.openRadial) {
+	              openRadialMenuCentered();
+	            }
+	            return;
+	          }
+
 	          const clamped = await clampToSurface(loc.lon, loc.lat);
 	          if (!cesiumViewer || seq !== flySeq) return;
 	          applyPickedPoint(clamped, !!loc.openRadial);
@@ -1026,6 +1035,7 @@ function flyToMyLocation() {
       lat: loc.latitude,
       lon: loc.longitude,
       openRadial: true,
+      fromGps: true,
     });
   }
 }
