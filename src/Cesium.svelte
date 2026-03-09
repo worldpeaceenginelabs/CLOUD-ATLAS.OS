@@ -750,7 +750,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 					if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
 						goToLocation(loc.latitude, loc.longitude, 'gps', {
 							openRadial: true,
-							radialOrigin: 'user-location'
+							radialOrigin: 'user-location',
+							reuseExistingPick: true
 						});
 					}
 				} else if (trySelectListingEntity(pickedObject)) {
@@ -1061,7 +1062,8 @@ function flyToMyLocation() {
   if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
     goToLocation(loc.latitude, loc.longitude, 'gps', {
       openRadial: true,
-      radialOrigin: 'user-location'
+      radialOrigin: 'user-location',
+      reuseExistingPick: true
     });
   }
 }
