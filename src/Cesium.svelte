@@ -921,7 +921,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	      const seq = ++flySeq;
 	      const options = loc.options;
 	      cesiumViewer.camera.flyTo({
-	        destination: Cartesian3.fromDegrees(loc.lon, loc.lat, 5000),
+	        destination: Cartesian3.fromDegrees(loc.lon, loc.lat, 2000),
 	        duration: 1.5,
 	        complete: async () => {
 	          if (!cesiumViewer || seq !== flySeq) return;
