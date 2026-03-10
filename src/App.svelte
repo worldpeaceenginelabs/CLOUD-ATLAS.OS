@@ -217,7 +217,7 @@
   .quote {
     color: black;
     position: absolute;
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    top: calc(20px + env(safe-area-inset-bottom, 0px));
     font-size: 1.1em;
     padding: 0 1em;
     text-align: center;
@@ -231,7 +231,6 @@
     left: auto;
     transform: none;
     font-size: 30vw;
-    margin-bottom: 0.5em;
   }
 
   .twpg-text.under-enter {
