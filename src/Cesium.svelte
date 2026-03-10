@@ -969,6 +969,21 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	          const clamped = await clampToSurface(loc.lon, loc.lat);
 	          if (!cesiumViewer || seq !== flySeq) return;
 	          applyPickedPoint(clamped, options);
+
+	          // Re-clamp user location rings to the ground after camera motion completes
+	          const locStore = $userLiveLocation;
+	          if (
+	            userLocationInitialized &&
+	            userRingEntities.length > 0 &&
+	            locStore &&
+	            isValidLonLat(locStore.latitude, locStore.longitude)
+	          ) {
+	            userLocation.updateRingPositions(
+	              userRingEntities,
+	              locStore.longitude,
+	              locStore.latitude,
+	            );
+	          }
 	        },
 	      });
 	      flyToLocation.set(null);
