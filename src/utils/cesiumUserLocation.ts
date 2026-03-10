@@ -10,7 +10,6 @@ export interface UserLocationHandle {
   createRing(pointId: string, position: Cartesian3): Entity[];
   flyToMe(location: { latitude: number; longitude: number }): void;
   updateRingPositions(entities: Entity[], longitude: number, latitude: number): void;
-  forceRefreshFromGps(): void;
   cleanup(): void;
 }
 
@@ -156,27 +155,9 @@ export function initUserLocation(
     flyToLonLat(viewer, location.longitude, location.latitude, 2000, 1.5);
   }
 
-  function forceRefreshFromGps() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        if (!isValidLonLat(lat, lon)) return;
-        const now = Date.now();
-        userLiveLocation.set({ latitude: lat, longitude: lon });
-        lastLat = lat;
-        lastLon = lon;
-        lastUpdateTime = now;
-      },
-      (error) => console.error('Geolocation forceRefresh error:', error),
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
-    );
-  }
-
   function cleanup() {
     stopTracking();
   }
 
-  return { startTracking, stopTracking, createRing, flyToMe, updateRingPositions, forceRefreshFromGps, cleanup };
+  return { startTracking, stopTracking, createRing, flyToMe, updateRingPositions, cleanup };
 }

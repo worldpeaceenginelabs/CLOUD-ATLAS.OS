@@ -300,7 +300,6 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && i
 			entities.forEach(e => cesiumViewer!.entities.add(e));
 			userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
 			userRingEntities = entities;
-			userLocation.forceRefreshFromGps();
 		},
 	});
 }
@@ -970,7 +969,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	          const clamped = await clampToSurface(loc.lon, loc.lat);
 	          if (!cesiumViewer || seq !== flySeq) return;
 	          applyPickedPoint(clamped, options);
-	          userLocation.forceRefreshFromGps();
 	        },
 	      });
 	      flyToLocation.set(null);
@@ -1198,14 +1196,14 @@ function handleCoordinatePick(result: any) {
       lat={addressLat}
       lon={addressLon}
       placeholder="Search an address or place..."
-      openRadialOnSelect={true}
+      openRadialOnSelect={false}
       onLocationSelected={handleAddressSelected}
       onSelectedClick={() => {
         flyToLocation.set({
           lat: parseFloat(addressLat),
           lon: parseFloat(addressLon),
           options: {
-            openRadial: true,
+            openRadial: false,
             radialOrigin: 'picked-point',
             updateCoordinates: false,
             createPickedMarker: false,
@@ -1246,7 +1244,7 @@ function handleCoordinatePick(result: any) {
           lat: loc.latitude,
           lon: loc.longitude,
           options: {
-            openRadial: true,
+            openRadial: false,
             radialOrigin: 'user-location',
             updateCoordinates: false,
             createPickedMarker: false,
