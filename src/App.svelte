@@ -217,7 +217,7 @@
   .quote {
     color: black;
     position: absolute;
-    top: calc(20px + env(safe-area-inset-bottom, 0px));
+    top: 4%;
     font-size: 1.1em;
     padding: 0 1em;
     text-align: center;
