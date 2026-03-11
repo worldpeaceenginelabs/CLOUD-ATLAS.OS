@@ -59,6 +59,20 @@
       copiedWhich = null;
     }
   }
+
+  function openPhone() {
+    const raw = providerDetails.phone ?? '';
+    const phone = String(raw).replace(/\s/g, '').trim();
+    if (!phone) return;
+    window.open(`tel:${phone}`);
+  }
+
+  function openMessenger() {
+    const raw = providerDetails.messenger ?? '';
+    const url = ensureProtocol(String(raw).trim());
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 </script>
 
 <div class="matched" transition:slide={{ duration: 300 }}>
@@ -79,18 +93,44 @@
         <div class="contact-row">
           <span class="contact-label">Phone</span>
           <span class="contact-value">{String(providerDetails.phone)}</span>
-          <button type="button" class="copy-btn" on:click={() => copyToClipboard(providerDetails.phone ?? '', 'phone')}>
-            {copiedWhich === 'phone' ? 'Copied!' : 'Copy'}
-          </button>
+          <div class="contact-actions">
+            <button
+              type="button"
+              class="copy-btn"
+              on:click={openPhone}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              class="copy-btn"
+              on:click={() => copyToClipboard(providerDetails.phone ?? '', 'phone')}
+            >
+              {copiedWhich === 'phone' ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
         </div>
       {/if}
       {#if providerDetails.messenger}
         <div class="contact-row">
           <span class="contact-label">Messenger</span>
-          <a class="contact-value link" href={ensureProtocol(providerDetails.messenger)} target="_blank" rel="noopener noreferrer">{providerDetails.messenger}</a>
-          <button type="button" class="copy-btn" on:click={() => copyToClipboard(providerDetails.messenger ?? '', 'messenger')}>
-            {copiedWhich === 'messenger' ? 'Copied!' : 'Copy'}
-          </button>
+          <span class="contact-value">{providerDetails.messenger}</span>
+          <div class="contact-actions">
+            <button
+              type="button"
+              class="copy-btn"
+              on:click={openMessenger}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              class="copy-btn"
+              on:click={() => copyToClipboard(providerDetails.messenger ?? '', 'messenger')}
+            >
+              {copiedWhich === 'messenger' ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
         </div>
       {/if}
     </div>
@@ -327,6 +367,16 @@
     display: flex;
     gap: 0.4rem;
     margin-left: auto;
+  }
+
+  .contact-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-left: auto;
+  }
+
+  .contact-actions .copy-btn {
+    margin-left: 0;
   }
 
   .safety-instructions {
