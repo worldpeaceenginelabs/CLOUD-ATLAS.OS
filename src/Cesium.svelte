@@ -78,6 +78,7 @@ import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
 	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
 	import { initPathDrawing, type PathDrawingHandle } from './utils/cesiumPathDrawing';
+	import { initGeohashGrid, type GeohashGridHandle } from './utils/cesiumGeohashGrid';
 	import { loadCityLabels } from './utils/cesiumCityLabels';
 
 // Global variables and states
@@ -115,6 +116,7 @@ let userLocation: UserLocationHandle;
 let cameraMonitor: CameraMonitorHandle;
 let roamingArea: RoamingAreaHandle;
 let pathDrawing: PathDrawingHandle;
+let geohashGrid: GeohashGridHandle | null = null;
 
 // Reactive roaming signals
 $: if ($roamingPaintSignal) roamingArea?.disableCamera();
@@ -722,7 +724,10 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			cesiumViewer.camera.flyTo({
 				destination: Cartesian3.fromDegrees(0, 0, 20000000),
 				duration: 3.0,
-				complete: () => { initialZoomComplete = true; }
+				complete: () => {
+					initialZoomComplete = true;
+					if (!geohashGrid) geohashGrid = initGeohashGrid(cesiumViewer);
+				}
 			});
 		}
 	}
@@ -1170,6 +1175,7 @@ function handleCoordinatePick(result: any) {
 		userLocation?.cleanup();
 		roamingArea?.cleanup();
 		pathDrawing?.cleanup();
+		geohashGrid?.cleanup();
 		destroyTouchTiltHandler();
 		stopSimulation();
 		simulationEngine.clearAll();
