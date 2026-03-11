@@ -90,7 +90,7 @@
         </div>
         <br>
         <p>
-          <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br>
+          <strong>Our Main Directive: "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." Buckminster Fuller</strong><br>
         </p>
         <p class="directive-rule">
           <strong>One Rule:</strong> If your solution does not meet this standard,

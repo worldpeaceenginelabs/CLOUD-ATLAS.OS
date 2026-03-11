@@ -6,7 +6,6 @@
   import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
-  import PwaInstallBanner from "./components/PwaInstallBanner.svelte";
   import OnlineTopBar from "./components/OnlineTopBar.svelte";
   import OnlineListings from "./gig/OnlineListings.svelte";
   import { initListingLayers } from './services/listingLayersBootstrap';
@@ -62,7 +61,6 @@
     {/if}
     <div class="infoboxcontainer"><Infobox isVisible={isVisible} /></div>
     <AdvertisingBanner />
-    <PwaInstallBanner />
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
     <OnlineTopBar />
     {#if $onlinePanelOpen}

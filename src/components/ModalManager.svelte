@@ -5,6 +5,7 @@
   import Simulation from '../appmenu/Simulation.svelte';
   import Omnipedia from '../appmenu/Omnipedia.svelte';
   import MissionTV from '../appmenu/MissionTV.svelte';
+  import Download from '../appmenu/Download.svelte';
   // @ts-ignore Svelte component default export is provided by the Svelte compiler
   import LayersMenu from '../appmenu/LayersMenu.svelte';
   import GigEconomy from '../appmenu/GigEconomy.svelte';
@@ -115,6 +116,8 @@
         <Omnipedia />
       {:else if modal.id === 'mission-tv'}
         <MissionTV />
+      {:else if modal.id === 'download'}
+        <Download />
       {:else if modal.id === 'layers-menu'}
         <LayersMenu />
       {:else if modal.id === 'zoom-required'}

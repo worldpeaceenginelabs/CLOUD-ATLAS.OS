@@ -1254,6 +1254,28 @@ function handleCoordinatePick(result: any) {
     </svg>
   </button>
 
+  <!-- Download button (top right, left of Layers) -->
+  <button
+    class="download-btn"
+    on:click={() => modalService.showDownload()}
+    title="Download"
+  >
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M12 3v12" />
+      <path d="M8 11l4 4 4-4" />
+      <path d="M5 19h14" />
+    </svg>
+  </button>
+
   <!-- Layers button (top right) -->
   <button
     class="layers-menu-btn"
@@ -1340,7 +1362,7 @@ function handleCoordinatePick(result: any) {
 	  min-width: 220px;
 	}
 
-	/* My Location button (bottom right) */
+  /* My Location button (bottom right) */
 	.my-location-btn {
 	  position: fixed;
 	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -1369,7 +1391,7 @@ function handleCoordinatePick(result: any) {
 	  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 	}
 
-	/* MissionTV button (top left) */
+  /* MissionTV button (top left) */
 	.mission-tv-btn {
 	  position: absolute;
 	  top: calc(20px + env(safe-area-inset-top, 0px));
@@ -1392,11 +1414,41 @@ function handleCoordinatePick(result: any) {
 	  transition: all 0.2s;
 	}
 
-	.mission-tv-btn:hover {
+  .mission-tv-btn:hover {
 	  background: rgba(255, 255, 255, 0.2);
 	  transform: translateY(-2px);
 	  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 	}
+
+  /* Download button (top right, left of Layers) */
+  .download-btn {
+    position: absolute;
+    top: calc(20px + env(safe-area-inset-top, 0px));
+    right: 60px;
+    z-index: 1000;
+    min-width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: white;
+    padding: 0 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s;
+  }
+
+  .download-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  }
 
   /* Layers button (top right) */
   .layers-menu-btn {
