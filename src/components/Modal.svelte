@@ -243,8 +243,7 @@
   /* Responsive design */
   @media (max-width: 768px) {
     .modal-content {
-      width: 95%;
-      padding: 20px;
+    width: 95%;
     }
 
     .modal.notification .modal-content {

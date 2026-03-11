@@ -1,34 +1,31 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Modal from './Modal.svelte';
 
   let isVisible = false;
-  let isFadingOut = false;
-  const FADE_DURATION = 500;
+
+  const STORAGE_KEY = 'welcomeMessageDismissed';
 
   onMount(() => {
-    const dismissed = localStorage.getItem('advertisingBannerDismissed');
-    if (!dismissed) {
-      isVisible = true;
-    }
+    const dismissed = localStorage.getItem(STORAGE_KEY);
+    isVisible = !dismissed;
   });
 
-  function dismiss() {
-    if (isFadingOut) return;
-    isFadingOut = true;
-    setTimeout(() => {
-      isVisible = false;
-      localStorage.setItem('advertisingBannerDismissed', 'true');
-    }, FADE_DURATION);
+  function handleClose() {
+    isVisible = false;
+    localStorage.setItem(STORAGE_KEY, 'true');
   }
 </script>
 
-{#if isVisible}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="banner-backdrop" class:fade-out={isFadingOut} on:click={dismiss} role="presentation"></div>
-  <div class="advertising-banner" class:fade-out={isFadingOut}>
-    <button class="close-btn" on:click={dismiss} aria-label="Close banner">✕</button>
-    <div class="banner-content">
+<Modal
+  isVisible={isVisible}
+  onClose={handleClose}
+  maxWidth="520px"
+  showCloseButton={true}
+  closeOnBackdropClick={true}
+  modalType="default"
+>
+  <div class="banner-content">
       <p class="headline">What if the world was run by you and me?</p>
       <p class="tagline">Science fiction meets the real world.</p>
       <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></p>
@@ -47,9 +44,9 @@
       <p class="cta">Community-owned. Open-source. Yours.<br/>Redefine the way we live together.</p>
 
       <p class="ps">P.S. In case it didn't sink in — you just became a co-owner of a Decentralized Autonomous Organization. No crypto. No CEO. No board. No headquarters. Just people, running it together, for themselves. Every ride, every delivery, every job, every sale on this platform? Yours. Not a CEO's. Not a shareholder's. Yours. Spread the word. It's your business now.</p>
-    
-    <br>
-    
+
+      <br>
+
       <p>
         <strong>Why?</strong><br><br>
 
@@ -76,96 +73,24 @@
         Because that's what this is. Not an app launch. Not a startup. A different way of doing this. For everyone. Finally.<br><br>
       </p>
       <br>
-        <p>
-          <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br>
-        </p>
-        <p class="directive-rule">
-          <strong>One Rule:</strong> If your solution does not meet this standard,
-          iterating a better one is mandatory.
-        </p>
+      <p>
+        <strong>Our Main Directive:</strong> "Make the world work for 100% of humanity, in the shortest possible time, through spontaneous cooperation, without ecological offense or the disadvantage of anyone." <strong>Buckminster Fuller</strong><br>
+      </p>
+      <p class="directive-rule">
+        <strong>One Rule:</strong> If your solution does not meet this standard,
+        iterating a better one is mandatory.
+      </p>
     </div>
-  </div>
-{/if}
+  </Modal>
 
 <style>
-  .banner-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 99;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    opacity: 1;
-    transition: opacity 0.5s ease;
-  }
-
-  .banner-backdrop.fade-out {
-    opacity: 0;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .advertising-banner {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 101;
-    background: rgba(18, 18, 30, 0.92);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 215, 0, 0.25);
-    border-radius: 20px;
-    padding: 36px 40px 32px;
-    box-shadow:
-      0 24px 80px rgba(0, 0, 0, 0.4),
-      0 0 60px rgba(255, 215, 0, 0.06),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    max-width: 520px;
-    width: calc(100% - 48px);
-    max-height: 85vh;
-    overflow-y: auto;
-    opacity: 1;
-    transition: opacity 0.5s ease, transform 0.5s ease;
-  }
-
-  .advertising-banner.fade-out {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.96);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .close-btn {
-    position: absolute;
-    top: 14px;
-    right: 16px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    padding: 0;
-    line-height: 1;
-  }
-
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-  }
 
   .banner-content {
     text-align: left;
     line-height: 1.65;
     color: rgba(255, 255, 255, 0.85);
     font-size: 14px;
+    padding: 24px 28px;
   }
 
   .banner-content p {
@@ -235,29 +160,17 @@
   }
 
   @media (max-width: 600px) {
-    .advertising-banner {
-      padding: 28px 24px 24px;
-      border-radius: 16px;
-      max-height: 80vh;
-      width: calc(100% - 40px);
-    }
-
     .headline {
       font-size: 19px;
     }
 
     .banner-content {
       font-size: 13px;
+      padding: 16px 16px;
     }
   }
 
   @media (max-width: 400px) {
-    .advertising-banner {
-      padding: 24px 18px 20px;
-      border-radius: 14px;
-      width: calc(100% - 32px);
-    }
-
     .headline {
       font-size: 17px;
     }
@@ -265,6 +178,7 @@
     .banner-content {
       font-size: 12.5px;
       line-height: 1.55;
+      padding: 12px 12px;
     }
 
     .tagline {
@@ -272,3 +186,4 @@
     }
   }
 </style>
+

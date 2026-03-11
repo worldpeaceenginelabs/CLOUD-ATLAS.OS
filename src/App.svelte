@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import Cesium from "./Cesium.svelte";
-  import Infobox from "./components/Infobox.svelte";
+  import About from "./components/About.svelte";
   import Grid from "./components/Grid.svelte";
-  import AdvertisingBanner from "./components/AdvertisingBanner.svelte";
+  import WelcomeMessage from "./components/WelcomeMessage.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
   import OnlineTopBar from "./components/OnlineTopBar.svelte";
@@ -59,8 +59,8 @@
     {#if $gridReady}
       <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
     {/if}
-    <div class="infoboxcontainer"><Infobox isVisible={isVisible} /></div>
-    <AdvertisingBanner />
+    <div class="infoboxcontainer"><About /></div>
+    <WelcomeMessage />
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
     <OnlineTopBar />
     {#if $onlinePanelOpen}

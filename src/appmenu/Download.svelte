@@ -23,15 +23,15 @@
 <div class="download-root">
   <h3 class="title">Get Cloud Atlas OS</h3>
   <p class="subtitle">
-    Choose how you want to run the atlas on your device.
+    Visiting the website, installing, or downloading Cloud Atlas OS turns your device into the server.
   </p>
 
   <div class="cards">
     <section class="download-card pwa-card">
       <span class="card-heading">Progressive Web App</span>
       <p class="card-text">
-        Install Cloud Atlas OS directly to your home screen. Your phone becomes
-        the server — no middlemen between you and your money.
+        Install Cloud Atlas OS directly to your home screen. Your device becomes
+        the server. No middlemen between you and your money.
       </p>
 
       <div class="card-body">
@@ -68,8 +68,7 @@
     <section class="download-card desktop-card">
       <span class="card-heading">Desktop App (Windows)</span>
       <p class="card-text">
-        Run Cloud Atlas OS as a native Windows application. Your computer becomes
-        the server — no middlemen between you and your money.
+        Run Cloud Atlas OS as a native Windows application. Your computer becomes the server and runs completely independent of the website. No middlemen between you and your money.
       </p>
 
       <div class="card-body">
@@ -166,6 +165,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    flex: 1;
   }
 
   .hint {
@@ -175,7 +175,19 @@
   }
 
   .actions {
-    margin-top: 0.4rem;
+    margin-top: auto;
+  }
+
+  @media (max-width: 600px) {
+    .download-root {
+      padding: 0.9rem 1rem 1rem;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .download-root {
+      padding: 0.75rem 0.75rem 0.75rem;
+    }
   }
 
   @media (min-width: 720px) {
