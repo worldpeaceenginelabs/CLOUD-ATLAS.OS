@@ -26,9 +26,7 @@ Community-owned. Open-source. Yours. **Redefine the way we live together.**<br><
 <img width="1024" height="1024" alt="cloudatlasoslogo" src="https://github.com/user-attachments/assets/fa7db772-665c-4b2a-8c92-c606f17ecd5c" />
 
 # Join our Community:
-[Developer Chat auf Keet/Holepunch](https://keet.io/)<br>
-
-pear://keet/nfohh3zteag1bcakp8qntdaoiz3mpt9zq6x13wb1spguxuyc8k4ugyiibz9oytfjaz693afxajydenrw7tntfs48zicfd3bkpjhfi1imqdpaiio6xbjw7bjpcgrqerto1ejqwrwus8eocka1boxydb5is4sm1yederk6cuy1wixs96b37niw8sxuobfcr<br>
+[Developer Chat on GitHub](https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions)<br>
 
 Become a part of Cloud Atlas today and join an exciting community that’s shaping a brighter future. Together, we can forge a better world for ourselves and the generations to come.
 <br><br>
