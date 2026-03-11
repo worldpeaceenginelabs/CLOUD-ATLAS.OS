@@ -109,9 +109,23 @@
           <span class="address-display">{pickupDisplayName}</span>
         {/if}
       </span>
-      <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(pickup.latitude, pickup.longitude), 'pickup')}>
-        {copiedWhich === 'pickup' ? 'Copied!' : 'Copy'}
-      </button>
+      <div class="location-actions">
+        <a
+          class="copy-btn"
+          href={`https://www.google.com/maps/search/?api=1&query=${pickup.latitude},${pickup.longitude}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open
+        </a>
+        <button
+          type="button"
+          class="copy-btn"
+          on:click={() => copyToClipboard(formatLatLon(pickup.latitude, pickup.longitude), 'pickup')}
+        >
+          {copiedWhich === 'pickup' ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
     </div>
     <div class="location-block">
       <span class="contact-label">Drop</span>
@@ -123,9 +137,23 @@
           <span class="address-display">{dropDisplayName}</span>
         {/if}
       </span>
-      <button type="button" class="copy-btn" on:click={() => copyToClipboard(formatLatLon(drop.latitude, drop.longitude), 'drop')}>
-        {copiedWhich === 'drop' ? 'Copied!' : 'Copy'}
-      </button>
+      <div class="location-actions">
+        <a
+          class="copy-btn"
+          href={`https://www.google.com/maps/search/?api=1&query=${drop.latitude},${drop.longitude}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open
+        </a>
+        <button
+          type="button"
+          class="copy-btn"
+          on:click={() => copyToClipboard(formatLatLon(drop.latitude, drop.longitude), 'drop')}
+        >
+          {copiedWhich === 'drop' ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
     </div>
   </div>
 
@@ -293,6 +321,12 @@
 
   .contact-value.link {
     color: rgba(96, 165, 250, 1);
+  }
+
+  .location-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-left: auto;
   }
 
   .safety-instructions {
