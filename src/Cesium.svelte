@@ -650,7 +650,15 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	// Function to load basemap with progress
 	async function loadBasemapWithProgress() {
 		if (!cesiumViewer) return;
-		
+		// Try map tiles once; if promise resolves add provider, else keep dark globe
+		(async () => {
+			try {
+				const provider = await Cesium.createWorldImageryAsync();
+				cesiumViewer.imageryLayers.addImageryProvider(provider);
+			} catch {
+				// leave dark globe as-is
+			}
+		})();
 		// Simulate basemap loading progress with less frequent updates
 		const progressInterval = setInterval(() => {
 			if ($basemapProgress < 100) {
@@ -868,6 +876,10 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  });
 	  
 	  viewer.set(cesiumViewer);
+
+	  // Start with dark globe surface; map tiles load once below
+	  cesiumViewer.imageryLayers.removeAll();
+	  cesiumViewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#17181b');
 
 	  // Initialize extracted modules
 	  userLocation = initUserLocation(cesiumViewer, userLiveLocation);
