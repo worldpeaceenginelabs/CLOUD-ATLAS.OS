@@ -167,7 +167,7 @@
     <div style="text-align:justify;">
       <p>
         <strong>Support the Mission</strong><br /><br />
-        Cloud Atlas is intentionally non-profit and free forever. One person building it, living as a digital nomad in Southeast Asia on €6,000 a year — so
+        Cloud Atlas is intentionally non-profit and free forever. One person building it, living as a digital nomad on €6,000 a year — so
         every hour goes into this, not overhead.<br /><br />
         If this resonates, consider supporting via Bitcoin. Everything above €6,000 goes directly into Cloud Atlas OS.
       </p>
