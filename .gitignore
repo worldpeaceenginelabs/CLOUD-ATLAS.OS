@@ -8,7 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-src-tauri
+
 dist
 dist-ssr
 *.local
@@ -23,7 +23,24 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.keystore
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/schemas
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/.idea/
+src-tauri/gen/android/gradle/
+src-tauri/gen/android/app/build/
+src-tauri/gen/android/app/src/
+src-tauri/gen/android/build/
+src-tauri/gen/android/buildSrc/
 
 
+
+# Keystore / Secrets (zusätzlich zur bestehenden Zeile)
+cloud-atlas-os-release.keystore
+src-tauri/gen/android/keystore.properties
+src-tauri/gen/android/local.properties
 
 .env
