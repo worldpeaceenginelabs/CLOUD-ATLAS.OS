@@ -26,7 +26,7 @@
       <li>Cloud Atlas OS does not track, monitor, or analyze what you do. Your privacy is structurally protected by design.</li>
       <li>You are not invisible. Internet infrastructure — including your own ISP — remains subject to lawful authority. Unlawful activity can and will be traceable.</li>
     </ul>
-    <p class="accent">In short: Same rules as any device you own. Decentralized does not mean lawless.<br>And with great power, comes great responsibility.</p>
+    <p class="accent">In short: Same rules as any device you own. Decentralized does not mean lawless.<br>With great power, comes great responsibility.</p>
   </div>
 
   <div class="bottom">
