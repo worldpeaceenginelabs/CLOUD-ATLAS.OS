@@ -97,6 +97,8 @@ let isBasemapLoaded = false;
 let isTilesetLoaded = false;
 let initialZoomComplete = false;
 let cesiumViewer: any = null;
+let basemapRetryTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let basemapRetryCancelled = false;
 
 // Spatial address bar state
 let addressLat = '';
@@ -649,17 +651,34 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		}
 	}
 
+	async function tryAddBasemapProvider(): Promise<boolean> {
+		if (!cesiumViewer) return false;
+		try {
+			const provider = await Cesium.createWorldImageryAsync();
+			cesiumViewer.imageryLayers.addImageryProvider(provider);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	function scheduleBasemapRetry(): void {
+		if (basemapRetryCancelled || !cesiumViewer) return;
+		basemapRetryTimeoutId = setTimeout(async () => {
+			basemapRetryTimeoutId = null;
+			if (basemapRetryCancelled || !cesiumViewer) return;
+			const ok = await tryAddBasemapProvider();
+			if (basemapRetryCancelled) return;
+			if (!ok) scheduleBasemapRetry();
+		}, 10_000);
+	}
+
 	// Function to load basemap with progress
 	async function loadBasemapWithProgress() {
 		if (!cesiumViewer) return;
-		// Try map tiles once; if promise resolves add provider, else keep dark globe
 		(async () => {
-			try {
-				const provider = await Cesium.createWorldImageryAsync();
-				cesiumViewer.imageryLayers.addImageryProvider(provider);
-			} catch {
-				// leave dark globe as-is
-			}
+			const ok = await tryAddBasemapProvider();
+			if (!ok) scheduleBasemapRetry();
 		})();
 		// Simulate basemap loading progress with less frequent updates
 		const progressInterval = setInterval(() => {
@@ -1183,6 +1202,11 @@ function handleCoordinatePick(result: any) {
 		if (escapeKeyHandler) {
 			window.removeEventListener('keydown', escapeKeyHandler);
 			escapeKeyHandler = null;
+		}
+		basemapRetryCancelled = true;
+		if (basemapRetryTimeoutId != null) {
+			clearTimeout(basemapRetryTimeoutId);
+			basemapRetryTimeoutId = null;
 		}
 
 		for (const key of Object.keys(layerEntities)) {
