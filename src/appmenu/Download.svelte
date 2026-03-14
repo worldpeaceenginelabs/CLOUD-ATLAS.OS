@@ -9,7 +9,10 @@
   } from '../utils/pwaInstall';
 
   const DESKTOP_EXE_URL =
-    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.5/Cloud.Atlas.OS.1.5.stable.Windows.exe';
+    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.1/Cloud.Atlas.OS_1.6.1_x64-setup.exe';
+
+  const PORTABLE_EXE_URL =
+    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.1/CloudAtlasOS_1.6.1._portable.exe';
 
   async function handlePwaInstall() {
     await triggerInstall();
@@ -30,7 +33,7 @@
     <section class="download-card pwa-card">
       <span class="card-heading">Progressive Web App</span>
       <p class="card-text">
-        Install Cloud Atlas OS directly to your home screen for your convinience.
+        Run Cloud Atlas OS as a PWA directly on your desktop or mobile. Complete independence of the website domains coming soon.
       </p>
 
       <div class="card-body">
@@ -65,16 +68,18 @@
     </section>
 
     <section class="download-card desktop-card">
-      <span class="card-heading">Desktop App (Windows)</span>
+      <span class="card-heading">Windows V1.6.1 stable</span>
       <p class="card-text">
-        Run Cloud Atlas OS as a native Windows application, completely independent of the website.
+        Run Cloud Atlas OS as a native Windows application, completely independent of the website domains.
       </p>
 
       <div class="card-body">
         
         <p class="hint">
-          Download the portable executable and run it on your desktop or
-          laptop.
+          Portable version available:
+          <a href={PORTABLE_EXE_URL} target="_blank" rel="noopener noreferrer" class="portable-link">
+            Download
+          </a>
         </p>
 
         <div class="actions">
@@ -171,6 +176,15 @@
     margin: 0;
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.55);
+  }
+
+  .portable-link {
+    color: var(--accent, #38bdf8);
+    text-decoration: none;
+  }
+
+  .portable-link:hover {
+    text-decoration: underline;
   }
 
   .actions {
