@@ -23,7 +23,7 @@
     <p class="tagline">Science fiction meets the real world.</p>
 
     <div style="text-align:center;">
-      <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network application</strong></p>
+      <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network Application</strong></p>
 
       <iframe
         width="100%"
@@ -61,7 +61,7 @@
         <strong>What is Cloud Atlas OS?</strong><br /><br />
 
         Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof — ridesharing, delivery, freelance, spontaneous
-        connections — with zero commissions. <strong>Keep 100% of what you earn.</strong> We'll teach you how to keep it, legally.<br /><br />
+        connections — with zero commissions. <strong><br>Keep 100% of what you earn.</strong> We'll teach you how to keep it, legally.<br /><br />
 
         <span class="accent">But that's just the beginning.</span><br /><br />
 
@@ -285,6 +285,11 @@
   @media (max-width: 600px) {
     .headline {
       font-size: 19px;
+      text-align: justify;
+    }
+
+    .tagline {
+      text-align: justify;
     }
 
     .textbox {
@@ -296,6 +301,7 @@
   @media (max-width: 400px) {
     .headline {
       font-size: 17px;
+      text-align: justify;
     }
 
     .textbox {
@@ -306,7 +312,7 @@
 
     .tagline {
       font-size: 13px;
+      text-align: justify;
     }
   }
 </style>
-
