@@ -742,7 +742,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 			isInitialLoadComplete.set(true);
 			cesiumViewer.camera.flyTo({
 				destination: Cartesian3.fromDegrees(0, 0, 20000000),
-				duration: 3.0,
+				duration: 0.0,
 				complete: () => {
 					initialZoomComplete = true;
 					if (!geohashGrid) geohashGrid = initGeohashGrid(cesiumViewer);
@@ -946,7 +946,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	  // Set initial camera position far out
 	  cesiumViewer.scene.camera.setView({
-		destination: Cartesian3.fromDegrees(0, 0, 10000000000),
+		destination: Cartesian3.fromDegrees(0, 0, 20000000),
 		orientation: { heading: 0, pitch: -CesiumMath.PI_OVER_TWO, roll: 0 },
 	  });
 
