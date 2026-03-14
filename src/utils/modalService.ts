@@ -21,6 +21,8 @@ export const modalService = {
   hideGigEconomy:     ()                  => hideModal('gig-economy'),
   showZoomRequired:   ()                  => showModal('zoom-required'),
   hideZoomRequired:   ()                  => hideModal('zoom-required'),
+  showOperatorAgreement: ()               => showModal('operator-agreement'),
+  hideOperatorAgreement: ()               => hideModal('operator-agreement'),
   closeAllModals,
   closeTopModal,
   toggleModal,

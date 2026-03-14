@@ -9,6 +9,7 @@
   // @ts-ignore Svelte component default export is provided by the Svelte compiler
   import LayersMenu from '../appmenu/LayersMenu.svelte';
   import GigEconomy from '../appmenu/GigEconomy.svelte';
+  import OperatorAgreement from './OperatorAgreement.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
@@ -59,9 +60,9 @@
       isVisible={true}
       onClose={() => hideModal(modal.id)}
       title={modal.id === 'model-details' ? '3D Model Details' : ''}
-      maxWidth={NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
-      showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id)}
-      closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id)}
+      maxWidth={modal.id === 'operator-agreement' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
+      showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
+      closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       modalType={
         modal.id === 'layers-menu'
           ? 'overlay'
@@ -122,6 +123,8 @@
         <LayersMenu />
       {:else if modal.id === 'zoom-required'}
         <p>Zoom in closer to pick a precise location.</p>
+      {:else if modal.id === 'operator-agreement'}
+        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); }} />
       {/if}
     </Modal>
   {/if}

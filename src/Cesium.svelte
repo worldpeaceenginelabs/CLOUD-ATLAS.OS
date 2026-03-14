@@ -906,7 +906,10 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  // Start with dark globe surface; map tiles load once below
 	  cesiumViewer.imageryLayers.removeAll();
 	  cesiumViewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#17181b');
-	  setTimeout(() => openRadialMenuCentered(), 1000);
+	  setTimeout(() => {
+	    openRadialMenuCentered();
+	    if (!localStorage.getItem('operatorAgreementAccepted')) modalService.showOperatorAgreement();
+	  }, 1000);
 
 	  // Initialize extracted modules
 	  userLocation = initUserLocation(cesiumViewer, userLiveLocation);
