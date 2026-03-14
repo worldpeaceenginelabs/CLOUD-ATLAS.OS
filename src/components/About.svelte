@@ -285,11 +285,6 @@
   @media (max-width: 600px) {
     .headline {
       font-size: 19px;
-      text-align: justify;
-    }
-
-    .tagline {
-      text-align: justify;
     }
 
     .textbox {
@@ -301,7 +296,6 @@
   @media (max-width: 400px) {
     .headline {
       font-size: 17px;
-      text-align: justify;
     }
 
     .textbox {
@@ -312,7 +306,6 @@
 
     .tagline {
       font-size: 13px;
-      text-align: justify;
     }
   }
 </style>
