@@ -96,6 +96,7 @@ let tileset: Cesium3DTileset | null = null;
 let isBasemapLoaded = false;
 let isTilesetLoaded = false;
 let initialZoomComplete = false;
+let initialFlyToUserComplete = false;
 let cesiumViewer: any = null;
 let basemapRetryTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let basemapRetryCancelled = false;
@@ -304,6 +305,7 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && i
 			entities.forEach(e => cesiumViewer!.entities.add(e));
 			userLocationEntity = entities.find(e => e.id === 'Your Location!') || null;
 			userRingEntities = entities;
+			initialFlyToUserComplete = true;
 		},
 	});
 }
@@ -1231,16 +1233,9 @@ function handleCoordinatePick(result: any) {
 		}
 
 		createdObjectURLs.forEach(url => URL.revokeObjectURL(url));
-		createdObjectURLs = [];
 
 		resetAllStores();
 		modalService.closeAllModals();
-		pointEntities = [];
-		userLocationEntity = null;
-		userRingEntities = [];
-		userLocationInitialized = false;
-		showRadialMenu = false;
-		initialZoomComplete = false;
 	});
 </script>
 
@@ -1316,6 +1311,8 @@ function handleCoordinatePick(result: any) {
   <!-- My Location button (bottom right) -->
   <button
     class="my-location-btn"
+    class:disabled={!initialFlyToUserComplete}
+    disabled={!initialFlyToUserComplete}
     on:click={() => {
       const loc = $userLiveLocation;
       if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
@@ -1413,6 +1410,13 @@ function handleCoordinatePick(result: any) {
 	  background: rgba(255, 255, 255, 0.2);
 	  transform: translateY(-2px);
 	  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+	}
+
+	.my-location-btn:disabled,
+	.my-location-btn.disabled {
+	  opacity: 0.4;
+	  cursor: not-allowed;
+	  pointer-events: none;
 	}
 
   /* MissionTV button (top left) */
