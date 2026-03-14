@@ -2,8 +2,11 @@
   import Modal from './Modal.svelte';
   import { isVisible } from '../store';
 
+  const WELCOME_DISMISSED_KEY = 'welcomeMessageDismissed';
+
   const handleClose = () => {
     isVisible.set(false);
+    localStorage.setItem(WELCOME_DISMISSED_KEY, 'true');
   };
 </script>
 

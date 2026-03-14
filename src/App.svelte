@@ -3,7 +3,6 @@
   import Cesium from "./Cesium.svelte";
   import About from "./components/About.svelte";
   import Grid from "./components/Grid.svelte";
-  import WelcomeMessage from "./components/WelcomeMessage.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
   import OnlineTopBar from "./components/OnlineTopBar.svelte";
@@ -26,6 +25,14 @@
   let cesiumComponent: Cesium | null = null;
 
   let updateSimulationModel: ((modelData: any) => void) | undefined = undefined;
+
+  let hasCheckedWelcome = false;
+  $: if (!$showPicture && !hasCheckedWelcome) {
+    hasCheckedWelcome = true;
+    if (!localStorage.getItem('welcomeMessageDismissed')) {
+      isVisible.set(true);
+    }
+  }
 
   initListingLayers().catch(() => {});
 
@@ -60,7 +67,6 @@
       <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
     {/if}
     <div class="infoboxcontainer"><About /></div>
-    <WelcomeMessage />
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
     <OnlineTopBar />
     {#if $onlinePanelOpen}
