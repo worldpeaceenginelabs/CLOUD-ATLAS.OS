@@ -1,6 +1,25 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen";
+  const encoded = encodeURIComponent(shareText);
   let copied = false;
+  let pageUrl = '';
+
+  onMount(() => {
+    pageUrl = encodeURIComponent(window.location.href);
+  });
+
+  $: shareLinks = [
+    { name: 'X', href: `https://twitter.com/intent/tweet?text=${encoded}` },
+    { name: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?quote=${encoded}&u=${pageUrl}` },
+    { name: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${pageUrl}` },
+    { name: 'Reddit', href: `https://reddit.com/submit?title=${encoded}&url=${pageUrl}` },
+    { name: 'Weibo', href: `https://service.weibo.com/share/share.php?url=${pageUrl}&title=${encoded}` },
+    { name: 'QQ', href: `https://connect.qq.com/widget/shareqq/index.html?url=${pageUrl}&title=${encoded}&summary=${encoded}` },
+    { name: 'Line', href: `https://social-plugins.line.me/lineit/share?url=${pageUrl}` },
+    { name: 'VK', href: `https://vk.com/share.php?url=${pageUrl}&title=${encoded}&comment=${encoded}` },
+  ];
 
   async function copyToClipboard(text: string) {
     try {
@@ -21,9 +40,12 @@
   <div class="mission-card" style="--accent: #23a6d5">
     <p class="mission-card-quote animated-gradient">{shareText}</p>
     <div class="mission-card-actions">
+      {#each shareLinks as { name, href }}
+        <a class="share-btn" href={href} target="_blank" rel="noopener noreferrer">{name}</a>
+      {/each}
       <button
         type="button"
-        class="copy-btn"
+        class="share-btn"
         on:click={() => copyToClipboard(shareText)}
       >
         {copied ? 'Copied!' : 'Copy'}
@@ -98,11 +120,12 @@
 
   .mission-card-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.4rem;
     justify-content: flex-end;
   }
 
-  .copy-btn {
+  .share-btn {
     background: color-mix(in srgb, var(--accent) 20%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
     color: var(--accent);
@@ -115,9 +138,10 @@
     white-space: nowrap;
     flex-shrink: 0;
     font-family: inherit;
+    text-decoration: none;
   }
 
-  .copy-btn:hover {
+  .share-btn:hover {
     background: color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
