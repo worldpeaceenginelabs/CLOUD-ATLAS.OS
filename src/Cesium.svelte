@@ -111,6 +111,7 @@ let selectedListing: { listing: Listing; vertical: ListingVertical } | null = nu
 let myNostrPk = '';
 
 let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
+let radialResizeHandler: (() => void) | null = null;
 
 let flySeq = 0;
 
@@ -865,6 +866,15 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	// Initialization on mount
 	onMount(async () => {
+	function handleRadialResize() {
+		if (showRadialMenu) {
+			radialScreenX = window.innerWidth / 2;
+			radialScreenY = window.innerHeight / 2;
+		}
+	}
+	radialResizeHandler = handleRadialResize;
+	window.addEventListener('resize', radialResizeHandler);
+
 	initSimStoreWatch();
 	// Hydrate user Ion key from IDB, fall back to env default
 	try {
@@ -1193,6 +1203,10 @@ function handleCoordinatePick(result: any) {
 }
 
 	onDestroy(() => {
+		if (radialResizeHandler) {
+			window.removeEventListener('resize', radialResizeHandler);
+			radialResizeHandler = null;
+		}
 		if (unsubFlyTo) unsubFlyTo();
 		if (simStoreUnsub) simStoreUnsub();
 
