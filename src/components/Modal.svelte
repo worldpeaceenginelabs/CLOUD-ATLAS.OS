@@ -11,7 +11,7 @@
   export let zIndex = 1000;
   export let transitionDuration = 300;
   export let closeOnBackdropClick = true;
-  export let modalType: 'default' | 'notification' | 'overlay' = 'default';
+  export let modalType: 'default' | 'notification' | 'overlay' | 'missionmodal' = 'default';
   export let customClass = '';
   export let forwardInputs = false;
 
@@ -134,6 +134,44 @@
     padding: 0;
     text-align: center;
     pointer-events: none;
+  }
+
+  /* Mission modal - full viewport with blur */
+  .modal.missionmodal {
+    background: rgba(0, 0, 0, 0.35);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal.missionmodal .modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    max-height: none;
+    box-sizing: border-box;
+  }
+
+  .modal.missionmodal .modal-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
   }
 
   /* Overlay modal - positioned overlay without full screen */

@@ -25,6 +25,8 @@ export const modalService = {
   hideOperatorAgreement: ()               => hideModal('operator-agreement'),
   showAbout:            ()                  => showModal('about'),
   hideAbout:            ()                  => hideModal('about'),
+  showMissionComponent: ()                  => showModal('mission-component'),
+  hideMissionComponent: ()                  => hideModal('mission-component'),
   closeAllModals,
   closeTopModal,
   toggleModal,
