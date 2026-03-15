@@ -96,9 +96,11 @@
     align-items: center;
     position: fixed;
     left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
+    right: 0;
+    top: env(safe-area-inset-top, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
+    width: auto;
+    height: auto;
     background: transparent;
     backdrop-filter: none;
   }
@@ -158,7 +160,7 @@
     top: calc(20px + env(safe-area-inset-top, 0px) + 40px + 8px);
     right: 10px;
     left: auto;
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(5px + env(safe-area-inset-bottom, 0px));
     transform: none;
     display: flex;
     justify-content: flex-end;
@@ -188,10 +190,9 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     border-radius: 15px;
     width: 90%;
-    max-height: calc(90vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: 90vh;
     overflow-y: auto;
     position: relative;
-    margin: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   }
 
   .modal-header {
@@ -223,17 +224,6 @@
 
   .modal.forward-inputs .modal-content * {
     pointer-events: none;
-  }
-
-  /* Re-enable pointer events for interactive elements */
-  .modal.forward-inputs input,
-  .modal.forward-inputs textarea,
-  .modal.forward-inputs button,
-  .modal.forward-inputs select,
-  .modal.forward-inputs label,
-  .modal.forward-inputs [role="button"],
-  .modal.forward-inputs [tabindex] {
-    pointer-events: auto;
   }
 
   /* Notification modal specific styles */
