@@ -147,6 +147,7 @@
     border-radius: 15px;
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
@@ -157,7 +158,7 @@
     top: calc(20px + env(safe-area-inset-top, 0px) + 40px + 8px);
     right: 10px;
     left: auto;
-    bottom: 10px;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     transform: none;
     display: flex;
     justify-content: flex-end;
@@ -180,6 +181,7 @@
 
   .modal-content {
     background: rgba(10, 15, 25, 0.82);
+    -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
