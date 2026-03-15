@@ -180,6 +180,8 @@
     overflow-y: auto;
     border-radius: 0;
     margin: 0;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   .modal-content {
