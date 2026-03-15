@@ -1,6 +1,6 @@
 <script lang="ts">
   import Ticker from './Ticker.svelte';
-  import Mission from './Mission.svelte';
+  import Missions from './Missions.svelte';
 
   let open = false;
 </script>
@@ -11,7 +11,7 @@
   </div>
   {#if open}
     <div class="mission-log-content">
-      <Mission />
+      <Missions />
     </div>
   {/if}
 </div>
@@ -53,5 +53,8 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 </style>

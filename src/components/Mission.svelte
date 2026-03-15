@@ -79,22 +79,34 @@
     align-items: center;
     gap: 0.25rem;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     margin: 0;
+    overflow-wrap: break-word;
   }
 
   .mission-title-main {
     font-weight: 700;
-    /* Cap by width on mobile so "Mission" doesn't overflow; desktop uses vh */
-    font-size: max(2.5rem, min(22vh, 20vw));
+    font-size: clamp(2.25rem, 14vmin, 5.5rem);
     line-height: 1;
     letter-spacing: -0.02em;
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 
   .mission-title-sub {
     font-weight: 700;
-    font-size: max(1rem, min(8vh, 7vw));
+    font-size: clamp(1.2rem, 6.5vmin, 2.75rem);
     line-height: 1.1;
     letter-spacing: 0.02em;
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 
   .mission-card {
