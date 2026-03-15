@@ -1,24 +1,4 @@
-<script lang="ts">
-  import Modal from './Modal.svelte';
-  import { isVisible } from '../store';
-
-  const WELCOME_DISMISSED_KEY = 'welcomeMessageDismissed';
-
-  const handleClose = () => {
-    isVisible.set(false);
-    localStorage.setItem(WELCOME_DISMISSED_KEY, 'true');
-  };
-</script>
-
-<Modal
-  isVisible={$isVisible}
-  onClose={handleClose}
-  maxWidth="720px"
-  showCloseButton={true}
-  closeOnBackdropClick={true}
-  modalType="default"
->
-  <div class="textbox">
+<div class="textbox">
     <p class="headline">What if the world was run by You and Me?</p>
     <p class="tagline">Science fiction meets the real world.</p>
 
@@ -181,7 +161,6 @@
       Redefine the way we live together.
     </div>
   </div>
-</Modal>
 
 <style>
   .textbox {

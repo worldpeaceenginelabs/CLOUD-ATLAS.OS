@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import Cesium from "./Cesium.svelte";
-  import About from "./components/About.svelte";
   import Grid from "./components/Grid.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
@@ -12,7 +11,6 @@
   import {
     showPicture,
     gridReady,
-    isVisible,
     basemapProgress,
     tilesetProgress,
     isInitialLoadComplete,
@@ -31,7 +29,7 @@
   $: if (!$showPicture && !hasCheckedWelcome) {
     hasCheckedWelcome = true;
     if (!localStorage.getItem('welcomeMessageDismissed')) {
-      isVisible.set(true);
+      modalService.showAbout();
     }
   }
 
@@ -39,12 +37,11 @@
 
   onMount(() => {
     if (!localStorage.getItem('operatorAgreementAccepted')) modalService.showOperatorAgreement();
-    if (!localStorage.getItem('welcomeMessageDismissed')) isVisible.set(true);
+    if (!localStorage.getItem('welcomeMessageDismissed')) modalService.showAbout();
   });
 
   onDestroy(() => {
     showPicture.set(false);
-    isVisible.set(false);
   });
 </script>
 
@@ -78,7 +75,6 @@
       <OnlineListings />
     {/if}
   {/if}
-  <div class="infoboxcontainer"><About /></div>
   <ModalManager />
 </div>
 
@@ -110,11 +106,6 @@
     width: 100vw;
     z-index: 20;
     position: relative;
-  }
-
-  .infoboxcontainer {
-    z-index: 1001;
-    position: absolute;
   }
 
   .picture-container {

@@ -10,13 +10,14 @@
   import LayersMenu from '../appmenu/LayersMenu.svelte';
   import GigEconomy from '../appmenu/GigEconomy.svelte';
   import OperatorAgreement from './OperatorAgreement.svelte';
+  import About from './About.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
   import { modelEditorService } from '../utils/modelEditorService';
   import { modalService } from '../utils/modalService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
-  import { gigCanClose, isVisible } from '../store';
+  import { gigCanClose } from '../store';
 
   const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
   const NOTIFICATION_MODALS = new Set(['zoom-required']);
@@ -58,9 +59,9 @@
   {:else}
     <Modal
       isVisible={true}
-      onClose={() => hideModal(modal.id)}
+      onClose={() => { if (modal.id === 'about') localStorage.setItem('welcomeMessageDismissed', 'true'); hideModal(modal.id); }}
       title={modal.id === 'model-details' ? '3D Model Details' : ''}
-      maxWidth={modal.id === 'operator-agreement' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
+      maxWidth={modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
       zIndex={modal.id === 'operator-agreement' ? 1001 : 1000}
       showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
@@ -124,8 +125,10 @@
         <LayersMenu />
       {:else if modal.id === 'zoom-required'}
         <p>Zoom in closer to pick a precise location.</p>
+      {:else if modal.id === 'about'}
+        <About />
       {:else if modal.id === 'operator-agreement'}
-        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); if (!localStorage.getItem('welcomeMessageDismissed')) isVisible.set(true); }} />
+        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); if (!localStorage.getItem('welcomeMessageDismissed')) modalService.showAbout(); }} />
       {/if}
     </Modal>
   {/if}

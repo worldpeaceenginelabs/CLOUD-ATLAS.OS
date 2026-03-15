@@ -1,8 +1,4 @@
-<script lang="ts">
-  import { fade } from 'svelte/transition';
-</script>
-
-<main transition:fade={{ duration: 500 }}>
+<main>
   <div class="missiontv-container">
     <div class="coming-soon">
       <div class="icon">

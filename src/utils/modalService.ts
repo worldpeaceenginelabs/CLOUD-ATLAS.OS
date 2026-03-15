@@ -23,6 +23,8 @@ export const modalService = {
   hideZoomRequired:   ()                  => hideModal('zoom-required'),
   showOperatorAgreement: ()               => showModal('operator-agreement'),
   hideOperatorAgreement: ()               => hideModal('operator-agreement'),
+  showAbout:            ()                  => showModal('about'),
+  hideAbout:            ()                  => hideModal('about'),
   closeAllModals,
   closeTopModal,
   toggleModal,

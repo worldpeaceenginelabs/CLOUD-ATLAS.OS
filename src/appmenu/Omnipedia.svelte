@@ -1,8 +1,4 @@
-<script lang="ts">
-  import { fade } from 'svelte/transition';
-</script>
-
-<main transition:fade={{ duration: 500 }}>
+<main>
   <div class="omnipedia-container">
     <video class="bg-video" autoplay loop muted playsinline>
       <source src="Omnipedia.mp4" type="video/mp4" />

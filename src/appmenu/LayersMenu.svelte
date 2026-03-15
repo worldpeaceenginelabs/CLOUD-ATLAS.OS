@@ -2,7 +2,8 @@
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
 
-  import { isVisible, activeMapLayers, enable3DTileset } from '../store';
+  import { openModals } from '../utils/modalManager';
+  import { activeMapLayers, enable3DTileset } from '../store';
   import { modalService } from '../utils/modalService';
   import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
@@ -50,7 +51,8 @@
   }
 
   function toggleAbout() {
-    isVisible.update((v) => !v);
+    if ($openModals.some((m) => m.id === 'about')) modalService.hideAbout();
+    else modalService.showAbout();
   }
 
   function openLiveEdit() {

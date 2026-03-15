@@ -21,7 +21,6 @@ export function resetAllStores() {
 // ─── UI State ────────────────────────────────────────────────
 export const showPicture = resettable(true);
 export const gridReady = resettable(false);
-export const isVisible = resettable(false);
 export const isEditorOpen = resettable(false);
 
 // ─── 3D Scene State ──────────────────────────────────────────
