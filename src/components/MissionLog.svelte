@@ -2,13 +2,19 @@
   import Ticker from './Ticker.svelte';
   import Missions from './Missions.svelte';
 
+  export let onOpenChange = (_open: boolean) => {};
+
   let open = false;
+  $: onOpenChange(open);
 </script>
 
 <div class="mission-log" class:open>
   <div class="mission-log-ticker">
     <Ticker onTickerClick={() => (open = !open)} />
   </div>
+  {#if !open}
+    <p class="mission-log-label">Mission Log</p>
+  {/if}
   {#if open}
     <div class="mission-log-content">
       <Missions />
@@ -22,6 +28,11 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
+  }
+
+  .mission-log:not(.open) {
+    height: auto;
+    width: 100%;
   }
 
   .mission-log-ticker,
@@ -47,6 +58,16 @@
   .mission-log-ticker {
     flex-shrink: 0;
     height: 40px;
+  }
+
+  .mission-log-label {
+    margin: 0;
+    padding: 4px 0 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #fff;
+    text-align: center;
+    flex-shrink: 0;
   }
 
   .mission-log-content {

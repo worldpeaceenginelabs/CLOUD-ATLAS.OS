@@ -89,6 +89,9 @@ let userLocationEntity: Entity | null = null;
 let userRingEntities: Entity[] = [];
 let userLocationInitialized = false;
 
+// Mission log open state (for slot sizing)
+let missionLogOpen = false;
+
 // Radial menu state
 let showRadialMenu = false;
 let radialScreenX = 0;
@@ -1290,8 +1293,8 @@ function handleCoordinatePick(result: any) {
       <polyline points="17 2 12 7 7 2"/>
     </svg>
   </button>
-  <div class="mission-log-slot">
-    <MissionLog />
+  <div class="mission-log-slot" class:closed={!missionLogOpen}>
+    <MissionLog onOpenChange={(open) => (missionLogOpen = open)} />
   </div>
 
   <!-- Download button (top right, left of Layers) -->
@@ -1476,6 +1479,11 @@ function handleCoordinatePick(result: any) {
     right: env(safe-area-inset-right, 0);
     bottom: env(safe-area-inset-bottom, 0);
     z-index: 999;
+  }
+
+  .mission-log-slot.closed {
+    height: auto;
+    bottom: auto;
   }
 
   /* Download button (top right, left of Layers) */
