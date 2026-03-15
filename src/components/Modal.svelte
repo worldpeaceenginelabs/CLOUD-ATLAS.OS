@@ -177,6 +177,7 @@
     max-height: 100%;
     overflow-y: auto;
     border-radius: 0;
+    margin: 0;
   }
 
   .modal-content {
@@ -187,9 +188,10 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     border-radius: 15px;
     width: 90%;
-    max-height: 90vh;
+    max-height: calc(90vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     position: relative;
+    margin: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   }
 
   .modal-header {
