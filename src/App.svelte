@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import Cesium from "./Cesium.svelte";
   import About from "./components/About.svelte";
   import Grid from "./components/Grid.svelte";
@@ -8,6 +8,7 @@
   import OnlineTopBar from "./components/OnlineTopBar.svelte";
   import OnlineListings from "./gig/OnlineListings.svelte";
   import { initListingLayers } from './services/listingLayersBootstrap';
+  import { modalService } from './utils/modalService';
   import {
     showPicture,
     gridReady,
@@ -35,6 +36,10 @@
   }
 
   initListingLayers().catch(() => {});
+
+  onMount(() => {
+    if (!localStorage.getItem('operatorAgreementAccepted')) modalService.showOperatorAgreement();
+  });
 
   onDestroy(() => {
     showPicture.set(false);
@@ -72,8 +77,8 @@
     {#if $onlinePanelOpen}
       <OnlineListings />
     {/if}
-    <ModalManager />
   {/if}
+  <ModalManager />
 </div>
 
 

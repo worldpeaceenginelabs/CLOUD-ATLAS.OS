@@ -24,7 +24,7 @@
     <ul>
       <li>Cloud Atlas OS is provided "as is," without warranties of any kind. It exercises no centralized control over your activity or content.</li>
       <li>Cloud Atlas OS does not track, monitor, or analyze what you do. Your privacy is structurally protected by design.</li>
-      <li>You are not invisible. Internet infrastructure — including your own ISP — remains subject to lawful authority. Unlawful activity can and will be traceable.</li>
+      <li><strong>You are not invisible. Internet infrastructure — including your own ISP — remains subject to lawful authority. Unlawful activity can and will be traceable.</strong></li>
     </ul>
     <p class="accent">In short: Same rules as any device you own. Decentralized does not mean lawless.<br>With great power, comes great responsibility.</p>
   </div>

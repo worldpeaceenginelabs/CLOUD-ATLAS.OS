@@ -908,7 +908,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  cesiumViewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#17181b');
 	  setTimeout(() => {
 	    openRadialMenuCentered();
-	    if (!localStorage.getItem('operatorAgreementAccepted')) modalService.showOperatorAgreement();
 	  }, 1000);
 
 	  // Initialize extracted modules
