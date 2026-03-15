@@ -9,14 +9,12 @@
 </script>
 
 <div class="mission-log" class:open>
-  <div class="mission-log-ticker">
+  <div class="mission-log-ticker mission-log-panel">
     <Ticker onTickerClick={() => (open = !open)} />
   </div>
-  {#if !open}
-    <p class="mission-log-label">Mission Log</p>
-  {/if}
+  <p class="mission-log-label" class:mission-log-panel={open}>Mission Log</p>
   {#if open}
-    <div class="mission-log-content">
+    <div class="mission-log-content mission-log-panel">
       <Missions />
     </div>
   {/if}
@@ -35,8 +33,7 @@
     width: 100%;
   }
 
-  .mission-log-ticker,
-  .mission-log-content {
+  .mission-log-panel {
     background: rgba(255, 255, 255, 0.08);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
@@ -48,6 +45,13 @@
   .mission-log.open .mission-log-ticker {
     border-radius: 12px 12px 0 0;
     border-bottom: none;
+  }
+
+  .mission-log.open .mission-log-label.mission-log-panel {
+    border-radius: 0;
+    border-top: none;
+    border-bottom: none;
+    padding: 6px 12px 4px;
   }
 
   .mission-log.open .mission-log-content {
