@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { missionTitleMain, missionTitleSub, missionBottom } from '../content/missionContent';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen";
   const encoded = encodeURIComponent(shareText);
@@ -34,8 +35,8 @@
 
 <div class="mission-component">
   <p class="mission-title">
-    <span class="mission-title-main animated-gradient">First Mission</span>
-    <span class="mission-title-sub animated-gradient">Operator Expansion</span>
+    <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
+    <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
   </p>
   <div class="mission-card" style="--accent: #23a6d5">
     <p class="mission-card-quote animated-gradient">{shareText}</p>
@@ -52,7 +53,7 @@
       </button>
     </div>
   </div>
-  <p class="mission-bottom animated-gradient">Share Cloud Atlas OS on your social networks right now. We've cloned every major gig platform — rides, delivery, freelance, social — with zero commission and zero fees. Every person who joins is a potential customer, passenger, or client, and none of them owe a cut to anyone but you.</p>
+  <p class="mission-bottom animated-gradient">{missionBottom}</p>
 </div>
 
 <style>
