@@ -71,7 +71,7 @@ import {
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
 	import RadialGigMenu from './components/RadialGigMenu.svelte';
-	import Ticker from './components/Ticker.svelte';
+	import MissionLog from './components/MissionLog.svelte';
 import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers, layerRefresh, gigRadialOrigin } from './store';
 import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
@@ -1291,8 +1291,8 @@ function handleCoordinatePick(result: any) {
       <polyline points="17 2 12 7 7 2"/>
     </svg>
   </button>
-  <div class="ticker-slot">
-    <Ticker />
+  <div class="mission-log-slot">
+    <MissionLog />
   </div>
 
   <!-- Download button (top right, left of Layers) -->
@@ -1470,12 +1470,12 @@ function handleCoordinatePick(result: any) {
 	  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 	}
 
-  .ticker-slot {
+  .mission-log-slot {
     position: absolute;
     top: calc(20px + env(safe-area-inset-top, 0px));
     left: 58px;
     right: 0;
-    height: 40px;
+    bottom: 0;
     z-index: 999;
   }
 

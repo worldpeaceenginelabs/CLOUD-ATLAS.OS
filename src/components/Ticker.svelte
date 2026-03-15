@@ -4,6 +4,8 @@
   import { missionTitleMain, missionTitleSub, missionBottom } from '../content/missionContent';
 
   export let speed = 80;
+  /** When set, ticker click calls this instead of opening the mission modal. */
+  export let onTickerClick: (() => void) | undefined = undefined;
 
   let stripEl: HTMLDivElement | null = null;
   let trackEl: HTMLDivElement | null = null;
@@ -35,7 +37,7 @@
     <button
       type="button"
       class="ticker-item ticker-item--clickable"
-      on:click={() => modalService.showMissionComponent()}
+      on:click={() => (onTickerClick ? onTickerClick() : modalService.showMissionComponent())}
       title="Mission 1"
     >
       {missionTitleMain} · {missionTitleSub} · {missionBottom}
