@@ -122,7 +122,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
-    justify-content: flex-end;
+    justify-content: center;
   }
 
   .share-btn {
