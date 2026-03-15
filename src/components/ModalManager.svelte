@@ -16,7 +16,7 @@
   import { modelEditorService } from '../utils/modelEditorService';
   import { modalService } from '../utils/modalService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
-  import { gigCanClose } from '../store';
+  import { gigCanClose, isVisible } from '../store';
 
   const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
   const NOTIFICATION_MODALS = new Set(['zoom-required']);
@@ -61,6 +61,7 @@
       onClose={() => hideModal(modal.id)}
       title={modal.id === 'model-details' ? '3D Model Details' : ''}
       maxWidth={modal.id === 'operator-agreement' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
+      zIndex={modal.id === 'operator-agreement' ? 1001 : 1000}
       showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       modalType={
@@ -124,7 +125,7 @@
       {:else if modal.id === 'zoom-required'}
         <p>Zoom in closer to pick a precise location.</p>
       {:else if modal.id === 'operator-agreement'}
-        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); }} />
+        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); if (!localStorage.getItem('welcomeMessageDismissed')) isVisible.set(true); }} />
       {/if}
     </Modal>
   {/if}

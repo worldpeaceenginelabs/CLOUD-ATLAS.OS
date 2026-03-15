@@ -39,6 +39,7 @@
 
   onMount(() => {
     if (!localStorage.getItem('operatorAgreementAccepted')) modalService.showOperatorAgreement();
+    if (!localStorage.getItem('welcomeMessageDismissed')) isVisible.set(true);
   });
 
   onDestroy(() => {
@@ -71,13 +72,13 @@
     {#if $gridReady}
       <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
     {/if}
-    <div class="infoboxcontainer"><About /></div>
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
     <OnlineTopBar />
     {#if $onlinePanelOpen}
       <OnlineListings />
     {/if}
   {/if}
+  <div class="infoboxcontainer"><About /></div>
   <ModalManager />
 </div>
 
