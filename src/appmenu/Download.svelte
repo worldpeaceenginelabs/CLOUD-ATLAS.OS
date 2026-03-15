@@ -24,16 +24,16 @@
 </script>
 
 <div class="download-root">
-  <h3 class="title">Get Cloud Atlas OS</h3>
+  <h3 class="title">Get Cloud Atlas OS V1.6.1.stable</h3>
   <p class="subtitle">
-    Visiting, installing, or downloading Cloud Atlas OS turns your device into your own server. No middlemen between you and your money.
+    Installing, or downloading, or even just visiting the Web App, turns your device into your own CAOS server. No middlemen between you and your money.
   </p>
 
   <div class="cards">
     <section class="download-card pwa-card">
       <span class="card-heading">Progressive Web App</span>
       <p class="card-text">
-        Run Cloud Atlas OS as a PWA directly on your desktop or mobile. Complete independence of the website domains coming soon.
+        Run Cloud Atlas OS as a PWA directly on your desktop or mobile. Complete independence of the Web App domains coming soon.
       </p>
 
       <div class="card-body">
@@ -68,9 +68,9 @@
     </section>
 
     <section class="download-card desktop-card">
-      <span class="card-heading">Windows V1.6.1 stable</span>
+      <span class="card-heading">Windows App</span>
       <p class="card-text">
-        Run Cloud Atlas OS as a native Windows application, completely independent of the website domains.
+        Run Cloud Atlas OS as a native Windows application, completely independent of the Web App domains.
       </p>
 
       <div class="card-body">
