@@ -33,7 +33,7 @@
   }
 </script>
 
-<div class="mission-component">
+<div class="mission">
   <p class="mission-title">
     <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
     <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
@@ -57,7 +57,7 @@
 </div>
 
 <style>
-  .mission-component {
+  .mission {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -169,7 +169,7 @@
   }
 
   @media (max-width: 600px) {
-    .mission-component {
+    .mission {
       padding: 16px;
     }
   }

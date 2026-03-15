@@ -11,7 +11,7 @@
   import GigEconomy from '../appmenu/GigEconomy.svelte';
   import OperatorAgreement from './OperatorAgreement.svelte';
   import About from './About.svelte';
-  import MissionComponent from './MissionComponent.svelte';
+  import Mission from './Mission.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
@@ -60,14 +60,14 @@
   {:else}
     <Modal
       isVisible={true}
-      onClose={() => { if (modal.id === 'about') localStorage.setItem('welcomeMessageDismissed', 'true'); if (modal.id === 'mission-component') localStorage.setItem('missionComponentShown', 'true'); hideModal(modal.id); }}
+      onClose={() => { if (modal.id === 'about') localStorage.setItem('welcomeMessageDismissed', 'true'); hideModal(modal.id); }}
       title={modal.id === 'model-details' ? '3D Model Details' : ''}
-      maxWidth={modal.id === 'mission-component' ? '100%' : modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
+      maxWidth={modal.id === 'mission' ? '100%' : modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
       zIndex={modal.id === 'operator-agreement' ? 1001 : 1000}
       showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       modalType={
-        modal.id === 'mission-component'
+        modal.id === 'mission'
           ? 'missionmodal'
           : modal.id === 'layers-menu'
             ? 'overlay'
@@ -130,8 +130,8 @@
         <p>Zoom in closer to pick a precise location.</p>
       {:else if modal.id === 'about'}
         <About />
-      {:else if modal.id === 'mission-component'}
-        <MissionComponent />
+      {:else if modal.id === 'mission'}
+        <Mission />
       {:else if modal.id === 'operator-agreement'}
         <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); if (!localStorage.getItem('welcomeMessageDismissed')) modalService.showAbout(); }} />
       {/if}

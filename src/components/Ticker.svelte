@@ -7,7 +7,7 @@
   /** When set, ticker click calls this instead of opening the mission modal. */
   export let onTickerClick: (() => void) | undefined = undefined;
 
-  let stripEl: HTMLDivElement | null = null;
+  let stripEl: HTMLButtonElement | null = null;
   let trackEl: HTMLDivElement | null = null;
   let resizeHandler: (() => void) | null = null;
 
@@ -32,18 +32,20 @@
   });
 </script>
 
-<div class="ticker-strip" bind:this={stripEl} aria-hidden="true">
+<button
+  type="button"
+  class="ticker-strip"
+  bind:this={stripEl}
+  on:click={() => (onTickerClick ? onTickerClick() : modalService.showMission())}
+  title="Mission 1"
+  aria-label="Mission 1"
+>
   <div class="ticker-track" bind:this={trackEl}>
-    <button
-      type="button"
-      class="ticker-item ticker-item--clickable"
-      on:click={() => (onTickerClick ? onTickerClick() : modalService.showMissionComponent())}
-      title="Mission 1"
-    >
+    <span class="ticker-item ticker-item--clickable">
       {missionTitleMain} · {missionTitleSub} · {missionBottom}
-    </button>
+    </span>
   </div>
-</div>
+</button>
 
 <style>
   .ticker-strip {
@@ -53,6 +55,21 @@
     overflow: hidden;
     display: flex;
     align-items: center;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .ticker-strip:focus {
+    outline: none;
+  }
+
+  .ticker-strip:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
   }
 
   .ticker-track {

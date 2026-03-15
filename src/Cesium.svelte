@@ -919,7 +919,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  cesiumViewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#17181b');
 	  setTimeout(() => {
 	    openRadialMenuCentered();
-	    if (!localStorage.getItem('missionComponentShown')) modalService.showMissionComponent();
 	  }, 1000);
 
 	  // Initialize extracted modules
@@ -1472,10 +1471,10 @@ function handleCoordinatePick(result: any) {
 
   .mission-log-slot {
     position: absolute;
-    top: calc(20px + env(safe-area-inset-top, 0px));
-    left: 58px;
-    right: 0;
-    bottom: 0;
+    top: env(safe-area-inset-top, 0);
+    left: env(safe-area-inset-left, 0);
+    right: env(safe-area-inset-right, 0);
+    bottom: env(safe-area-inset-bottom, 0);
     z-index: 999;
   }
 
