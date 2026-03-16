@@ -7,6 +7,7 @@
   import type { GigVertical } from '../types';
   import { modalService } from '../utils/modalService';
   import { missionProgress } from '../utils/missionProgress';
+  import { missionShareStreak } from '../utils/missionShareStreak';
 
   export let screenX: number;
   export let screenY: number;
@@ -15,6 +16,11 @@
 
   let expanded = false;
   let infoPanelText = '';
+
+  const missionShareStreakStatus = missionShareStreak.status;
+  const missionShareStreakStore = missionShareStreak;
+
+  let shouldPulseNext = false;
 
   const radius = 115;
   const startAngle = -90;
@@ -81,6 +87,19 @@
       }
     }
   }
+
+  $: {
+    const hasAtLeastOneStar = $missionShareStreakStore.stars >= 1;
+
+    shouldPulseNext =
+      !$missionProgress.missionCompleted &&
+      (
+        // Before any star is earned, always pulse while mission not completed
+        (!hasAtLeastOneStar && $missionShareStreakStatus === 'idle') ||
+        // After 24h reset when another star can be earned: available → pulse again
+        (hasAtLeastOneStar && $missionShareStreakStatus === 'available')
+      );
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -108,8 +127,8 @@
     >
       <span
         class="halo-logo-text"
-        class:pulse={!$missionProgress.missionsSeen && !$missionProgress.missionCompleted}
-        class:greyed={$missionProgress.missionCompleted}
+        class:pulse={shouldPulseNext}
+        class:greyed={$missionShareStreak.stars >= 1 || $missionProgress.missionCompleted}
       >
         NEXT
       </span>
@@ -272,12 +291,15 @@
   }
 
   .halo-logo-text.greyed {
-    animation: none;
     background: none;
     -webkit-background-clip: initial;
     background-clip: initial;
     -webkit-text-fill-color: rgba(255, 255, 255, 0.45);
     color: rgba(255, 255, 255, 0.45);
+  }
+
+  .halo-logo-text.greyed.pulse {
+    animation: pulse 10s infinite;
   }
 
   @keyframes mission1-gradient {

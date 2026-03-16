@@ -12,10 +12,6 @@
     subtitle: i === 0 ? missionTitleSub : '',
   }));
 
-  onMount(() => {
-    missionProgress.markMissionsSeen();
-  });
-
   function onSlotClick(slot: { active: boolean }) {
     if (slot.active) {
       modalService.showMission();

@@ -13,6 +13,7 @@
 
   onMount(() => {
     pageUrl = encodeURIComponent(window.location.href);
+    missionProgress.markMissionsSeen();
   });
 
   $: shareLinks = [
