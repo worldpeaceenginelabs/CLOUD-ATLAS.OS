@@ -84,8 +84,8 @@
     max-width: min(100%, 380px);
     min-height: 88px;
     padding: 20px 24px;
-    background: rgba(255, 255, 255, 0.10);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(10, 15, 25, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 10px;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s, opacity 0.15s;
@@ -146,7 +146,7 @@
 }
 
   .mission-slot.greyed {
-    opacity: 0.45;
+    opacity: 0.7;
     cursor: default;
   }
 
