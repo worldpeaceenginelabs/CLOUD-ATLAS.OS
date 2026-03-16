@@ -35,7 +35,7 @@
   aria-hidden="true"
 >
   <div class="ticker-track" bind:this={trackEl}>
-    <span class="ticker-item ticker-item--clickable">
+    <span class="ticker-item ticker-item--gradient">
      {missionTitleMain} · {missionTitleSub}
     </span>
   </div>
@@ -53,17 +53,9 @@
     padding: 0;
     border: none;
     background: none;
-    cursor: pointer;
+    cursor: default;
+    pointer-events: none;
     font: inherit;
-  }
-
-  .ticker-strip:focus {
-    outline: none;
-  }
-
-  .ticker-strip:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.5);
-    outline-offset: 2px;
   }
 
   .ticker-track {
@@ -83,11 +75,11 @@
     color: rgba(255, 255, 255, 0.85);
   }
 
-  .ticker-item--clickable {
+  .ticker-item--gradient {
     border: none;
     background: none;
     padding-right: 2.5em;
-    cursor: pointer;
+    cursor: default;
     font-size: 25px;
     font-weight: 600;
     color: transparent;
