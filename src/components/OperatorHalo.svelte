@@ -130,7 +130,15 @@
         class:pulse={shouldPulseNext}
         class:greyed={$missionShareStreak.stars >= 1 || $missionProgress.missionCompleted}
       >
-        {($missionShareStreak.stars >= 1 || $missionProgress.missionCompleted) ? 'LOG' : 'NEXT'}
+        {#if $missionShareStreak.stars >= 1 || $missionProgress.missionCompleted}
+          <span class="log-layout">
+            <span class="log-letter log-left">L</span>
+            <span class="log-letter log-center">O</span>
+            <span class="log-letter log-right">G</span>
+          </span>
+        {:else}
+          NEXT
+        {/if}
       </span>
     </button>
 
@@ -300,6 +308,32 @@
 
   .halo-logo-text.greyed.pulse {
     animation: pulse 10s infinite;
+  }
+
+  .log-layout {
+    position: relative;
+    display: inline-block;
+    width: 3em;
+    height: 1em;
+  }
+
+  .log-letter {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .log-letter.log-center {
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .log-letter.log-left {
+    left: 0;
+  }
+
+  .log-letter.log-right {
+    right: 0;
   }
 
   @keyframes mission1-gradient {
