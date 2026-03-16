@@ -1297,7 +1297,7 @@ function handleCoordinatePick(result: any) {
     <MissionLog onOpenChange={(open) => (missionLogOpen = open)} />
   </div>
 
-  <!-- Download button (top right, left of Layers) -->
+  <!-- Download button (top right, below Layers) -->
   <button
     class="download-btn"
     on:click={() => modalService.showDownload()}
@@ -1486,11 +1486,11 @@ function handleCoordinatePick(result: any) {
     bottom: auto;
   }
 
-  /* Download button (top right, left of Layers) */
+  /* Download button (top right, below Layers) */
   .download-btn {
     position: absolute;
-    top: calc(20px + env(safe-area-inset-top, 0px));
-    right: 60px;
+    top: calc(70px + env(safe-area-inset-top, 0px));
+    right: 10px;
     z-index: 1000;
     min-width: 40px;
     height: 40px;
