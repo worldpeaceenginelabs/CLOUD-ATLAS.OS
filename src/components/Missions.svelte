@@ -28,7 +28,7 @@
     <button
       type="button"
       class="mission-slot"
-      class:new-mission={slot.active && !$missionProgress.missionDetailSeen}
+      class:new-mission={slot.active && !$missionProgress.missionCompleted}
       class:greyed={!slot.active}
       disabled={!slot.active}
       on:click={() => onSlotClick(slot)}

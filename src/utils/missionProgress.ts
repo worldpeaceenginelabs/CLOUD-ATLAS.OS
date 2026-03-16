@@ -2,14 +2,14 @@ import { writable } from 'svelte/store';
 
 type MissionProgress = {
   missionsSeen: boolean;
-  missionDetailSeen: boolean;
+  missionCompleted: boolean;
 };
 
 const STORAGE_KEY = 'missionProgress:v1';
 
 const defaultValue: MissionProgress = {
   missionsSeen: false,
-  missionDetailSeen: false,
+  missionCompleted: false,
 };
 
 function loadInitialValue(): MissionProgress {
@@ -24,7 +24,7 @@ function loadInitialValue(): MissionProgress {
     const parsed = JSON.parse(raw) as Partial<MissionProgress>;
     return {
       missionsSeen: !!parsed.missionsSeen,
-      missionDetailSeen: !!parsed.missionDetailSeen,
+      missionCompleted: !!parsed.missionCompleted,
     };
   } catch {
     return defaultValue;
@@ -51,11 +51,11 @@ function createMissionProgress() {
         ...v,
         missionsSeen: true,
       })),
-    markMissionDetailSeen: () =>
+    markMissionCompleted: () =>
       update((v) => ({
         ...v,
         missionsSeen: true,
-        missionDetailSeen: true,
+        missionCompleted: true,
       })),
     reset: () => set(defaultValue),
   };

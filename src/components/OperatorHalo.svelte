@@ -108,8 +108,8 @@
     >
       <span
         class="halo-logo-text"
-        class:pulse={!$missionProgress.missionsSeen && !$missionProgress.missionDetailSeen}
-        class:greyed={$missionProgress.missionDetailSeen}
+        class:pulse={!$missionProgress.missionsSeen && !$missionProgress.missionCompleted}
+        class:greyed={$missionProgress.missionCompleted}
       >
         NEXT
       </span>

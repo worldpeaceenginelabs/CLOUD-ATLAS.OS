@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { missionTitleMain, missionTitleSub, missionBottom } from '../content/missionContent';
+  import { missionTitleMain, missionTitleSub } from '../content/missionContent';
   import { missionProgress } from '../utils/missionProgress';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen";
@@ -8,8 +8,11 @@
   let copied = false;
   let pageUrl = '';
 
+  // Track which share platforms have been clicked in this session
+  const clickedShares = new Set<string>();
+  let copyClicked = false;
+
   onMount(() => {
-    missionProgress.markMissionDetailSeen();
     pageUrl = encodeURIComponent(window.location.href);
   });
 
@@ -24,10 +27,51 @@
     { name: 'VK', href: `https://vk.com/share.php?url=${pageUrl}&title=${encoded}&comment=${encoded}` },
   ];
 
+  $: missionStatsText = (() => {
+    const remainingShares = Math.max(0, 2 - clickedShares.size);
+    const copyDone = copyClicked;
+
+    if ($missionProgress.missionCompleted) {
+      return 'Mission complete.';
+    }
+
+    if (!copyDone && remainingShares > 0) {
+      return `To complete: share on ${remainingShares} more ${
+        remainingShares === 1 ? 'network' : 'networks'
+      } or copy the text.`;
+    }
+
+    if (!copyDone && remainingShares === 0) {
+      return 'To complete: copy the text.';
+    }
+
+    if (copyDone && remainingShares > 0) {
+      return 'To complete: share on 2 networks.';
+    }
+
+    return 'Complete the mission by sharing or copying the text.';
+  })();
+
+  function handleShareClick(name: string) {
+    if (!clickedShares.has(name)) {
+      clickedShares.add(name);
+    }
+
+    if ((clickedShares.size >= 2 || copyClicked) && !$missionProgress.missionCompleted) {
+      missionProgress.markMissionCompleted();
+    }
+  }
+
   async function copyToClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text);
       copied = true;
+      copyClicked = true;
+
+      if ((clickedShares.size >= 2 || copyClicked) && !$missionProgress.missionCompleted) {
+        missionProgress.markMissionCompleted();
+      }
+
       setTimeout(() => { copied = false; }, 2000);
     } catch {
       copied = false;
@@ -42,17 +86,26 @@
   </p>
   <p class="mission-share-label">SHARE THIS</p>
   <div class="mission-card" style="--accent: #23a6d5">
+    <p class="mission-stats">{missionStatsText}</p>
     <p class="mission-card-quote animated-gradient">{shareText}</p>
     <div class="mission-card-actions">
       {#each shareLinks as { name, href }}
-        <a class="share-btn" href={href} target="_blank" rel="noopener noreferrer">{name}</a>
+        <a
+          class="share-btn"
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          on:click={() => handleShareClick(name)}
+        >
+          {name}
+        </a>
       {/each}
       <button
         type="button"
         class="share-btn"
         on:click={() => copyToClipboard(shareText)}
       >
-        {copied ? 'Copied!' : 'Copy'}
+        {copied ? 'Copied!' : 'Copy Text'}
       </button>
     </div>
   </div>
@@ -151,6 +204,14 @@
     text-align: center;
   }
 
+  .mission-stats {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+  }
+
   .mission-card-actions {
     display: flex;
     flex-wrap: wrap;
@@ -172,6 +233,16 @@
     flex-shrink: 0;
     font-family: inherit;
     text-decoration: none;
+  }
+
+  .share-btn:focus {
+    outline: none;
+  }
+
+  .share-btn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    outline-offset: 2px;
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
   }
 
   .share-btn:hover {
