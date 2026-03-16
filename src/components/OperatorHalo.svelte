@@ -130,7 +130,7 @@
         class:pulse={shouldPulseNext}
         class:greyed={$missionShareStreak.stars >= 1 || $missionProgress.missionCompleted}
       >
-        NEXT
+        {($missionShareStreak.stars >= 1 || $missionProgress.missionCompleted) ? 'LOG' : 'NEXT'}
       </span>
     </button>
 
