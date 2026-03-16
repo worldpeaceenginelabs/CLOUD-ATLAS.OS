@@ -2,15 +2,14 @@
   import { onMount } from 'svelte';
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
   import { missionProgress } from '../utils/missionProgress';
+  import { missionShareStreak } from '../utils/missionShareStreak';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen";
   const encoded = encodeURIComponent(shareText);
   let copied = false;
   let pageUrl = '';
 
-  // Track which share platforms have been clicked in this session
-  const clickedShares = new Set<string>();
-  let copyClicked = false;
+  const missionShareStreakStatus = missionShareStreak.status;
 
   onMount(() => {
     pageUrl = encodeURIComponent(window.location.href);
@@ -28,49 +27,37 @@
   ];
 
   $: missionStatsText = (() => {
-    const remainingShares = Math.max(0, 2 - clickedShares.size);
-    const copyDone = copyClicked;
+    const { stars } = $missionShareStreak;
+    const status = $missionShareStreakStatus;
 
-    if ($missionProgress.missionCompleted) {
-      return 'Mission complete.';
+    if (status === 'completed' || $missionProgress.missionCompleted) {
+      return 'Mission complete: you shared 3 days in a row.';
     }
 
-    if (!copyDone && remainingShares > 0) {
-      return `To complete: share on ${remainingShares} more ${
-        remainingShares === 1 ? 'network' : 'networks'
-      } or copy the text.`;
+    const remaining = 3 - stars;
+
+    if (status === 'idle') {
+      return 'Share in any way to earn your first star.';
     }
 
-    if (!copyDone && remainingShares === 0) {
-      return 'To complete: copy the text.';
+    if (status === 'available') {
+      return `Share in any way to earn star ${stars + 1} of 3. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
     }
 
-    if (copyDone && remainingShares > 0) {
-      return 'To complete: share on 2 networks.';
-    }
+    const hours = missionShareStreak.hoursUntilNextStar();
 
-    return 'Complete the mission by sharing or copying the text.';
+    return `Next star available in about ${hours} hour${hours === 1 ? '' : 's'}. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
   })();
 
   function handleShareClick(name: string) {
-    if (!clickedShares.has(name)) {
-      clickedShares.add(name);
-    }
-
-    if ((clickedShares.size >= 2 || copyClicked) && !$missionProgress.missionCompleted) {
-      missionProgress.markMissionCompleted();
-    }
+    missionShareStreak.earnStar();
   }
 
   async function copyToClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text);
       copied = true;
-      copyClicked = true;
-
-      if ((clickedShares.size >= 2 || copyClicked) && !$missionProgress.missionCompleted) {
-        missionProgress.markMissionCompleted();
-      }
+      missionShareStreak.earnStar();
 
       setTimeout(() => { copied = false; }, 2000);
     } catch {
@@ -84,8 +71,13 @@
     <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
     <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
   </p>
-  <p class="mission-share-label">SHARE THIS</p>
+  <p class="mission-share-label">SHARE THIS ON 3 DIFFERENT DAYS</p>
   <div class="mission-card" style="--accent: #23a6d5">
+    <div class="mission-stars">
+      {#each [1, 2, 3] as level}
+        <span class="mission-star" class:filled={$missionShareStreak.stars >= level}>★</span>
+      {/each}
+    </div>
     <p class="mission-stats">{missionStatsText}</p>
     <p class="mission-card-quote animated-gradient">{shareText}</p>
     <div class="mission-card-actions">
@@ -132,10 +124,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 1.5rem;
     width: 100%;
-    height: 100%;
+    height: auto;
     min-height: 100%;
     min-width: 0;
     overflow-x: hidden;
@@ -258,6 +250,24 @@
     margin: 0.5rem 0 0.25rem;
   }
 
+  .mission-stars {
+    display: flex;
+    justify-content: center;
+    gap: 0.35rem;
+    margin-bottom: 0.1rem;
+  }
+
+  .mission-star {
+    font-size: 2rem;
+    color: rgba(255, 255, 255, 0.2);
+    transition: color 0.2s ease, transform 0.15s ease;
+  }
+
+  .mission-star.filled {
+    color: #ffd700;
+    transform: scale(1.05);
+  }
+
   .mission-bottom {
     font-size: clamp(0.95rem, 4vw, 25px);
     line-height: 1.5;
@@ -297,9 +307,6 @@
   @media (max-width: 600px) {
     .mission {
       padding: 16px;
-      justify-content: flex-start;
-      align-items: stretch;
-      height: auto;
       min-height: 100%;
     }
   }
