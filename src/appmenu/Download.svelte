@@ -24,7 +24,7 @@
 </script>
 
 <div class="download-root">
-  <h3 class="title">Get CAOS V1.6.1.stable</h3>
+  <h3 class="title">Get Cloud Atlas OS<br>V1.6.2.stable</h3>
   <p class="subtitle">
     However you access Cloud Atlas OS — web, PWA, or Windows App — your device becomes your own CAOS server. No middlemen between you and your money.
   </p>

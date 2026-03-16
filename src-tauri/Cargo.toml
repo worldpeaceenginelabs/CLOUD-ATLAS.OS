@@ -1,6 +1,6 @@
 [package]
 name = "CloudAtlasOS"
-version = "1.6.1"
+version = "1.6.2"
 description = "Science fiction meets the real world"
 authors = ["everyone"]
 license = "AGPL v3.0"
