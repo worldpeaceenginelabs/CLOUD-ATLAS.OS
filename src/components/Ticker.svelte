@@ -1,13 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { modalService } from '../utils/modalService';
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
 
   export let speed = 160;
-  /** When set, ticker click calls this instead of opening the mission modal. */
-  export let onTickerClick: (() => void) | undefined = undefined;
 
-  let stripEl: HTMLButtonElement | null = null;
+  let stripEl: HTMLDivElement | null = null;
   let trackEl: HTMLDivElement | null = null;
   let resizeHandler: (() => void) | null = null;
 
@@ -32,20 +29,17 @@
   });
 </script>
 
-<button
-  type="button"
+<div
   class="ticker-strip"
   bind:this={stripEl}
-  on:click={() => (onTickerClick ? onTickerClick() : modalService.showMission())}
-  title="Mission 1"
-  aria-label="Mission 1"
+  aria-hidden="true"
 >
   <div class="ticker-track" bind:this={trackEl}>
     <span class="ticker-item ticker-item--clickable">
-    CLICK ME · {missionTitleMain} · {missionTitleSub} · CLICK ME
+     {missionTitleMain} · {missionTitleSub}
     </span>
   </div>
-</button>
+</div>
 
 <style>
   .ticker-strip {
