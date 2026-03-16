@@ -2,7 +2,7 @@
   import { modalService } from '../utils/modalService';
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
 
-  const SLOT_COUNT = 5;
+  const SLOT_COUNT = 3;
   const slots = Array.from({ length: SLOT_COUNT }, (_, i) => ({
     index: i + 1,
     active: i === 0,
@@ -85,14 +85,16 @@
   .mission-slot-title {
     font-weight: 700;
     font-size: 1.4rem;
-    line-height: 1.2;
+    line-height: 1.25;
   }
 
   .mission-slot-subtitle {
     font-weight: 600;
     font-size: 1.1rem;
-    line-height: 1.2;
+    line-height: 1.4;
     margin-top: 4px;
+    display: inline-block;
+    padding-bottom: 3px;
   }
 
   .animated-gradient {

@@ -38,6 +38,7 @@
     <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
     <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
   </p>
+  <p class="mission-share-label">SHARE THIS</p>
   <div class="mission-card" style="--accent: #23a6d5">
     <p class="mission-card-quote animated-gradient">{shareText}</p>
     <div class="mission-card-actions">
@@ -53,7 +54,22 @@
       </button>
     </div>
   </div>
-  <p class="mission-bottom animated-gradient">{missionBottom}</p>
+  <div class="mission-bottom">
+    <p class="animated-gradient">
+      <span class="mission-bottom-heading">What to do?</span>
+      Share Cloud Atlas OS on your social networks right now. We've cloned every major gig platform — rides, delivery, freelance, social — with zero commission
+      and zero fees.<br>
+      <span class="mission-bottom-heading">Free Forever</span>
+    </p>
+    <p class="animated-gradient">
+      <span class="mission-bottom-heading">What is the goal?</span>
+      Every person who joins is a potential customer, passenger, or client, and none of them owe a cut to anyone but you.
+    </p>
+    <p class="animated-gradient">
+      <span class="mission-bottom-heading">How do we see we won?</span>
+      We're adding a live user count for your region. Watch the number grow as a direct signal of your impact.
+    </p>
+  </div>
 </div>
 
 <style>
@@ -100,13 +116,14 @@
   .mission-title-sub {
     font-weight: 700;
     font-size: clamp(1.2rem, 6.5vmin, 2.75rem);
-    line-height: 1.1;
+    line-height: 1.3;
     letter-spacing: 0.02em;
     display: block;
     max-width: 100%;
     min-width: 0;
     overflow-wrap: break-word;
     word-break: break-word;
+    padding-bottom: 2px;
   }
 
   .mission-card {
@@ -114,6 +131,7 @@
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     border-radius: 12px;
+    border: 1px solid #ffd700;
     padding: 28px 24px;
     font-size: 15px;
     line-height: 1.5;
@@ -158,11 +176,34 @@
     background: color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
+  .mission-share-label {
+    color: #ffd700;
+    font-weight: 800;
+    font-size: clamp(1.3rem, 4.5vmin, 2rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.5rem 0 0.25rem;
+  }
+
   .mission-bottom {
     font-size: clamp(0.95rem, 4vw, 25px);
     line-height: 1.5;
     width: 100%;
     margin: 0;
+  }
+
+  .mission-bottom p {
+    margin: 0.35rem 0;
+  }
+
+  .mission-bottom-heading {
+    color: #ffd700;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-right: 0.25rem;
+    -webkit-text-fill-color: #ffd700;
+    background: none;
   }
 
   .animated-gradient {
@@ -183,6 +224,10 @@
   @media (max-width: 600px) {
     .mission {
       padding: 16px;
+      justify-content: flex-start;
+      align-items: stretch;
+      height: auto;
+      min-height: 100%;
     }
   }
 </style>
