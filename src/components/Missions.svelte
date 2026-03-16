@@ -75,19 +75,32 @@
   }
 
   .mission-slot.new-mission {
-    border-color: #ffd700;
+    position: relative;
+    border-color: transparent;
+    z-index: 0;
+  }
+
+  .mission-slot.new-mission::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientBG 5s ease infinite;
+    z-index: -1;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
   }
 
   /* Normal active missions: keep the existing hover border change */
 .mission-slot:not(.greyed):not(.new-mission):hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.25);
-}
-
-/* New mission: keep yellow border on hover */
-.mission-slot.new-mission:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #ffd700;
 }
 
   .mission-slot.greyed {
@@ -133,4 +146,5 @@
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
+
 </style>
