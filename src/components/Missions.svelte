@@ -78,10 +78,17 @@
     border-color: #ffd700;
   }
 
-  .mission-slot:not(.greyed):hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.25);
-  }
+  /* Normal active missions: keep the existing hover border change */
+.mission-slot:not(.greyed):not(.new-mission):hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* New mission: keep yellow border on hover */
+.mission-slot.new-mission:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #ffd700;
+}
 
   .mission-slot.greyed {
     opacity: 0.45;
