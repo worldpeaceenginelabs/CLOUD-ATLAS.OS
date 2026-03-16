@@ -91,15 +91,15 @@ export const userGigRole = resettable<'requester' | 'provider' | null>(null);
 export const currentGeohash = resettable('');
 /** Whether the gig economy panel can be closed via the X button */
 export const gigCanClose = resettable(true);
-/** Pre-selected vertical from the radial menu (auto-navigated on panel open) */
+/** Pre-selected vertical from the Operator Halo (auto-navigated on panel open) */
 export const preselectedGigVertical = resettable<GigVertical | null>(null);
-/** Signal Cesium to reopen the radial gig menu (set by back buttons) */
-export const showRadialGigMenu = resettable(false);
+/** Signal Cesium to reopen the Operator Halo from the gig panel (set by back buttons) */
+export const showOperatorHaloFromGig = resettable(false);
 
 // ─── Fly-to ──────────────────────────────────────────────────
 export type LocationOptions = {
-  openRadial?: boolean;
-  radialOrigin?: 'picked-point' | 'user-location';
+  openHalo?: boolean;
+  haloOrigin?: 'picked-point' | 'user-location';
   /** Whether to update the coordinates store (defaults to true). */
   updateCoordinates?: boolean;
   /** Whether to create/move the green picked-point marker (defaults to true). */
@@ -122,8 +122,8 @@ export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
 export const layerListings = resettable<Record<string, Listing[]>>({});
 
-// Remember where the gig radial menu was opened from (user location vs picked point)
-export const gigRadialOrigin = resettable<'user-location' | 'picked-point' | null>(null);
+// Remember where the Operator Halo was opened from (user location vs picked point)
+export const gigHaloOrigin = resettable<'user-location' | 'picked-point' | null>(null);
 
 /** Remove listings that match deletedSet (entries are 'id:pubkey'). Used after applying DELETEs from relay. */
 export function applyDeletionsToLayerListings(deletedSet: Set<string>): void {

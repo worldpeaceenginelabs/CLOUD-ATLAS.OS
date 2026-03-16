@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { RADIAL_MENU_ITEMS } from '../gig/verticals';
-  import type { RadialMenuItem } from '../gig/verticals';
+  import { OPERATOR_HALO_ITEMS } from '../gig/verticals';
+  import type { OperatorHaloItem } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { GigVertical } from '../types';
 
@@ -16,15 +16,15 @@
 
   const radius = 115;
   const startAngle = -90;
-  const angleStep = 360 / RADIAL_MENU_ITEMS.length;
+  const angleStep = 360 / OPERATOR_HALO_ITEMS.length;
 
   interface ItemPosition {
-    item: RadialMenuItem;
+    item: OperatorHaloItem;
     x: number;
     y: number;
   }
 
-  const positions: ItemPosition[] = RADIAL_MENU_ITEMS.map((item, i) => {
+  const positions: ItemPosition[] = OPERATOR_HALO_ITEMS.map((item, i) => {
     const angle = startAngle + i * angleStep;
     const rad = (angle * Math.PI) / 180;
     return {
@@ -34,11 +34,11 @@
     };
   });
 
-  function handleItemClick(item: RadialMenuItem) {
+  function handleItemClick(item: OperatorHaloItem) {
     onSelect(item.id);
   }
 
-  function toggleInfo(item: RadialMenuItem, e: Event) {
+  function toggleInfo(item: OperatorHaloItem, e: Event) {
     e.stopPropagation();
     if (!item.description) return;
     if (infoPanelText === item.description) {
@@ -48,12 +48,14 @@
     }
   }
 
-  function iconSvg(item: RadialMenuItem, size: number): string {
+  function iconSvg(item: OperatorHaloItem, size: number): string {
     return verticalIconSvg(item.id, size);
   }
 
   onMount(() => {
-    requestAnimationFrame(() => { expanded = true; });
+    requestAnimationFrame(() => {
+      expanded = true;
+    });
   });
 
   function handleBackdropClick() {
@@ -77,7 +79,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<div class="radial-overlay" transition:fade={{ duration: 200 }}>
+<div class="halo-overlay" transition:fade={{ duration: 200 }}>
   <!-- Blur layer: blurs only outside the clear center circle -->
   <div
     class="backdrop-blur"
@@ -86,7 +88,7 @@
   <!-- Tint layer: uniform dark overlay everywhere, captures clicks -->
   <div class="backdrop-tint" on:click={handleBackdropClick} role="presentation"></div>
 
-  <div class="radial-center" style="left: {screenX}px; top: {screenY}px">
+  <div class="halo-center" style="left: {screenX}px; top: {screenY}px">
     <!-- Decorative rings -->
     <div class="ring outer" class:expanded></div>
     <div class="ring inner" class:expanded></div>
@@ -94,7 +96,7 @@
     <!-- All items on a single ring -->
     {#each positions as { item, x, y }, i}
       <button
-        class="radial-item"
+        class="halo-item"
         class:expanded
         style="--tx: {x}px; --ty: {y}px; --delay: {i * 55 + 100}ms; --accent: {item.color}"
         on:click={() => handleItemClick(item)}
@@ -132,7 +134,7 @@
 </div>
 
 <style>
-  .radial-overlay {
+  .halo-overlay {
     position: fixed;
     inset: 0;
     z-index: 100;
@@ -155,7 +157,7 @@
     background: rgba(0, 0, 0, 0.35);
   }
 
-  .radial-center {
+  .halo-center {
     position: absolute;
     transform: translate(-50%, -50%);
     pointer-events: none;
@@ -215,8 +217,8 @@
     50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
   }
 
-  /* ── Radial items ── */
-  .radial-item {
+  /* ── Halo items ── */
+  .halo-item {
     position: absolute;
     left: 50%;
     top: 50%;
@@ -237,7 +239,7 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  .radial-item.expanded {
+  .halo-item.expanded {
     transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(1);
     opacity: 1;
     pointer-events: auto;
@@ -258,13 +260,13 @@
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
-  .radial-item:hover .item-icon {
+  .halo-item:hover .item-icon {
     transform: scale(1.12);
     border-color: var(--accent, rgba(255, 255, 255, 0.4));
     box-shadow: 0 0 16px color-mix(in srgb, var(--accent, #fff) 30%, transparent);
   }
 
-  .radial-item:active .item-icon {
+  .halo-item:active .item-icon {
     transform: scale(0.95);
   }
 
@@ -361,3 +363,4 @@
     }
   }
 </style>
+

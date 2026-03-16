@@ -9,7 +9,7 @@ export let onLocationSelected: (lat: string, lon: string, displayName?: string) 
 export let onSelectedClick: (() => void) | null = null;
 export let required: boolean = false;
 export let placeholder: string = 'Search an address or place...';
-export let openRadialOnSelect: boolean = false;
+export let openHaloOnSelect: boolean = false;
 
   let searchQuery = '';
   let suggestions: NominatimResult[] = [];
@@ -94,8 +94,8 @@ export let openRadialOnSelect: boolean = false;
     onLocationSelected(result.lat, result.lon, name);
 
     const options: LocationOptions = {
-      openRadial: openRadialOnSelect,
-      radialOrigin: 'picked-point',
+      openHalo: openHaloOnSelect,
+      haloOrigin: 'picked-point',
     };
 
     flyToLocation.set({

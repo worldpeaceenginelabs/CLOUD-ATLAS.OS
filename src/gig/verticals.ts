@@ -6,7 +6,7 @@
  * Listing verticals use a publish-only model with longer TTL.
  *
  * This file is the single source of truth for vertical IDs, names, colors,
- * grouping, and radial menu behavior. Start here when changing verticals.
+ * grouping, and Operator Halo behavior. Start here when changing verticals.
  */
 
 import type { GigVertical, ListingVertical, ListingCategory, ListingMode } from '../types';
@@ -34,8 +34,8 @@ interface BaseVerticalConfig {
   id: GigVertical;
   name: string;
   color: string;
-  /** Optional description used in radial menu or marketing copy. */
-  radialDescription?: string;
+  /** Optional description used in the Operator Halo or marketing copy. */
+  haloDescription?: string;
 }
 
 export interface MatchingVerticalConfig extends BaseVerticalConfig {
@@ -254,7 +254,7 @@ function buildListingVerticalConfig(id: ListingVertical, draft: ListingVerticalD
     directiveNoun: draft.directiveNoun,
     defaultMode: draft.defaultMode,
     fetchStrategy: draft.fetchStrategy,
-    radialDescription: draft.radialDescription,
+    haloDescription: draft.haloDescription,
   };
 }
 
@@ -333,7 +333,7 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     directiveNoun: 'solution',
     defaultMode: 'both',
     fetchStrategy: 'global',
-    radialDescription: 'Flip the script on bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure - or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to tackle their own challenges and co-create innovative products, services, and solutions.',
+    haloDescription: 'Flip the script on bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure - or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to tackle their own challenges and co-create innovative products, services, and solutions.',
     contactApps: [
       {
         contactLabel: 'Join Link',
@@ -371,7 +371,7 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     directiveNoun: 'meeting',
     defaultMode: 'in-person',
     fetchStrategy: 'global',
-    radialDescription: 'From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.',
+    haloDescription: 'From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.',
     contactApps: [
       {
         contactLabel: 'Telegram Group Link',
@@ -404,7 +404,7 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     directiveNoun: 'Petition',
     defaultMode: 'both',
     fetchStrategy: 'global',
-    radialDescription: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.',
+    haloDescription: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.',
     contactApps: [
       {
         contactLabel: 'Change.org Link',
@@ -435,7 +435,7 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     directiveNoun: 'Crowdfunding',
     defaultMode: 'both',
     fetchStrategy: 'global',
-    radialDescription: 'Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.',
+    haloDescription: 'Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.',
     contactApps: [
       {
         contactLabel: 'GoFundMe Link',
@@ -533,14 +533,14 @@ export const GLOBAL_FEED_MAP_VERTICALS: ListingVertical[] = LISTING_VERTICALS.fi
 );
 
 /**
- * Unified radial menu items — single ring, 8 items at 45° intervals.
+ * Unified Operator Halo items — single ring, 8 items at 45° intervals.
  *
  * Clockwise from top:
  *   Spontaneous Contacts (top)
  *   Brainstorming, MeetandDo, Petition, Crowdfunding
  *   Helpout, Delivery, Rideshare
  */
-export interface RadialMenuItem {
+export interface OperatorHaloItem {
   kind: 'vertical';
   id: GigVertical;
   name: string;
@@ -548,7 +548,7 @@ export interface RadialMenuItem {
   description?: string;
 }
 
-export const RADIAL_MENU_ITEMS: RadialMenuItem[] = [
+export const OPERATOR_HALO_ITEMS: OperatorHaloItem[] = [
   // Clockwise from top, matching VERTICAL_LIST
   ...VERTICAL_LIST.map((id) => {
     const cfg = VERTICALS[id];
@@ -557,7 +557,7 @@ export const RADIAL_MENU_ITEMS: RadialMenuItem[] = [
       id,
       name: cfg.name,
       color: cfg.color,
-      description: cfg.radialDescription,
+      description: cfg.haloDescription,
     };
   }),
 ];

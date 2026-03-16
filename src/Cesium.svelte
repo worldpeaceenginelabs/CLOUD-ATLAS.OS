@@ -70,9 +70,9 @@ import {
 	import { hasActiveGigSession } from './gig/gigRecovery';
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
-	import RadialGigMenu from './components/RadialGigMenu.svelte';
+import OperatorHalo from './components/OperatorHalo.svelte';
 	import MissionLog from './components/MissionLog.svelte';
-import { preselectedGigVertical, showRadialGigMenu, layerListings, activeMapLayers, layerRefresh, gigRadialOrigin } from './store';
+import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, layerRefresh, gigHaloOrigin } from './store';
 import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
@@ -92,10 +92,10 @@ let userLocationInitialized = false;
 // Mission log open state (for slot sizing)
 let missionLogOpen = false;
 
-// Radial menu state
-let showRadialMenu = false;
-let radialScreenX = 0;
-let radialScreenY = 0;
+// Operator Halo state
+let showOperatorHalo = false;
+let operatorHaloScreenX = 0;
+let operatorHaloScreenY = 0;
 let tileset: Cesium3DTileset | null = null;
 let isBasemapLoaded = false;
 let isTilesetLoaded = false;
@@ -115,7 +115,7 @@ let selectedListing: { listing: Listing; vertical: ListingVertical } | null = nu
 let myNostrPk = '';
 
 let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
-let radialResizeHandler: (() => void) | null = null;
+let operatorHaloResizeHandler: (() => void) | null = null;
 
 let flySeq = 0;
 
@@ -315,13 +315,13 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && i
 	});
 }
 
-// Reopen radial menu when signalled by back buttons in the gig panel
-$: if ($showRadialGigMenu) {
-	showRadialGigMenu.set(false);
+// Reopen Operator Halo when signalled by back buttons in the gig panel
+$: if ($showOperatorHaloFromGig) {
+	showOperatorHaloFromGig.set(false);
 
-	// Recentre camera on the original radial origin, then reopen via unified workflow
+	// Recentre camera on the original halo origin, then reopen via unified workflow
 	if (cesiumViewer) {
-		if ($gigRadialOrigin === 'picked-point') {
+		if ($gigHaloOrigin === 'picked-point') {
 			const centerEntity = cesiumViewer.entities.getById('pickedPoint');
 			const pos = centerEntity?.position?.getValue(JulianDate.now());
 			if (pos) {
@@ -333,8 +333,8 @@ $: if ($showRadialGigMenu) {
 						lat,
 						lon,
 						options: {
-							openRadial: true,
-							radialOrigin: 'picked-point',
+							openHalo: true,
+							haloOrigin: 'picked-point',
 							updateCoordinates: false,
 							createPickedMarker: false,
 						},
@@ -347,9 +347,9 @@ $: if ($showRadialGigMenu) {
 				flyToLocation.set({
 					lat: loc.latitude,
 					lon: loc.longitude,
-					options: {
-						openRadial: true,
-						radialOrigin: 'user-location',
+						options: {
+							openHalo: true,
+							haloOrigin: 'user-location',
 						updateCoordinates: false,
 						createPickedMarker: false,
 					},
@@ -359,28 +359,28 @@ $: if ($showRadialGigMenu) {
 	}
 }
 
-/** Open radial menu centered on screen. */
-function openRadialMenuCentered() {
-	gigRadialOrigin.set('user-location');
-	radialScreenX = window.innerWidth / 2;
-	radialScreenY = window.innerHeight / 2;
-	showRadialMenu = true;
+/** Open Operator Halo centered on screen. */
+function openOperatorHaloCentered() {
+	gigHaloOrigin.set('user-location');
+	operatorHaloScreenX = window.innerWidth / 2;
+	operatorHaloScreenY = window.innerHeight / 2;
+	showOperatorHalo = true;
 }
 
-/** Open radial menu centered on screen for the picked point. */
-function openRadialMenuAtPickedPoint() {
-	gigRadialOrigin.set('picked-point');
-	radialScreenX = window.innerWidth / 2;
-	radialScreenY = window.innerHeight / 2;
-	showRadialMenu = true;
+/** Open Operator Halo centered on screen for the picked point. */
+function openOperatorHaloAtPickedPoint() {
+	gigHaloOrigin.set('picked-point');
+	operatorHaloScreenX = window.innerWidth / 2;
+	operatorHaloScreenY = window.innerHeight / 2;
+	showOperatorHalo = true;
 }
 
-/** Open radial menu at picked point without moving the camera. */
-function openRadialMenuAtPickedPointNoFly() {
-	gigRadialOrigin.set('picked-point');
-	radialScreenX = window.innerWidth / 2;
-	radialScreenY = window.innerHeight / 2;
-	showRadialMenu = true;
+/** Open Operator Halo at picked point without moving the camera. */
+function openOperatorHaloAtPickedPointNoFly() {
+	gigHaloOrigin.set('picked-point');
+	operatorHaloScreenX = window.innerWidth / 2;
+	operatorHaloScreenY = window.innerHeight / 2;
+	showOperatorHalo = true;
 }
 
 function handleAddressSelected(lat: string, lon: string, _displayName?: string) {
@@ -408,12 +408,12 @@ function applyPickedPoint(cartesian: Cartesian3, options?: LocationOptions) {
 		pointEntities = addPickedPointMarker(cesiumViewer, cartesian, pointEntities);
 	}
 
-	const openRadial = options?.openRadial ?? true;
-	if (openRadial) {
-		if (options?.radialOrigin === 'user-location') {
-			openRadialMenuCentered();
+	const openHalo = options?.openHalo ?? true;
+		if (openHalo) {
+		if (options?.haloOrigin === 'user-location') {
+			openOperatorHaloCentered();
 		} else {
-			openRadialMenuAtPickedPointNoFly();
+			openOperatorHaloAtPickedPointNoFly();
 		}
 	}
 }
@@ -811,8 +811,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 								lat,
 								lon,
 								options: {
-									openRadial: true,
-									radialOrigin: 'picked-point',
+							openHalo: true,
+							haloOrigin: 'picked-point',
 									updateCoordinates: false,
 									createPickedMarker: false
 								}
@@ -829,8 +829,8 @@ function updatePreviewModelInScene(modelData: ModelData) {
 							lat: loc.latitude,
 							lon: loc.longitude,
 							options: {
-								openRadial: true,
-								radialOrigin: 'user-location',
+								openHalo: true,
+								haloOrigin: 'user-location',
 								updateCoordinates: false,
 								createPickedMarker: false
 							}
@@ -870,14 +870,14 @@ function updatePreviewModelInScene(modelData: ModelData) {
 
 	// Initialization on mount
 	onMount(async () => {
-	function handleRadialResize() {
-		if (showRadialMenu) {
-			radialScreenX = window.innerWidth / 2;
-			radialScreenY = window.innerHeight / 2;
+	function handleOperatorHaloResize() {
+		if (showOperatorHalo) {
+			operatorHaloScreenX = window.innerWidth / 2;
+			operatorHaloScreenY = window.innerHeight / 2;
 		}
 	}
-	radialResizeHandler = handleRadialResize;
-	window.addEventListener('resize', radialResizeHandler);
+	operatorHaloResizeHandler = handleOperatorHaloResize;
+	window.addEventListener('resize', operatorHaloResizeHandler);
 
 	initSimStoreWatch();
 	// Hydrate user Ion key from IDB, fall back to env default
@@ -921,7 +921,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  cesiumViewer.imageryLayers.removeAll();
 	  cesiumViewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#17181b');
 	  setTimeout(() => {
-	    openRadialMenuCentered();
+	    openOperatorHaloCentered();
 	  }, 1000);
 
 	  // Initialize extracted modules
@@ -1150,19 +1150,17 @@ function wrapLabelEveryNChars(text: string | null | undefined, max: number = 25)
   return lines.join('\n');
 }
 
-/** Handle radial menu category selection → open gig panel to that vertical. */
-function handleRadialSelect(vertical: GigVertical) {
-  showRadialMenu = false;
+/** Handle Operator Halo category selection → open gig panel to that vertical. */
+function handleOperatorHaloSelect(vertical: GigVertical) {
+  showOperatorHalo = false;
   modalService.hideGigEconomy();
   preselectedGigVertical.set(vertical);
   requestAnimationFrame(() => {
     modalService.showGigEconomy();
   });
 }
-
-
-function handleRadialClose() {
-  showRadialMenu = false;
+function handleOperatorHaloClose() {
+  showOperatorHalo = false;
 }
 
 /** Ensure we have the user's Nostr public key for ownership checks. */
@@ -1190,8 +1188,8 @@ function handleCoordinatePick(result: any) {
 
   // Immediate UX: render marker + coords at the picked cartesian before flying
   applyPickedPoint(coords.cartesian, {
-    openRadial: false,
-    radialOrigin: 'picked-point',
+    openHalo: false,
+    haloOrigin: 'picked-point',
   });
 
   // Then enqueue the usual fly + clamped re-render
@@ -1199,16 +1197,16 @@ function handleCoordinatePick(result: any) {
     lat: coords.latitude,
     lon: coords.longitude,
     options: {
-      openRadial: false,
-      radialOrigin: 'picked-point',
+      openHalo: false,
+      haloOrigin: 'picked-point',
     },
   });
 }
 
 	onDestroy(() => {
-		if (radialResizeHandler) {
-			window.removeEventListener('resize', radialResizeHandler);
-			radialResizeHandler = null;
+		if (operatorHaloResizeHandler) {
+			window.removeEventListener('resize', operatorHaloResizeHandler);
+			operatorHaloResizeHandler = null;
 		}
 		if (unsubFlyTo) unsubFlyTo();
 		if (simStoreUnsub) simStoreUnsub();
@@ -1269,15 +1267,15 @@ function handleCoordinatePick(result: any) {
       lat={addressLat}
       lon={addressLon}
       placeholder="Search an address or place..."
-      openRadialOnSelect={false}
+      openHaloOnSelect={false}
       onLocationSelected={handleAddressSelected}
       onSelectedClick={() => {
         flyToLocation.set({
           lat: parseFloat(addressLat),
           lon: parseFloat(addressLon),
-          options: {
-            openRadial: false,
-            radialOrigin: 'picked-point',
+            options: {
+            openHalo: false,
+            haloOrigin: 'picked-point',
             updateCoordinates: false,
             createPickedMarker: false,
           },
@@ -1332,6 +1330,34 @@ function handleCoordinatePick(result: any) {
     </svg>
   </button>
 
+  <!-- Operator Halo button (bottom right, above My Location) -->
+  <button
+    class="operator-halo-btn"
+    on:click={() => {
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+
+      operatorHaloScreenX = centerX;
+      operatorHaloScreenY = centerY;
+      showOperatorHalo = true;
+    }}
+    title="Open Operator Halo"
+  >
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <circle cx="12" cy="12" r="7" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  </button>
+
   <!-- My Location button (bottom right) -->
   <button
     class="my-location-btn"
@@ -1343,9 +1369,9 @@ function handleCoordinatePick(result: any) {
         flyToLocation.set({
           lat: loc.latitude,
           lon: loc.longitude,
-          options: {
-            openRadial: false,
-            radialOrigin: 'user-location',
+            options: {
+            openHalo: false,
+            haloOrigin: 'user-location',
             updateCoordinates: false,
             createPickedMarker: false,
           },
@@ -1375,13 +1401,13 @@ function handleCoordinatePick(result: any) {
   />
 {/if}
 
-<!-- Radial Gig Menu (shown on user location ring tap) -->
-{#if showRadialMenu}
-  <RadialGigMenu
-    screenX={radialScreenX}
-    screenY={radialScreenY}
-    onSelect={handleRadialSelect}
-    onClose={handleRadialClose}
+<!-- Operator Halo (shown on user location ring tap) -->
+{#if showOperatorHalo}
+  <OperatorHalo
+    screenX={operatorHaloScreenX}
+    screenY={operatorHaloScreenY}
+    onSelect={handleOperatorHaloSelect}
+    onClose={handleOperatorHaloClose}
   />
 {/if}
 
@@ -1405,6 +1431,35 @@ function handleCoordinatePick(result: any) {
 	  z-index: 1000;
 	  max-width: 320px;
 	  min-width: 220px;
+	}
+
+  /* Operator Halo button (bottom right, above My Location) */
+	.operator-halo-btn {
+	  position: fixed;
+	  bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+	  right: 10px;
+	  z-index: 1000;
+	  width: 40px;
+	  height: 40px;
+	  border-radius: 10px;
+	  background: rgba(255, 255, 255, 0.1);
+	  border: 1px solid rgba(255, 255, 255, 0.3);
+	  -webkit-backdrop-filter: blur(10px);
+	  backdrop-filter: blur(10px);
+	  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	  color: white;
+	  padding: 0;
+	  cursor: pointer;
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+	  transition: all 0.2s;
+	}
+
+	.operator-halo-btn:hover {
+	  background: rgba(255, 255, 255, 0.2);
+	  transform: translateY(-2px);
+	  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 	}
 
   /* My Location button (bottom right) */

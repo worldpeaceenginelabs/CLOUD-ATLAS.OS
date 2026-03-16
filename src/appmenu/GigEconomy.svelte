@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { fade, slide } from 'svelte/transition';
-  import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical, showRadialGigMenu } from '../store';
+import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical, showOperatorHaloFromGig } from '../store';
   import { modalService } from '../utils/modalService';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
@@ -214,14 +214,14 @@
     modalService.hideGigEconomy();
   }
 
-  function goBackToRadial() {
+  function goBackToOperatorHalo() {
     closePanel();
-    showRadialGigMenu.set(true);
+    showOperatorHaloFromGig.set(true);
   }
 
   function goBack() {
     if (currentView === 'menu' || currentView === 'listing') {
-      goBackToRadial();
+      goBackToOperatorHalo();
     } else if (currentView === 'need' || currentView === 'offer') {
       currentView = 'menu';
     }
@@ -570,7 +570,7 @@
 
   <!-- ═══════════════ LISTING MODE ═══════════════════ -->
   {:else if currentView === 'listing' && config?.mode === 'listing'}
-    <ListingForm config={config} nostr={sharedNostr} onBack={goBackToRadial} />
+    <ListingForm config={config} nostr={sharedNostr} onBack={goBackToOperatorHalo} />
 
   <!-- ═══════════════ NEED / OFFER MENU ═══════════════ -->
   {:else if currentView === 'menu' && matchingConfig}
