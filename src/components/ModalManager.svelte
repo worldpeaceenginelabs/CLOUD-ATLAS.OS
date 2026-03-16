@@ -65,18 +65,24 @@
       title={modal.id === 'model-details' ? '3D Model Details' : ''}
       maxWidth={modal.id === 'mission' ? '100%' : modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
       zIndex={modal.id === 'operator-agreement' ? 1001 : 1000}
-      showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
+      showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement' && modal.id !== 'mission-log'}
       closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       modalType={
         modal.id === 'mission'
-          ? 'missionmodal'
+          ? 'mission'
           : modal.id === 'layers-menu'
             ? 'overlay'
             : NOTIFICATION_MODALS.has(modal.id)
               ? 'notification'
               : 'default'
       }
-      customClass={modal.id === 'layers-menu' ? 'layers-menu-modal' : ''}
+      customClass={
+        modal.id === 'layers-menu'
+          ? 'layers-menu-modal'
+          : modal.id === 'mission-log'
+            ? 'missions'
+            : ''
+      }
       forwardInputs={NOTIFICATION_MODALS.has(modal.id)}
     >
       {#if modal.id === 'model-details' && modal.data?.model}

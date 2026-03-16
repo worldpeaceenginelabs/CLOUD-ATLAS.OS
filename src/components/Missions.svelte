@@ -40,6 +40,7 @@
     gap: 12px;
     padding: 16px;
     width: 100%;
+    max-width: 380px;
     min-width: 0;
     box-sizing: border-box;
   }
