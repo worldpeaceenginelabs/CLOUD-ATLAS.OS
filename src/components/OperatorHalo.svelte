@@ -5,6 +5,7 @@
   import type { OperatorHaloItem } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { GigVertical } from '../types';
+  import { modalService } from '../utils/modalService';
 
   export let screenX: number;
   export let screenY: number;
@@ -36,6 +37,10 @@
 
   function handleItemClick(item: OperatorHaloItem) {
     onSelect(item.id);
+  }
+
+  function handleLogClick() {
+    modalService.showMissionLog();
   }
 
   function toggleInfo(item: OperatorHaloItem, e: Event) {
@@ -92,6 +97,16 @@
     <!-- Decorative rings -->
     <div class="ring outer" class:expanded></div>
     <div class="ring inner" class:expanded></div>
+
+    <!-- LOG letters inside the orange inner ring -->
+    <button
+      class="halo-logo"
+      type="button"
+      on:click={handleLogClick}
+      aria-label="Open mission log"
+    >
+      <span class="halo-logo-text">NEXT</span>
+    </button>
 
     <!-- All items on a single ring -->
     {#each positions as { item, x, y }, i}
@@ -205,6 +220,49 @@
     width: 130px;
     height: 130px;
     border-color: rgba(255, 109, 0, 0.18);
+  }
+
+  /* ── LOG glass letters inside inner ring ── */
+  .halo-logo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .halo-logo-text {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 800;
+    font-size: 3.2rem;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    color: transparent;
+    background: linear-gradient(
+      90deg,
+      #ff6b6b,
+      #feca57,
+      #48dbfb,
+      #ff9ff3,
+      #ff6b6b
+    );
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: mission1-gradient 4s ease infinite;
+  }
+
+  @keyframes mission1-gradient {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
   }
 
   @keyframes breathe-outer {

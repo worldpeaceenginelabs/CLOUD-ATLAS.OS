@@ -27,6 +27,8 @@ export const modalService = {
   hideAbout:            ()                  => hideModal('about'),
   showMission: ()                  => showModal('mission'),
   hideMission: ()                  => hideModal('mission'),
+  showMissionLog: ()               => showModal('mission-log'),
+  hideMissionLog: ()               => hideModal('mission-log'),
   closeAllModals,
   closeTopModal,
   toggleModal,

@@ -12,6 +12,7 @@
   import OperatorAgreement from './OperatorAgreement.svelte';
   import About from './About.svelte';
   import Mission from './Mission.svelte';
+  import Missions from './Missions.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
@@ -130,6 +131,8 @@
         <p>Zoom in closer to pick a precise location.</p>
       {:else if modal.id === 'about'}
         <About />
+      {:else if modal.id === 'mission-log'}
+        <Missions />
       {:else if modal.id === 'mission'}
         <Mission />
       {:else if modal.id === 'operator-agreement'}

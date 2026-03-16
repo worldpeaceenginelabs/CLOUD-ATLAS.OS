@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { modalService } from '../utils/modalService';
-  import { missionTitleMain, missionTitleSub, missionBottom } from '../content/missionContent';
+  import { missionTitleMain, missionTitleSub } from '../content/missionContent';
 
-  export let speed = 80;
+  export let speed = 160;
   /** When set, ticker click calls this instead of opening the mission modal. */
   export let onTickerClick: (() => void) | undefined = undefined;
 
@@ -42,7 +42,7 @@
 >
   <div class="ticker-track" bind:this={trackEl}>
     <span class="ticker-item ticker-item--clickable">
-      {missionTitleMain} · {missionTitleSub} · {missionBottom}
+    CLICK ME · {missionTitleMain} · {missionTitleSub} · CLICK ME
     </span>
   </div>
 </button>

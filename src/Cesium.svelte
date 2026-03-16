@@ -70,9 +70,9 @@ import {
 	import { hasActiveGigSession } from './gig/gigRecovery';
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
-import OperatorHalo from './components/OperatorHalo.svelte';
-	import MissionLog from './components/MissionLog.svelte';
-import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, layerRefresh, gigHaloOrigin } from './store';
+  import OperatorHalo from './components/OperatorHalo.svelte';
+  import Ticker from './components/Ticker.svelte';
+  import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, layerRefresh, gigHaloOrigin } from './store';
 import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
@@ -88,9 +88,6 @@ let pointEntities: Entity[] = [];
 let userLocationEntity: Entity | null = null;
 let userRingEntities: Entity[] = [];
 let userLocationInitialized = false;
-
-// Mission log open state (for slot sizing)
-let missionLogOpen = false;
 
 // Operator Halo state
 let showOperatorHalo = false;
@@ -1291,8 +1288,8 @@ function handleCoordinatePick(result: any) {
       <polyline points="17 2 12 7 7 2"/>
     </svg>
   </button>
-  <div class="mission-log-slot" class:closed={!missionLogOpen}>
-    <MissionLog onOpenChange={(open) => (missionLogOpen = open)} />
+  <div class="mission-log-slot">
+    <Ticker />
   </div>
 
   <!-- Download button (top right, below Layers) -->
@@ -1529,16 +1526,11 @@ function handleCoordinatePick(result: any) {
 
   .mission-log-slot {
     position: absolute;
-    top: env(safe-area-inset-top, 0);
-    left: env(safe-area-inset-left, 0);
-    right: env(safe-area-inset-right, 0);
-    bottom: env(safe-area-inset-bottom, 0);
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: calc(10px + env(safe-area-inset-left, 0px));
+    right: calc(10px + env(safe-area-inset-right, 0px));
+    height: 40px;
     z-index: 999;
-  }
-
-  .mission-log-slot.closed {
-    height: auto;
-    bottom: auto;
   }
 
   /* Download button (top right, below Layers) */
