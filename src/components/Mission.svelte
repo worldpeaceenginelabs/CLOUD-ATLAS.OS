@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { missionTitleMain, missionTitleSub, missionBottom } from '../content/missionContent';
+  import { missionProgress } from '../utils/missionProgress';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen";
   const encoded = encodeURIComponent(shareText);
@@ -8,6 +9,7 @@
   let pageUrl = '';
 
   onMount(() => {
+    missionProgress.markMissionDetailSeen();
     pageUrl = encodeURIComponent(window.location.href);
   });
 

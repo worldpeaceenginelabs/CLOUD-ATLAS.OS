@@ -6,6 +6,7 @@
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { GigVertical } from '../types';
   import { modalService } from '../utils/modalService';
+  import { missionProgress } from '../utils/missionProgress';
 
   export let screenX: number;
   export let screenY: number;
@@ -105,7 +106,13 @@
       on:click={handleLogClick}
       aria-label="Open mission log"
     >
-      <span class="halo-logo-text">NEXT</span>
+      <span
+        class="halo-logo-text"
+        class:pulse={!$missionProgress.missionsSeen && !$missionProgress.missionDetailSeen}
+        class:greyed={$missionProgress.missionDetailSeen}
+      >
+        NEXT
+      </span>
     </button>
 
     <!-- All items on a single ring -->
@@ -258,6 +265,19 @@
     -webkit-background-clip: text;
     background-clip: text;
     animation: mission1-gradient 4s ease infinite;
+  }
+
+  .halo-logo-text.pulse {
+    animation: mission1-gradient 4s ease infinite, pulse 10s infinite;
+  }
+
+  .halo-logo-text.greyed {
+    animation: none;
+    background: none;
+    -webkit-background-clip: initial;
+    background-clip: initial;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.45);
   }
 
   @keyframes mission1-gradient {

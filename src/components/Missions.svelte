@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { modalService } from '../utils/modalService';
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
+  import { missionProgress } from '../utils/missionProgress';
 
   const SLOT_COUNT = 3;
   const slots = Array.from({ length: SLOT_COUNT }, (_, i) => ({
@@ -9,6 +11,10 @@
     title: i === 0 ? missionTitleMain : `Mission ${i + 1}`,
     subtitle: i === 0 ? missionTitleSub : 'Upcoming',
   }));
+
+  onMount(() => {
+    missionProgress.markMissionsSeen();
+  });
 
   function onSlotClick(slot: { active: boolean }) {
     if (slot.active) {
@@ -22,12 +28,17 @@
     <button
       type="button"
       class="mission-slot"
+      class:new-mission={slot.active && !$missionProgress.missionDetailSeen}
       class:greyed={!slot.active}
       disabled={!slot.active}
       on:click={() => onSlotClick(slot)}
     >
-      <span class="mission-slot-title animated-gradient">{slot.title}</span>
-      <span class="mission-slot-subtitle animated-gradient">{slot.subtitle}</span>
+      <span class="mission-slot-title animated-gradient">
+        {slot.title}
+      </span>
+      <span class="mission-slot-subtitle animated-gradient">
+        {slot.subtitle}
+      </span>
     </button>
   {/each}
 </div>
@@ -61,6 +72,10 @@
     transition: background 0.15s, border-color 0.15s, opacity 0.15s;
     text-align: center;
     font-family: inherit;
+  }
+
+  .mission-slot.new-mission {
+    border-color: #ffd700;
   }
 
   .mission-slot:not(.greyed):hover {
