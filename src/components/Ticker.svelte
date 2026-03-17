@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { onlineNowCount, seen24hCount } from '../stores/presenceStore';
 
   export let speed = 160;
 
@@ -35,7 +36,7 @@
 >
   <div class="ticker-track" bind:this={trackEl}>
     <span class="ticker-item ticker-item--gradient">
-    ALL SYSTEMS OPERATIONAL // OPERATORS REQUIRED // JUST HIT NEXT or LOG
+    ALL SYSTEMS OPERATIONAL // ONLINE NOW: {$onlineNowCount} // SEEN 24H: {$seen24hCount} // OPERATORS REQUIRED // JUST HIT NEXT or LOG
     </span>
   </div>
 </div>

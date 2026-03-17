@@ -115,7 +115,7 @@
     </p>
     <p class="animated-gradient">
       <span class="mission-bottom-heading">How do we see we won?</span>
-      We're adding a live user count for your region. Watch the number grow as a direct signal of your impact.
+      We're having a global live user count in the running status ticker. Watch the number grow as a direct signal of your impact.
     </p>
   </div>
 </div>
