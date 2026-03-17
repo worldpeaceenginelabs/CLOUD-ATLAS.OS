@@ -35,7 +35,7 @@
 >
   <div class="ticker-track" bind:this={trackEl}>
     <span class="ticker-item ticker-item--gradient">
-    ALL SYSTEMS OPERATIONAL // OPERATORS REQUIRED // HIT NEXT
+    ALL SYSTEMS OPERATIONAL // OPERATORS REQUIRED // JUST HIT NEXT or LOG
     </span>
   </div>
 </div>
