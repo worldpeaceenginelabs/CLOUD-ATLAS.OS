@@ -24,6 +24,10 @@ export let openHaloOnSelect: boolean = false;
   // Auto-fill from map clicks via coordinates store
   const unsubCoords = coordinates.subscribe(value => {
     if (value.latitude && value.longitude) {
+      const incomingKey = `${value.latitude}:${value.longitude}`;
+      const currentKey = (lat && lon) ? `${lat}:${lon}` : '';
+      if (incomingKey === currentKey) return;
+
       displayName = '';
       onLocationSelected(value.latitude, value.longitude);
       inputEl?.blur();
