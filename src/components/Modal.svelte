@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import CloseButton from './CloseButton.svelte';
+  import ModalTopHeader from './shared/ModalTopHeader.svelte';
   import { onEnter } from '../utils/keyboard';
 
   export let isVisible = false;
@@ -8,6 +9,8 @@
   export let title = '';
   export let maxWidth = '600px';
   export let showCloseButton = true;
+  export let showTopHeader = true;
+  export let topHeaderTransparent = false;
   export let zIndex = 1000;
   export let transitionDuration = 300;
   export let closeOnBackdropClick = true;
@@ -43,13 +46,11 @@
       transition:fade={{ duration: transitionDuration }}
     >
       <div class="modal-content" style="max-width: {maxWidth};">
-        {#if showCloseButton}
-          <CloseButton onClose={handleClose} onKeydown={handleKeyDown} />
-        {/if}
-        
-        {#if title}
-          <div class="modal-header">
-            <h2>{title}</h2>
+        {#if showTopHeader}
+          <ModalTopHeader {title} {showCloseButton} transparent={topHeaderTransparent} onClose={handleClose} onKeydown={handleKeyDown} />
+        {:else if showCloseButton}
+          <div class="modal-top-controls">
+            <CloseButton onClose={handleClose} onKeydown={handleKeyDown} />
           </div>
         {/if}
         
@@ -71,13 +72,11 @@
       on:keydown={(e) => onEnter(e, () => handleBackdropClick(e))}
     >
       <div class="modal-content" style="max-width: {maxWidth};" class:forward-inputs={forwardInputs}>
-        {#if showCloseButton}
-          <CloseButton onClose={handleClose} onKeydown={handleKeyDown} />
-        {/if}
-        
-        {#if title}
-          <div class="modal-header">
-            <h2>{title}</h2>
+        {#if showTopHeader}
+          <ModalTopHeader {title} {showCloseButton} transparent={topHeaderTransparent} onClose={handleClose} onKeydown={handleKeyDown} />
+        {:else if showCloseButton}
+          <div class="modal-top-controls">
+            <CloseButton onClose={handleClose} onKeydown={handleKeyDown} />
           </div>
         {/if}
         
@@ -150,8 +149,8 @@
   .modal.mission .modal-content {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: flex-start;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -160,17 +159,19 @@
     min-height: 100%;
     max-height: none;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
   .modal.mission .modal-body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 1.5rem;
     width: 100%;
-    height: 100%;
-    min-height: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     box-sizing: border-box;
   }
 
@@ -239,6 +240,19 @@
     position: relative;
   }
 
+  .modal-top-controls {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(10, 15, 25, 0.82);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    box-sizing: border-box;
+  }
+
   /* Missions modal (mission-log) – yellow border */
   .modal.missions .modal-content {
     background: transparent;
@@ -248,20 +262,6 @@
     backdrop-filter: none;
     width: auto;
     max-width: 420px;
-  }
-
-  .modal-header {
-    text-align: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .modal-header h2 {
-    color: white;
-    margin: 0;
-    font-size: 1.5em;
-    font-weight: 600;
   }
 
   .modal-body {

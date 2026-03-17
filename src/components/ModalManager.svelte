@@ -24,6 +24,16 @@
   const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
   const NOTIFICATION_MODALS = new Set(['zoom-required']);
 
+  const MODAL_TITLES: Record<string, string> = {
+    about: 'ABOUT',
+    simulation: 'SIMULATION',
+    mission: 'MISSION',
+    'mission-log': 'LOG',
+    omnipedia: 'OMNIPEDIA',
+    'mission-tv': 'MISSION TV',
+    'operator-agreement': 'OPERATOR AGREEMENT',
+  };
+
   function handleModelEdit(modelData: any) {
     modalService.hideModelDetails();
     modelEditorService.handleEditModel(modelData);
@@ -62,10 +72,12 @@
     <Modal
       isVisible={true}
       onClose={() => { if (modal.id === 'about') localStorage.setItem('welcomeMessageDismissed', 'true'); hideModal(modal.id); }}
-      title={modal.id === 'model-details' ? '3D Model Details' : ''}
+      title={MODAL_TITLES[modal.id] ?? ''}
       maxWidth={modal.id === 'mission' ? '100%' : modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
       zIndex={modal.id === 'operator-agreement' ? 1001 : 1000}
       showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement' && modal.id !== 'mission-log'}
+      showTopHeader={modal.id !== 'layers-menu'}
+      topHeaderTransparent={modal.id === 'mission-log'}
       closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       modalType={
         modal.id === 'mission'
