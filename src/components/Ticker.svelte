@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { missionTitleMain, missionTitleSub } from '../content/missionContent';
 
   export let speed = 160;
 
@@ -36,7 +35,7 @@
 >
   <div class="ticker-track" bind:this={trackEl}>
     <span class="ticker-item ticker-item--gradient">
-     {missionTitleMain} · {missionTitleSub}
+    ALL SYSTEMS OPERATIONAL // OPERATORS REQUIRED // HIT NEXT
     </span>
   </div>
 </div>
