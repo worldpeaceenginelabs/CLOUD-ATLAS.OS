@@ -79,8 +79,9 @@ import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
 	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
 	import { initPathDrawing, type PathDrawingHandle } from './utils/cesiumPathDrawing';
-	import { initGeohashGrid, type GeohashGridHandle } from './utils/cesiumGeohashGrid';
+	import { initGeohashGrid, initOnlineCellsOverlay, type GeohashGridHandle, type OnlineCellsHandle } from './utils/cesiumGeohashGrid';
 	import { loadCityLabels } from './utils/cesiumCityLabels';
+  import { onlineGeohash5Cells, showOnlineCellsOverlay } from './stores/presenceStore';
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
@@ -122,6 +123,9 @@ let cameraMonitor: CameraMonitorHandle;
 let roamingArea: RoamingAreaHandle;
 let pathDrawing: PathDrawingHandle;
 let geohashGrid: GeohashGridHandle | null = null;
+let onlineCells: OnlineCellsHandle | null = null;
+let unsubOnlineCells: (() => void) | null = null;
+let unsubShowOnlineCells: (() => void) | null = null;
 
 // Reactive roaming signals
 $: if ($roamingPaintSignal) roamingArea?.disableCamera();
@@ -765,6 +769,23 @@ function updatePreviewModelInScene(modelData: ModelData) {
 				complete: () => {
 					initialZoomComplete = true;
 					if (!geohashGrid) geohashGrid = initGeohashGrid(cesiumViewer);
+          if (!unsubShowOnlineCells) {
+            unsubShowOnlineCells = showOnlineCellsOverlay.subscribe((enabled) => {
+              if (!cesiumViewer) return;
+              if (enabled) {
+                if (!onlineCells) onlineCells = initOnlineCellsOverlay(cesiumViewer);
+                if (!unsubOnlineCells) {
+                  unsubOnlineCells = onlineGeohash5Cells.subscribe((cells) => {
+                    onlineCells?.setCells(cells);
+                  });
+                }
+              } else {
+                if (unsubOnlineCells) { unsubOnlineCells(); unsubOnlineCells = null; }
+                onlineCells?.cleanup();
+                onlineCells = null;
+              }
+            });
+          }
 				}
 			});
 		}
@@ -1228,6 +1249,9 @@ function handleCoordinatePick(result: any) {
 		roamingArea?.cleanup();
 		pathDrawing?.cleanup();
 		geohashGrid?.cleanup();
+    if (unsubOnlineCells) { unsubOnlineCells(); unsubOnlineCells = null; }
+    if (unsubShowOnlineCells) { unsubShowOnlineCells(); unsubShowOnlineCells = null; }
+    onlineCells?.cleanup();
 		destroyTouchTiltHandler();
 		stopSimulation();
 		simulationEngine.clearAll();

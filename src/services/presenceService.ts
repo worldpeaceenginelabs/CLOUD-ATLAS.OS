@@ -1,6 +1,10 @@
 import { getSharedNostr } from './nostrPool';
 import { REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent, type NostrService } from './nostrService';
-import { onlineNowCount, seen24hCount } from '../stores/presenceStore';
+import { onlineGeohash5Cells, onlineNowCount, seen24hCount } from '../stores/presenceStore';
+import { get } from 'svelte/store';
+import { encode as geohashEncode } from '../utils/geohash';
+import { currentGeohash, userLiveLocation } from '../store';
+import { GEOHASH_PRECISION_LISTING } from '../gig/constants';
 
 const D_PRESENCE = 'presence';
 const D_SEEN_24H = 'seen24h';
@@ -32,16 +36,36 @@ function getExpiration(event: NostrEvent): number | null {
 }
 
 function publishPresence(nostr: NostrService, dTag: string, ttlSecs: number): void {
+  let geohash5: string | null = null;
+  const loc = get(userLiveLocation);
+  if (loc) {
+    geohash5 = geohashEncode(loc.latitude, loc.longitude, 5);
+  } else {
+    const g = get(currentGeohash);
+    if (g && g.length >= 5) geohash5 = g.slice(0, 5);
+  }
+
+  const extraTags: string[][] = [['expiration', String(nowSecs() + ttlSecs)]];
+  if (geohash5) extraTags.push(['g', geohash5]);
+
   nostr.publishReplaceable(
     dTag,
-    [['expiration', String(nowSecs() + ttlSecs)]],
+    extraTags,
     '',
   );
 }
 
 function startOnlineNow(nostr: NostrService): { stop: () => void } {
   const subId = 'presence-online';
-  const lastByPubkey = new Map<string, number>(); // pubkey -> expiration
+  const lastByPubkey = new Map<string, { exp: number; g5: string | null }>(); // pubkey -> { expiration, geohash5 }
+
+  const publishCellSet = () => {
+    const cells = new Set<string>();
+    for (const v of lastByPubkey.values()) {
+      if (v.g5) cells.add(v.g5);
+    }
+    onlineGeohash5Cells.set(cells);
+  };
 
   const filter = {
     kinds: [REPLACEABLE_KIND],
@@ -55,20 +79,26 @@ function startOnlineNow(nostr: NostrService): { stop: () => void } {
     const exp = getExpiration(event);
     // If no expiration tag, ignore (this metric depends on TTL)
     if (!exp) return;
-    lastByPubkey.set(event.pubkey, exp);
+    const gTag = event.tags?.find((t) => t[0] === 'g')?.[1] ?? null;
+    const g5 = gTag && gTag.length >= 5 ? gTag.slice(0, 5) : null;
+    lastByPubkey.set(event.pubkey, { exp, g5 });
     onlineNowCount.set(lastByPubkey.size);
+    publishCellSet();
   });
 
   const pruneTimer = setInterval(() => {
     const now = nowSecs();
     let changed = false;
     for (const [pk, exp] of lastByPubkey.entries()) {
-      if (exp <= now) {
+      if (exp.exp <= now) {
         lastByPubkey.delete(pk);
         changed = true;
       }
     }
-    if (changed) onlineNowCount.set(lastByPubkey.size);
+    if (changed) {
+      onlineNowCount.set(lastByPubkey.size);
+      publishCellSet();
+    }
   }, ONLINE_PRUNE_INTERVAL_SECS * 1000);
 
   const pingTimer = setInterval(() => {
@@ -84,6 +114,7 @@ function startOnlineNow(nostr: NostrService): { stop: () => void } {
       clearInterval(pingTimer);
       nostr.unsubscribe(subId);
       onlineNowCount.set(0);
+      onlineGeohash5Cells.set(new Set());
     },
   };
 }

@@ -148,3 +148,56 @@ export function initGeohashGrid(viewer: Viewer): GeohashGridHandle {
 
   return { cleanup };
 }
+
+export interface OnlineCellsHandle {
+  setCells(cells: Set<string>): void;
+  cleanup(): void;
+}
+
+export function initOnlineCellsOverlay(viewer: Viewer): OnlineCellsHandle {
+  const dataSource = new Cesium.CustomDataSource('onlineCells');
+  viewer.dataSources.add(dataSource);
+
+  const fill = Cesium.Color.LIME.withAlpha(0.18);
+  const outline = Cesium.Color.LIME.withAlpha(0.7);
+
+  function setCells(cells: Set<string>) {
+    // Remove cells that are no longer present
+    for (const ent of dataSource.entities.values) {
+      const id = ent.id as string;
+      if (!cells.has(id)) dataSource.entities.remove(ent);
+    }
+
+    // Add any new cells
+    for (const geohash4 of cells) {
+      if (dataSource.entities.getById(geohash4)) continue;
+      const { lat, lon, latDelta, lonDelta } = decode(geohash4);
+      const w = lon - lonDelta / 2;
+      const s = lat - latDelta / 2;
+      const e = lon + lonDelta / 2;
+      const n = lat + latDelta / 2;
+
+      dataSource.entities.add({
+        id: geohash4,
+        polygon: {
+          hierarchy: Cesium.Cartesian3.fromDegreesArray([
+            w, s, e, s, e, n, w, n,
+          ]),
+          material: fill,
+          outline: true,
+          outlineColor: outline,
+          outlineWidth: 1,
+          perPositionHeight: true,
+          height: 0,
+        },
+      });
+    }
+  }
+
+  function cleanup() {
+    dataSource.entities.removeAll();
+    viewer.dataSources.remove(dataSource);
+  }
+
+  return { setCells, cleanup };
+}
