@@ -316,8 +316,9 @@ $: if (initialZoomComplete && !userLocationInitialized && $userLiveLocation && i
 $: if ($showOperatorHaloFromGig) {
 	showOperatorHaloFromGig.set(false);
 
-	// Recentre camera on the original halo origin, then reopen via unified workflow
+	// Recentre camera on the original halo origin (without zoom), then reopen via unified workflow
 	if (cesiumViewer) {
+		const currentHeight = cesiumViewer.camera.positionCartographic.height;
 		if ($gigHaloOrigin === 'picked-point') {
 			const centerEntity = cesiumViewer.entities.getById('pickedPoint');
 			const pos = centerEntity?.position?.getValue(JulianDate.now());
@@ -326,14 +327,21 @@ $: if ($showOperatorHaloFromGig) {
 				const lat = CesiumMath.toDegrees(carto.latitude);
 				const lon = CesiumMath.toDegrees(carto.longitude);
 				if (isValidLonLat(lat, lon)) {
-					flyToLocation.set({
-						lat,
-						lon,
-						options: {
-							openHalo: true,
-							haloOrigin: 'picked-point',
-							updateCoordinates: false,
-							createPickedMarker: false,
+					const seq = ++flySeq;
+					const options: LocationOptions = {
+						openHalo: true,
+						haloOrigin: 'picked-point',
+						updateCoordinates: false,
+						createPickedMarker: false,
+					};
+					cesiumViewer.camera.flyTo({
+						destination: Cartesian3.fromDegrees(lon, lat, currentHeight),
+						duration: 1.5,
+						complete: async () => {
+							if (!cesiumViewer || seq !== flySeq) return;
+							const clamped = await clampToSurface(lon, lat);
+							if (!cesiumViewer || seq !== flySeq) return;
+							applyPickedPoint(clamped, options);
 						},
 					});
 				}
@@ -341,14 +349,21 @@ $: if ($showOperatorHaloFromGig) {
 		} else {
 			const loc = $userLiveLocation;
 			if (loc && isValidLonLat(loc.latitude, loc.longitude)) {
-				flyToLocation.set({
-					lat: loc.latitude,
-					lon: loc.longitude,
-						options: {
-							openHalo: true,
-							haloOrigin: 'user-location',
-						updateCoordinates: false,
-						createPickedMarker: false,
+				const seq = ++flySeq;
+				const options: LocationOptions = {
+					openHalo: true,
+					haloOrigin: 'user-location',
+					updateCoordinates: false,
+					createPickedMarker: false,
+				};
+				cesiumViewer.camera.flyTo({
+					destination: Cartesian3.fromDegrees(loc.longitude, loc.latitude, currentHeight),
+					duration: 1.5,
+					complete: async () => {
+						if (!cesiumViewer || seq !== flySeq) return;
+						const clamped = await clampToSurface(loc.longitude, loc.latitude);
+						if (!cesiumViewer || seq !== flySeq) return;
+						applyPickedPoint(clamped, options);
 					},
 				});
 			}
