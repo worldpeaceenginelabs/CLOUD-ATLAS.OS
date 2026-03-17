@@ -43,10 +43,18 @@
   });
 
   function handleItemClick(item: OperatorHaloItem) {
+    if (!localStorage.getItem('operatorAgreementAccepted')) {
+      modalService.showOperatorAgreement();
+      return;
+    }
     onSelect(item.id);
   }
 
   function handleLogClick() {
+    if (!localStorage.getItem('welcomeMessageDismissed')) {
+      modalService.showAbout();
+      return;
+    }
     modalService.showMissionLog();
   }
 

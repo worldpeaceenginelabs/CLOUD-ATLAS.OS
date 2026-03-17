@@ -3,7 +3,7 @@
     <p class="tagline">Science fiction meets the real world.</p>
 
     <div style="text-align:center;">
-      <p>We've evolved <strong>Crowd Engineering</strong> into a revolutionary <strong>Social Network Application</strong></p>
+      <p>We've evolved <strong>Crowd Engineering, Crowd Governance,</strong> and <strong>Crowd Economics</strong> into a revolutionary purpose-driven <strong>Social Network Application — Free Forever.</strong></p>
 
       <iframe
         width="100%"
@@ -22,7 +22,7 @@
       </p>
       <p>
         "I used to complain about things in my city but never knew where to start. Cloud Atlas OS gave me a platform to turn frustration into collaboration. I
-        launched a local cleanup mission, got support from people I never met before, and now we're organizing monthly events. My friends saw the impact and
+        launched a local mission, got support from people I never met before, and now we're organizing monthly events. My friends saw the impact and
         created their own missions too—this platform made me believe change is possible again." — Daniel R., Community Starter, Cloud Atlas OS
       </p>
       <p class="accent">Turning ideas into action just got easier.</p>
@@ -41,7 +41,7 @@
         <strong>What is Cloud Atlas OS?</strong><br /><br />
 
         Cloud Atlas OS is a community-owned super-app where the entire gig economy lives under one roof — ridesharing, delivery, freelance, spontaneous
-        connections — with zero commissions. <strong><br>Keep 100% of what you earn.</strong> We'll teach you how to keep it, legally.<br /><br />
+        connections — with zero commissions. <strong>Free Forever<br>Keep 100% of what you earn.</strong> We'll teach you how to keep it, legally.<br /><br />
 
         <span class="accent">But that's just the beginning.</span><br /><br />
 

@@ -142,7 +142,7 @@
       {:else if modal.id === 'mission'}
         <Mission />
       {:else if modal.id === 'operator-agreement'}
-        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); if (!localStorage.getItem('welcomeMessageDismissed')) modalService.showAbout(); }} />
+        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); }} />
       {/if}
     </Modal>
   {/if}

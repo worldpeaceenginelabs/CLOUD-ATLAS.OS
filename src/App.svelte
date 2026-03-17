@@ -25,19 +25,9 @@
 
   let updateSimulationModel: ((modelData: any) => void) | undefined = undefined;
 
-  let hasCheckedWelcome = false;
-  $: if (!$showPicture && !hasCheckedWelcome) {
-    hasCheckedWelcome = true;
-    if (!localStorage.getItem('welcomeMessageDismissed')) {
-      modalService.showAbout();
-    }
-  }
-
   initListingLayers().catch(() => {});
 
   onMount(() => {
-    if (!localStorage.getItem('operatorAgreementAccepted')) modalService.showOperatorAgreement();
-    if (!localStorage.getItem('welcomeMessageDismissed')) modalService.showAbout();
   });
 
   onDestroy(() => {
