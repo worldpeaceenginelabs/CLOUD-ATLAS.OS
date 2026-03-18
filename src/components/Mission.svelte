@@ -5,7 +5,7 @@
   import { missionShareStreak } from '../utils/missionShareStreak';
   import { missionCountdown } from '../utils/missionCountdown';
 
-  const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen";
+  const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen https://zerodollar.app";
   const encoded = encodeURIComponent(shareText);
   let copied = false;
   let pageUrl = '';
