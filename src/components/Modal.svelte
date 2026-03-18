@@ -135,46 +135,6 @@
     pointer-events: none;
   }
 
-  /* Mission modal - full viewport with blur */
-  .modal.mission {
-    background: rgba(0, 0, 0, 0.35);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .modal.mission .modal-content {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    width: 100%;
-    height: 100%;
-    min-height: 100%;
-    max-height: none;
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  .modal.mission .modal-body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 1.5rem;
-    width: 100%;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
   /* Overlay modal - positioned overlay without full screen */
   .modal.overlay {
     position: fixed;
