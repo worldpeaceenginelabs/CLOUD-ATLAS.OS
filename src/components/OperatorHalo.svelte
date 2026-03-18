@@ -18,7 +18,6 @@
   let infoPanelText = '';
 
   const missionShareStreakStatus = missionShareStreak.status;
-  const missionShareStreakStore = missionShareStreak;
 
   let shouldPulseNext = false;
 
@@ -72,6 +71,13 @@
     return verticalIconSvg(item.id, size);
   }
 
+  function onItemKeydown(e: KeyboardEvent, item: OperatorHaloItem) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleItemClick(item);
+    }
+  }
+
   onMount(() => {
     requestAnimationFrame(() => {
       expanded = true;
@@ -97,16 +103,9 @@
   }
 
   $: {
-    const hasAtLeastOneStar = $missionShareStreakStore.stars >= 1;
-
     shouldPulseNext =
       !$missionProgress.missionCompleted &&
-      (
-        // Before any star is earned, always pulse while mission not completed
-        (!hasAtLeastOneStar && $missionShareStreakStatus === 'idle') ||
-        // After 24h reset when another star can be earned: available → pulse again
-        (hasAtLeastOneStar && $missionShareStreakStatus === 'available')
-      );
+      ($missionShareStreakStatus === 'idle' || $missionShareStreakStatus === 'available');
   }
 </script>
 
@@ -133,30 +132,31 @@
       on:click={handleLogClick}
       aria-label="Open mission log"
     >
-      <span
-        class="halo-logo-text"
-        class:pulse={shouldPulseNext}
-        class:greyed={$missionShareStreak.stars >= 1 || $missionProgress.missionCompleted}
-      >
-        {#if $missionShareStreak.stars >= 1 || $missionProgress.missionCompleted}
+      {#if shouldPulseNext}
+        <span class="halo-logo-text pulse">
+          NEXT
+        </span>
+      {:else}
+        <span class="halo-logo-text greyed">
           <span class="log-layout">
             <span class="log-letter log-left">L</span>
             <span class="log-letter log-center">O</span>
             <span class="log-letter log-right">G</span>
           </span>
-        {:else}
-          NEXT
-        {/if}
-      </span>
+        </span>
+      {/if}
     </button>
 
     <!-- All items on a single ring -->
     {#each positions as { item, x, y }, i}
-      <button
+      <div
         class="halo-item"
         class:expanded
         style="--tx: {x}px; --ty: {y}px; --delay: {i * 55 + 100}ms; --accent: {item.color}"
         on:click={() => handleItemClick(item)}
+        on:keydown={(e) => onItemKeydown(e, item)}
+        role="button"
+        tabindex="0"
       >
         <span class="item-icon" style="background: {item.color}18; color: {item.color}">
           {@html iconSvg(item, 20)}
@@ -165,6 +165,7 @@
               class="info-btn"
               class:active={infoPanelText === item.description}
               on:click={(e) => toggleInfo(item, e)}
+              type="button"
               aria-label="Show info for {item.name}"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -176,7 +177,7 @@
           {/if}
         </span>
         <span class="item-label">{item.name}</span>
-      </button>
+      </div>
     {/each}
   </div>
 
@@ -312,10 +313,6 @@
     background-clip: initial;
     -webkit-text-fill-color: rgba(255, 255, 255, 0.45);
     color: rgba(255, 255, 255, 0.45);
-  }
-
-  .halo-logo-text.greyed.pulse {
-    animation: pulse 10s infinite;
   }
 
   .log-layout {
