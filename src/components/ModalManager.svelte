@@ -151,7 +151,7 @@
       {:else if modal.id === 'about'}
         <About />
       {:else if modal.id === 'mission-log'}
-        <Missions />
+        <Missions onOpenMission={() => modalService.showMission()} />
       {:else if modal.id === 'mission'}
         <Mission />
       {:else if modal.id === 'operator-agreement'}

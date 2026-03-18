@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { modalService } from '../utils/modalService';
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
   import { missionProgress } from '../utils/missionProgress';
+
+  export let onOpenMission: () => void = () => {};
 
   const SLOT_COUNT = 3;
   const slots = Array.from({ length: SLOT_COUNT }, (_, i) => ({
@@ -14,7 +14,7 @@
 
   function onSlotClick(slot: { active: boolean }) {
     if (slot.active) {
-      modalService.showMission();
+      onOpenMission();
     }
   }
 </script>
