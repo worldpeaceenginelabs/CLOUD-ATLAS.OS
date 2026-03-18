@@ -130,7 +130,7 @@
   .modal.notification .modal-content {
     width: auto;
     max-width: 400px;
-    padding: 0;
+    padding: 8px 16px;
     text-align: center;
     pointer-events: none;
   }
@@ -294,12 +294,7 @@
   /* Responsive design */
   @media (max-width: 768px) {
     .modal-content {
-    width: 95%;
-    }
-
-    .modal.notification .modal-content {
-      width: 90%;
-      max-width: 350px;
+      width: 95%;
     }
   }
 
