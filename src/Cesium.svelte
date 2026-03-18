@@ -82,6 +82,7 @@ import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/
 	import { initGeohashGrid, initOnlineCellsOverlay, type GeohashGridHandle, type OnlineCellsHandle } from './utils/cesiumGeohashGrid';
 	import { loadCityLabels } from './utils/cesiumCityLabels';
   import { onlineGeohash5Cells, showOnlineCellsOverlay } from './stores/presenceStore';
+  import { missionCountdown } from './utils/missionCountdown';
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
@@ -116,6 +117,9 @@ let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 let operatorHaloResizeHandler: (() => void) | null = null;
 
 let flySeq = 0;
+
+const missionCountdownIsRunning = missionCountdown.isRunning;
+const missionCountdownLabel = missionCountdown.label;
 
 // Module handles (initialized in onMount)
 let userLocation: UserLocationHandle;
@@ -1327,6 +1331,13 @@ function handleCoordinatePick(result: any) {
       <polyline points="17 2 12 7 7 2"/>
     </svg>
   </button>
+  {#if $missionCountdownIsRunning}
+    <button class="mission-countdown-btn" title="Mission in progress">
+      <span class="mission-countdown-label">
+        {$missionCountdownLabel}
+      </span>
+    </button>
+  {/if}
   <div class="mission-log-slot">
     <Ticker />
   </div>
@@ -1562,6 +1573,45 @@ function handleCoordinatePick(result: any) {
 	  transform: translateY(-2px);
 	  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 	}
+
+  .mission-countdown-btn {
+    position: absolute;
+    top: calc(60px + env(safe-area-inset-top, 0px)); /* directly below MissionTV */
+    left: 10px;
+    z-index: 1000;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: white;
+    padding: 0;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .mission-countdown-label {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientBG 5s ease infinite;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 
   .mission-log-slot {
     position: absolute;

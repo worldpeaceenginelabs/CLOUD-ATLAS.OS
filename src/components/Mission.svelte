@@ -3,6 +3,7 @@
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
   import { missionProgress } from '../utils/missionProgress';
   import { missionShareStreak } from '../utils/missionShareStreak';
+  import { missionCountdown } from '../utils/missionCountdown';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen";
   const encoded = encodeURIComponent(shareText);
@@ -10,6 +11,8 @@
   let pageUrl = '';
 
   const missionShareStreakStatus = missionShareStreak.status;
+  const missionCountdownIsRunning = missionCountdown.isRunning;
+  const missionCountdownLabel = missionCountdown.label;
 
   onMount(() => {
     pageUrl = encodeURIComponent(window.location.href);
@@ -45,9 +48,11 @@
       return `Share in any way to earn star ${stars + 1} of 3. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
     }
 
-    const hours = missionShareStreak.hoursUntilNextStar();
+    if ($missionCountdownIsRunning) {
+      return `Next star available in ${$missionCountdownLabel}. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
+    }
 
-    return `Next star available in about ${hours} hour${hours === 1 ? '' : 's'}. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
+    return `Next star is ready. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
   })();
 
   function handleShareClick(name: string) {

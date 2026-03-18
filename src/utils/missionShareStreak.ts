@@ -59,15 +59,6 @@ function createMissionShareStreak() {
     return Date.now() - state.lastStarAt >= ONE_DAY_MS;
   }
 
-  function hoursUntilNextStar(): number {
-    const state = get(store);
-    if (state.stars >= 3 || !state.lastStarAt) return 0;
-    const elapsed = Date.now() - state.lastStarAt;
-    const remainingMs = ONE_DAY_MS - elapsed;
-    if (remainingMs <= 0) return 0;
-    return Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)));
-  }
-
   function earnStar(): void {
     if (!canEarnNextStar()) return;
 
@@ -99,7 +90,6 @@ function createMissionShareStreak() {
     subscribe: store.subscribe,
     earnStar,
     canEarnNextStar,
-    hoursUntilNextStar,
     reset,
   };
 }
