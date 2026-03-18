@@ -101,8 +101,8 @@
     height: 100dvh;
     max-height: 100vh;
     max-height: 100dvh;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
     background: transparent;
     backdrop-filter: none;
@@ -112,7 +112,7 @@
   .modal.default {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     background: rgba(0, 0, 0, 0.55);
   }
 
@@ -235,13 +235,9 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     border-radius: 15px;
     width: 90%;
-    max-height: calc(
-      100dvh
-      - (10px + env(safe-area-inset-top, 0px))
-      - (10px + env(safe-area-inset-bottom, 0px))
-    );
-    margin-top: calc(10px + env(safe-area-inset-top, 0px));
-    margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    max-height: 100%;
+    margin-top: 0;
+    margin-bottom: 0;
     overflow-y: auto;
     position: relative;
   }
