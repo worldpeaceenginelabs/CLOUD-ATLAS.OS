@@ -9,10 +9,10 @@
   } from '../utils/pwaInstall';
 
   const DESKTOP_EXE_URL =
-    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.2/Cloud.Atlas.OS_1.6.2_x64-setup.exe';
+    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.3/Cloud.Atlas.OS_1.6.2_x64-setup.exe';
 
   const PORTABLE_EXE_URL =
-    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.2/CloudAtlasOS_1.6.2_portable.exe';
+    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.3/CloudAtlasOS_1.6.2_portable.exe';
 
   async function handlePwaInstall() {
     await triggerInstall();
@@ -24,7 +24,7 @@
 </script>
 
 <div class="download-root">
-  <h3 class="title">Get Cloud Atlas OS<br>V1.6.2.stable</h3>
+  <h3 class="title">Get Cloud Atlas OS<br>1.6.3.stable</h3>
   <p class="subtitle">
     However you access Cloud Atlas OS — web, PWA, or Windows App — your device becomes your own CAOS server. No middlemen between you and your money.
   </p>
