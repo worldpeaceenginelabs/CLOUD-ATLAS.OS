@@ -40,7 +40,7 @@
 <style>
   .online-topbar {
     position: fixed;
-    top: calc(20px + env(safe-area-inset-top, 0px));
+    top: calc(10px + env(safe-area-inset-top, 0px));
     left: 50%;
     transform: translateX(-50%);
     z-index: 100;

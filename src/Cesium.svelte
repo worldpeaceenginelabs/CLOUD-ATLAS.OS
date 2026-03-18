@@ -1462,7 +1462,7 @@ function handleCoordinatePick(result: any) {
 	/* Spatial browser address bar (bottom left) – layout only; glass is on LocationPicker panels */
 	.addressbarcontainer {
 	  position: fixed;
-	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+	  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 	  left: 10px;
 	  z-index: 1000;
 	  max-width: 320px;
@@ -1501,7 +1501,7 @@ function handleCoordinatePick(result: any) {
   /* My Location button (bottom right) */
 	.my-location-btn {
 	  position: fixed;
-	  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+	  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 	  right: 10px;
 	  z-index: 1000;
 	  width: 40px;
@@ -1537,7 +1537,7 @@ function handleCoordinatePick(result: any) {
   /* MissionTV button (top left) */
 	.mission-tv-btn {
 	  position: absolute;
-	  top: calc(20px + env(safe-area-inset-top, 0px));
+	  top: calc(10px + env(safe-area-inset-top, 0px));
 	  left: 10px;
 	  z-index: 1000;
 	  width: 40px;
@@ -1605,7 +1605,7 @@ function handleCoordinatePick(result: any) {
   /* Layers button (top right) */
   .layers-menu-btn {
     position: absolute;
-    top: calc(20px + env(safe-area-inset-top, 0px));
+    top: calc(10px + env(safe-area-inset-top, 0px));
     right: 10px;
     z-index: 1000;
     min-width: 40px;

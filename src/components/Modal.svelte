@@ -112,7 +112,7 @@
   .modal.default {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     background: rgba(0, 0, 0, 0.55);
   }
 
@@ -200,7 +200,7 @@
   /* Layers menu: compact card under the top-right button */
   .modal.overlay.layers-menu-modal {
     position: fixed;
-    top: calc(20px + env(safe-area-inset-top, 0px) + 40px + 8px);
+    top: calc(10px + env(safe-area-inset-top, 0px) + 40px + 8px);
     right: 10px;
     left: auto;
     bottom: calc(5px + env(safe-area-inset-bottom, 0px));
@@ -235,7 +235,13 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     border-radius: 15px;
     width: 90%;
-    max-height: 90vh;
+    max-height: calc(
+      100dvh
+      - (10px + env(safe-area-inset-top, 0px))
+      - (10px + env(safe-area-inset-bottom, 0px))
+    );
+    margin-top: calc(10px + env(safe-area-inset-top, 0px));
+    margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     position: relative;
   }
