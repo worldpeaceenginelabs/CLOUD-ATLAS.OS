@@ -31,6 +31,7 @@
     'mission-log': 'LOG',
     omnipedia: 'OMNIPEDIA',
     'mission-tv': 'MISSION TV',
+    download: 'DOWNLOAD',
     'operator-agreement': 'OPERATOR AGREEMENT',
   };
 
