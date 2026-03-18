@@ -1483,7 +1483,7 @@ function handleCoordinatePick(result: any) {
   /* Operator Halo button (bottom right, above My Location) */
 	.operator-halo-btn {
 	  position: fixed;
-	  bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+	  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
 	  right: 10px;
 	  z-index: 1000;
 	  width: 40px;
@@ -1625,7 +1625,7 @@ function handleCoordinatePick(result: any) {
   /* Download button (top right, below Layers) */
   .download-btn {
     position: absolute;
-    top: calc(70px + env(safe-area-inset-top, 0px));
+    top: calc(60px + env(safe-area-inset-top, 0px));
     right: 10px;
     z-index: 1000;
     min-width: 40px;
