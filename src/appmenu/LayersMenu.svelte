@@ -278,7 +278,7 @@
           <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
-        <span class="item-text">What is Cloud Atlas OS?</span>
+        <span class="item-text">About</span>
       </div>
 
       <div
