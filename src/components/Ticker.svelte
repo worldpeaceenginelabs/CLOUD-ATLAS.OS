@@ -36,7 +36,7 @@
 >
   <div class="ticker-track" bind:this={trackEl}>
     <span class="ticker-item ticker-item--gradient">
-      ALL SYSTEMS OPERATIONAL // ONLINE: {$onlineNowCount} // 24H: {$seen24hCount} // OPERATORS REQUIRED // PRESS NEXT OR OPEN LOG
+      ALL SYSTEMS OPERATIONAL // ONLINE: {$onlineNowCount} // 24H: {$seen24hCount} // OPERATORS REQUIRED // PRESS NEXT OR OPEN LOG // ZERO FEES // FREE FOREVER
     </span>
   </div>
 </div>
