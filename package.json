@@ -27,6 +27,7 @@
     "vite-plugin-cesium": "^1.2.23"
   },
   "dependencies": {
+    "@tauri-apps/plugin-opener": "^2.5.3",
     "@types/three": "^0.180.0",
     "cesium": "^1.138.0",
     "nostr-tools": "^2.10.4",

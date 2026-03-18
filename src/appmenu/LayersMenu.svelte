@@ -9,6 +9,7 @@
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { ListingVertical } from '../types';
   import { modelEditorService } from '../utils/modelEditorService';
+  import { openExternal } from '../utils/openExternal';
   import {
     layerLoading,
     layerError,
@@ -56,14 +57,7 @@
   }
 
   function openLiveEdit() {
-    const newWindow = window.open(
-      'https://stackblitz.com/github/worldpeaceenginelabs/CLOUD-ATLAS-OS/tree/main?file=src/DAPPS/HomeScreen.svelte:L294',
-      '_blank',
-      `width=${window.screen.width},height=${window.screen.height}`
-    );
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      alert('The popup was blocked. Please disable your popup blocker for this site to continue.');
-    }
+    void openExternal('https://stackblitz.com/github/worldpeaceenginelabs/CLOUD-ATLAS-OS/tree/main?file=src/DAPPS/HomeScreen.svelte:L294');
   }
 
   function handleTilesCardClick() {
@@ -147,7 +141,11 @@
       {#if ionKeyExpanded}
         <div class="ion-panel-inline" transition:slide={{ duration: 200 }}>
           <p class="ion-hint">
-            Get a free key at <a href="https://ion.cesium.com" target="_blank" rel="noopener">ion.cesium.com</a> to unlock Google Photorealistic 3D Tiles.
+            Get a free key at
+            <a href="https://ion.cesium.com" rel="noopener" on:click|preventDefault={() => openExternal('https://ion.cesium.com')}>
+              ion.cesium.com
+            </a>
+            to unlock Google Photorealistic 3D Tiles.
           </p>
           <div class="ion-key-row">
             {#if showIonKey}
@@ -296,22 +294,26 @@
       </div>
 
       <div class="utility-links">
-        <a href="https://worldpeaceenginelabs.org/" target="_blank" rel="noopener">
+        <a href="https://worldpeaceenginelabs.org/" rel="noopener" on:click|preventDefault={() => openExternal('https://worldpeaceenginelabs.org/')}>
           <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
         </a>
-        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" target="_blank" rel="noopener">
+        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS')}>
           <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
         </a>
-        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions" target="_blank" rel="noopener">
+        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions')}>
           <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on GitHub" height="30" width="30">
         </a>
-        <a href="https://twitter.com/cloudatlasos" target="_blank" rel="noopener">
+        <a href="https://twitter.com/cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://twitter.com/cloudatlasos')}>
           <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
         </a>
-        <a href="https://www.youtube.com/@cloudatlasos" target="_blank" rel="noopener">
+        <a href="https://www.youtube.com/@cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://www.youtube.com/@cloudatlasos')}>
           <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
         </a>
-        <a href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp" target="_blank" rel="noopener">
+        <a
+          href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp"
+          rel="noopener"
+          on:click|preventDefault={() => openExternal('https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp')}
+        >
           <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
         </a>
       </div>

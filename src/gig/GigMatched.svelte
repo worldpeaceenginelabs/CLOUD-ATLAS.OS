@@ -4,6 +4,7 @@
   import { ensureProtocol, formatLatLon } from '../utils/urlUtils';
   import { reverse, formatShortAddress } from '../services/nominatimService';
   import GlassmorphismButton from '../components/GlassmorphismButton.svelte';
+  import { openExternal } from '../utils/openExternal';
 
   export let config: MatchingVerticalConfig;
   export let onDone: () => void;
@@ -64,14 +65,14 @@
     const raw = providerDetails.phone ?? '';
     const phone = String(raw).replace(/\s/g, '').trim();
     if (!phone) return;
-    window.open(`tel:${phone}`);
+    void openExternal(`tel:${phone}`);
   }
 
   function openMessenger() {
     const raw = providerDetails.messenger ?? '';
     const url = ensureProtocol(String(raw).trim());
     if (!url) return;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    void openExternal(url);
   }
 </script>
 
@@ -153,8 +154,8 @@
         <a
           class="copy-btn"
           href={`https://www.google.com/maps/search/?api=1&query=${pickup.latitude},${pickup.longitude}`}
-          target="_blank"
           rel="noopener noreferrer"
+          on:click|preventDefault={() => openExternal(`https://www.google.com/maps/search/?api=1&query=${pickup.latitude},${pickup.longitude}`)}
         >
           Open
         </a>
@@ -181,8 +182,8 @@
         <a
           class="copy-btn"
           href={`https://www.google.com/maps/search/?api=1&query=${drop.latitude},${drop.longitude}`}
-          target="_blank"
           rel="noopener noreferrer"
+          on:click|preventDefault={() => openExternal(`https://www.google.com/maps/search/?api=1&query=${drop.latitude},${drop.longitude}`)}
         >
           Open
         </a>

@@ -7,6 +7,7 @@
     installInstructions,
     triggerInstall,
   } from '../utils/pwaInstall';
+  import { openExternal } from '../utils/openExternal';
 
   const DESKTOP_EXE_URL =
     'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.3/Cloud.Atlas.OS_1.6.3_x64-setup.exe';
@@ -19,7 +20,7 @@
   }
 
   function openDesktopExe() {
-    window.open(DESKTOP_EXE_URL, '_blank', 'noopener,noreferrer');
+    void openExternal(DESKTOP_EXE_URL);
   }
 </script>
 
@@ -77,7 +78,12 @@
         
         <p class="hint">
           Portable version available:
-          <a href={PORTABLE_EXE_URL} target="_blank" rel="noopener noreferrer" class="portable-link">
+          <a
+            href={PORTABLE_EXE_URL}
+            rel="noopener noreferrer"
+            class="portable-link"
+            on:click|preventDefault={() => openExternal(PORTABLE_EXE_URL)}
+          >
             Download
           </a>
         </p>

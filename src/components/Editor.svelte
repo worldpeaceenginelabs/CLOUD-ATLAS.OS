@@ -3,6 +3,7 @@
   import ModelSettings from './ModelSettings.svelte';
   import { roamingAreaBounds, coordinates, isEditorOpen } from '../store';
   import { onEnter } from '../utils/keyboard';
+  import { openExternal } from '../utils/openExternal';
   import {
     modelEditorService,
     formSelectedSource,
@@ -74,12 +75,7 @@
   }
 
   function openPlayCanvas() {
-    const w = window.open(
-      'https://playcanvas.com/editor',
-      'playcanvas-editor',
-      'width=1200,height=800,resizable=yes,scrollbars=yes'
-    );
-    if (w) w.focus();
+    void openExternal('https://playcanvas.com/editor');
   }
   
   function handleSave() {

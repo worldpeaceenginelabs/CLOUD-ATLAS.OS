@@ -5,6 +5,7 @@
   import { getCategoryName } from './categoryUtils';
   import { ensureProtocol, firstMatchingByPattern } from '../utils/urlUtils';
   import { takeDownListing } from './listingActions';
+  import { openExternal } from '../utils/openExternal';
 
   export let listing: Listing;
   export let vertical: ListingVertical;
@@ -37,7 +38,7 @@
   $: showInstallLink = !!selectedContactApp?.installHint && !!selectedContactApp?.installUrl;
 
   function openContact() {
-    window.open(ensureProtocol(listing.contact), '_blank', 'noopener');
+    void openExternal(ensureProtocol(listing.contact));
   }
 
   async function takeDown() {
@@ -97,8 +98,8 @@
         <a
           class="secondary-link"
           href={selectedContactApp?.installUrl}
-          target="_blank"
           rel="noopener"
+          on:click|preventDefault={() => selectedContactApp?.installUrl && openExternal(selectedContactApp.installUrl)}
         >
           {selectedContactApp?.installHint}
         </a>

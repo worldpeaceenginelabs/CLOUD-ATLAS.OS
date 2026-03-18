@@ -4,6 +4,7 @@
   import { missionProgress } from '../utils/missionProgress';
   import { missionShareStreak } from '../utils/missionShareStreak';
   import { missionCountdown } from '../utils/missionCountdown';
+  import { openExternal } from '../utils/openExternal';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen https://zerodollar.app";
   const encoded = encodeURIComponent(shareText);
@@ -91,9 +92,11 @@
         <a
           class="share-btn"
           href={href}
-          target="_blank"
           rel="noopener noreferrer"
-          on:click={() => handleShareClick(name)}
+          on:click|preventDefault={() => {
+            handleShareClick(name);
+            openExternal(href);
+          }}
         >
           {name}
         </a>
