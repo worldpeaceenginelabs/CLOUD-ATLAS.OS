@@ -9,10 +9,10 @@
   } from '../utils/pwaInstall';
 
   const DESKTOP_EXE_URL =
-    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.3/Cloud.Atlas.OS_1.6.2_x64-setup.exe';
+    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.3/Cloud.Atlas.OS_1.6.3_x64-setup.exe';
 
   const PORTABLE_EXE_URL =
-    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.3/CloudAtlasOS_1.6.2_portable.exe';
+    'https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/releases/download/V1.6.3/CloudAtlasOS_1.6.3_portable.exe';
 
   async function handlePwaInstall() {
     await triggerInstall();
