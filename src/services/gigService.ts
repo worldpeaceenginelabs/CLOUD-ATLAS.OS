@@ -507,6 +507,7 @@ export class GigService {
         if (request.status === 'taken' || request.status === 'cancelled') {
           if (request.status === 'taken' && request.matchedProviderPubkey === this.pubkey) {
             this.hasMatch = true;
+            this.clearHeartbeat();
             this.clearExpandTimers();
           }
           this.knownRequests.delete(request.id);
