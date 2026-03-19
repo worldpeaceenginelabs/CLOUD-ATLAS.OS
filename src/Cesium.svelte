@@ -67,7 +67,6 @@ import {
 		isValidLonLat,
 	} from './utils/cesiumHelpers';
 	import { setupTouchTiltHandler, destroyTouchTiltHandler } from './utils/touchTiltHandler';
-	import { hasActiveGigSession } from './gig/gigRecovery';
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
   import OperatorHalo from './components/OperatorHalo.svelte';
@@ -1036,10 +1035,6 @@ function updatePreviewModelInScene(modelData: ModelData) {
 		});
 	  
   
-	  hasActiveGigSession()
-	    .then(active => { if (active) modalService.showGigEconomy(); })
-	    .catch(() => {});
-
 	  if (modelDataSource) cesiumViewer.dataSources.add(modelDataSource);
 
 	  // Set up event handlers for user interactions
