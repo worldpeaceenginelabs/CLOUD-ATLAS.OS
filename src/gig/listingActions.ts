@@ -9,6 +9,7 @@
 import type { Listing } from '../types';
 import { getSharedNostr } from '../services/nostrPool';
 import { publishVerifiedReplaceable } from '../services/relayOrchestrator';
+import { logger } from '../utils/logger';
 
 const LISTING_TTL_SECS = 7 * 24 * 60 * 60;
 
@@ -38,6 +39,12 @@ export async function takeDownListing(
     verifyTTags: ['DELETE'],
     minRelaysAfterSettle: 1,
     retries: 2,
+    onMetrics: (meta) => {
+      logger.info(
+        `relay-metrics publish delete status=${meta.status} outcome=${meta.outcome} verified=${meta.verified} connected=${meta.connectedAtStart} eose=${meta.eoseReceived} retries=${meta.retriesUsed} timedOut=${meta.timedOut}`,
+        { component: 'listingActions', operation: 'takeDownListing' },
+      );
+    },
   });
 
   if (result.outcome !== 'verified_synced' && result.outcome !== 'verified_partial') {

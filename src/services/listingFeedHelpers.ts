@@ -7,6 +7,7 @@ import { type NostrService, type NostrEvent } from './nostrService';
 import type { Listing, ListingVertical } from '../types';
 import { LISTING_MAX_AGE_SECS, PAGE_SIZE } from './listingConstants';
 import { buildReplaceableFilter, runReliableSnapshot } from './relayOrchestrator';
+import { logger } from '../utils/logger';
 
 /** Parse a Nostr event into a Listing; optionally set vertical from #t tag or a fixed vertical. Returns null if malformed or verticalFromTag rejects. */
 export function parseListingEvent(
@@ -69,13 +70,19 @@ export function runListingSubscription(
   nostr: NostrService,
   filter: Record<string, unknown>,
   onEvent: (event: NostrEvent) => void,
-  opts: { subIdPrefix: string }
+  opts: { subIdPrefix: string; metricName?: string }
 ): Promise<boolean> {
   return runReliableSnapshot(nostr, {
     filter,
     subIdPrefix: opts.subIdPrefix,
     minRelaysAfterSettle: 1,
     retries: 2,
+    onMetrics: (meta) => {
+      logger.info(
+        `relay-metrics snapshot ${opts.metricName ?? opts.subIdPrefix} status=${meta.status} connected=${meta.connectedAtStart} eose=${meta.eoseReceived} retries=${meta.retriesUsed} timedOut=${meta.timedOut}`,
+        { component: 'listingFeedHelpers', operation: 'runListingSubscription' },
+      );
+    },
     onEvent,
   }).then((result) => result.status === 'synced');
 }
@@ -122,7 +129,7 @@ export async function fetchNewer(
     if (event.created_at > newestCreatedAt) newestCreatedAt = event.created_at;
     const listing = parseListingEvent(event, opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined);
     if (listing) listings.push(listing);
-  }, { subIdPrefix: 'global-newer' });
+  }, { subIdPrefix: 'global-newer', metricName: 'global-newer' });
   return {
     listings,
     newest: newestCreatedAt === 0 ? null : newestCreatedAt,
@@ -157,7 +164,7 @@ export async function fetchOlder(
     if (event.created_at < oldestCreatedAt) oldestCreatedAt = event.created_at;
     const listing = parseListingEvent(event, opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined);
     if (listing) listings.push(listing);
-  }, { subIdPrefix: 'global-older' });
+  }, { subIdPrefix: 'global-older', metricName: 'global-older' });
   return {
     listings,
     oldest: oldestCreatedAt === Infinity ? null : oldestCreatedAt,

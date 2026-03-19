@@ -93,6 +93,12 @@ export class ListingService {
       verifyTTags: [this.listingTag],
       minRelaysAfterSettle: 1,
       retries: 2,
+      onMetrics: (meta) => {
+        logger.info(
+          `relay-metrics publish listing=${this.listingTag} status=${meta.status} outcome=${meta.outcome} verified=${meta.verified} connected=${meta.connectedAtStart} eose=${meta.eoseReceived} retries=${meta.retriesUsed} timedOut=${meta.timedOut}`,
+          { component: 'ListingService', operation: 'publishListing' },
+        );
+      },
     });
 
     logger.info(`Listing published (${this.listingTag}: ${listing.category})`, {

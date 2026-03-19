@@ -9,6 +9,7 @@ import { NostrService } from './nostrService';
 import { getKeypair } from './keyManager';
 
 let instance: NostrService | null = null;
+let instancePromise: Promise<NostrService> | null = null;
 
 /**
  * Get the shared NostrService instance.
@@ -16,9 +17,20 @@ let instance: NostrService | null = null;
  */
 export async function getSharedNostr(): Promise<NostrService> {
   if (instance) return instance;
+  if (instancePromise) return instancePromise;
 
-  const { sk } = await getKeypair();
-  instance = new NostrService(sk);
-  instance.connectInBackground();
-  return instance;
+  instancePromise = (async () => {
+    try {
+      const { sk } = await getKeypair();
+      const created = new NostrService(sk);
+      created.connectInBackground();
+      instance = created;
+      return created;
+    } finally {
+      // Keep singleton in `instance`; clear in-flight lock for future attempts.
+      instancePromise = null;
+    }
+  })();
+
+  return instancePromise;
 }

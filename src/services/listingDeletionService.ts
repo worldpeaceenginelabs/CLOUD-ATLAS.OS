@@ -11,6 +11,7 @@ import { idb } from '../idb';
 import { applyDeletionsToLayerListings } from '../store';
 import { LISTING_MAX_AGE_SECS } from './listingConstants';
 import { buildReplaceableFilter, runReliableSnapshot } from './relayOrchestrator';
+import { logger } from '../utils/logger';
 
 /**
  * Fetch new DELETE events from the relay. Uses lastDeleteFetchSince so we only
@@ -27,6 +28,12 @@ export async function fetchDeletions(nostr: NostrService): Promise<Set<string>> 
     subIdPrefix: 'del',
     minRelaysAfterSettle: 1,
     retries: 2,
+    onMetrics: (meta) => {
+      logger.info(
+        `relay-metrics snapshot delete status=${meta.status} connected=${meta.connectedAtStart} eose=${meta.eoseReceived} retries=${meta.retriesUsed} timedOut=${meta.timedOut}`,
+        { component: 'listingDeletionService', operation: 'fetchDeletions' },
+      );
+    },
     onEvent: (event: NostrEvent) => {
       const dTag = event.tags?.find((t) => t[0] === 'd')?.[1];
       if (dTag && event.pubkey) {

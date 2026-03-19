@@ -6,6 +6,7 @@ import { encode as geohashEncode } from '../utils/geohash';
 import { currentGeohash, userLiveLocation } from '../store';
 import { GEOHASH_PRECISION_LISTING } from '../gig/constants';
 import { buildReplaceableFilter, runReliableSnapshot, publishReplaceable, openStream, type RelayStreamHandle } from './relayOrchestrator';
+import { logger } from '../utils/logger';
 
 const D_PRESENCE = 'presence';
 const D_SEEN_24H = 'seen24h';
@@ -135,6 +136,12 @@ async function runSeen24hSnapshot(nostr: NostrService): Promise<void> {
     subIdPrefix: 'presence-seen24h',
     minRelaysAfterSettle: 1,
     retries: 1,
+    onMetrics: (meta) => {
+      logger.info(
+        `relay-metrics snapshot presence-seen24h status=${meta.status} connected=${meta.connectedAtStart} eose=${meta.eoseReceived} retries=${meta.retriesUsed} timedOut=${meta.timedOut}`,
+        { component: 'presenceService', operation: 'runSeen24hSnapshot' },
+      );
+    },
     onEvent: (event: NostrEvent) => {
       if (event.pubkey) unique.add(event.pubkey);
     },
