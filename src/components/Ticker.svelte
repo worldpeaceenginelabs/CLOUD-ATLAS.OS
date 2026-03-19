@@ -7,6 +7,11 @@
   let stripEl: HTMLDivElement | null = null;
   let trackEl: HTMLDivElement | null = null;
   let resizeHandler: (() => void) | null = null;
+  $: tickerMessages = [
+    `LIVE: ${$onlineNowCount} // LAST 24H: ${$seen24hCount}`,
+    'ANYMATCH ACTIVE // MATCH ANYTHING // RIDES • DELIVERY • FREELANCE • SOCIAL',
+    'ZERO COMMISSION // ZERO FEES // FREE FOREVER'
+  ];
 
   function setDuration() {
     if (!stripEl) return;
@@ -35,9 +40,9 @@
   aria-hidden="true"
 >
   <div class="ticker-track" bind:this={trackEl}>
-    <span class="ticker-item ticker-item--gradient">
-      ONLINE: {$onlineNowCount} // 24H: {$seen24hCount} // OPERATORS REQUIRED // PRESS NEXT OR LOG //// ANYMATCH ACTIVE // MATCH ANYTHING // RIDES • DELIVERY • FREELANCE • SOCIAL // ZERO COMMISSION // ZERO FEES // FREE FOREVER
-    </span>
+    {#each tickerMessages as message}
+      <span class="ticker-item ticker-item--gradient">{message}</span>
+    {/each}
   </div>
 </div>
 
