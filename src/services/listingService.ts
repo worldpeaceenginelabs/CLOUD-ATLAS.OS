@@ -17,6 +17,7 @@
 import { type NostrService } from './nostrService';
 import { logger } from '../utils/logger';
 import type { Listing } from '../types';
+import { onRelayStatus, publishVerifiedReplaceable, type RelayPublishOutcome } from './relayOrchestrator';
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -43,6 +44,11 @@ const buildTags = (listingTag: string, geohash?: string): string[][] => {
 export interface ListingCallbacks {
   /** Relay connection count changed. */
   onRelayStatus: (connected: number, total: number) => void;
+}
+
+export interface ListingPublishResult {
+  outcome: RelayPublishOutcome;
+  verified: boolean;
 }
 
 // ─── Service ─────────────────────────────────────────────────
@@ -72,24 +78,28 @@ export class ListingService {
    * Publish a listing with 7-day TTL.
    * Uses a stable d-tag so re-publishing replaces the previous listing.
    */
-  publishListing(listing: Listing): void {
-    this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
+  async publishListing(listing: Listing): Promise<ListingPublishResult> {
+    onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
 
     const tags = buildTags(this.listingTag, listing.geohash);
 
     // Add category tag for filtering
     tags.push(['c', listing.category]);
 
-    this.nostr.publishReplaceable(
-      listing.id,
-      tags,
-      JSON.stringify(listing),
-    );
+    const result = await publishVerifiedReplaceable(this.nostr, {
+      dTag: listing.id,
+      extraTags: tags,
+      content: JSON.stringify(listing),
+      verifyTTags: [this.listingTag],
+      minRelaysAfterSettle: 1,
+      retries: 2,
+    });
 
     logger.info(`Listing published (${this.listingTag}: ${listing.category})`, {
       component: 'ListingService',
       operation: 'publishListing',
     });
+    return { outcome: result.outcome, verified: result.verified };
   }
 
   /** Clean up. Shared NostrService connections remain open. */

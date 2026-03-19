@@ -30,11 +30,20 @@
  *   so events from different verticals never interfere.
  */
 
-import { type NostrService, REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent } from './nostrService';
+import { type NostrService, type NostrEvent } from './nostrService';
 import { logger } from '../utils/logger';
 import type { GigRequest, GigVertical } from '../types';
 import { REQUEST_TTL_SECS, EXPAND_WHEN_EMPTY_SECS, EXPAND_WHEN_NO_MATCH_SECS } from '../gig/constants';
 import { cells3x3, cells4x4, cellsInG5 } from '../utils/geohash';
+import {
+  onRelayStatus,
+  buildReplaceableFilter,
+  publishReplaceable,
+  sendDm,
+  openStream,
+  openDmStream,
+  type RelayStreamHandle,
+} from './relayOrchestrator';
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -93,6 +102,11 @@ export class GigService {
   private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private dmSubId: string | null = null;
+  private selfRequestStream: RelayStreamHandle | null = null;
+  private selfAvailStream: RelayStreamHandle | null = null;
+  private needRequestsStream: RelayStreamHandle | null = null;
+  private providerAvailStream: RelayStreamHandle | null = null;
+  private dmStream: RelayStreamHandle | null = null;
 
   // Expand subscription based on visibility / match status (1 → 9 → 16 → 32 cells)
   private expandEmptyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -131,21 +145,25 @@ export class GigService {
     this.myGeohash = geohash;
     this.hasMatch = false;
 
-    this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
+    onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
 
-    this.nostr.publishReplaceable(request.id, buildTags(geohash, this.needTag), JSON.stringify(request));
+    publishReplaceable(this.nostr, request.id, buildTags(geohash, this.needTag), JSON.stringify(request));
     this.scheduleHeartbeat(freshExpiration());
 
     // Self-subscribe to own request — relay echo drives heartbeat timing
-    this.nostr.subscribe('self-request', {
-      kinds: [REPLACEABLE_KIND],
-      authors: [this.nostr.pubkey],
-      '#d': [request.id],
-      '#L': [RELAY_LABEL],
-    }, (event: NostrEvent) => this.handleOwnEvent(event));
+    this.selfRequestStream?.close();
+    this.selfRequestStream = openStream(this.nostr, {
+      id: 'self-request',
+      filter: buildReplaceableFilter({
+        authors: [this.nostr.pubkey],
+        dTags: [request.id],
+      }),
+      onEvent: (event: NostrEvent) => this.handleOwnEvent(event),
+    });
 
     // Subscribe to incoming accept DMs
-    this.dmSubId = this.nostr.subscribeDMs(REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
+    this.dmStream?.close();
+    this.dmStream = openDmStream(this.nostr, REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
       const dm = payload as AcceptDM;
       if (dm?.type === 'accept' && dm.requestId === this.myRequest?.id) {
         // A provider explicitly wants to match with us
@@ -154,18 +172,22 @@ export class GigService {
         this.callbacks.onProviderAccepted(fromPubkey, dm.requestId, dm.details);
       }
     });
+    this.dmSubId = this.dmStream.id;
 
     this.sinceAtStart = Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS;
     this.expandLevel = 0;
 
     // Subscribe to provider availability events to show count
-    this.nostr.subscribe('provider-avail', {
-      kinds: [REPLACEABLE_KIND],
-      '#g': [geohash],
-      '#t': [this.offerTag],
-      '#L': [RELAY_LABEL],
-      since: this.sinceAtStart,
-    }, (event: NostrEvent) => this.handleProviderAvailEvent(event));
+    this.providerAvailStream?.close();
+    this.providerAvailStream = openStream(this.nostr, {
+      id: 'provider-avail',
+      filter: buildReplaceableFilter({
+        gTags: [geohash],
+        tTags: [this.offerTag],
+        since: this.sinceAtStart,
+      }),
+      onEvent: (event: NostrEvent) => this.handleProviderAvailEvent(event),
+    });
 
     this.scheduleExpandTimers();
     logger.info(`Requester started in cell ${geohash} [${this.needTag}]`, { component: 'GigService', operation: 'startAsRequester' });
@@ -185,7 +207,7 @@ export class GigService {
       matchedProviderPubkey: providerPubkey,
     };
 
-    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
+    publishReplaceable(this.nostr, request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
 
     logger.info(`Match confirmed with provider ${providerPubkey.slice(0, 8)}`, { component: 'GigService', operation: 'confirmMatch' });
   }
@@ -201,7 +223,7 @@ export class GigService {
       matchedProviderPubkey: null,
     };
 
-    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
+    publishReplaceable(this.nostr, request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
 
     logger.info('Request cancelled', { component: 'GigService', operation: 'cancelRequest' });
   }
@@ -223,9 +245,10 @@ export class GigService {
     this.myProviderDetails = details;
     this.hasMatch = false;
 
-    this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
+    onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
 
-    this.nostr.publishReplaceable(
+    publishReplaceable(
+      this.nostr,
       this.offerTag,
       buildTags(geohash, this.offerTag),
       JSON.stringify({ location, details }),
@@ -233,24 +256,30 @@ export class GigService {
     this.scheduleHeartbeat(freshExpiration());
 
     // Self-subscribe to own availability event
-    this.nostr.subscribe('self-avail', {
-      kinds: [REPLACEABLE_KIND],
-      authors: [this.nostr.pubkey],
-      '#d': [this.offerTag],
-      '#L': [RELAY_LABEL],
-    }, (event: NostrEvent) => this.handleOwnEvent(event));
+    this.selfAvailStream?.close();
+    this.selfAvailStream = openStream(this.nostr, {
+      id: 'self-avail',
+      filter: buildReplaceableFilter({
+        authors: [this.nostr.pubkey],
+        dTags: [this.offerTag],
+      }),
+      onEvent: (event: NostrEvent) => this.handleOwnEvent(event),
+    });
 
     this.sinceAtStart = Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS;
     this.expandLevel = 0;
 
     // Subscribe to requests in this cell
-    this.nostr.subscribe('need-requests', {
-      kinds: [REPLACEABLE_KIND],
-      '#g': [geohash],
-      '#t': [this.needTag],
-      '#L': [RELAY_LABEL],
-      since: this.sinceAtStart,
-    }, (event: NostrEvent) => this.handleRequestEvent(event));
+    this.needRequestsStream?.close();
+    this.needRequestsStream = openStream(this.nostr, {
+      id: 'need-requests',
+      filter: buildReplaceableFilter({
+        gTags: [geohash],
+        tTags: [this.needTag],
+        since: this.sinceAtStart,
+      }),
+      onEvent: (event: NostrEvent) => this.handleRequestEvent(event),
+    });
 
     this.scheduleExpandTimers();
     logger.info(`Provider started in cell ${geohash} [${this.offerTag}]`, { component: 'GigService', operation: 'startAsProvider' });
@@ -269,7 +298,7 @@ export class GigService {
         providerPubkey: this.pubkey,
         details: Object.keys(this.myProviderDetails).length > 0 ? this.myProviderDetails : undefined,
       };
-      this.nostr.sendDM(requesterPubkey, dm, REQUEST_TTL_SECS);
+      sendDm(this.nostr, requesterPubkey, dm, REQUEST_TTL_SECS);
       return true;
     } catch (e) {
       logger.error(`Failed to send accept DM: ${e}`, { component: 'GigService', operation: 'acceptRequest' });
@@ -305,10 +334,11 @@ export class GigService {
   /** Re-publish the current event with a fresh TTL. */
   private fireHeartbeat(): void {
     if (this.myRequest && this.myGeohash && this.myRequest.status === 'open') {
-      this.nostr.publishReplaceable(this.myRequest.id, buildTags(this.myGeohash, this.needTag), JSON.stringify(this.myRequest));
+      publishReplaceable(this.nostr, this.myRequest.id, buildTags(this.myGeohash, this.needTag), JSON.stringify(this.myRequest));
       this.scheduleHeartbeat(freshExpiration());
     } else if (this.myProviderLocation && this.myGeohash) {
-      this.nostr.publishReplaceable(
+      publishReplaceable(
+        this.nostr,
         this.offerTag,
         buildTags(this.myGeohash, this.offerTag),
         JSON.stringify({ location: this.myProviderLocation, details: this.myProviderDetails }),
@@ -386,23 +416,21 @@ export class GigService {
 
     const nextLevel = this.expandLevel + 1;
     const cells = nextLevel === 1 ? cells3x3(geohash) : nextLevel === 2 ? cells4x4(geohash) : cellsInG5(geohash);
-    const base = {
-      kinds: [REPLACEABLE_KIND],
-      '#L': [RELAY_LABEL],
-      since: this.sinceAtStart,
-    };
-
     if (asRequester) {
-      this.nostr.updateSubscription('provider-avail', {
-        ...base,
-        '#g': cells,
-        '#t': [this.offerTag],
+      this.providerAvailStream?.update({
+        ...buildReplaceableFilter({
+          gTags: cells,
+          tTags: [this.offerTag],
+          since: this.sinceAtStart,
+        }),
       });
     } else {
-      this.nostr.updateSubscription('need-requests', {
-        ...base,
-        '#g': cells,
-        '#t': [this.needTag],
+      this.needRequestsStream?.update({
+        ...buildReplaceableFilter({
+          gTags: cells,
+          tTags: [this.needTag],
+          since: this.sinceAtStart,
+        }),
       });
     }
 
@@ -577,11 +605,11 @@ export class GigService {
     this.expirationTimers.clear();
 
     // Remove our subscriptions from the shared NostrService
-    this.nostr.unsubscribe('self-request');
-    this.nostr.unsubscribe('self-avail');
-    this.nostr.unsubscribe('need-requests');
-    this.nostr.unsubscribe('provider-avail');
-    if (this.dmSubId) this.nostr.unsubscribe(this.dmSubId);
+    this.selfRequestStream?.close();
+    this.selfAvailStream?.close();
+    this.needRequestsStream?.close();
+    this.providerAvailStream?.close();
+    this.dmStream?.close();
 
     this.knownRequests.clear();
     this.knownProviders.clear();
@@ -590,6 +618,11 @@ export class GigService {
     this.myProviderLocation = null;
     this.myProviderDetails = {};
     this.dmSubId = null;
+    this.selfRequestStream = null;
+    this.selfAvailStream = null;
+    this.needRequestsStream = null;
+    this.providerAvailStream = null;
+    this.dmStream = null;
 
     logger.info('GigService stopped', { component: 'GigService', operation: 'stop' });
   }

@@ -54,6 +54,7 @@ interface StoredSubscription {
   filter: object;
   onEvent: (event: NostrEvent) => void;
   onEose?: () => void;
+  onEoseRelay?: (relayUrl: string) => void;
 }
 
 // ─── Service ─────────────────────────────────────────────────
@@ -91,6 +92,24 @@ export class NostrService {
   onRelayCountChange(cb: (connected: number, total: number) => void): void {
     this.relayCountCallback = cb;
     this.emitRelayCount();
+  }
+
+  /** Number of relays currently connected (readyState OPEN). */
+  getConnectedRelayCount(): number {
+    let count = 0;
+    for (const ws of this.sockets.values()) {
+      if (ws.readyState === WebSocket.OPEN) count++;
+    }
+    return count;
+  }
+
+  /** Relay URLs currently connected (readyState OPEN). */
+  getConnectedRelayUrls(): string[] {
+    const urls: string[] = [];
+    for (const [url, ws] of this.sockets.entries()) {
+      if (ws.readyState === WebSocket.OPEN) urls.push(url);
+    }
+    return urls;
   }
 
   /** Start connecting to all relays in the background (non-blocking). */
@@ -151,7 +170,7 @@ export class NostrService {
 
       ws.onerror = () => {};
 
-      ws.onmessage = (msg) => this.handleMessage(msg.data);
+      ws.onmessage = (msg) => this.handleMessage(msg.data, url);
     } catch {
       this.scheduleReconnect(url);
     }
@@ -191,7 +210,7 @@ export class NostrService {
 
   // ─── Message Handling ──────────────────────────────────────
 
-  private handleMessage(raw: string): void {
+  private handleMessage(raw: string, relayUrl: string): void {
     try {
       const data = JSON.parse(raw);
       if (!Array.isArray(data)) return;
@@ -200,6 +219,7 @@ export class NostrService {
         this.handleIncomingEvent(data[1] as string, data[2] as NostrEvent);
       } else if (data[0] === 'EOSE' && data[1]) {
         const sub = this.subscriptions.get(data[1] as string);
+        if (sub?.onEoseRelay) sub.onEoseRelay(relayUrl);
         if (sub?.onEose) sub.onEose();
       }
     } catch {
@@ -270,8 +290,14 @@ export class NostrService {
    * Stored and replayed to late-connecting relays.
    * Optional onEose fires when the relay sends EOSE (end of stored events).
    */
-  subscribe(id: string, filter: object, onEvent: (event: NostrEvent) => void, onEose?: () => void): void {
-    this.subscriptions.set(id, { id, filter, onEvent, onEose });
+  subscribe(
+    id: string,
+    filter: object,
+    onEvent: (event: NostrEvent) => void,
+    onEose?: () => void,
+    onEoseRelay?: (relayUrl: string) => void,
+  ): void {
+    this.subscriptions.set(id, { id, filter, onEvent, onEose, onEoseRelay });
 
     for (const ws of this.sockets.values()) {
       if (ws.readyState === WebSocket.OPEN) {

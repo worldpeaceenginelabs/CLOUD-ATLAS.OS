@@ -1,10 +1,11 @@
 import { getSharedNostr } from './nostrPool';
-import { REPLACEABLE_KIND, RELAY_LABEL, type NostrEvent, type NostrService } from './nostrService';
+import { type NostrEvent, type NostrService } from './nostrService';
 import { onlineGeohash5Cells, onlineNowCount, seen24hCount } from '../stores/presenceStore';
 import { get } from 'svelte/store';
 import { encode as geohashEncode } from '../utils/geohash';
 import { currentGeohash, userLiveLocation } from '../store';
 import { GEOHASH_PRECISION_LISTING } from '../gig/constants';
+import { buildReplaceableFilter, runReliableSnapshot, publishReplaceable, openStream, type RelayStreamHandle } from './relayOrchestrator';
 
 const D_PRESENCE = 'presence';
 const D_SEEN_24H = 'seen24h';
@@ -16,7 +17,6 @@ const ONLINE_PRUNE_INTERVAL_SECS = 15;
 const SEEN_24H_WINDOW_SECS = 24 * 60 * 60;
 const SEEN_24H_PUBLISH_INTERVAL_SECS = 6 * 60 * 60;
 const SEEN_24H_SNAPSHOT_INTERVAL_SECS = 10 * 60;
-const SNAPSHOT_EOSE_TIMEOUT_MS = 6000;
 
 type PresenceHandles = {
   stop: () => void;
@@ -48,7 +48,8 @@ function publishPresence(nostr: NostrService, dTag: string, ttlSecs: number): vo
   const extraTags: string[][] = [['expiration', String(nowSecs() + ttlSecs)]];
   if (geohash5) extraTags.push(['g', geohash5]);
 
-  nostr.publishReplaceable(
+  publishReplaceable(
+    nostr,
     dTag,
     extraTags,
     '',
@@ -56,7 +57,7 @@ function publishPresence(nostr: NostrService, dTag: string, ttlSecs: number): vo
 }
 
 function startOnlineNow(nostr: NostrService): { stop: () => void } {
-  const subId = 'presence-online';
+  let stream: RelayStreamHandle | null = null;
   const lastByPubkey = new Map<string, { exp: number; g5: string | null }>(); // pubkey -> { expiration, geohash5 }
 
   const publishCellSet = () => {
@@ -67,23 +68,25 @@ function startOnlineNow(nostr: NostrService): { stop: () => void } {
     onlineGeohash5Cells.set(cells);
   };
 
-  const filter = {
-    kinds: [REPLACEABLE_KIND],
-    '#L': [RELAY_LABEL],
-    '#d': [D_PRESENCE],
+  const filter = buildReplaceableFilter({
+    dTags: [D_PRESENCE],
     since: nowSecs() - ONLINE_WINDOW_SECS,
-  };
+  });
 
-  nostr.subscribe(subId, filter, (event: NostrEvent) => {
-    if (!event.pubkey) return;
-    const exp = getExpiration(event);
-    // If no expiration tag, ignore (this metric depends on TTL)
-    if (!exp) return;
-    const gTag = event.tags?.find((t) => t[0] === 'g')?.[1] ?? null;
-    const g5 = gTag && gTag.length >= 5 ? gTag.slice(0, 5) : null;
-    lastByPubkey.set(event.pubkey, { exp, g5 });
-    onlineNowCount.set(lastByPubkey.size);
-    publishCellSet();
+  stream = openStream(nostr, {
+    id: 'presence-online',
+    filter,
+    onEvent: (event: NostrEvent) => {
+      if (!event.pubkey) return;
+      const exp = getExpiration(event);
+      // If no expiration tag, ignore (this metric depends on TTL)
+      if (!exp) return;
+      const gTag = event.tags?.find((t) => t[0] === 'g')?.[1] ?? null;
+      const g5 = gTag && gTag.length >= 5 ? gTag.slice(0, 5) : null;
+      lastByPubkey.set(event.pubkey, { exp, g5 });
+      onlineNowCount.set(lastByPubkey.size);
+      publishCellSet();
+    },
   });
 
   const pruneTimer = setInterval(() => {
@@ -112,7 +115,7 @@ function startOnlineNow(nostr: NostrService): { stop: () => void } {
     stop: () => {
       clearInterval(pruneTimer);
       clearInterval(pingTimer);
-      nostr.unsubscribe(subId);
+      stream?.close();
       onlineNowCount.set(0);
       onlineGeohash5Cells.set(new Set());
     },
@@ -120,34 +123,23 @@ function startOnlineNow(nostr: NostrService): { stop: () => void } {
 }
 
 async function runSeen24hSnapshot(nostr: NostrService): Promise<void> {
-  const subId = `presence-seen24h-${Date.now()}`;
   const unique = new Set<string>();
-  let done = false;
 
-  const finish = () => {
-    if (done) return;
-    done = true;
-    nostr.unsubscribe(subId);
-    seen24hCount.set(unique.size);
-  };
-
-  const filter = {
-    kinds: [REPLACEABLE_KIND],
-    '#L': [RELAY_LABEL],
-    '#d': [D_SEEN_24H],
+  const filter = buildReplaceableFilter({
+    dTags: [D_SEEN_24H],
     since: nowSecs() - SEEN_24H_WINDOW_SECS,
-  };
+  });
 
-  nostr.subscribe(
-    subId,
+  await runReliableSnapshot(nostr, {
     filter,
-    (event: NostrEvent) => {
+    subIdPrefix: 'presence-seen24h',
+    minRelaysAfterSettle: 1,
+    retries: 1,
+    onEvent: (event: NostrEvent) => {
       if (event.pubkey) unique.add(event.pubkey);
     },
-    finish,
-  );
-
-  setTimeout(finish, SNAPSHOT_EOSE_TIMEOUT_MS);
+  });
+  seen24hCount.set(unique.size);
 }
 
 function startSeen24h(nostr: NostrService): { stop: () => void } {

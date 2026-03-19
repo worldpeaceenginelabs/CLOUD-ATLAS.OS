@@ -8,6 +8,7 @@
 
 import type { Listing } from '../types';
 import { getSharedNostr } from '../services/nostrPool';
+import { publishVerifiedReplaceable } from '../services/relayOrchestrator';
 
 const LISTING_TTL_SECS = 7 * 24 * 60 * 60;
 
@@ -30,7 +31,18 @@ export async function takeDownListing(
     ['expiration', expiration],
   ];
 
-  nostr.publishReplaceable(listing.id, tags, '');
+  const result = await publishVerifiedReplaceable(nostr, {
+    dTag: listing.id,
+    extraTags: tags,
+    content: '',
+    verifyTTags: ['DELETE'],
+    minRelaysAfterSettle: 1,
+    retries: 2,
+  });
+
+  if (result.outcome !== 'verified_synced' && result.outcome !== 'verified_partial') {
+    throw new Error('Delete publish verification failed');
+  }
 
   onTakenDown?.(listing.id);
   onClose?.();

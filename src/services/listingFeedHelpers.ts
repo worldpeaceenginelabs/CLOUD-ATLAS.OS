@@ -3,9 +3,10 @@
  * Parse events, trim by age, build Nostr filters, run subscription lifecycle.
  */
 
-import { type NostrService, type NostrEvent, REPLACEABLE_KIND, RELAY_LABEL } from './nostrService';
+import { type NostrService, type NostrEvent } from './nostrService';
 import type { Listing, ListingVertical } from '../types';
-import { LISTING_MAX_AGE_SECS, FETCH_TIMEOUT_MS, PAGE_SIZE } from './listingConstants';
+import { LISTING_MAX_AGE_SECS, PAGE_SIZE } from './listingConstants';
+import { buildReplaceableFilter, runReliableSnapshot } from './relayOrchestrator';
 
 /** Parse a Nostr event into a Listing; optionally set vertical from #t tag or a fixed vertical. Returns null if malformed or verticalFromTag rejects. */
 export function parseListingEvent(
@@ -50,17 +51,14 @@ export interface ListingFilterOptions {
 
 /** Build a Nostr filter for listing events. */
 export function buildListingFilter(opts: ListingFilterOptions): Record<string, unknown> {
-  const filter: Record<string, unknown> = {
-    kinds: [REPLACEABLE_KIND],
-    '#t': Array.isArray(opts.tags) ? opts.tags : [opts.tags],
-    '#L': [RELAY_LABEL],
-  };
-  if (opts.geohash != null) filter['#g'] = [opts.geohash];
-  if (opts.category != null) filter['#c'] = [opts.category];
-  if (opts.since != null) filter.since = opts.since;
-  if (opts.until != null) filter.until = opts.until;
-  if (opts.limit != null) filter.limit = opts.limit;
-  return filter;
+  return buildReplaceableFilter({
+    tTags: Array.isArray(opts.tags) ? opts.tags : [opts.tags],
+    gTags: opts.geohash ? [opts.geohash] : undefined,
+    cTags: opts.category ? [opts.category] : undefined,
+    since: opts.since,
+    until: opts.until,
+    limit: opts.limit,
+  });
 }
 
 /**
@@ -71,20 +69,15 @@ export function runListingSubscription(
   nostr: NostrService,
   filter: Record<string, unknown>,
   onEvent: (event: NostrEvent) => void,
-  opts: { timeoutMs: number; subIdPrefix: string }
+  opts: { subIdPrefix: string }
 ): Promise<boolean> {
-  return new Promise((resolve) => {
-    const subId = `${opts.subIdPrefix}-${Date.now()}`;
-    let resolved = false;
-    const done = (byEose: boolean) => {
-      if (resolved) return;
-      resolved = true;
-      nostr.unsubscribe(subId);
-      resolve(byEose);
-    };
-    nostr.subscribe(subId, filter, (event: NostrEvent) => onEvent(event), () => done(true));
-    setTimeout(() => done(false), opts.timeoutMs);
-  });
+  return runReliableSnapshot(nostr, {
+    filter,
+    subIdPrefix: opts.subIdPrefix,
+    minRelaysAfterSettle: 1,
+    retries: 2,
+    onEvent,
+  }).then((result) => result.status === 'synced');
 }
 
 /** Default since (7 days ago) for filters that don't specify since. */
@@ -129,7 +122,7 @@ export async function fetchNewer(
     if (event.created_at > newestCreatedAt) newestCreatedAt = event.created_at;
     const listing = parseListingEvent(event, opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined);
     if (listing) listings.push(listing);
-  }, { timeoutMs: FETCH_TIMEOUT_MS, subIdPrefix: 'global-newer' });
+  }, { subIdPrefix: 'global-newer' });
   return {
     listings,
     newest: newestCreatedAt === 0 ? null : newestCreatedAt,
@@ -164,7 +157,7 @@ export async function fetchOlder(
     if (event.created_at < oldestCreatedAt) oldestCreatedAt = event.created_at;
     const listing = parseListingEvent(event, opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined);
     if (listing) listings.push(listing);
-  }, { timeoutMs: FETCH_TIMEOUT_MS, subIdPrefix: 'global-older' });
+  }, { subIdPrefix: 'global-older' });
   return {
     listings,
     oldest: oldestCreatedAt === Infinity ? null : oldestCreatedAt,

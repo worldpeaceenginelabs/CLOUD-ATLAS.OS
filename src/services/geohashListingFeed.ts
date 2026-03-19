@@ -21,7 +21,7 @@ import { type NostrService, type NostrEvent } from './nostrService';
 import { idb } from '../idb';
 import { logger } from '../utils/logger';
 import { fetchDeletions, applyDeletions } from './listingDeletionService';
-import { LISTING_MAX_AGE_MS, FETCH_TIMEOUT_MS } from './listingConstants';
+import { LISTING_MAX_AGE_MS } from './listingConstants';
 import {
   parseListingEvent,
   trimByMaxAge,
@@ -115,7 +115,7 @@ export class GeohashListingFeed {
       seen.add(event.id);
       const listing = parseListingEvent(event, verticalId ? { vertical: verticalId } : undefined);
       if (listing) listings.push(listing);
-    }, { timeoutMs: FETCH_TIMEOUT_MS, subIdPrefix: `geohash-${this.cacheType}` });
+    }, { subIdPrefix: `geohash-${this.cacheType}` });
     return listings;
   }
 }

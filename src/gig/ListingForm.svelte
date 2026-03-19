@@ -41,6 +41,7 @@
   let listingService: ListingService | null = null;
   let relayCount = 0;
   let relayTotal = 0;
+  let publishError = '';
 
   $: needsLocation = mode === 'in-person' || mode === 'both' || !!config.defaultMode;
 
@@ -72,8 +73,9 @@
     locationAddress = displayName ?? '';
   }
 
-  function submitListing() {
+  async function submitListing() {
     if (!canSubmit) return;
+    publishError = '';
     currentView = 'publishing';
 
     const hasLocation = needsLocation && locationLat && locationLon;
@@ -90,9 +92,6 @@
       onRelayStatus: (connected: number, total: number) => {
         relayCount = connected;
         relayTotal = total;
-        if (connected > 0 && currentView === 'publishing') {
-          currentView = 'live';
-        }
       },
     });
 
@@ -111,7 +110,21 @@
       ...(config.hasEventDate && { eventDate: eventDate || undefined }),
     };
 
-    listingService.publishListing(listing);
+    try {
+      const result = await listingService.publishListing(listing);
+      if (result.outcome === 'verified_synced' || result.outcome === 'verified_partial') {
+        currentView = 'live';
+      } else if (result.outcome === 'verify_pending') {
+        publishError = 'Published, relay sync pending. Please check again in a moment.';
+        currentView = 'form';
+      } else {
+        publishError = 'Publishing failed. Please check relay connection and try again.';
+        currentView = 'form';
+      }
+    } catch {
+      publishError = 'Publishing failed. Please check relay connection and try again.';
+      currentView = 'form';
+    }
   }
 
   function handleDone() {
@@ -141,6 +154,9 @@
     <button class="gig-back-btn" on:click={onBack}>&larr; Back</button>
     <h3 class="gig-form-title">{config.formTitle}</h3>
     <p class="gig-form-subtitle">{config.formSubtitle}</p>
+    {#if publishError}
+      <p class="gig-form-subtitle" style="color: rgba(252, 165, 165, 1);">{publishError}</p>
+    {/if}
 
     {#if config.directiveNoun}
       <div class="directive-banner">
@@ -226,7 +242,7 @@
     <h3 class="gig-form-title">Publishing...</h3>
     <div class="gig-status-indicator">
       <div class="gig-pulse-dot" style="background: {config.color}"></div>
-      <span>Connecting to relays...</span>
+      <span>Publishing and verifying relay sync...</span>
     </div>
     <RelayStatus connected={relayCount} total={relayTotal} />
   </div>
