@@ -7,7 +7,9 @@
  *
  * Protocol (identical across all verticals):
  *   1. Requester publishes request event (status: 'open', NIP-40 TTL 60 s)
- *   2. Requester self-subscribes; heartbeat fires 20 s before expiration
+ *      Verified by relay before entering pending state.
+ *   2. Heartbeat fires 20 s before expiration — re-publishes with verified relay confirm.
+ *      If no relay confirms → own session is treated as expired (handleExpired).
  *   3. Providers subscribe to requests in their geohash cell
  *   4. Provider publishes availability event (NIP-40 TTL 60 s, same heartbeat)
  *   5. Provider sends stored encrypted 'accept' DM to requester (NIP-40 TTL 60 s)
@@ -15,15 +17,15 @@
  *   7. All providers see the update — winner matches, losers move on
  *   8. If either side crashes, heartbeats stop and the event expires on relays
  *
- * Event lifecycle (NIP-40):
- *   Every published event carries an ['expiration', unix] tag.
- *   Relays that support NIP-40 automatically stop serving expired events.
- *   Both sides also run local expiration timers as a fallback.
- *   Self-subscriptions resync heartbeat timing with the relay's actual state.
+ * Crash / disconnect detection (symmetric for remote and own side):
+ *   Remote: local expiration timers on received events — fires onRequestGone /
+ *     removeProvider when the relay-provided TTL passes. No relay needed.
+ *   Own: verified heartbeat — if no relay confirms the re-publish, handleExpired()
+ *     fires onOwnRequestExpired / onOwnOfferExpired. Relay is ground truth for both.
  *
  * Messages:
  *   Public events:  request (open → taken/cancelled), provider availability
- *   Encrypted DMs:  accept (provider → requester, NIP-40 TTL 60 s) — the only DM in the protocol
+ *   Encrypted DMs:  accept (provider → requester, NIP-40 TTL 60 s) — the only DM
  *
  * Vertical separation:
  *   Each vertical uses distinct Nostr '#t' tags (e.g. 'need-rides', 'offer-rides')
@@ -39,6 +41,7 @@ import {
   onRelayStatus,
   buildReplaceableFilter,
   publishReplaceable,
+  publishVerifiedReplaceable,
   sendDm,
   openStream,
   openDmStream,
@@ -101,12 +104,10 @@ export class GigService {
   private knownProviders = new Set<string>();
   private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private dmSubId: string | null = null;
-  private selfRequestStream: RelayStreamHandle | null = null;
-  private selfAvailStream: RelayStreamHandle | null = null;
   private needRequestsStream: RelayStreamHandle | null = null;
   private providerAvailStream: RelayStreamHandle | null = null;
   private dmStream: RelayStreamHandle | null = null;
+  private stopped = false;
 
   // Expand subscription based on visibility / match status (1 → 9 → 16 → 32 cells)
   private expandEmptyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -136,43 +137,44 @@ export class GigService {
   // ─── Requester ──────────────────────────────────────────────
 
   /**
-   * Start as a requester. Publishes the request event,
-   * self-subscribes for lifecycle management, and subscribes
-   * to accept DMs and provider availability.
+   * Start as a requester. Publishes the request event with verified relay confirm,
+   * then subscribes to accept DMs and provider availability.
+   * Throws if no relay confirms the initial publish.
    */
-  startAsRequester(geohash: string, request: GigRequest): void {
+  async startAsRequester(geohash: string, request: GigRequest): Promise<void> {
     this.myRequest = request;
     this.myGeohash = geohash;
     this.hasMatch = false;
 
     onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
 
-    publishReplaceable(this.nostr, request.id, buildTags(geohash, this.needTag), JSON.stringify(request));
-    this.scheduleHeartbeat(freshExpiration());
-
-    // Self-subscribe to own request — relay echo drives heartbeat timing
-    this.selfRequestStream?.close();
-    this.selfRequestStream = openStream(this.nostr, {
-      id: 'self-request',
-      filter: buildReplaceableFilter({
-        authors: [this.nostr.pubkey],
-        dTags: [request.id],
-      }),
-      onEvent: (event: NostrEvent) => this.handleOwnEvent(event),
+    const result = await publishVerifiedReplaceable(this.nostr, {
+      dTag: request.id,
+      extraTags: buildTags(geohash, this.needTag),
+      content: JSON.stringify(request),
+      verifyTTags: [this.needTag],
+      minRelaysAfterSettle: 1,
+      retries: 1,
     });
+
+    if (!result.verified) {
+      this.myRequest = null;
+      this.myGeohash = null;
+      throw new Error('Failed to publish request: no relay confirmed');
+    }
+
+    this.scheduleHeartbeat(freshExpiration());
 
     // Subscribe to incoming accept DMs
     this.dmStream?.close();
     this.dmStream = openDmStream(this.nostr, REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
       const dm = payload as AcceptDM;
       if (dm?.type === 'accept' && dm.requestId === this.myRequest?.id) {
-        // A provider explicitly wants to match with us
         this.hasMatch = true;
         this.clearExpandTimers();
         this.callbacks.onProviderAccepted(fromPubkey, dm.requestId, dm.details);
       }
     });
-    this.dmSubId = this.dmStream.id;
 
     this.sinceAtStart = Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS;
     this.expandLevel = 0;
@@ -231,15 +233,15 @@ export class GigService {
   // ─── Provider ────────────────────────────────────────────────
 
   /**
-   * Start as a provider. Publishes availability with NIP-40 TTL,
-   * self-subscribes for lifecycle management, and subscribes to
-   * requests in the cell.
+   * Start as a provider. Publishes availability with verified relay confirm,
+   * then subscribes to requests in the cell.
+   * Throws if no relay confirms the initial publish.
    */
-  startAsProvider(
+  async startAsProvider(
     geohash: string,
     location: { latitude: number; longitude: number },
     details: Record<string, string> = {},
-  ): void {
+  ): Promise<void> {
     this.myGeohash = geohash;
     this.myProviderLocation = location;
     this.myProviderDetails = details;
@@ -247,24 +249,23 @@ export class GigService {
 
     onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
 
-    publishReplaceable(
-      this.nostr,
-      this.offerTag,
-      buildTags(geohash, this.offerTag),
-      JSON.stringify({ location, details }),
-    );
-    this.scheduleHeartbeat(freshExpiration());
-
-    // Self-subscribe to own availability event
-    this.selfAvailStream?.close();
-    this.selfAvailStream = openStream(this.nostr, {
-      id: 'self-avail',
-      filter: buildReplaceableFilter({
-        authors: [this.nostr.pubkey],
-        dTags: [this.offerTag],
-      }),
-      onEvent: (event: NostrEvent) => this.handleOwnEvent(event),
+    const result = await publishVerifiedReplaceable(this.nostr, {
+      dTag: this.offerTag,
+      extraTags: buildTags(geohash, this.offerTag),
+      content: JSON.stringify({ location, details }),
+      verifyTTags: [this.offerTag],
+      minRelaysAfterSettle: 1,
+      retries: 1,
     });
+
+    if (!result.verified) {
+      this.myGeohash = null;
+      this.myProviderLocation = null;
+      this.myProviderDetails = {};
+      throw new Error('Failed to publish availability: no relay confirmed');
+    }
+
+    this.scheduleHeartbeat(freshExpiration());
 
     this.sinceAtStart = Math.floor(Date.now() / 1000) - REQUEST_TTL_SECS;
     this.expandLevel = 0;
@@ -327,23 +328,48 @@ export class GigService {
 
     this.heartbeatTimer = setTimeout(() => {
       this.heartbeatTimer = null;
-      this.fireHeartbeat();
+      void this.fireHeartbeat();
     }, delayMs);
   }
 
-  /** Re-publish the current event with a fresh TTL. */
-  private fireHeartbeat(): void {
+  /**
+   * Re-publish the current event with a fresh TTL using verified relay confirm.
+   * Reschedules heartbeat only if at least one relay confirmed — own-session
+   * expiry is detected the same way remote expiry is: relay as ground truth.
+   */
+  private async fireHeartbeat(): Promise<void> {
+    if (this.stopped) return;
+
     if (this.myRequest && this.myGeohash && this.myRequest.status === 'open') {
-      publishReplaceable(this.nostr, this.myRequest.id, buildTags(this.myGeohash, this.needTag), JSON.stringify(this.myRequest));
-      this.scheduleHeartbeat(freshExpiration());
+      const result = await publishVerifiedReplaceable(this.nostr, {
+        dTag: this.myRequest.id,
+        extraTags: buildTags(this.myGeohash, this.needTag),
+        content: JSON.stringify(this.myRequest),
+        verifyTTags: [this.needTag],
+        minRelaysAfterSettle: 1,
+        retries: 1,
+      });
+      if (this.stopped) return;
+      if (!result.verified) {
+        this.handleExpired();
+      } else {
+        this.scheduleHeartbeat(freshExpiration());
+      }
     } else if (this.myProviderLocation && this.myGeohash) {
-      publishReplaceable(
-        this.nostr,
-        this.offerTag,
-        buildTags(this.myGeohash, this.offerTag),
-        JSON.stringify({ location: this.myProviderLocation, details: this.myProviderDetails }),
-      );
-      this.scheduleHeartbeat(freshExpiration());
+      const result = await publishVerifiedReplaceable(this.nostr, {
+        dTag: this.offerTag,
+        extraTags: buildTags(this.myGeohash, this.offerTag),
+        content: JSON.stringify({ location: this.myProviderLocation, details: this.myProviderDetails }),
+        verifyTTags: [this.offerTag],
+        minRelaysAfterSettle: 1,
+        retries: 1,
+      });
+      if (this.stopped) return;
+      if (!result.verified) {
+        this.handleExpired();
+      } else {
+        this.scheduleHeartbeat(freshExpiration());
+      }
     }
   }
 
@@ -452,14 +478,6 @@ export class GigService {
     }
   }
 
-  // ─── Self-Subscription Handlers ───────────────────────────
-
-  /** Relay echoed our event back — resync heartbeat to its actual expiration. */
-  private handleOwnEvent(event: NostrEvent): void {
-    const expiration = this.getExpiration(event);
-    if (expiration) this.scheduleHeartbeat(expiration);
-  }
-
   // ─── Event Handling ────────────────────────────────────────
 
   /**
@@ -487,7 +505,6 @@ export class GigService {
 
       if (this.knownRequests.has(request.id)) {
         if (request.status === 'taken' || request.status === 'cancelled') {
-          // If we are the winner, that counts as a match (provider side)
           if (request.status === 'taken' && request.matchedProviderPubkey === this.pubkey) {
             this.hasMatch = true;
             this.clearExpandTimers();
@@ -598,15 +615,13 @@ export class GigService {
    * Shared NostrService connections remain open for other consumers.
    */
   stop(): void {
+    this.stopped = true;
     this.clearHeartbeat();
     this.clearExpandTimers();
 
     for (const timer of this.expirationTimers.values()) clearTimeout(timer);
     this.expirationTimers.clear();
 
-    // Remove our subscriptions from the shared NostrService
-    this.selfRequestStream?.close();
-    this.selfAvailStream?.close();
     this.needRequestsStream?.close();
     this.providerAvailStream?.close();
     this.dmStream?.close();
@@ -617,9 +632,6 @@ export class GigService {
     this.myGeohash = null;
     this.myProviderLocation = null;
     this.myProviderDetails = {};
-    this.dmSubId = null;
-    this.selfRequestStream = null;
-    this.selfAvailStream = null;
     this.needRequestsStream = null;
     this.providerAvailStream = null;
     this.dmStream = null;

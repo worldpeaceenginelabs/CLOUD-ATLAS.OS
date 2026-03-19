@@ -75,6 +75,7 @@ import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, pre
     currentView === 'matched' ? ($userGigRole === 'requester' ? myRequest : matchedRequest) : null;
 
   // ─── Error State ────────────────────────────────────────────
+  let submitting = false;
   let errorMessage: string | null = null;
   let errorTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -202,8 +203,12 @@ import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, pre
     removeGigEntitiesFromMap(requestId);
     nearbyCount = requestQueue.length;
 
-    if (wasShowing && currentView !== 'matched' && requestQueue.length > 0) {
-      matchedRequest = requestQueue[0];
+    if (wasShowing && currentView !== 'matched') {
+      if (requestQueue.length > 0) {
+        matchedRequest = requestQueue[0];
+      } else {
+        showError('Request was cancelled or expired. Waiting for new requests...', 3000);
+      }
     }
   }
 
@@ -335,8 +340,8 @@ import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, pre
     return { geohash, location: { latitude: $userLiveLocation.latitude, longitude: $userLiveLocation.longitude } };
   }
 
-  function submitRequest(details: Record<string, string>) {
-    if (!matchingConfig) return;
+  async function submitRequest(details: Record<string, string>) {
+    if (submitting || !matchingConfig) return;
 
     if (matchingConfig.hasDestination && (!destinationLat || !destinationLon)) {
       showError('Pick a location on the map or search an address.');
@@ -364,25 +369,45 @@ import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, pre
       details,
     };
 
-    service!.startAsRequester(ctx.geohash, request);
-    myRequest = request;
-    confirmedProviderPubkey = null;
-    userGigRole.set('requester');
-    addRequestToMap(request);
-    currentView = 'pending';
-    logger.info('Request submitted', { component: 'GigEconomy', operation: 'submitRequest' });
+    submitting = true;
+    try {
+      await service!.startAsRequester(ctx.geohash, request);
+      if (destroyed) return;
+      myRequest = request;
+      confirmedProviderPubkey = null;
+      userGigRole.set('requester');
+      addRequestToMap(request);
+      currentView = 'pending';
+      logger.info('Request submitted', { component: 'GigEconomy', operation: 'submitRequest' });
+    } catch {
+      if (destroyed) return;
+      stopService();
+      showError('Could not reach any relay. Check your connection and try again.');
+    } finally {
+      submitting = false;
+    }
   }
 
-  function submitOffer(details: Record<string, string>) {
-    if (!matchingConfig) return;
+  async function submitOffer(details: Record<string, string>) {
+    if (submitting || !matchingConfig) return;
 
     const ctx = prepareService();
     if (!ctx) return;
 
-    service!.startAsProvider(ctx.geohash, ctx.location, details);
-    userGigRole.set('provider');
-    currentView = 'pending';
-    logger.info('Offer submitted', { component: 'GigEconomy', operation: 'submitOffer' });
+    submitting = true;
+    try {
+      await service!.startAsProvider(ctx.geohash, ctx.location, details);
+      if (destroyed) return;
+      userGigRole.set('provider');
+      currentView = 'pending';
+      logger.info('Offer submitted', { component: 'GigEconomy', operation: 'submitOffer' });
+    } catch {
+      if (destroyed) return;
+      stopService();
+      showError('Could not reach any relay. Check your connection and try again.');
+    } finally {
+      submitting = false;
+    }
   }
 
   function acceptMatch() {
