@@ -1,6 +1,6 @@
 <script lang="ts">
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
-  import { missionProgress } from '../utils/missionProgress';
+  import { mission1 } from '../utils/mission1';
 
   export let onOpenMission: () => void = () => {};
 
@@ -24,8 +24,8 @@
     <button
       type="button"
       class="mission-slot"
-      class:new-mission={slot.active && !$missionProgress.missionCompleted}
-      class:locked-ambient={slot.index === 2 && !$missionProgress.missionCompleted}
+      class:new-mission={slot.active && $mission1.status !== 'completed'}
+      class:locked-ambient={slot.index === 2 && $mission1.status !== 'completed'}
       class:greyed={!slot.active}
       disabled={!slot.active}
       on:click={() => onSlotClick(slot)}
@@ -39,7 +39,7 @@
         </span>
       {/if}
 
-      {#if slot.index === 2 && !$missionProgress.missionCompleted}
+      {#if slot.index === 2 && $mission1.status !== 'completed'}
         <span class="locked-overlay" aria-hidden="true">
           <svg
             class="lock-icon"

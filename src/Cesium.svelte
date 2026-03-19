@@ -82,7 +82,7 @@ import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/
 	import { initGeohashGrid, initOnlineCellsOverlay, type GeohashGridHandle, type OnlineCellsHandle } from './utils/cesiumGeohashGrid';
 	import { loadCityLabels } from './utils/cesiumCityLabels';
   import { onlineGeohash5Cells, showOnlineCellsOverlay } from './stores/presenceStore';
-  import { missionCountdown } from './utils/missionCountdown';
+  import { mission1 } from './utils/mission1';
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
@@ -117,9 +117,6 @@ let escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 let operatorHaloResizeHandler: (() => void) | null = null;
 
 let flySeq = 0;
-
-const missionCountdownIsRunning = missionCountdown.isRunning;
-const missionCountdownLabel = missionCountdown.label;
 
 // Module handles (initialized in onMount)
 let userLocation: UserLocationHandle;
@@ -1331,10 +1328,10 @@ function handleCoordinatePick(result: any) {
       <polyline points="17 2 12 7 7 2"/>
     </svg>
   </button>
-  {#if $missionCountdownIsRunning}
+  {#if $mission1.countdownActive}
     <button class="mission-countdown-btn" title="Mission in progress">
       <span class="mission-countdown-label">
-        {$missionCountdownLabel}
+        {$mission1.countdownLabel}
       </span>
     </button>
   {/if}

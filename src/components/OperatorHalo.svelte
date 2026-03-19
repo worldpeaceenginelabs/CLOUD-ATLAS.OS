@@ -6,8 +6,7 @@
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { GigVertical } from '../types';
   import { modalService } from '../utils/modalService';
-  import { missionProgress } from '../utils/missionProgress';
-  import { missionShareStreak } from '../utils/missionShareStreak';
+  import { mission1 } from '../utils/mission1';
 
   export let screenX: number;
   export let screenY: number;
@@ -16,8 +15,6 @@
 
   let expanded = false;
   let infoPanelText = '';
-
-  const missionShareStreakStatus = missionShareStreak.status;
 
   let shouldPulseNext = false;
 
@@ -103,9 +100,7 @@
   }
 
   $: {
-    shouldPulseNext =
-      !$missionProgress.missionCompleted &&
-      ($missionShareStreakStatus === 'idle' || $missionShareStreakStatus === 'available');
+    shouldPulseNext = $mission1.status === 'ready';
   }
 </script>
 

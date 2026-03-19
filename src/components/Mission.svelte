@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
-  import { missionProgress } from '../utils/missionProgress';
-  import { missionShareStreak } from '../utils/missionShareStreak';
-  import { missionCountdown } from '../utils/missionCountdown';
+  import { mission1 } from '../utils/mission1';
   import { openExternal } from '../utils/openExternal';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen https://zerodollar.app";
@@ -11,13 +9,8 @@
   let copied = false;
   let pageUrl = '';
 
-  const missionShareStreakStatus = missionShareStreak.status;
-  const missionCountdownIsRunning = missionCountdown.isRunning;
-  const missionCountdownLabel = missionCountdown.label;
-
   onMount(() => {
     pageUrl = encodeURIComponent(window.location.href);
-    missionProgress.markMissionsSeen();
   });
 
   $: shareLinks = [
@@ -32,39 +25,38 @@
   ];
 
   $: missionStatsText = (() => {
-    const { stars } = $missionShareStreak;
-    const status = $missionShareStreakStatus;
+    const { stars, status } = $mission1;
 
-    if (status === 'completed' || $missionProgress.missionCompleted) {
+    if (status === 'completed') {
       return 'Mission complete: you shared 3 days in a row.';
     }
 
     const remaining = 3 - stars;
 
-    if (status === 'idle') {
+    if (stars === 0 && status === 'ready') {
       return 'Share in any way to earn your first star.';
     }
 
-    if (status === 'available') {
+    if (status === 'ready') {
       return `Share in any way to earn star ${stars + 1} of 3. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
     }
 
-    if ($missionCountdownIsRunning) {
-      return `Next star available in ${$missionCountdownLabel}. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
+    if ($mission1.countdownActive) {
+      return `Next star available in ${$mission1.countdownLabel}. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
     }
 
     return `Next star is ready. ${remaining} star${remaining === 1 ? '' : 's'} left.`;
   })();
 
   function handleShareClick(name: string) {
-    missionShareStreak.earnStar();
+    mission1.earnStar();
   }
 
   async function copyToClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text);
       copied = true;
-      missionShareStreak.earnStar();
+      mission1.earnStar();
 
       setTimeout(() => { copied = false; }, 2000);
     } catch {
@@ -82,7 +74,7 @@
   <div class="mission-card" style="--accent: #23a6d5">
     <div class="mission-stars">
       {#each [1, 2, 3] as level}
-        <span class="mission-star" class:filled={$missionShareStreak.stars >= level}>★</span>
+        <span class="mission-star" class:filled={$mission1.stars >= level}>★</span>
       {/each}
     </div>
     <p class="mission-stats">{missionStatsText}</p>
