@@ -8,7 +8,7 @@
   let trackEl: HTMLDivElement | null = null;
   let resizeHandler: (() => void) | null = null;
   $: tickerMessages = [
-    `LIVE: ${$onlineNowCount} // LAST 24H: ${$seen24hCount}`,
+    `LIVE: ${$onlineNowCount} // LAST 24H: ${$seen24hCount} // OPERATORS REQUIRED // PRESS NEXT OR LOG`,
     'ANYMATCH ACTIVE // MATCH ANYTHING // RIDES • DELIVERY • FREELANCE • SOCIAL',
     'ZERO COMMISSION // ZERO FEES // FREE FOREVER'
   ];

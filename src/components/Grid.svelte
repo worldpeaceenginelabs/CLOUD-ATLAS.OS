@@ -9,11 +9,11 @@
   let showMessageTimeout: NodeJS.Timeout | null = null;
   let isGridReady = false;
   const messages = [
-    "An independent, community-owned Google Earth, free from centralized servers and overpowered entities, owned solely by you and the public!",
+    "An independent, community-owned Earth, free from centralized servers and overpowered entities, owned solely by you and the public!",
     "IT'S FREE! More users mean more app storage and computational power. No back-end needed! Syncs via public tracker networks. Now using Nostr and BitTorrent",
     "Decentralization places the globe within your grasp, ensuring your voice resonates daily, not merely at the ballot box every few years. It's about making your voice count every day, not just delegating it during elections.",
     "Pick what suits your flow: Unreal Engine 5, Unity 3D, HTML, CSS, JS, APIs (JAMstack), WASM or WebContainers.",
-    "Reach out to me and our community anytime on GitHub, Keet, or during our upcoming weekly Cloud Atlas OS Zoom brainstorming",
+    "Reach out to me and our community anytime on GitHub, Keet, or during our upcoming weekly Cloud Atlas OS brainstormings",
     "They always said it's impossible and then one came who didn't know that and just did<br> - Multiple Authors",
     "A function of civil society is to organize ourselves to collectively stand up to those who add to the suffering of others.<br> - Ira Chaleff",
     "Get paid for the subject you love!<br> - Cloud Atlas OS",
