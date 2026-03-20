@@ -1,6 +1,6 @@
 <script lang="ts">
   let missionTitleMain = 'Mission 2';
-  let missionTitleSub = 'Swarm Governance';
+  let missionTitleSub = 'Start your first Brainstorming';
 </script>
 
 <div class="mission">

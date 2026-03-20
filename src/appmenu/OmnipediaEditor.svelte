@@ -1,6 +1,6 @@
 <script lang="ts">
   let missionTitleMain = 'Mission 3';
-  let missionTitleSub = 'Omnipedia Editor';
+  let missionTitleSub = 'Create your first Omnipedia article';
 </script>
 
 <div class="mission">
@@ -8,7 +8,7 @@
     <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
     <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
   </p>
-  <p class="mission-share-label">SHARE THIS ON 3 DIFFERENT DAYS</p>
+  <p class="mission-share-label">COMING SOON</p>
   
   <div class="mission-bottom">
     <p class="animated-gradient">

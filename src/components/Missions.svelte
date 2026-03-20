@@ -39,10 +39,10 @@
         <span class="mission-slot-title animated-gradient">Mission 2</span>
         <span class="mission-slot-subtitle animated-gradient">Swarm Governance</span>
       {:else if slot3Single}
-        <span class="mission-slot-title animated-gradient">Omnipedia Creator</span>
+        <span class="mission-slot-title animated-gradient">Omnipedia</span>
       {:else if slotIndex === 3}
         <span class="mission-slot-title animated-gradient">Mission 3</span>
-        <span class="mission-slot-subtitle animated-gradient">Omnipedia Editor</span>
+        <span class="mission-slot-subtitle animated-gradient">Omnipedia</span>
       {/if}
 
       {#if slotIndex === 2 && !m1Done}

@@ -11,7 +11,7 @@
     `LIVE: ${$onlineNowCount} // LAST 24H: ${$seen24hCount} // OPERATORS REQUIRED // PRESS NEXT OR LOG`,
     'ANYMATCH ACTIVE // MATCH ANYTHING // RIDES • DELIVERY • FREELANCE • SOCIAL',
     'ZERO COMMISSION // ZERO FEES // FREE FOREVER',
-    'BUT.............................. !!! OPERATORS REQUIRED !!!'
+    'BUT.............................. !!! OPERATORS REQUIRED !!! // PRESS NEXT OR LOG'
   ];
 
   function setDuration() {
