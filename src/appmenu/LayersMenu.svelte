@@ -185,33 +185,7 @@
 
       <div class="sub-header">Holodeck</div>
 
-      <div
-        class="dropdown-item"
-        role="button"
-        tabindex="0"
-        on:click={() => handleItemClick('model')}
-        on:keydown={(e) => onEnter(e, () => handleItemClick('model'))}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M3.27 6.96L12 12.01l8.73-5.05" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-        </svg>
-        <span class="item-text">Holodeck Editor</span>
-        <button
-          class="info-icon"
-          on:click={(e) => handleInfoClick('model', e)}
-          on:keydown={(e) => onEnter(e, () => handleInfoClick('model', e))}
-          tabindex="0"
-          aria-label="Show info for Model"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
+      
 
       <div
         class="dropdown-item"
@@ -379,41 +353,6 @@
     flex: 1;
     text-align: left;
     font-size: 0.85rem;
-  }
-
-  .info-icon {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .info-icon:hover {
-    background: rgba(255, 255, 255, 0.1);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    color: white;
-    transform: scale(1.1);
-  }
-
-  .info-icon:focus {
-    outline: 2px solid rgba(255, 255, 255, 0.5);
-    outline-offset: 2px;
-  }
-
-  .info-icon svg {
-    width: 16px;
-    height: 16px;
   }
 
   .section-label {
