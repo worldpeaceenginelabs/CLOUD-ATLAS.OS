@@ -3,7 +3,7 @@
     <p class="tagline">Science fiction meets the real world.</p>
 
     <div style="text-align:center;">
-      <p>We've evolved <strong>Crowd Engineering, Crowd Governance,</strong> and <strong>Crowd Economy</strong> into a revolutionary purpose-driven <strong>Social Network Application — Free Forever.</strong></p>
+      <p>We've evolved <strong>Crowd Engineering, Crowd Governance,</strong> and <strong>Crowd Economy</strong> into a revolutionary purpose-driven <strong>Social Network Application </strong>— <strong> Free Forever.</strong></p>
 
       <iframe
         width="100%"
