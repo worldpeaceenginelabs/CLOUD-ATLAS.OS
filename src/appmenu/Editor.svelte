@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import ModelSettings from './ModelSettings.svelte';
+  import ModelSettings from '../components/ModelSettings.svelte';
   import { roamingAreaBounds, coordinates, isEditorOpen } from '../store';
   import { onEnter } from '../utils/keyboard';
   import { openExternal } from '../utils/openExternal';

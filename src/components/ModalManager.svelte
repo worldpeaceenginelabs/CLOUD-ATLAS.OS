@@ -1,7 +1,7 @@
 <script lang="ts">
   import { openModals, hideModal } from '../utils/modalManager';
   import Modal from './Modal.svelte';
-  import Editor from './Editor.svelte';
+  import Editor from '../appmenu/Editor.svelte';
   import Simulation from '../appmenu/Simulation.svelte';
   import Omnipedia from '../appmenu/Omnipedia.svelte';
   import MissionTV from '../appmenu/MissionTV.svelte';
