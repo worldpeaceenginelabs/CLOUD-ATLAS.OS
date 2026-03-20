@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { missionTitleMain, missionTitleSub } from '../content/missionContent';
   import { mission1 } from '../utils/mission1';
   import { openExternal } from '../utils/openExternal';
 
@@ -8,6 +7,9 @@
   const encoded = encodeURIComponent(shareText);
   let copied = false;
   let pageUrl = '';
+
+  const missionTitleMain = 'First Global Mission';
+  const missionTitleSub = 'Operator Expansion';
 
   onMount(() => {
     pageUrl = encodeURIComponent(window.location.href);

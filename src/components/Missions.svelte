@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { missionTitleMain, missionTitleSub } from '../content/missionContent';
   import { mission1 } from '../utils/mission1';
   import { missionProgress } from '../utils/missionProgress';
 
@@ -11,8 +10,8 @@
   const SLOT_COUNT = 3;
   const slots = Array.from({ length: SLOT_COUNT }, (_, i) => ({
     index: (i + 1) as 1 | 2 | 3,
-    title: i === 0 ? missionTitleMain : `Mission ${i + 1}`,
-    subtitle: i === 0 ? missionTitleSub : i === 1 ? 'Swarm Governance' : 'Omnipedia Editor',
+    title: i === 0 ? 'First Global Mission' : `Mission ${i + 1}`,
+    subtitle: i === 0 ? 'Operator Expansion' : i === 1 ? 'Swarm Governance' : 'Omnipedia Editor',
   }));
 </script>
 
