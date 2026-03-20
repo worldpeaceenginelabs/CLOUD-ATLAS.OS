@@ -33,7 +33,10 @@ export const modalService = {
     showModal('swarm-governance');
   },
   hideSwarmGovernance: ()          => hideModal('swarm-governance'),
-  showOmnipediaEditor: ()          => showModal('omnipedia-editor'),
+  showOmnipediaEditor: () => {
+    missionProgress.recordMission3FirstOpened();
+    showModal('omnipedia-editor');
+  },
   hideOmnipediaEditor: ()          => hideModal('omnipedia-editor'),
   showMissionLog: ()               => showModal('mission-log'),
   hideMissionLog: ()               => hideModal('mission-log'),

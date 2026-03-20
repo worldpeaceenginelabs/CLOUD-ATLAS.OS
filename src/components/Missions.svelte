@@ -6,37 +6,46 @@
 
   $: m1Done = $mission1.status === 'completed';
   $: m3Unlocked = $missionProgress.mission2FirstOpened;
+  $: m2Visited = $missionProgress.mission2FirstOpened;
+  $: m3Visited = $missionProgress.mission3FirstOpened;
 
-  const SLOT_COUNT = 3;
-  const slots = Array.from({ length: SLOT_COUNT }, (_, i) => ({
-    index: (i + 1) as 1 | 2 | 3,
-    title: i === 0 ? 'First Global Mission' : `Mission ${i + 1}`,
-    subtitle: i === 0 ? 'Operator Expansion' : i === 1 ? 'Swarm Governance' : 'Omnipedia Editor',
-  }));
+  const slotIndices: (1 | 2 | 3)[] = [1, 2, 3];
 </script>
 
 <div class="missions">
-  {#each slots as slot}
-    {@const clickable = slot.index === 1 || (slot.index === 2 && m1Done) || (slot.index === 3 && m3Unlocked)}
+  {#each slotIndices as slotIndex (slotIndex)}
+    {@const clickable = slotIndex === 1 || (slotIndex === 2 && m1Done) || (slotIndex === 3 && m3Unlocked)}
+    {@const slot2Single = slotIndex === 2 && m1Done && m2Visited}
+    {@const slot3Single = slotIndex === 3 && m3Unlocked && m3Visited}
+    {@const singleLabel = slot2Single || slot3Single}
     <button
       type="button"
       class="mission-slot"
-      class:new-mission={slot.index === 1 && !m1Done}
-      class:unlocked-ambient={(slot.index === 2 && m1Done) || (slot.index === 3 && m3Unlocked)}
+      class:mission-slot-single-label={singleLabel}
+      class:new-mission={slotIndex === 1 && !m1Done}
+      class:unlocked-ambient={(slotIndex === 2 && m1Done) || (slotIndex === 3 && m3Unlocked)}
       class:greyed={!clickable}
       disabled={!clickable}
-      on:click={() => clickable && onSelectMission(slot.index)}
+      on:click={() => clickable && onSelectMission(slotIndex)}
     >
-      <span class="mission-slot-title animated-gradient">
-        {slot.title}
-      </span>
-      {#if slot.subtitle}
-        <span class="mission-slot-subtitle animated-gradient">
-          {slot.subtitle}
+      {#if slotIndex === 1}
+        <span class="mission-slot-title animated-gradient">
+          {m1Done ? 'Marketing' : 'First Global Mission'}
         </span>
+        <span class="mission-slot-subtitle animated-gradient">Operator Expansion</span>
+      {:else if slot2Single}
+        <span class="mission-slot-title animated-gradient">Swarm Governance</span>
+      {:else if slotIndex === 2}
+        <span class="mission-slot-title animated-gradient">Mission 2</span>
+        <span class="mission-slot-subtitle animated-gradient">Swarm Governance</span>
+      {:else if slot3Single}
+        <span class="mission-slot-title animated-gradient">Omnipedia Creator</span>
+      {:else if slotIndex === 3}
+        <span class="mission-slot-title animated-gradient">Mission 3</span>
+        <span class="mission-slot-subtitle animated-gradient">Omnipedia Editor</span>
       {/if}
 
-      {#if slot.index === 2 && !m1Done}
+      {#if slotIndex === 2 && !m1Done}
         <span class="locked-overlay" aria-hidden="true">
           <svg
             class="lock-icon"
@@ -54,7 +63,7 @@
           </svg>
           <span class="locked-text">SOLVE FIRST MISSION TO UNLOCK</span>
         </span>
-      {:else if slot.index === 3 && !m3Unlocked}
+      {:else if slotIndex === 3 && !m3Unlocked}
         <span class="locked-overlay" aria-hidden="true">
           <svg
             class="lock-icon"
@@ -106,6 +115,14 @@
     transition: background 0.15s, border-color 0.15s, opacity 0.15s;
     text-align: center;
     font-family: inherit;
+  }
+
+  .mission-slot.mission-slot-single-label {
+    justify-content: center;
+  }
+
+  .mission-slot.mission-slot-single-label .mission-slot-title {
+    margin: 0;
   }
 
   .mission-slot.new-mission {
