@@ -8,22 +8,21 @@
     <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
     <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
   </p>
-  <p class="mission-share-label">SHARE THIS ON 3 DIFFERENT DAYS</p>
+  <p class="mission-share-label">COMING SOON</p>
   
   <div class="mission-bottom">
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">What to do?</span>
-      Share Cloud Atlas OS on your social networks right now. We've cloned every major gig platform — rides, delivery, freelance, social — with zero commission
-      and zero fees.<br>
-      <span class="mission-bottom-heading">Free Forever</span>
+      <span class="mission-bottom-heading">COMING SOON</span>
+      COMING SOON<br>
+      <span class="mission-bottom-heading">COMING SOON</span>
     </p>
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">What is the goal?</span>
-      Every person who joins is a potential customer, passenger, or client, and none of them owe a cut to anyone but you.
+      <span class="mission-bottom-heading">COMING SOON</span>
+      COMING SOON
     </p>
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">How do we see we won?</span>
-      We're having a global live user count in the running status ticker. Watch the number grow as a direct signal of your impact.
+      <span class="mission-bottom-heading">COMING SOON</span>
+      COMING SOON
     </p>
   </div>
 </div>
