@@ -8,21 +8,25 @@
     <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
     <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
   </p>
-  <p class="mission-share-label">COMING SOON</p>
+  <p class="mission-bottom-heading">COMING SOON</p>
   
   <div class="mission-bottom">
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">COMING SOON</span>
-      COMING SOON<br>
-      <span class="mission-bottom-heading">COMING SOON</span>
+      <span class="mission-bottom-heading">Connect 3D models into scenes</span>
+      Build apps, games, and experiences from those scenes. Run simulations on a live global map. Visualize what does not fit into words.<br><br>
     </p>
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">COMING SOON</span>
-      COMING SOON
+      <span class="mission-bottom-heading">OMNIPEDIA brings this to all of Wikipedia</span>
+       — 6 million articles, each translated into 3D objects, environments, and scenes on a shared spatial map.<br><br>
+      
     </p>
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">COMING SOON</span>
-      COMING SOON
+      <span class="mission-bottom-heading">Because every object follows the same logic,</span>
+       they recombine instantly. You stop building from scratch and start drawing from the full structure of human knowledge — no coding required.<br><br>
+    </p>
+    <p class="animated-gradient">
+      <span class="mission-bottom-heading">And as the community shapes OMNIPEDIA</span>
+      and in turn the HOLODECK, a Genie 3 class world model with spatial AGI emerges from it.
     </p>
   </div>
 </div>

@@ -8,21 +8,20 @@
     <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
     <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
   </p>
-  <p class="mission-share-label">COMING SOON</p>
+  <p class="mission-bottom-heading">COMING SOON</p>
   
   <div class="mission-bottom">
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">COMING SOON</span>
-      COMING SOON<br>
-      <span class="mission-bottom-heading">COMING SOON</span>
+      <span class="mission-bottom-heading">A bold reimagining of governance</span>
+       — where brainstorming, group action, petitioning, and crowdfunding merge into an action-driven system.
     </p>
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">COMING SOON</span>
-      COMING SOON
+      <span class="mission-bottom-heading">From local challenges to global movements,</span>
+      anyone can create or join missions.
     </p>
     <p class="animated-gradient">
-      <span class="mission-bottom-heading">COMING SOON</span>
-      COMING SOON
+      <span class="mission-bottom-heading">It's governance made accessible, participatory, and even fun</span>
+      — like a game where everyone plays to make the world better.
     </p>
   </div>
 </div>
