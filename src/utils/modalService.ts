@@ -1,5 +1,6 @@
 import { showModal, hideModal, closeAllModals, closeTopModal, toggleModal } from './modalManager';
 import type { ModelData } from '../types';
+import { missionProgress } from './missionProgress';
 
 export const modalService = {
   showModelDetails:   (model: ModelData)  => showModal('model-details', { model }),
@@ -27,6 +28,13 @@ export const modalService = {
   hideAbout:            ()                  => hideModal('about'),
   showMission: ()                  => showModal('mission'),
   hideMission: ()                  => hideModal('mission'),
+  showSwarmGovernance: () => {
+    missionProgress.recordMission2FirstOpened();
+    showModal('swarm-governance');
+  },
+  hideSwarmGovernance: ()          => hideModal('swarm-governance'),
+  showOmnipediaEditor: ()          => showModal('omnipedia-editor'),
+  hideOmnipediaEditor: ()          => hideModal('omnipedia-editor'),
   showMissionLog: ()               => showModal('mission-log'),
   hideMissionLog: ()               => hideModal('mission-log'),
   closeAllModals,

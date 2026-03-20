@@ -1,34 +1,32 @@
 <script lang="ts">
   import { missionTitleMain, missionTitleSub } from '../content/missionContent';
   import { mission1 } from '../utils/mission1';
+  import { missionProgress } from '../utils/missionProgress';
 
-  export let onOpenMission: () => void = () => {};
+  export let onSelectMission: (index: 1 | 2 | 3) => void = () => {};
+
+  $: m1Done = $mission1.status === 'completed';
+  $: m3Unlocked = $missionProgress.mission2FirstOpened;
 
   const SLOT_COUNT = 3;
   const slots = Array.from({ length: SLOT_COUNT }, (_, i) => ({
-    index: i + 1,
-    active: i === 0,
+    index: (i + 1) as 1 | 2 | 3,
     title: i === 0 ? missionTitleMain : `Mission ${i + 1}`,
-    subtitle: i === 0 ? missionTitleSub : '',
+    subtitle: i === 0 ? missionTitleSub : i === 1 ? 'Swarm Governance' : 'Omnipedia Editor',
   }));
-
-  function onSlotClick(slot: { active: boolean }) {
-    if (slot.active) {
-      onOpenMission();
-    }
-  }
 </script>
 
 <div class="missions">
   {#each slots as slot}
+    {@const clickable = slot.index === 1 || (slot.index === 2 && m1Done) || (slot.index === 3 && m3Unlocked)}
     <button
       type="button"
       class="mission-slot"
-      class:new-mission={slot.active && $mission1.status !== 'completed'}
-      class:locked-ambient={slot.index === 2 && $mission1.status !== 'completed'}
-      class:greyed={!slot.active}
-      disabled={!slot.active}
-      on:click={() => onSlotClick(slot)}
+      class:new-mission={slot.index === 1 && !m1Done}
+      class:unlocked-ambient={(slot.index === 2 && m1Done) || (slot.index === 3 && m3Unlocked)}
+      class:greyed={!clickable}
+      disabled={!clickable}
+      on:click={() => clickable && onSelectMission(slot.index)}
     >
       <span class="mission-slot-title animated-gradient">
         {slot.title}
@@ -39,7 +37,7 @@
         </span>
       {/if}
 
-      {#if slot.index === 2 && $mission1.status !== 'completed'}
+      {#if slot.index === 2 && !m1Done}
         <span class="locked-overlay" aria-hidden="true">
           <svg
             class="lock-icon"
@@ -56,6 +54,24 @@
             <path d="M8 11V8a4 4 0 0 1 8 0v3" />
           </svg>
           <span class="locked-text">SOLVE FIRST MISSION TO UNLOCK</span>
+        </span>
+      {:else if slot.index === 3 && !m3Unlocked}
+        <span class="locked-overlay" aria-hidden="true">
+          <svg
+            class="lock-icon"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+          <span class="locked-text">OPEN MISSION 2 TO UNLOCK</span>
         </span>
       {/if}
     </button>
@@ -119,13 +135,13 @@
     mask-composite: exclude;
   }
 
-  .mission-slot.locked-ambient {
+  .mission-slot.unlocked-ambient {
     position: relative;
     border-color: transparent;
     z-index: 0;
   }
 
-  .mission-slot.locked-ambient::before {
+  .mission-slot.unlocked-ambient::before {
     content: '';
     position: absolute;
     inset: -1px;
@@ -145,11 +161,18 @@
     mask-composite: exclude;
   }
 
-  /* Normal active missions: keep the existing hover border change */
-.mission-slot:not(.greyed):not(.new-mission):hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.25);
-}
+  /* Active slots only (not .greyed): gold border on hover */
+  .mission-slot:not(.greyed):not(.new-mission):not(.unlocked-ambient):hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #ffd700;
+  }
+
+  .mission-slot:not(.greyed).new-mission:hover::before,
+  .mission-slot:not(.greyed).unlocked-ambient:hover::before {
+    background: #ffd700;
+    background-size: 100% 100%;
+    animation: none;
+  }
 
   .mission-slot.greyed {
     opacity: 0.7;

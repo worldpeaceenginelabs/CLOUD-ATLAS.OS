@@ -518,8 +518,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
 
 /** Ordered list of verticals for the selector UI. */
 export const VERTICAL_LIST: GigVertical[] = [
-  'rides', 'delivery', 'helpouts', 'social',
-  'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
+  'rides', 'delivery', 'social', 'helpouts',
 ];
 
 /** Only the listing-mode verticals, for layer management. */

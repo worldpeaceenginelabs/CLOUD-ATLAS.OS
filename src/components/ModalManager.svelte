@@ -13,6 +13,8 @@
   import About from './About.svelte';
   import Mission from './Mission.svelte';
   import Missions from './Missions.svelte';
+  import SwarmGovernance from '../appmenu/SwarmGovernance.svelte';
+  import OmnipediaEditor from '../appmenu/OmnipediaEditor.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
@@ -28,6 +30,8 @@
     about: 'ABOUT',
     simulation: 'SIMULATION',
     mission: 'MISSION',
+    'swarm-governance': 'SWARM GOVERNANCE',
+    'omnipedia-editor': 'MISSION',
     'mission-log': 'LOG',
     omnipedia: 'OMNIPEDIA',
     'mission-tv': 'MISSION TV',
@@ -48,6 +52,12 @@
     } catch (error) {
       logger.error('Failed to remove model', { component: 'ModalManager', operation: 'removeModel' });
     }
+  }
+
+  function handleSelectMission(index: 1 | 2 | 3) {
+    if (index === 1) modalService.showMission();
+    if (index === 2) modalService.showSwarmGovernance();
+    if (index === 3) modalService.showOmnipediaEditor();
   }
 </script>
 
@@ -74,14 +84,14 @@
       isVisible={true}
       onClose={() => { if (modal.id === 'about') localStorage.setItem('welcomeMessageDismissed', 'true'); hideModal(modal.id); }}
       title={MODAL_TITLES[modal.id] ?? ''}
-      maxWidth={modal.id === 'mission' ? '100%' : modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
+      maxWidth={modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'omnipedia-editor' ? '100%' : modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
       zIndex={modal.id === 'operator-agreement' ? 1001 : 1000}
       showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement' && modal.id !== 'mission-log'}
       showTopHeader={modal.id !== 'layers-menu'}
       topHeaderTransparent={modal.id === 'mission-log'}
       closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       modalType={
-        modal.id === 'mission'
+        modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'omnipedia-editor'
           ? 'mission'
           : modal.id === 'layers-menu'
             ? 'overlay'
@@ -151,9 +161,13 @@
       {:else if modal.id === 'about'}
         <About />
       {:else if modal.id === 'mission-log'}
-        <Missions onOpenMission={() => modalService.showMission()} />
+        <Missions onSelectMission={handleSelectMission} />
       {:else if modal.id === 'mission'}
         <Mission />
+      {:else if modal.id === 'swarm-governance'}
+        <SwarmGovernance />
+      {:else if modal.id === 'omnipedia-editor'}
+        <OmnipediaEditor />
       {:else if modal.id === 'operator-agreement'}
         <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); }} />
       {/if}
