@@ -16,8 +16,13 @@
 
 import { type NostrService } from './nostrService';
 import { logger } from '../utils/logger';
-import type { Listing } from '../types';
+import type { Listing, SwarmMissionCardPayload, SwarmMissionState } from '../types';
 import { onRelayStatus, publishVerifiedReplaceable, type RelayPublishOutcome } from './relayOrchestrator';
+import { getCurrentTimeIso8601 } from '../utils/timeUtils';
+import { encode as geohashEncode } from '../utils/geohash';
+import { GEOHASH_PRECISION_LISTING } from '../gig/constants';
+import { VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
+import { SWARM_MISSION_MAX_AGE_SECS } from './listingConstants';
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -117,5 +122,67 @@ export class ListingService {
   /** Clean up. Shared NostrService connections remain open. */
   stop(): void {
     logger.info('ListingService stopped', { component: 'ListingService', operation: 'stop' });
+  }
+}
+
+/** Build listing JSON for Nostr from MissionCard payload. */
+export function missionCardPayloadToListing(data: SwarmMissionCardPayload, authorPubkey: string): Listing {
+  const lat = data.locationLat?.trim() ? parseFloat(data.locationLat) : NaN;
+  const lon = data.locationLon?.trim() ? parseFloat(data.locationLon) : NaN;
+  const hasLoc = Number.isFinite(lat) && Number.isFinite(lon);
+  const location = hasLoc ? { latitude: lat, longitude: lon } : undefined;
+  const geohash =
+    location != null
+      ? geohashEncode(location.latitude, location.longitude, GEOHASH_PRECISION_LISTING)
+      : undefined;
+
+  const swarm: SwarmMissionState = {
+    links: {
+      brainstorming: data.swarm.links.brainstorming.trim(),
+      meetanddo: data.swarm.links.meetanddo.trim(),
+      petition: data.swarm.links.petition.trim(),
+      crowdfunding: data.swarm.links.crowdfunding.trim(),
+    },
+    success: { ...data.swarm.success },
+  };
+
+  const timestamp =
+    data.timestamp?.trim() && data.timestamp.trim().length > 0 ? data.timestamp.trim() : getCurrentTimeIso8601();
+
+  return {
+    id: data.id,
+    pubkey: authorPubkey,
+    mode: 'both',
+    category: '',
+    title: data.title.trim(),
+    description: data.description.trim(),
+    contact: swarm.links.brainstorming,
+    location,
+    address: data.address?.trim() || undefined,
+    timestamp,
+    geohash,
+    vertical: 'swarmmission',
+    swarm,
+  };
+}
+
+/** Publish or replace swarm mission on relays (14d TTL). Caller should bump `layerRefresh.swarmmission`. */
+export async function publishSwarmMission(
+  nostr: NostrService,
+  data: SwarmMissionCardPayload,
+): Promise<Listing> {
+  const cfg = VERTICALS.swarmmission as ListingVerticalConfig;
+  const listing = missionCardPayloadToListing(data, nostr.pubkey);
+  const svc = new ListingService(
+    nostr,
+    cfg.listingTag,
+    { onRelayStatus: () => {} },
+    SWARM_MISSION_MAX_AGE_SECS,
+  );
+  try {
+    await svc.publishListing(listing);
+    return listing;
+  } finally {
+    svc.stop();
   }
 }

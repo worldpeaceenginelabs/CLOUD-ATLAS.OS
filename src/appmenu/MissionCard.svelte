@@ -2,30 +2,17 @@
   import { slide } from 'svelte/transition';
   import LocationPicker from '../components/LocationPicker.svelte';
   import { verticalIconSvg } from '../gig/verticalIcons';
-  import type { GigVertical, SwarmMissionLane, SwarmMissionState } from '../types';
+  import type { GigVertical, SwarmMissionCardPayload, SwarmMissionLane, SwarmMissionState } from '../types';
   import { openExternal } from '../utils/openExternal';
   import { ensureProtocol } from '../utils/urlUtils';
 
-  /** Matches `MissionCardPayload` in swarmMissionBridge (import type from there in parents if needed). */
-  interface MissionCardData {
-    id: string;
-    authorPubkey: string;
-    title: string;
-    description: string;
-    address?: string;
-    locationLat?: string;
-    locationLon?: string;
-    timestamp?: string;
-    swarm: SwarmMissionState;
-  }
-
-  export let mission: MissionCardData | null = null;
+  export let mission: SwarmMissionCardPayload | null = null;
   export let viewerPubkey: string = '';
   export let accentColor: string = '#7E57C2';
-  export let onCommit: ((data: MissionCardData) => void | Promise<void>) | undefined = undefined;
+  export let onCommit: ((data: SwarmMissionCardPayload) => void | Promise<void>) | undefined = undefined;
   export let onDelete: ((id: string) => void | Promise<void>) | undefined = undefined;
   /** Called after local success flags update; payload includes full card for republish. */
-  export let onSuccessMark: ((data: MissionCardData) => void | Promise<void>) | undefined = undefined;
+  export let onSuccessMark: ((data: SwarmMissionCardPayload) => void | Promise<void>) | undefined = undefined;
 
   const LANE_META: {
     lane: SwarmMissionLane;
@@ -180,7 +167,7 @@
     locationLat.trim().length > 0 &&
     locationLon.trim().length > 0;
 
-  function buildPayload(): MissionCardData {
+  function buildPayload(): SwarmMissionCardPayload {
     return {
       id: localId,
       authorPubkey,

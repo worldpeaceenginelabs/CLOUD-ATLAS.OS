@@ -16,6 +16,20 @@ export function showModal(id: string, data?: any): void {
   });
 }
 
+/** Replace modal entry if `id` exists, else append (e.g. mission-2 with map seed). */
+export function upsertModal(id: string, data?: any): void {
+  _modals.update((list) => {
+    const i = list.findIndex((m) => m.id === id);
+    const entry: ModalEntry = { id, data };
+    if (i >= 0) {
+      const next = [...list];
+      next[i] = entry;
+      return next;
+    }
+    return [...list, entry];
+  });
+}
+
 export function hideModal(id: string): void {
   _modals.update(list => list.filter(m => m.id !== id));
 }
@@ -50,6 +64,7 @@ if (typeof window !== 'undefined') {
 
 export const modalManager = {
   showModal,
+  upsertModal,
   hideModal,
   toggleModal,
   closeAllModals,

@@ -4,7 +4,13 @@
  */
 
 import { type NostrService, type NostrEvent } from './nostrService';
-import type { Listing, ListingVertical } from '../types';
+import type {
+  Listing,
+  ListingVertical,
+  SwarmMissionCardPayload,
+  SwarmMissionLane,
+  SwarmMissionState,
+} from '../types';
 import {
   LISTING_MAX_AGE_MS,
   LISTING_MAX_AGE_SECS,
@@ -12,8 +18,76 @@ import {
   SWARM_MISSION_MAX_AGE_MS,
   SWARM_MISSION_MAX_AGE_SECS,
 } from './listingConstants';
-import { normalizeSwarmListing } from '../utils/swarmMissionBridge';
 import { buildReplaceableFilter, runReliableSnapshot } from './relayOrchestrator';
+
+function emptySwarmMissionState(): SwarmMissionState {
+  return {
+    links: { brainstorming: '', meetanddo: '', petition: '', crowdfunding: '' },
+    success: { brainstorming: false, petition: false, crowdfunding: false },
+  };
+}
+
+/** Normalize relay JSON for vertical swarmmission (mutates listing). */
+export function normalizeSwarmListing(listing: Listing): void {
+  if (listing.vertical !== 'swarmmission') return;
+  const base = emptySwarmMissionState();
+  const raw = listing.swarm;
+  if (raw && typeof raw === 'object') {
+    const lanes: SwarmMissionLane[] = ['brainstorming', 'meetanddo', 'petition', 'crowdfunding'];
+    for (const lane of lanes) {
+      const v = raw.links?.[lane];
+      base.links[lane] = typeof v === 'string' ? v.trim() : '';
+    }
+    base.success.brainstorming = !!raw.success?.brainstorming;
+    base.success.petition = !!raw.success?.petition;
+    base.success.crowdfunding = !!raw.success?.crowdfunding;
+  }
+  if (!base.links.brainstorming.trim() && listing.contact?.trim()) {
+    base.links.brainstorming = listing.contact.trim();
+  }
+  listing.swarm = base;
+  listing.contact = base.links.brainstorming;
+  listing.vertical = 'swarmmission';
+}
+
+export function laneOpenForParticipation(swarm: SwarmMissionState, lane: SwarmMissionLane): boolean {
+  const link = swarm.links[lane]?.trim();
+  if (!link) return false;
+  if (lane === 'meetanddo') return true;
+  if (lane === 'brainstorming') return !swarm.success.brainstorming;
+  if (lane === 'petition') return !swarm.success.petition;
+  return !swarm.success.crowdfunding;
+}
+
+export function missionPassesSwarmFilters(listing: Listing, filters: Set<SwarmMissionLane>): boolean {
+  if (listing.vertical !== 'swarmmission' || filters.size === 0) return true;
+  const swarm = listing.swarm;
+  if (!swarm) return false;
+  for (const lane of filters) {
+    if (laneOpenForParticipation(swarm, lane)) return true;
+  }
+  return false;
+}
+
+export function listingToMissionCardPayload(listing: Listing): SwarmMissionCardPayload | null {
+  if (listing.vertical !== 'swarmmission') return null;
+  normalizeSwarmListing(listing);
+  const swarm = listing.swarm!;
+  return {
+    id: listing.id,
+    authorPubkey: listing.pubkey,
+    title: listing.title ?? '',
+    description: listing.description,
+    address: listing.address,
+    locationLat: listing.location != null ? String(listing.location.latitude) : '',
+    locationLon: listing.location != null ? String(listing.location.longitude) : '',
+    timestamp: listing.timestamp,
+    swarm: {
+      links: { ...swarm.links },
+      success: { ...swarm.success },
+    },
+  };
+}
 import { logger } from '../utils/logger';
 
 /** Parse a Nostr event into a Listing; optionally set vertical from #t tag or a fixed vertical. Returns null if malformed or verticalFromTag rejects. */

@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
-import { showModal, hideModal, closeAllModals, closeTopModal, toggleModal } from './modalManager';
-import type { ModelData } from '../types';
+import { showModal, hideModal, upsertModal, closeAllModals, closeTopModal, toggleModal } from './modalManager';
+import type { ModelData, SwarmMissionCardPayload } from '../types';
 import { missionProgress } from './missionProgress';
 
 export const modalService = {
@@ -31,11 +31,16 @@ export const modalService = {
   hideMission: ()                  => hideModal('mission'),
   showSwarmGovernance: () => showModal('swarm-governance'),
   hideSwarmGovernance: () => hideModal('swarm-governance'),
-  /** Mission 2 card. First visit stacks swarm-governance (welcome) under this modal. */
-  showMission2: () => {
+  /**
+   * Mission 2 (swarm mission card). First visit stacks swarm-governance unless `skipWelcomeStack`.
+   * Map marker picks use `{ seed, skipWelcomeStack: true }` after `hideMission2()` for a clean open.
+   */
+  showMission2: (opts?: { seed?: SwarmMissionCardPayload | null; skipWelcomeStack?: boolean }) => {
     const first = !get(missionProgress).mission2FirstOpened;
-    if (first) showModal('swarm-governance');
-    showModal('mission-2');
+    if (first && !opts?.skipWelcomeStack) showModal('swarm-governance');
+    const data =
+      opts !== undefined ? { seed: opts.seed === undefined ? undefined : opts.seed } : undefined;
+    upsertModal('mission-2', data);
     missionProgress.recordMission2FirstOpened();
   },
   hideMission2: () => hideModal('mission-2'),

@@ -189,6 +189,19 @@ export interface SwarmMissionState {
   };
 }
 
+/** Wire shape for MissionCard publish/save (matches card payload fields). */
+export interface SwarmMissionCardPayload {
+  id: string;
+  authorPubkey: string;
+  title: string;
+  description: string;
+  address?: string;
+  locationLat?: string;
+  locationLon?: string;
+  timestamp?: string;
+  swarm: SwarmMissionState;
+}
+
 // Listing types
 export type ListingMode = 'in-person' | 'online' | 'both';
 

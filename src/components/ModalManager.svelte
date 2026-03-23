@@ -25,12 +25,9 @@
   import { gigCanClose, layerRefresh } from '../store';
   import { getSharedNostr } from '../services/nostrPool';
   import { VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
-  import {
-    missionCardPayloadToListing,
-    listingToMissionCardPayload,
-    publishSwarmMissionToRelays,
-    type MissionCardPayload,
-  } from '../utils/swarmMissionBridge';
+  import type { SwarmMissionCardPayload } from '../types';
+  import { listingToMissionCardPayload } from '../services/listingFeedHelpers';
+  import { missionCardPayloadToListing, publishSwarmMission } from '../services/listingService';
   import { takeDownListing } from '../gig/listingActions';
 
   const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
@@ -91,16 +88,25 @@
 
   const swarmCfg = VERTICALS.swarmmission as ListingVerticalConfig;
 
-  /** Live mission card payload after publish (cleared when mission-2 modal closes). */
-  let mission2Published: MissionCardPayload | null = null;
+  /** Card payload: seeded when mission-2 opens, then updated on publish. */
+  let mission2Published: SwarmMissionCardPayload | null = null;
+  let wasMission2Open = false;
 
-  $: if (!$openModals.some((m) => m.id === 'mission-2')) {
+  $: mission2Open = $openModals.some((m) => m.id === 'mission-2');
+
+  $: if (!mission2Open) {
     mission2Published = null;
+    wasMission2Open = false;
+  } else if (!wasMission2Open) {
+    const entry = $openModals.find((m) => m.id === 'mission-2');
+    const seed = entry?.data?.seed as SwarmMissionCardPayload | null | undefined;
+    mission2Published = seed != null ? seed : null;
+    wasMission2Open = true;
   }
 
-  async function publishSwarmMissionFromModal(data: MissionCardPayload): Promise<void> {
+  async function publishSwarmMissionFromModal(data: SwarmMissionCardPayload): Promise<void> {
     const nostr = await getSharedNostr();
-    const listing = await publishSwarmMissionToRelays(nostr, data);
+    const listing = await publishSwarmMission(nostr, data);
     mission2Published = listingToMissionCardPayload(listing);
     layerRefresh.update((r) => ({ ...r, swarmmission: (r.swarmmission ?? 0) + 1 }));
   }
