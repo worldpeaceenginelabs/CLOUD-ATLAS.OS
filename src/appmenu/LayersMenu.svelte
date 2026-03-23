@@ -252,7 +252,7 @@
           </div>
           {#if verticalId === 'swarmmission' && isOn}
             <div class="swarm-filter-block">
-              <span class="swarm-filter-hint">Map pins: show missions with open participation in any selected lane (empty = all).</span>
+              <span class="swarm-filter-hint">show only missions with open participation in:</span>
               <div class="swarm-filter-chips">
                 {#each SWARM_PARTICIPATION_LANES as lane}
                   <button
@@ -443,7 +443,7 @@
   }
 
   .swarm-filter-block {
-    padding: 6px 14px 10px 40px;
+    padding: 6px 14px 10px 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
