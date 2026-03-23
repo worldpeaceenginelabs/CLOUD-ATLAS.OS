@@ -9,7 +9,7 @@ import { idb } from '../idb';
 import { logger } from '../utils/logger';
 import { fetchDeletions, applyDeletions } from './listingDeletionService';
 import { LISTING_MAX_AGE_MS, PAGE_SIZE } from './listingConstants';
-import { trimByMaxAge, fetchNewer, fetchOlder, defaultSinceSec } from './listingFeedHelpers';
+import { trimByMaxAge, trimListingsByVerticalAge, fetchNewer, fetchOlder, defaultSinceSec } from './listingFeedHelpers';
 import type { Listing, ListingVertical } from '../types';
 import { VERTICALS, GLOBAL_FEED_MAP_VERTICALS } from '../gig/verticals';
 import type { ListingVerticalConfig } from '../gig/verticals';
@@ -79,7 +79,7 @@ export async function runGlobalFeedMap(
       }
     }
 
-    const trimmed = trimByMaxAge(merged, LISTING_MAX_AGE_MS);
+    const trimmed = trimListingsByVerticalAge(merged);
     const timestamps = trimmed.map((l) => Math.floor(new Date(l.timestamp).getTime() / 1000));
     const oldest = timestamps.length === 0 ? null : Math.min(...timestamps);
     const newest =
@@ -97,7 +97,7 @@ export async function runGlobalFeedMap(
     logger.warn('Global feed (map) relay fetch failed', { component: 'globalListingFeed', operation: 'runGlobalFeedMap' });
     const cached = await idb.loadListingCache(GLOBAL_MAP_CACHE_KEY);
     if (!cached) return [];
-    return trimByMaxAge(cached.listings, LISTING_MAX_AGE_MS);
+    return trimListingsByVerticalAge(cached.listings);
   }
 }
 

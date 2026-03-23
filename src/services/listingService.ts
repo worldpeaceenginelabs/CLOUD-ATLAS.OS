@@ -21,17 +21,15 @@ import { onRelayStatus, publishVerifiedReplaceable, type RelayPublishOutcome } f
 
 // ─── Constants ────────────────────────────────────────────────
 
-/** 7 days in seconds. */
-const LISTING_TTL_SECS = 7 * 24 * 60 * 60;
-
-/** Current unix timestamp + LISTING_TTL_SECS. */
-const freshExpiration = (): number => Math.floor(Date.now() / 1000) + LISTING_TTL_SECS;
+/** Default 7 days in seconds (NIP-40 listing TTL). */
+export const DEFAULT_LISTING_TTL_SECS = 7 * 24 * 60 * 60;
 
 /** Build the standard NIP-33 tag set for a listing event. */
-const buildTags = (listingTag: string, geohash?: string): string[][] => {
+const buildTags = (listingTag: string, ttlSecs: number, geohash?: string): string[][] => {
+  const exp = Math.floor(Date.now() / 1000) + ttlSecs;
   const tags: string[][] = [
     ['t', listingTag],
-    ['expiration', String(freshExpiration())],
+    ['expiration', String(exp)],
   ];
   if (geohash) {
     tags.push(['g', geohash]);
@@ -57,16 +55,24 @@ export class ListingService {
   private nostr: NostrService;
   private callbacks: ListingCallbacks;
   private listingTag: string;
+  private ttlSecs: number;
 
   /**
    * @param nostr       Shared NostrService instance
    * @param listingTag  Nostr '#t' tag, e.g. 'listing-helpouts' or 'listing-social'
    * @param callbacks   Relay status callbacks
+   * @param ttlSecs     NIP-40 expiration offset from publish time (default 7 days)
    */
-  constructor(nostr: NostrService, listingTag: string, callbacks: ListingCallbacks) {
+  constructor(
+    nostr: NostrService,
+    listingTag: string,
+    callbacks: ListingCallbacks,
+    ttlSecs: number = DEFAULT_LISTING_TTL_SECS,
+  ) {
     this.nostr = nostr;
     this.listingTag = listingTag;
     this.callbacks = callbacks;
+    this.ttlSecs = ttlSecs;
   }
 
   /** Our Nostr public key. */
@@ -81,7 +87,7 @@ export class ListingService {
   async publishListing(listing: Listing): Promise<ListingPublishResult> {
     onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
 
-    const tags = buildTags(this.listingTag, listing.geohash);
+    const tags = buildTags(this.listingTag, this.ttlSecs, listing.geohash);
 
     // Add category tag for filtering
     tags.push(['c', listing.category]);

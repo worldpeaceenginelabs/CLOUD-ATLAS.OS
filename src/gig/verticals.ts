@@ -207,6 +207,7 @@ export const LISTING_CATEGORIES: Record<ListingVertical, ListingCategory[]> = {
   meetanddo: [],
   petition: [],
   crowdfunding: [],
+  swarmmission: [],
 };
 
 // ─── Vertical Definitions ───────────────────────────────────────
@@ -332,7 +333,6 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     takeDownLabel: 'Take Down Brainstorm',
     directiveNoun: 'solution',
     defaultMode: 'both',
-    fetchStrategy: 'global',
     haloDescription: 'Flip the script on bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure - or any everyday issue, whether local or global—and turn it into a public brainstorm. Open to everyone, including entrepreneurs, to tackle their own challenges and co-create innovative products, services, and solutions.',
     contactApps: [
       {
@@ -370,7 +370,6 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     takeDownLabel: 'Take Down Mission',
     directiveNoun: 'meeting',
     defaultMode: 'in-person',
-    fetchStrategy: 'global',
     haloDescription: 'From idea to impact—organize real-world missions with local teams. Rally your community, show up, and take action where it counts.',
     contactApps: [
       {
@@ -403,7 +402,6 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     takeDownLabel: 'Take Down Petition',
     directiveNoun: 'Petition',
     defaultMode: 'both',
-    fetchStrategy: 'global',
     haloDescription: 'Make your voice count. Push for change, win approvals, and unlock collective power to reshape spaces, systems, and policies.',
     contactApps: [
       {
@@ -434,7 +432,6 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
     takeDownLabel: 'Take Down Campaign',
     directiveNoun: 'Crowdfunding',
     defaultMode: 'both',
-    fetchStrategy: 'global',
     haloDescription: 'Fuel your mission. Raise the resources to launch your project and solutions—and turn bold ideas into real-world transformations.',
     contactApps: [
       {
@@ -445,6 +442,34 @@ export const LISTING_VERTICAL_DRAFTS: Record<ListingVertical, ListingVerticalDra
       {
         openLabel: 'Donate',
         urlPattern: '^https:\\/\\/(www\\.)?gofundme\\.com\\/f\\/[a-zA-Z0-9-]+\\/?$',
+      },
+    ],
+  },
+
+  swarmmission: {
+    name: 'Swarm Mission',
+    color: '#7E57C2',
+    mode: 'listing',
+    layerGroup: 'Swarm Governance',
+    formTitle: 'Swarm Mission',
+    formSubtitle: 'Brainstorm, meet, petition, and fund — one mission on the map',
+    titleLabel: 'Mission title',
+    titlePlaceholder: 'Short, clear mission name',
+    descriptionPlaceholder: 'What is this mission about?',
+    submitLabel: 'Publish mission',
+    liveTitle: 'Mission is live',
+    liveHint: 'Your swarm mission appears on the map for 14 days.',
+    takeDownLabel: 'Take down mission',
+    fetchStrategy: 'global',
+    contactApps: [
+      {
+        contactLabel: 'Brainstorm link',
+        contactHint: 'Primary link for the brainstorm phase',
+        placeholderExamples: ['https://'],
+      },
+      {
+        openLabel: 'Open',
+        urlPattern: '^.+$',
       },
     ],
   },
@@ -514,6 +539,7 @@ export const VERTICALS: Record<GigVertical, VerticalConfig> = {
   meetanddo: buildListingVerticalConfig('meetanddo', LISTING_VERTICAL_DRAFTS.meetanddo),
   petition: buildListingVerticalConfig('petition', LISTING_VERTICAL_DRAFTS.petition),
   crowdfunding: buildListingVerticalConfig('crowdfunding', LISTING_VERTICAL_DRAFTS.crowdfunding),
+  swarmmission: buildListingVerticalConfig('swarmmission', LISTING_VERTICAL_DRAFTS.swarmmission),
 };
 
 /** Ordered list of verticals for the selector UI. */
@@ -521,10 +547,8 @@ export const VERTICAL_LIST: GigVertical[] = [
   'rides', 'delivery', 'social', 'helpouts',
 ];
 
-/** Only the listing-mode verticals, for layer management. */
-export const LISTING_VERTICALS: ListingVertical[] = [
-  'helpouts', 'social', 'brainstorming', 'meetanddo', 'petition', 'crowdfunding',
-];
+/** Only the listing-mode verticals, for layer management (map + layers menu). */
+export const LISTING_VERTICALS: ListingVertical[] = ['helpouts', 'social', 'swarmmission'];
 
 /** Single source: vertical IDs that use global feed, map mode (time-based, no geohash). */
 export const GLOBAL_FEED_MAP_VERTICALS: ListingVertical[] = LISTING_VERTICALS.filter(

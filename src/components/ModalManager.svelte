@@ -22,7 +22,16 @@
   import { modelEditorService } from '../utils/modelEditorService';
   import { modalService } from '../utils/modalService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
-  import { gigCanClose } from '../store';
+  import { gigCanClose, layerRefresh } from '../store';
+  import { getSharedNostr } from '../services/nostrPool';
+  import { VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
+  import {
+    missionCardPayloadToListing,
+    listingToMissionCardPayload,
+    publishSwarmMissionToRelays,
+    type MissionCardPayload,
+  } from '../utils/swarmMissionBridge';
+  import { takeDownListing } from '../gig/listingActions';
 
   const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
   const NOTIFICATION_MODALS = new Set(['zoom-required']);
@@ -78,6 +87,22 @@
     if (index === 1) modalService.showMission();
     if (index === 2) modalService.showMission2();
     if (index === 3) modalService.showOmnipediaEditor();
+  }
+
+  const swarmCfg = VERTICALS.swarmmission as ListingVerticalConfig;
+
+  /** Live mission card payload after publish (cleared when mission-2 modal closes). */
+  let mission2Published: MissionCardPayload | null = null;
+
+  $: if (!$openModals.some((m) => m.id === 'mission-2')) {
+    mission2Published = null;
+  }
+
+  async function publishSwarmMissionFromModal(data: MissionCardPayload): Promise<void> {
+    const nostr = await getSharedNostr();
+    const listing = await publishSwarmMissionToRelays(nostr, data);
+    mission2Published = listingToMissionCardPayload(listing);
+    layerRefresh.update((r) => ({ ...r, swarmmission: (r.swarmmission ?? 0) + 1 }));
   }
 </script>
 
@@ -187,11 +212,26 @@
       {:else if modal.id === 'swarm-governance'}
         <SwarmGovernance />
       {:else if modal.id === 'mission-2'}
-        <MissionCard
-          mission={null}
-          viewerPubkey="demo"
-          onCommit={async () => modalService.hideMission2()}
-        />
+        {#await getSharedNostr()}
+          <p class="mission2-nostr-hint">Connecting…</p>
+        {:then nostr}
+          <MissionCard
+            mission={mission2Published}
+            viewerPubkey={nostr.pubkey}
+            accentColor={swarmCfg.color}
+            onCommit={async (d) => publishSwarmMissionFromModal(d)}
+            onDelete={async (id) => {
+              if (!mission2Published || mission2Published.id !== id) return;
+              const listing = missionCardPayloadToListing(mission2Published, nostr.pubkey);
+              await takeDownListing(listing, swarmCfg.listingTag, () => {
+                layerRefresh.update((r) => ({ ...r, swarmmission: (r.swarmmission ?? 0) + 1 }));
+              }, () => modalService.hideMission2());
+            }}
+            onSuccessMark={async (d) => publishSwarmMissionFromModal(d)}
+          />
+        {:catch}
+          <p class="mission2-nostr-hint">Storage unavailable — Nostr requires local keys.</p>
+        {/await}
       {:else if modal.id === 'omnipedia-editor'}
         <OmnipediaEditor />
       {:else if modal.id === 'operator-agreement'}
@@ -202,6 +242,14 @@
 {/each}
 
 <style>
+  .mission2-nostr-hint {
+    margin: 0;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.65);
+    text-align: center;
+  }
+
   .modal-card-container {
     position: contents;
     z-index: 1000;

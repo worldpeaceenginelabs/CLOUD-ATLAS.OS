@@ -9,6 +9,11 @@ export const LISTING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Same window in seconds (for Nostr since/until). */
 export const LISTING_MAX_AGE_SECS = 7 * 24 * 60 * 60;
 
+/** Swarm mission unified listings (14 days). */
+export const SWARM_MISSION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+export const SWARM_MISSION_MAX_AGE_SECS = 14 * 24 * 60 * 60;
+
 /** Page size for global feed requests. */
 export const PAGE_SIZE = 50;
 

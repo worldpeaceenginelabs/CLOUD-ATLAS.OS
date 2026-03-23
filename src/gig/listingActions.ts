@@ -10,8 +10,8 @@ import type { Listing } from '../types';
 import { getSharedNostr } from '../services/nostrPool';
 import { publishVerifiedReplaceable } from '../services/relayOrchestrator';
 import { logger } from '../utils/logger';
-
-const LISTING_TTL_SECS = 7 * 24 * 60 * 60;
+import { DEFAULT_LISTING_TTL_SECS } from '../services/listingService';
+import { SWARM_MISSION_MAX_AGE_SECS } from '../services/listingConstants';
 
 /**
  * Take down a listing by publishing a replaceable event with t=DELETE and
@@ -26,7 +26,9 @@ export async function takeDownListing(
   const nostr = await getSharedNostr();
 
   const publishedAt = Math.floor(new Date(listing.timestamp).getTime() / 1000);
-  const expiration = String(publishedAt + LISTING_TTL_SECS);
+  const ttlSecs =
+    listing.vertical === 'swarmmission' ? SWARM_MISSION_MAX_AGE_SECS : DEFAULT_LISTING_TTL_SECS;
+  const expiration = String(publishedAt + ttlSecs);
   const tags: string[][] = [
     ['t', 'DELETE'],
     ['expiration', expiration],

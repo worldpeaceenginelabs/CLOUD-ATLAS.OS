@@ -2,22 +2,12 @@
   import { slide } from 'svelte/transition';
   import LocationPicker from '../components/LocationPicker.svelte';
   import { verticalIconSvg } from '../gig/verticalIcons';
-  import type { GigVertical } from '../types';
+  import type { GigVertical, SwarmMissionLane, SwarmMissionState } from '../types';
   import { openExternal } from '../utils/openExternal';
   import { ensureProtocol } from '../utils/urlUtils';
 
-  export type SwarmLane = 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
-
-  export interface MissionCardSwarm {
-    links: Record<SwarmLane, string>;
-    success: {
-      brainstorming: boolean;
-      petition: boolean;
-      crowdfunding: boolean;
-    };
-  }
-
-  export interface MissionCardData {
+  /** Matches `MissionCardPayload` in swarmMissionBridge (import type from there in parents if needed). */
+  interface MissionCardData {
     id: string;
     authorPubkey: string;
     title: string;
@@ -26,7 +16,7 @@
     locationLat?: string;
     locationLon?: string;
     timestamp?: string;
-    swarm: MissionCardSwarm;
+    swarm: SwarmMissionState;
   }
 
   export let mission: MissionCardData | null = null;
@@ -34,12 +24,11 @@
   export let accentColor: string = '#7E57C2';
   export let onCommit: ((data: MissionCardData) => void | Promise<void>) | undefined = undefined;
   export let onDelete: ((id: string) => void | Promise<void>) | undefined = undefined;
-  export let onSuccessMark:
-    | ((lane: 'brainstorming' | 'petition' | 'crowdfunding') => void | Promise<void>)
-    | undefined = undefined;
+  /** Called after local success flags update; payload includes full card for republish. */
+  export let onSuccessMark: ((data: MissionCardData) => void | Promise<void>) | undefined = undefined;
 
   const LANE_META: {
-    lane: SwarmLane;
+    lane: SwarmMissionLane;
     label: string;
     iconVertical: GigVertical;
     color: string;
@@ -51,7 +40,7 @@
     { lane: 'crowdfunding', label: 'Fund', iconVertical: 'crowdfunding', color: '#EF5350', hasSuccess: true },
   ];
 
-  function emptySwarm(): MissionCardSwarm {
+  function emptySwarm(): SwarmMissionState {
     return {
       links: { brainstorming: '', meetanddo: '', petition: '', crowdfunding: '' },
       success: { brainstorming: false, petition: false, crowdfunding: false },
@@ -61,7 +50,7 @@
   let localId = typeof crypto !== 'undefined' ? crypto.randomUUID() : `local-${Date.now()}`;
   let title = '';
   let description = '';
-  let swarm: MissionCardSwarm = emptySwarm();
+  let swarm: SwarmMissionState = emptySwarm();
   let locationLat = '';
   let locationLon = '';
   let locationAddress = '';
@@ -69,7 +58,7 @@
   let editing = false;
   let saving = false;
   let deleting = false;
-  let focusedLane: SwarmLane | null = null;
+  let focusedLane: SwarmMissionLane | null = null;
 
   $: published = mission !== null;
   $: authorPubkey = mission?.authorPubkey ?? viewerPubkey;
@@ -91,13 +80,13 @@
     locationAddress = mission.address ?? '';
   }
 
-  function laneLit(lane: SwarmLane): boolean {
+  function laneLit(lane: SwarmMissionLane): boolean {
     return !!swarm.links[lane]?.trim();
   }
 
   function whatsNextLine(): string {
     const parts: string[] = [];
-    const open = (lane: SwarmLane): boolean => {
+    const open = (lane: SwarmMissionLane): boolean => {
       if (!swarm.links[lane]?.trim()) return false;
       if (lane === 'meetanddo') return true;
       if (lane === 'brainstorming') return !swarm.success.brainstorming;
@@ -123,13 +112,13 @@
     if (displayName) locationAddress = displayName;
   }
 
-  function openLaneLink(lane: SwarmLane) {
+  function openLaneLink(lane: SwarmMissionLane) {
     const u = swarm.links[lane]?.trim();
     if (!u) return;
     void openExternal(ensureProtocol(u));
   }
 
-  function onLaneGlyphClick(lane: SwarmLane) {
+  function onLaneGlyphClick(lane: SwarmMissionLane) {
     if (editing) {
       focusedLane = focusedLane === lane ? null : lane;
       return;
@@ -137,7 +126,7 @@
     if (laneLit(lane)) openLaneLink(lane);
   }
 
-  function showSuccessButton(lane: SwarmLane, hasSuccess: boolean): boolean {
+  function showSuccessButton(lane: SwarmMissionLane, hasSuccess: boolean): boolean {
     if (!hasSuccess || lane === 'meetanddo') return false;
     if (!published || !isAuthor) return false;
     if (!laneLit(lane)) return false;
@@ -147,7 +136,7 @@
     return true;
   }
 
-  function successVisible(lane: SwarmLane, hasSuccess: boolean): boolean {
+  function successVisible(lane: SwarmMissionLane, hasSuccess: boolean): boolean {
     if (!hasSuccess) return false;
     if (lane === 'brainstorming') return swarm.success.brainstorming;
     if (lane === 'petition') return swarm.success.petition;
@@ -155,13 +144,21 @@
     return false;
   }
 
-  async function markLaneSuccess(lane: 'brainstorming' | 'petition' | 'crowdfunding') {
+  type SuccessLane = 'brainstorming' | 'petition' | 'crowdfunding';
+
+  async function markLaneSuccess(lane: SuccessLane) {
     swarm.success[lane] = true;
     swarm = { ...swarm, success: { ...swarm.success } };
-    await onSuccessMark?.(lane);
+    await onSuccessMark?.(buildPayload());
   }
 
-  function linkEditable(lane: SwarmLane): boolean {
+  function onMarkSuccessClick(lane: SwarmMissionLane) {
+    if (lane === 'brainstorming' || lane === 'petition' || lane === 'crowdfunding') {
+      void markLaneSuccess(lane);
+    }
+  }
+
+  function linkEditable(lane: SwarmMissionLane): boolean {
     if (!editing) return false;
     if (lane === 'brainstorming') return true;
     if (!published) return false;
@@ -272,7 +269,7 @@
           <span class="mc-success-pill">Success</span>
         {/if}
         {#if showSuccessButton(lane, hasSuccess)}
-          <button type="button" class="mc-success-btn" on:click={() => markLaneSuccess(lane)}>Mark success</button>
+          <button type="button" class="mc-success-btn" on:click={() => onMarkSuccessClick(lane)}>Mark success</button>
         {/if}
         {#if editing && linkEditable(lane)}
           <input

@@ -156,10 +156,38 @@ export interface ModelData {
 }
 
 // Gig Economy Types
-export type GigVertical = 'rides' | 'delivery' | 'helpouts' | 'social' | 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
+export type GigVertical =
+  | 'rides'
+  | 'delivery'
+  | 'helpouts'
+  | 'social'
+  | 'brainstorming'
+  | 'meetanddo'
+  | 'petition'
+  | 'crowdfunding'
+  | 'swarmmission';
 
 /** Subset of GigVertical that uses the listing (publish-only) model. */
-export type ListingVertical = 'helpouts' | 'social' | 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
+export type ListingVertical =
+  | 'helpouts'
+  | 'social'
+  | 'brainstorming'
+  | 'meetanddo'
+  | 'petition'
+  | 'crowdfunding'
+  | 'swarmmission';
+
+/** Lanes on a unified swarm mission card. */
+export type SwarmMissionLane = 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
+
+export interface SwarmMissionState {
+  links: Record<SwarmMissionLane, string>;
+  success: {
+    brainstorming: boolean;
+    petition: boolean;
+    crowdfunding: boolean;
+  };
+}
 
 // Listing types
 export type ListingMode = 'in-person' | 'online' | 'both';
@@ -188,6 +216,8 @@ export interface Listing {
   geohash?: string;
   /** Set when fetched from global feed (from event #t). */
   vertical?: ListingVertical;
+  /** Present when vertical is swarmmission (unified swarm card). */
+  swarm?: SwarmMissionState;
 }
 
 export interface GigRequest {

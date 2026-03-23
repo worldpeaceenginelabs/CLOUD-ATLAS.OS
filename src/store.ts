@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, SceneData, LatLon, GigVertical, Listing } from './types';
+import type { Coordinates, ModelData, SceneData, LatLon, GigVertical, Listing, SwarmMissionLane } from './types';
 import { GLOBAL_FEED_MAP_VERTICALS } from './gig/verticals';
 
 // ─── Store registry ──────────────────────────────────────────
@@ -121,6 +121,9 @@ export const activeMapLayers = resettable<Set<string>>(new Set(GLOBAL_FEED_MAP_V
 export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
 export const layerListings = resettable<Record<string, Listing[]>>({});
+
+/** Client-side filter: show swarm missions that still need participants in any selected lane (empty = no filter). */
+export const swarmMissionLaneFilters = resettable<Set<SwarmMissionLane>>(new Set());
 
 // Remember where the Operator Halo was opened from (user location vs picked point)
 export const gigHaloOrigin = resettable<'user-location' | 'picked-point' | null>(null);

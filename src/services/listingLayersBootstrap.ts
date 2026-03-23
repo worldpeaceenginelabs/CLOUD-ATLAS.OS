@@ -25,8 +25,8 @@ import {
   type ListingVerticalConfig,
 } from '../gig/verticals';
 import type { Listing, ListingVertical } from '../types';
-import { LISTING_MAX_AGE_MS, LAYER_CACHE_TTL_MS, GLOBAL_FEED_INTERVAL_MS } from './listingConstants';
-import { trimByMaxAge } from './listingFeedHelpers';
+import { LAYER_CACHE_TTL_MS, GLOBAL_FEED_INTERVAL_MS } from './listingConstants';
+import { trimListingsByVerticalAge } from './listingFeedHelpers';
 
 function isGlobalVertical(v: ListingVertical): boolean {
   return (VERTICALS[v] as ListingVerticalConfig).fetchStrategy === 'global';
@@ -95,7 +95,7 @@ export async function runGlobalFeedFetch(): Promise<void> {
       await idb.openDB();
       const cached = await idb.loadListingCache('global:map');
       if (cached) {
-        const withLocation = trimByMaxAge(cached.listings, LISTING_MAX_AGE_MS).filter((l) => l.location);
+        const withLocation = trimListingsByVerticalAge(cached.listings).filter((l) => l.location);
         layerListings.update(applyGlobalFeedMapToLayerListings(withLocation, currentActiveLayers));
       }
     } catch {

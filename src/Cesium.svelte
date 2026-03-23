@@ -69,11 +69,18 @@ import {
 	import { setupTouchTiltHandler, destroyTouchTiltHandler } from './utils/touchTiltHandler';
 	import { getSharedNostr } from './services/nostrPool';
 	import ListingDetail from './gig/ListingDetail.svelte';
+	import MissionCard from './appmenu/MissionCard.svelte';
   import OperatorHalo from './components/OperatorHalo.svelte';
   import Ticker from './components/Ticker.svelte';
-  import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, layerRefresh, gigHaloOrigin } from './store';
+	import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, layerRefresh, gigHaloOrigin, swarmMissionLaneFilters } from './store';
 import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
+	import {
+		listingToMissionCardPayload,
+		missionPassesSwarmFilters,
+		publishSwarmMissionToRelays,
+	} from './utils/swarmMissionBridge';
+	import { takeDownListing } from './gig/listingActions';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
 	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
@@ -1126,6 +1133,8 @@ function handleListingTakenDown(listingId: string) {
   selectedListing = null;
 }
 
+const swarmMapCfg = VERTICALS.swarmmission as ListingVerticalConfig;
+
 let prevLayerSnapshot: Record<string, Listing[]> = {};
 function sameList(a: Listing[], b: Listing[]): boolean {
   if (a.length !== b.length) return false;
@@ -1134,9 +1143,13 @@ function sameList(a: Listing[], b: Listing[]): boolean {
 $: {
   const all = $layerListings;
   const layersOn = $activeMapLayers;
+  const swarmFilters = $swarmMissionLaneFilters;
   const nextSnapshot: Record<string, Listing[]> = {};
   for (const v of LISTING_VERTICALS) {
-    const cur = layersOn.has(v) ? (all[v] ?? []) : [];
+    let cur = layersOn.has(v) ? (all[v] ?? []) : [];
+    if (v === 'swarmmission' && swarmFilters.size > 0) {
+      cur = cur.filter((l) => missionPassesSwarmFilters(l, swarmFilters));
+    }
     const prev = prevLayerSnapshot[v] ?? [];
     if (!sameList(cur, prev) && initialZoomComplete) {
       onLayerChanged(v, cur);
@@ -1429,15 +1442,56 @@ function handleCoordinatePick(result: any) {
   </button>
 </div>
 
-<!-- Listing Detail Overlay (shown on marker click) -->
+<!-- Listing / swarm mission overlay (marker click) -->
 {#if selectedListing}
-  <ListingDetail
-    listing={selectedListing.listing}
-    vertical={selectedListing.vertical}
-    myPk={myNostrPk}
-    onClose={() => selectedListing = null}
-    onTakenDown={handleListingTakenDown}
-  />
+  {#if selectedListing.vertical === 'swarmmission'}
+    {#await getSharedNostr() then mapNostr}
+      {@const swarmMissionCard = listingToMissionCardPayload(selectedListing.listing)}
+      {#if swarmMissionCard}
+        <div
+          class="swarm-mission-overlay"
+          on:click|self={() => (selectedListing = null)}
+          on:keydown={undefined}
+          role="presentation"
+        >
+          <div class="swarm-mission-panel">
+            <button type="button" class="swarm-mission-close" on:click={() => (selectedListing = null)} aria-label="Close"
+              >&times;</button
+            >
+            <MissionCard
+              mission={swarmMissionCard}
+              viewerPubkey={mapNostr.pubkey}
+              accentColor={swarmMapCfg.color}
+              onCommit={async (d) => {
+                const listing = await publishSwarmMissionToRelays(mapNostr, d);
+                selectedListing = { listing, vertical: 'swarmmission' };
+                layerRefresh.update((r) => ({ ...r, swarmmission: (r.swarmmission ?? 0) + 1 }));
+              }}
+              onDelete={async (id) => {
+                if (selectedListing?.listing.id !== id) return;
+                await takeDownListing(selectedListing.listing, swarmMapCfg.listingTag, handleListingTakenDown, () => {
+                  selectedListing = null;
+                });
+              }}
+              onSuccessMark={async (d) => {
+                const listing = await publishSwarmMissionToRelays(mapNostr, d);
+                selectedListing = { listing, vertical: 'swarmmission' };
+                layerRefresh.update((r) => ({ ...r, swarmmission: (r.swarmmission ?? 0) + 1 }));
+              }}
+            />
+          </div>
+        </div>
+      {/if}
+    {/await}
+  {:else}
+    <ListingDetail
+      listing={selectedListing.listing}
+      vertical={selectedListing.vertical}
+      myPk={myNostrPk}
+      onClose={() => (selectedListing = null)}
+      onTakenDown={handleListingTakenDown}
+    />
+  {/if}
 {/if}
 
 <!-- Operator Halo (shown on user location ring tap) -->
@@ -1692,7 +1746,50 @@ function handleCoordinatePick(result: any) {
 	animation-delay: 4s;
 	}
 
+  .swarm-mission-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+  }
 
+  .swarm-mission-panel {
+    position: relative;
+    max-width: 640px;
+    width: 100%;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding: 16px 18px 20px;
+    border-radius: 14px;
+    background: rgba(12, 16, 28, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .swarm-mission-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .swarm-mission-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
 
 
 

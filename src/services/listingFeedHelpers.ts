@@ -5,7 +5,14 @@
 
 import { type NostrService, type NostrEvent } from './nostrService';
 import type { Listing, ListingVertical } from '../types';
-import { LISTING_MAX_AGE_SECS, PAGE_SIZE } from './listingConstants';
+import {
+  LISTING_MAX_AGE_MS,
+  LISTING_MAX_AGE_SECS,
+  PAGE_SIZE,
+  SWARM_MISSION_MAX_AGE_MS,
+  SWARM_MISSION_MAX_AGE_SECS,
+} from './listingConstants';
+import { normalizeSwarmListing } from '../utils/swarmMissionBridge';
 import { buildReplaceableFilter, runReliableSnapshot } from './relayOrchestrator';
 import { logger } from '../utils/logger';
 
@@ -26,6 +33,9 @@ export function parseListingEvent(
       if (!vertical) return null;
       listing.vertical = vertical;
     }
+    if (listing.vertical === 'swarmmission') {
+      normalizeSwarmListing(listing);
+    }
     return listing;
   } catch {
     return null;
@@ -38,6 +48,17 @@ export function trimByMaxAge(listings: Listing[], maxAgeMs: number): Listing[] {
   return listings.filter((l) => {
     const t = new Date(l.timestamp).getTime();
     return Number.isFinite(t) && t > cutoff;
+  });
+}
+
+/** Trim by vertical: swarm missions 14d, other listings 7d. */
+export function trimListingsByVerticalAge(listings: Listing[]): Listing[] {
+  const now = Date.now();
+  return listings.filter((l) => {
+    const t = new Date(l.timestamp).getTime();
+    if (!Number.isFinite(t)) return false;
+    const maxMs = l.vertical === 'swarmmission' ? SWARM_MISSION_MAX_AGE_MS : LISTING_MAX_AGE_MS;
+    return t > now - maxMs;
   });
 }
 
@@ -87,9 +108,9 @@ export function runListingSubscription(
   }).then((result) => result.status === 'synced');
 }
 
-/** Default since (7 days ago) for filters that don't specify since. */
+/** Default since for filters: far enough back to include longest listing TTL (swarm 14d). */
 export function defaultSinceSec(): number {
-  return Math.floor(Date.now() / 1000) - LISTING_MAX_AGE_SECS;
+  return Math.floor(Date.now() / 1000) - Math.max(LISTING_MAX_AGE_SECS, SWARM_MISSION_MAX_AGE_SECS);
 }
 
 // ─── Global feed primitives (fetchNewer / fetchOlder) ─────────
