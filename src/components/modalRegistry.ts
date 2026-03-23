@@ -27,7 +27,7 @@ export interface ModalConfig {
   showTopHeader: boolean;
   topHeaderTransparent: boolean;
   closeOnBackdropClick: boolean;
-  customClass: '' | 'layers-menu-modal' | 'missions';
+  customClass: '' | 'layers-menu-modal' | 'missions' | 'mission2-modal';
   forwardInputs: boolean;
   isCard: boolean;
 }
@@ -81,7 +81,15 @@ export const MODAL_REGISTRY: Record<ModalId, ModalConfig> = {
     isCard: false,
   },
   mission: { ...BASE, title: 'MISSION', modalType: 'mission', maxWidth: '100%', isCard: false },
-  'mission-2': { ...BASE, title: 'MISSION 2', modalType: 'mission', maxWidth: '720px', isCard: false },
+  'mission-2': {
+    ...BASE,
+    title: 'MISSION 2',
+    modalType: 'mission',
+    maxWidth: '720px',
+    topHeaderTransparent: true,
+    customClass: 'mission2-modal',
+    isCard: false,
+  },
   'swarm-governance': { ...BASE, title: 'SWARM GOVERNANCE', modalType: 'mission', maxWidth: '100%', zIndex: 1100, isCard: false },
   'omnipedia-editor': { ...BASE, title: 'MISSION', modalType: 'mission', maxWidth: '100%', isCard: false },
   'operator-agreement': {

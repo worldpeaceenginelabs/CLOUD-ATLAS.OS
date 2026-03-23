@@ -354,8 +354,8 @@
     gap: 0.5rem;
   }
   .mc-edit {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     color: inherit;
     border-radius: 8px;
     padding: 0.35rem 0.75rem;
@@ -363,8 +363,7 @@
     cursor: pointer;
   }
   .mc-edit {
-    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-    color: var(--accent);
+    color: rgba(255, 255, 255, 0.85);
   }
   .mc-row {
     display: flex;
@@ -390,8 +389,8 @@
   .mc-link-input {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 8px;
     color: inherit;
     padding: 0.5rem 0.65rem;
@@ -439,11 +438,11 @@
     width: 52px;
     height: 52px;
     border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--lane-color) 45%, transparent);
-    background: color-mix(in srgb, var(--lane-color) 12%, transparent);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
     cursor: pointer;
     padding: 0;
-    color: var(--lane-color);
+    color: rgba(255, 255, 255, 0.9);
   }
   .mc-lane-dim {
     opacity: 0.38;
@@ -493,7 +492,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--accent);
+    color: rgba(255, 255, 255, 0.62);
   }
   .mc-next-text {
     margin: 0;
@@ -545,8 +544,8 @@
     cursor: not-allowed;
   }
   .mc-btn-primary {
-    background: color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.08));
-    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.24);
     color: #fff;
   }
   .mc-btn-danger {

@@ -204,6 +204,20 @@
 {/each}
 
 <style>
+  :global(.modal.mission.mission2-modal .modal-content) {
+    background: rgba(255, 255, 255, 0.1);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+  }
+
+  :global(.modal.mission.mission2-modal .modal-body) {
+    padding: 0 0.85rem 0.95rem;
+    box-sizing: border-box;
+  }
+
   .mission2-nostr-hint {
     margin: 0;
     padding: 0.5rem 0;
