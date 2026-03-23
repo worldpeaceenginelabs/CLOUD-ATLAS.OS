@@ -9,7 +9,6 @@ import type {
   ListingVertical,
   SwarmMissionCardPayload,
   SwarmMissionLane,
-  SwarmMissionState,
 } from '../types';
 import {
   LISTING_MAX_AGE_MS,
@@ -19,7 +18,7 @@ import {
   SWARM_MISSION_MAX_AGE_SECS,
 } from './listingConstants';
 import { buildReplaceableFilter, runReliableSnapshot } from './relayOrchestrator';
-import { createEmptySwarmMissionState, isSwarmLaneOpenForParticipation } from '../utils/swarmMission';
+import { createEmptySwarmMissionState } from '../utils/swarmMission';
 
 /** Normalize relay JSON for vertical swarmmission (mutates listing). */
 export function normalizeSwarmListing(listing: Listing): void {
@@ -32,9 +31,6 @@ export function normalizeSwarmListing(listing: Listing): void {
       const v = raw.links?.[lane];
       base.links[lane] = typeof v === 'string' ? v.trim() : '';
     }
-    base.success.brainstorming = !!raw.success?.brainstorming;
-    base.success.petition = !!raw.success?.petition;
-    base.success.crowdfunding = !!raw.success?.crowdfunding;
   }
   if (!base.links.brainstorming.trim() && listing.contact?.trim()) {
     base.links.brainstorming = listing.contact.trim();
@@ -42,20 +38,6 @@ export function normalizeSwarmListing(listing: Listing): void {
   listing.swarm = base;
   listing.contact = base.links.brainstorming;
   listing.vertical = 'swarmmission';
-}
-
-export function laneOpenForParticipation(swarm: SwarmMissionState, lane: SwarmMissionLane): boolean {
-  return isSwarmLaneOpenForParticipation(swarm, lane);
-}
-
-export function missionPassesSwarmFilters(listing: Listing, filters: Set<SwarmMissionLane>): boolean {
-  if (listing.vertical !== 'swarmmission' || filters.size === 0) return true;
-  const swarm = listing.swarm;
-  if (!swarm) return false;
-  for (const lane of filters) {
-    if (laneOpenForParticipation(swarm, lane)) return true;
-  }
-  return false;
 }
 
 export function listingToMissionCardPayload(listing: Listing): SwarmMissionCardPayload | null {
@@ -73,7 +55,6 @@ export function listingToMissionCardPayload(listing: Listing): SwarmMissionCardP
     timestamp: listing.timestamp,
     swarm: {
       links: { ...swarm.links },
-      success: { ...swarm.success },
     },
   };
 }

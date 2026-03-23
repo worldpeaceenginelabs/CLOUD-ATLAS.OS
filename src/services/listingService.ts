@@ -143,7 +143,6 @@ export function missionCardPayloadToListing(data: SwarmMissionCardPayload, autho
       petition: data.swarm.links.petition.trim(),
       crowdfunding: data.swarm.links.crowdfunding.trim(),
     },
-    success: { ...data.swarm.success },
   };
 
   const timestamp =

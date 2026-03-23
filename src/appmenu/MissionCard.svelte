@@ -5,31 +5,23 @@
   import type { GigVertical, SwarmMissionCardPayload, SwarmMissionLane, SwarmMissionState } from '../types';
   import { openExternal } from '../utils/openExternal';
   import { ensureProtocol } from '../utils/urlUtils';
-  import {
-    createEmptySwarmMissionState,
-    isSwarmLaneOpenForParticipation,
-    isSwarmLaneSuccessVisible,
-  } from '../utils/swarmMission';
+  import { createEmptySwarmMissionState } from '../utils/swarmMission';
 
   export let mission: SwarmMissionCardPayload | null = null;
   export let viewerPubkey: string = '';
   export let accentColor: string = '#7E57C2';
   export let onCommit: ((data: SwarmMissionCardPayload) => void | Promise<void>) | undefined = undefined;
   export let onDelete: ((id: string) => void | Promise<void>) | undefined = undefined;
-  /** Called after local success flags update; payload includes full card for republish. */
-  export let onSuccessMark: ((data: SwarmMissionCardPayload) => void | Promise<void>) | undefined = undefined;
-
   const LANE_META: {
     lane: SwarmMissionLane;
     label: string;
     iconVertical: GigVertical;
     color: string;
-    hasSuccess: boolean;
   }[] = [
-    { lane: 'brainstorming', label: 'Brainstorm', iconVertical: 'brainstorming', color: '#FFCA28', hasSuccess: true },
-    { lane: 'meetanddo', label: 'Meet & do', iconVertical: 'meetanddo', color: '#66BB6A', hasSuccess: false },
-    { lane: 'petition', label: 'Petition', iconVertical: 'petition', color: '#AB47BC', hasSuccess: true },
-    { lane: 'crowdfunding', label: 'Fund', iconVertical: 'crowdfunding', color: '#EF5350', hasSuccess: true },
+    { lane: 'brainstorming', label: 'Brainstorm', iconVertical: 'brainstorming', color: '#FFCA28' },
+    { lane: 'meetanddo', label: 'Meet & do', iconVertical: 'meetanddo', color: '#66BB6A' },
+    { lane: 'petition', label: 'Petition', iconVertical: 'petition', color: '#AB47BC' },
+    { lane: 'crowdfunding', label: 'Fund', iconVertical: 'crowdfunding', color: '#EF5350' },
   ];
 
   let localId = typeof crypto !== 'undefined' ? crypto.randomUUID() : `local-${Date.now()}`;
@@ -44,25 +36,42 @@
   let saving = false;
   let deleting = false;
   let focusedLane: SwarmMissionLane | null = null;
+  let hydratedMissionKey: string | null = null;
 
   $: published = mission !== null;
   $: authorPubkey = mission?.authorPubkey ?? viewerPubkey;
   $: isAuthor = viewerPubkey !== '' && viewerPubkey === authorPubkey;
-  $: canUseEdit = isAuthor;
-  $: brainstormDone = swarm.success.brainstorming;
-  $: canEditMeetPetitionFund = !published || brainstormDone;
+  $: canUseEdit = published && isAuthor;
+  $: if (!published) editing = true;
 
-  $: if (mission) {
-    localId = mission.id;
-    title = mission.title;
-    description = mission.description;
-    swarm = {
-      links: { ...mission.swarm.links },
-      success: { ...mission.swarm.success },
-    };
-    locationLat = mission.locationLat ?? '';
-    locationLon = mission.locationLon ?? '';
-    locationAddress = mission.address ?? '';
+  $: {
+    const missionKey = mission ? `${mission.id}:${mission.timestamp ?? ''}` : null;
+    if (missionKey !== hydratedMissionKey) {
+      hydratedMissionKey = missionKey;
+      if (mission) {
+        localId = mission.id;
+        title = mission.title;
+        description = mission.description;
+        swarm = {
+          links: { ...mission.swarm.links },
+        };
+        locationLat = mission.locationLat ?? '';
+        locationLon = mission.locationLon ?? '';
+        locationAddress = mission.address ?? '';
+        editing = false;
+        focusedLane = null;
+      } else {
+        localId = typeof crypto !== 'undefined' ? crypto.randomUUID() : `local-${Date.now()}`;
+        title = '';
+        description = '';
+        swarm = createEmptySwarmMissionState();
+        locationLat = '';
+        locationLon = '';
+        locationAddress = '';
+        editing = true;
+        focusedLane = null;
+      }
+    }
   }
 
   function laneLit(lane: SwarmMissionLane): boolean {
@@ -71,14 +80,14 @@
 
   function whatsNextLine(): string {
     const parts: string[] = [];
-    const open = (lane: SwarmMissionLane): boolean => isSwarmLaneOpenForParticipation(swarm, lane);
+    const open = (lane: SwarmMissionLane): boolean => !!swarm.links[lane]?.trim();
     if (open('brainstorming')) parts.push('Brainstorming is open — join via the link.');
     if (open('meetanddo')) parts.push('On-site / coordination is linked — use Meet & do.');
     if (open('petition')) parts.push('Petition is open — sign via the link.');
     if (open('crowdfunding')) parts.push('Funding is open — contribute via the link.');
     if (parts.length === 0) {
       if (!published) {
-        return 'Publish with a brainstorm link first. After you mark brainstorm successful, you can add Meet & do, petition, and/or funding links.';
+        return 'Publish with a brainstorm link first. After publish, you can add Meet & do, petition, and/or funding links.';
       }
       return 'No open lanes right now — thanks to everyone who participated.';
     }
@@ -105,44 +114,10 @@
     if (laneLit(lane)) openLaneLink(lane);
   }
 
-  function showSuccessButton(lane: SwarmMissionLane, hasSuccess: boolean): boolean {
-    if (!hasSuccess || lane === 'meetanddo') return false;
-    if (!published || !isAuthor) return false;
-    if (!laneLit(lane)) return false;
-    return true;
-  }
-
-  function successVisible(lane: SwarmMissionLane, hasSuccess: boolean): boolean {
-    if (!hasSuccess) return false;
-    return isSwarmLaneSuccessVisible(swarm, lane);
-  }
-
-  type SuccessLane = 'brainstorming' | 'petition' | 'crowdfunding';
-
-  function laneSuccessActive(lane: SwarmMissionLane): boolean {
-    if (lane === 'brainstorming') return swarm.success.brainstorming;
-    if (lane === 'petition') return swarm.success.petition;
-    if (lane === 'crowdfunding') return swarm.success.crowdfunding;
-    return false;
-  }
-
-  async function toggleLaneSuccess(lane: SuccessLane) {
-    swarm.success[lane] = !swarm.success[lane];
-    swarm = { ...swarm, success: { ...swarm.success } };
-    await onSuccessMark?.(buildPayload());
-  }
-
-  function onMarkSuccessClick(lane: SwarmMissionLane) {
-    if (lane === 'brainstorming' || lane === 'petition' || lane === 'crowdfunding') {
-      void toggleLaneSuccess(lane);
-    }
-  }
-
   function linkEditable(lane: SwarmMissionLane): boolean {
     if (!editing) return false;
     if (lane === 'brainstorming') return true;
-    if (!published) return false;
-    return canEditMeetPetitionFund;
+    return published;
   }
 
   function missionDraftValid(requirePublished: boolean): boolean {
@@ -179,7 +154,7 @@
       address: locationAddress || undefined,
       locationLat: locationLat || undefined,
       locationLon: locationLon || undefined,
-      timestamp: mission?.timestamp,
+      timestamp: undefined,
       swarm: {
         links: {
           brainstorming: swarm.links.brainstorming.trim(),
@@ -187,7 +162,6 @@
           petition: swarm.links.petition.trim(),
           crowdfunding: swarm.links.crowdfunding.trim(),
         },
-        success: { ...swarm.success },
       },
     };
   }
@@ -222,14 +196,6 @@
 </script>
 
 <div class="mission-card" style="--accent: {accentColor}">
-  {#if canUseEdit}
-    <div class="mission-card-head">
-      <button type="button" class="mc-edit" on:click={toggleEditing}>
-        {editing ? 'Done' : 'Edit'}
-      </button>
-    </div>
-  {/if}
-
   <div class="mc-row mc-title-row">
     {#if editing}
       <label class="mc-label" for="mc-title">Title</label>
@@ -240,7 +206,7 @@
   </div>
 
   <div class="mc-row mc-lanes" transition:slide={{ duration: 200 }}>
-    {#each LANE_META as { lane, label, iconVertical, color, hasSuccess }}
+    {#each LANE_META as { lane, label, iconVertical, color }}
       <div class="mc-lane" class:mc-lane-focus={focusedLane === lane}>
         <button
           type="button"
@@ -255,20 +221,6 @@
           </span>
         </button>
         <span class="mc-lane-label">{label}</span>
-        {#if successVisible(lane, hasSuccess)}
-          <span class="mc-success-pill">Success</span>
-        {/if}
-        {#if showSuccessButton(lane, hasSuccess)}
-          <button
-            type="button"
-            class="mc-success-btn"
-            class:mc-success-btn-active={laneSuccessActive(lane)}
-            aria-pressed={laneSuccessActive(lane)}
-            on:click={() => onMarkSuccessClick(lane)}
-          >
-            {laneSuccessActive(lane) ? 'Undo success' : 'Mark success'}
-          </button>
-        {/if}
         {#if editing && linkEditable(lane)}
           <input
             class="mc-link-input"
@@ -284,10 +236,8 @@
 
   {#if editing && !published}
     <p class="mc-hint">
-      Only the brainstorm link is available until you publish. After publish, mark brainstorm successful to add Meet & do, petition, and/or funding links.
+      Only the brainstorm link is available until you publish. After publish, you can add Meet & do, petition, and/or funding links.
     </p>
-  {:else if editing && published && !brainstormDone}
-    <p class="mc-hint">Mark brainstorm successful to unlock the other link fields.</p>
   {/if}
 
   <div class="mc-row mc-next">
@@ -316,8 +266,13 @@
     {/if}
   </div>
 
-  {#if canUseEdit}
+  {#if isAuthor}
     <div class="mc-actions">
+      {#if canUseEdit}
+        <button type="button" class="mc-btn mc-btn-secondary" on:click={toggleEditing}>
+          {editing ? 'Done' : 'Edit'}
+        </button>
+      {/if}
       {#if !published}
         <button type="button" class="mc-btn mc-btn-primary" disabled={!firstPublishValid || saving || !onCommit} on:click={handleCommit}>
           {saving ? 'Publishing…' : 'Publish mission'}
@@ -346,24 +301,6 @@
     padding: 0.25rem 0 0.5rem;
     box-sizing: border-box;
     color: rgba(255, 255, 255, 0.92);
-  }
-  .mission-card-head {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
-  .mc-edit {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    color: inherit;
-    border-radius: 8px;
-    padding: 0.35rem 0.75rem;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-  .mc-edit {
-    color: rgba(255, 255, 255, 0.85);
   }
   .mc-row {
     display: flex;
@@ -463,27 +400,6 @@
     color: rgba(255, 255, 255, 0.55);
     line-height: 1.2;
   }
-  .mc-success-pill {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #81c784;
-  }
-  .mc-success-btn {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.45rem;
-    border-radius: 6px;
-    border: 1px solid rgba(129, 199, 132, 0.5);
-    background: rgba(129, 199, 132, 0.12);
-    color: #a5d6a7;
-    cursor: pointer;
-  }
-  .mc-success-btn-active {
-    border-color: rgba(255, 235, 59, 0.65);
-    background: rgba(255, 235, 59, 0.18);
-    color: #fff59d;
-  }
   .mc-next {
     padding: 0.5rem 0;
   }
@@ -528,6 +444,7 @@
   .mc-actions {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 0.5rem;
     margin-top: 0.5rem;
   }
@@ -547,6 +464,11 @@
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.24);
     color: #fff;
+  }
+  .mc-btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.85);
   }
   .mc-btn-danger {
     background: rgba(239, 83, 80, 0.15);

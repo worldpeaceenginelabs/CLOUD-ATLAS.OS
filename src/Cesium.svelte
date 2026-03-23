@@ -72,10 +72,10 @@ import {
 	import ListingDetail from './gig/ListingDetail.svelte';
   import OperatorHalo from './components/OperatorHalo.svelte';
   import Ticker from './components/Ticker.svelte';
-	import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, bumpLayerRefresh, gigHaloOrigin, swarmMissionLaneFilters } from './store';
+	import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, bumpLayerRefresh, gigHaloOrigin } from './store';
 import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
-	import { listingToMissionCardPayload, missionPassesSwarmFilters } from './services/listingFeedHelpers';
+	import { listingToMissionCardPayload } from './services/listingFeedHelpers';
 	import { initUserLocation, type UserLocationHandle } from './utils/cesiumUserLocation';
 	import { initCameraMonitor, type CameraMonitorHandle } from './utils/cesiumCamera';
 	import { initRoamingArea, type RoamingAreaHandle } from './utils/cesiumRoamingArea';
@@ -1123,18 +1123,31 @@ function handleListingTakenDown(listingId: string) {
 let prevLayerSnapshot: Record<string, Listing[]> = {};
 function sameList(a: Listing[], b: Listing[]): boolean {
   if (a.length !== b.length) return false;
-  return a.every((l, i) => l.id === b[i]?.id);
+  return a.every((l, i) => {
+    const r = b[i];
+    if (!r) return false;
+    return (
+      l.id === r.id &&
+      l.timestamp === r.timestamp &&
+      l.title === r.title &&
+      l.description === r.description &&
+      l.contact === r.contact &&
+      l.address === r.address &&
+      l.location?.latitude === r.location?.latitude &&
+      l.location?.longitude === r.location?.longitude &&
+      l.swarm?.links.brainstorming === r.swarm?.links.brainstorming &&
+      l.swarm?.links.meetanddo === r.swarm?.links.meetanddo &&
+      l.swarm?.links.petition === r.swarm?.links.petition &&
+      l.swarm?.links.crowdfunding === r.swarm?.links.crowdfunding
+    );
+  });
 }
 $: {
   const all = $layerListings;
   const layersOn = $activeMapLayers;
-  const swarmFilters = $swarmMissionLaneFilters;
   const nextSnapshot: Record<string, Listing[]> = {};
   for (const v of LISTING_VERTICALS) {
-    let cur = layersOn.has(v) ? (all[v] ?? []) : [];
-    if (v === 'swarmmission' && swarmFilters.size > 0) {
-      cur = cur.filter((l) => missionPassesSwarmFilters(l, swarmFilters));
-    }
+    const cur = layersOn.has(v) ? (all[v] ?? []) : [];
     const prev = prevLayerSnapshot[v] ?? [];
     if (!sameList(cur, prev) && initialZoomComplete) {
       onLayerChanged(v, cur);

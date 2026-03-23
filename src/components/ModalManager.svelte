@@ -188,7 +188,6 @@
             onDelete={async (id) => {
               await takeDownMission2Workflow(nostr, mission2Published, id, swarmCfg);
             }}
-            onSuccessMark={async (d) => publishSwarmMissionFromModal(nostr, d)}
           />
         {:catch}
           <p class="mission2-nostr-hint">Storage unavailable — Nostr requires local keys.</p>

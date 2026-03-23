@@ -182,11 +182,6 @@ export type SwarmMissionLane = 'brainstorming' | 'meetanddo' | 'petition' | 'cro
 
 export interface SwarmMissionState {
   links: Record<SwarmMissionLane, string>;
-  success: {
-    brainstorming: boolean;
-    petition: boolean;
-    crowdfunding: boolean;
-  };
 }
 
 /** Wire shape for MissionCard publish/save (matches card payload fields). */

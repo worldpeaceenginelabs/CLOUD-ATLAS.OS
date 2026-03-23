@@ -2,11 +2,11 @@
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
 
-  import { activeMapLayers, enable3DTileset, swarmMissionLaneFilters } from '../store';
+  import { activeMapLayers, enable3DTileset } from '../store';
   import { showModal, hideModal, toggleModal } from '../utils/modalManager';
   import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
-  import type { ListingVertical, SwarmMissionLane } from '../types';
+  import type { ListingVertical } from '../types';
   import { modelEditorService } from '../utils/modelEditorService';
   import { openExternal } from '../utils/openExternal';
   import {
@@ -85,29 +85,6 @@
   interface LayerGroup {
     header: LayerGroupHeader;
     items: ListingVertical[];
-  }
-
-  const SWARM_PARTICIPATION_LANES: SwarmMissionLane[] = [
-    'brainstorming',
-    'meetanddo',
-    'petition',
-    'crowdfunding',
-  ];
-
-  const SWARM_LANE_LABEL: Record<SwarmMissionLane, string> = {
-    brainstorming: 'Brainstorm',
-    meetanddo: 'Meet & do',
-    petition: 'Petition',
-    crowdfunding: 'Fund',
-  };
-
-  function toggleSwarmParticipationFilter(lane: SwarmMissionLane) {
-    swarmMissionLaneFilters.update((s) => {
-      const next = new Set(s);
-      if (next.has(lane)) next.delete(lane);
-      else next.add(lane);
-      return next;
-    });
   }
 
   const layerGroups: LayerGroup[] = (() => {
@@ -250,21 +227,6 @@
               <span class="layer-badge">ON</span>
             {/if}
           </div>
-          {#if verticalId === 'swarmmission' && isOn}
-            <div class="swarm-filter-block">
-              <span class="swarm-filter-hint">show only missions with open participation in:</span>
-              <div class="swarm-filter-chips">
-                {#each SWARM_PARTICIPATION_LANES as lane}
-                  <button
-                    type="button"
-                    class="swarm-filter-chip"
-                    class:active={$swarmMissionLaneFilters.has(lane)}
-                    on:click|stopPropagation={() => toggleSwarmParticipationFilter(lane)}
-                  >{SWARM_LANE_LABEL[lane]}</button>
-                {/each}
-              </div>
-            </div>
-          {/if}
         {/each}
       {/each}
 
@@ -440,41 +402,6 @@
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.5);
     flex-shrink: 0;
-  }
-
-  .swarm-filter-block {
-    padding: 6px 14px 10px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .swarm-filter-hint {
-    display: block;
-    font-size: 0.65rem;
-    line-height: 1.35;
-    color: rgba(255, 255, 255, 0.45);
-    margin-bottom: 6px;
-  }
-
-  .swarm-filter-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .swarm-filter-chip {
-    font-size: 0.62rem;
-    padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(0, 0, 0, 0.2);
-    color: rgba(255, 255, 255, 0.75);
-    cursor: pointer;
-  }
-
-  .swarm-filter-chip.active {
-    border-color: rgba(126, 87, 194, 0.85);
-    background: rgba(126, 87, 194, 0.25);
-    color: #fff;
   }
 
   .layer-spinner {
