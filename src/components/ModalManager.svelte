@@ -14,6 +14,7 @@
   import Mission from './Mission.svelte';
   import Missions from './Missions.svelte';
   import SwarmGovernance from '../appmenu/SwarmGovernance.svelte';
+  import MissionCard from '../appmenu/MissionCard.svelte';
   import OmnipediaEditor from '../appmenu/OmnipediaEditor.svelte';
   import { formatTimestamp } from '../utils/timeUtils';
   import { removeModel } from '../utils/modelUtils';
@@ -31,12 +32,31 @@
     simulation: 'SIMULATION',
     mission: 'MISSION',
     'swarm-governance': 'SWARM GOVERNANCE',
+    'mission-2': 'MISSION 2',
     'omnipedia-editor': 'MISSION',
     'mission-log': 'LOG',
     omnipedia: 'OMNIPEDIA',
     'mission-tv': 'MISSION TV',
     download: 'DOWNLOAD',
     'operator-agreement': 'OPERATOR AGREEMENT',
+  };
+
+  /** Fixed z-index per modal id (not derived from open order). */
+  const MODAL_Z_INDEX: Record<string, number> = {
+    'model-details': 1000,
+    about: 1000,
+    simulation: 1000,
+    omnipedia: 1000,
+    'mission-tv': 1000,
+    download: 1000,
+    'layers-menu': 1000,
+    'zoom-required': 1000,
+    'mission-log': 1000,
+    mission: 1000,
+    'mission-2': 1000,
+    'swarm-governance': 1100,
+    'omnipedia-editor': 1000,
+    'operator-agreement': 3000,
   };
 
   function handleModelEdit(modelData: any) {
@@ -56,7 +76,7 @@
 
   function handleSelectMission(index: 1 | 2 | 3) {
     if (index === 1) modalService.showMission();
-    if (index === 2) modalService.showSwarmGovernance();
+    if (index === 2) modalService.showMission2();
     if (index === 3) modalService.showOmnipediaEditor();
   }
 </script>
@@ -84,14 +104,14 @@
       isVisible={true}
       onClose={() => { if (modal.id === 'about') localStorage.setItem('welcomeMessageDismissed', 'true'); hideModal(modal.id); }}
       title={MODAL_TITLES[modal.id] ?? ''}
-      maxWidth={modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'omnipedia-editor' ? '100%' : modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
-      zIndex={modal.id === 'operator-agreement' ? 1001 : 1000}
+      maxWidth={modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'omnipedia-editor' ? '100%' : modal.id === 'mission-2' || modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
+      zIndex={MODAL_Z_INDEX[modal.id] ?? 1000}
       showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement' && modal.id !== 'mission-log'}
       showTopHeader={modal.id !== 'layers-menu'}
       topHeaderTransparent={modal.id === 'mission-log'}
       closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
       modalType={
-        modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'omnipedia-editor'
+        modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'mission-2' || modal.id === 'omnipedia-editor'
           ? 'mission'
           : modal.id === 'layers-menu'
             ? 'overlay'
@@ -166,6 +186,12 @@
         <Mission />
       {:else if modal.id === 'swarm-governance'}
         <SwarmGovernance />
+      {:else if modal.id === 'mission-2'}
+        <MissionCard
+          mission={null}
+          viewerPubkey="demo"
+          onCommit={async () => modalService.hideMission2()}
+        />
       {:else if modal.id === 'omnipedia-editor'}
         <OmnipediaEditor />
       {:else if modal.id === 'operator-agreement'}

@@ -1,3 +1,4 @@
+import { get } from 'svelte/store';
 import { showModal, hideModal, closeAllModals, closeTopModal, toggleModal } from './modalManager';
 import type { ModelData } from '../types';
 import { missionProgress } from './missionProgress';
@@ -28,11 +29,16 @@ export const modalService = {
   hideAbout:            ()                  => hideModal('about'),
   showMission: ()                  => showModal('mission'),
   hideMission: ()                  => hideModal('mission'),
-  showSwarmGovernance: () => {
+  showSwarmGovernance: () => showModal('swarm-governance'),
+  hideSwarmGovernance: () => hideModal('swarm-governance'),
+  /** Mission 2 card. First visit stacks swarm-governance (welcome) under this modal. */
+  showMission2: () => {
+    const first = !get(missionProgress).mission2FirstOpened;
+    if (first) showModal('swarm-governance');
+    showModal('mission-2');
     missionProgress.recordMission2FirstOpened();
-    showModal('swarm-governance');
   },
-  hideSwarmGovernance: ()          => hideModal('swarm-governance'),
+  hideMission2: () => hideModal('mission-2'),
   showOmnipediaEditor: () => {
     missionProgress.recordMission3FirstOpened();
     showModal('omnipedia-editor');

@@ -8,7 +8,6 @@
   import OnlineListings from "./gig/OnlineListings.svelte";
   import { startPresence, stopPresence } from './services/presenceService';
   import { initListingLayers } from './services/listingLayersBootstrap';
-  import { modalService } from './utils/modalService';
   import {
     showPicture,
     gridReady,
