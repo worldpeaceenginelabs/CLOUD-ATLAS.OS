@@ -109,9 +109,6 @@
     if (!hasSuccess || lane === 'meetanddo') return false;
     if (!published || !isAuthor) return false;
     if (!laneLit(lane)) return false;
-    if (lane === 'brainstorming' && swarm.success.brainstorming) return false;
-    if (lane === 'petition' && swarm.success.petition) return false;
-    if (lane === 'crowdfunding' && swarm.success.crowdfunding) return false;
     return true;
   }
 
@@ -122,15 +119,22 @@
 
   type SuccessLane = 'brainstorming' | 'petition' | 'crowdfunding';
 
-  async function markLaneSuccess(lane: SuccessLane) {
-    swarm.success[lane] = true;
+  function laneSuccessActive(lane: SwarmMissionLane): boolean {
+    if (lane === 'brainstorming') return swarm.success.brainstorming;
+    if (lane === 'petition') return swarm.success.petition;
+    if (lane === 'crowdfunding') return swarm.success.crowdfunding;
+    return false;
+  }
+
+  async function toggleLaneSuccess(lane: SuccessLane) {
+    swarm.success[lane] = !swarm.success[lane];
     swarm = { ...swarm, success: { ...swarm.success } };
     await onSuccessMark?.(buildPayload());
   }
 
   function onMarkSuccessClick(lane: SwarmMissionLane) {
     if (lane === 'brainstorming' || lane === 'petition' || lane === 'crowdfunding') {
-      void markLaneSuccess(lane);
+      void toggleLaneSuccess(lane);
     }
   }
 
@@ -152,8 +156,19 @@
     );
   }
 
-  $: firstPublishValid = missionDraftValid(false);
-  $: updateValid = missionDraftValid(true);
+  $: firstPublishValid =
+    title.trim().length > 0 &&
+    description.trim().length > 0 &&
+    swarm.links.brainstorming.trim().length > 0 &&
+    locationLat.trim().length > 0 &&
+    locationLon.trim().length > 0;
+  $: updateValid =
+    published &&
+    title.trim().length > 0 &&
+    description.trim().length > 0 &&
+    swarm.links.brainstorming.trim().length > 0 &&
+    locationLat.trim().length > 0 &&
+    locationLon.trim().length > 0;
 
   function buildPayload(): SwarmMissionCardPayload {
     return {
@@ -244,7 +259,15 @@
           <span class="mc-success-pill">Success</span>
         {/if}
         {#if showSuccessButton(lane, hasSuccess)}
-          <button type="button" class="mc-success-btn" on:click={() => onMarkSuccessClick(lane)}>Mark success</button>
+          <button
+            type="button"
+            class="mc-success-btn"
+            class:mc-success-btn-active={laneSuccessActive(lane)}
+            aria-pressed={laneSuccessActive(lane)}
+            on:click={() => onMarkSuccessClick(lane)}
+          >
+            {laneSuccessActive(lane) ? 'Undo success' : 'Mark success'}
+          </button>
         {/if}
         {#if editing && linkEditable(lane)}
           <input
@@ -309,6 +332,7 @@
       {/if}
     </div>
   {/if}
+
 </div>
 
 <style>
@@ -455,6 +479,11 @@
     background: rgba(129, 199, 132, 0.12);
     color: #a5d6a7;
     cursor: pointer;
+  }
+  .mc-success-btn-active {
+    border-color: rgba(255, 235, 59, 0.65);
+    background: rgba(255, 235, 59, 0.18);
+    color: #fff59d;
   }
   .mc-next {
     padding: 0.5rem 0;
