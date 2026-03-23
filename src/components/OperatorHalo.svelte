@@ -5,8 +5,9 @@
   import type { OperatorHaloItem } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { GigVertical } from '../types';
-  import { modalService } from '../utils/modalService';
+  import { showModal } from '../utils/modalManager';
   import { mission1 } from '../utils/mission1';
+  import { isOperatorAgreementAccepted, isWelcomeMessageDismissed } from '../utils/appFlags';
 
   export let screenX: number;
   export let screenY: number;
@@ -39,19 +40,19 @@
   });
 
   function handleItemClick(item: OperatorHaloItem) {
-    if (!localStorage.getItem('operatorAgreementAccepted')) {
-      modalService.showOperatorAgreement();
+    if (!isOperatorAgreementAccepted()) {
+      showModal('operator-agreement');
       return;
     }
     onSelect(item.id);
   }
 
   function handleLogClick() {
-    if (!localStorage.getItem('welcomeMessageDismissed')) {
-      modalService.showAbout();
+    if (!isWelcomeMessageDismissed()) {
+      showModal('about');
       return;
     }
-    modalService.showMissionLog();
+    showModal('mission-log');
   }
 
   function toggleInfo(item: OperatorHaloItem, e: Event) {

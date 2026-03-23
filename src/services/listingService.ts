@@ -17,7 +17,7 @@
 import { type NostrService } from './nostrService';
 import { logger } from '../utils/logger';
 import type { Listing, SwarmMissionCardPayload, SwarmMissionState } from '../types';
-import { onRelayStatus, publishVerifiedReplaceable, type RelayPublishOutcome } from './relayOrchestrator';
+import { publishVerifiedReplaceable, type RelayPublishOutcome } from './relayOrchestrator';
 import { getCurrentTimeIso8601 } from '../utils/timeUtils';
 import { encode as geohashEncode } from '../utils/geohash';
 import { GEOHASH_PRECISION_LISTING } from '../gig/constants';
@@ -90,7 +90,7 @@ export class ListingService {
    * Uses a stable d-tag so re-publishing replaces the previous listing.
    */
   async publishListing(listing: Listing): Promise<ListingPublishResult> {
-    onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
+    this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
     const tags = buildTags(this.listingTag, this.ttlSecs, listing.geohash);
 

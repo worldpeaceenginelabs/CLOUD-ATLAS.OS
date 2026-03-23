@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { mission1 } from '../utils/mission1';
   import { openExternal } from '../utils/openExternal';
+  import MissionFrame from './shared/MissionFrame.svelte';
 
   const shareText = "I keep 100% of what I earn. Do you? #cloudatlasos #keep100 #antimiddlemen https://zerodollar.app";
   const encoded = encodeURIComponent(shareText);
@@ -67,11 +68,7 @@
   }
 </script>
 
-<div class="mission">
-  <p class="mission-title">
-    <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
-    <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
-  </p>
+<MissionFrame titleMain={missionTitleMain} titleSub={missionTitleSub}>
   <p class="mission-share-label">SHARE THIS ON 3 DIFFERENT DAYS</p>
   <div class="mission-card" style="--accent: #23a6d5">
     <div class="mission-stars">
@@ -120,62 +117,9 @@
       We're having a global live user count in the running status ticker. Watch the number grow as a direct signal of your impact.
     </p>
   </div>
-</div>
+</MissionFrame>
 
 <style>
-  .mission {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 1.5rem;
-    width: 100%;
-    height: auto;
-    min-height: 100%;
-    min-width: 0;
-    overflow-x: hidden;
-    text-align: center;
-    padding: 24px;
-    box-sizing: border-box;
-  }
-
-  .mission-title {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    margin: 0;
-    overflow-wrap: break-word;
-  }
-
-  .mission-title-main {
-    font-weight: 700;
-    font-size: clamp(2.25rem, 14vmin, 5.5rem);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    display: block;
-    max-width: 100%;
-    min-width: 0;
-    overflow-wrap: break-word;
-    word-break: break-word;
-  }
-
-  .mission-title-sub {
-    font-weight: 700;
-    font-size: clamp(1.2rem, 6.5vmin, 2.75rem);
-    line-height: 1.3;
-    letter-spacing: 0.02em;
-    display: block;
-    max-width: 100%;
-    min-width: 0;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    padding-bottom: 2px;
-  }
-
   .mission-card {
     background: rgba(10, 15, 25, 0.85);
     -webkit-backdrop-filter: blur(16px);
@@ -307,10 +251,4 @@
     100% { background-position: 0% 50%; }
   }
 
-  @media (max-width: 600px) {
-    .mission {
-      padding: 16px;
-      min-height: 100%;
-    }
-  }
 </style>

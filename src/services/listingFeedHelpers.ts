@@ -19,18 +19,12 @@ import {
   SWARM_MISSION_MAX_AGE_SECS,
 } from './listingConstants';
 import { buildReplaceableFilter, runReliableSnapshot } from './relayOrchestrator';
-
-function emptySwarmMissionState(): SwarmMissionState {
-  return {
-    links: { brainstorming: '', meetanddo: '', petition: '', crowdfunding: '' },
-    success: { brainstorming: false, petition: false, crowdfunding: false },
-  };
-}
+import { createEmptySwarmMissionState, isSwarmLaneOpenForParticipation } from '../utils/swarmMission';
 
 /** Normalize relay JSON for vertical swarmmission (mutates listing). */
 export function normalizeSwarmListing(listing: Listing): void {
   if (listing.vertical !== 'swarmmission') return;
-  const base = emptySwarmMissionState();
+  const base = createEmptySwarmMissionState();
   const raw = listing.swarm;
   if (raw && typeof raw === 'object') {
     const lanes: SwarmMissionLane[] = ['brainstorming', 'meetanddo', 'petition', 'crowdfunding'];
@@ -51,12 +45,7 @@ export function normalizeSwarmListing(listing: Listing): void {
 }
 
 export function laneOpenForParticipation(swarm: SwarmMissionState, lane: SwarmMissionLane): boolean {
-  const link = swarm.links[lane]?.trim();
-  if (!link) return false;
-  if (lane === 'meetanddo') return true;
-  if (lane === 'brainstorming') return !swarm.success.brainstorming;
-  if (lane === 'petition') return !swarm.success.petition;
-  return !swarm.success.crowdfunding;
+  return isSwarmLaneOpenForParticipation(swarm, lane);
 }
 
 export function missionPassesSwarmFilters(listing: Listing, filters: Set<SwarmMissionLane>): boolean {
@@ -182,6 +171,50 @@ export function runListingSubscription(
   }).then((result) => result.status === 'synced');
 }
 
+export interface CollectListingEventsOptions {
+  filter: Record<string, unknown>;
+  parseOptions?: { vertical?: ListingVertical; verticalFromTag?: (tag: string) => ListingVertical | null };
+  subIdPrefix: string;
+  metricName?: string;
+}
+
+export interface CollectListingEventsResult {
+  listings: Listing[];
+  oldestCreatedAt: number | null;
+  newestCreatedAt: number | null;
+  resolvedByEose: boolean;
+}
+
+export async function collectListingEvents(
+  nostr: NostrService,
+  opts: CollectListingEventsOptions,
+): Promise<CollectListingEventsResult> {
+  const listings: Listing[] = [];
+  const seen = new Set<string>();
+  let newestCreatedAt = 0;
+  let oldestCreatedAt = Infinity;
+  const resolvedByEose = await runListingSubscription(
+    nostr,
+    opts.filter,
+    (event: NostrEvent) => {
+      if (seen.has(event.id)) return;
+      seen.add(event.id);
+      if (event.created_at > newestCreatedAt) newestCreatedAt = event.created_at;
+      if (event.created_at < oldestCreatedAt) oldestCreatedAt = event.created_at;
+      const listing = parseListingEvent(event, opts.parseOptions);
+      if (listing) listings.push(listing);
+    },
+    { subIdPrefix: opts.subIdPrefix, metricName: opts.metricName },
+  );
+
+  return {
+    listings,
+    oldestCreatedAt: oldestCreatedAt === Infinity ? null : oldestCreatedAt,
+    newestCreatedAt: newestCreatedAt === 0 ? null : newestCreatedAt,
+    resolvedByEose,
+  };
+}
+
 /** Default since for filters: far enough back to include longest listing TTL (swarm 14d). */
 export function defaultSinceSec(): number {
   return Math.floor(Date.now() / 1000) - Math.max(LISTING_MAX_AGE_SECS, SWARM_MISSION_MAX_AGE_SECS);
@@ -210,25 +243,21 @@ export async function fetchNewer(
     verticalFromTag?: (tag: string) => ListingVertical | null;
   }
 ): Promise<FetchNewerResult> {
-  const listings: Listing[] = [];
-  const seen = new Set<string>();
-  let newestCreatedAt = 0;
   const filter = buildListingFilter({
     tags: opts.tags,
     since: opts.since,
     limit: opts.limit ?? PAGE_SIZE,
   });
-  const resolvedByEose = await runListingSubscription(nostr, filter, (event: NostrEvent) => {
-    if (seen.has(event.id)) return;
-    seen.add(event.id);
-    if (event.created_at > newestCreatedAt) newestCreatedAt = event.created_at;
-    const listing = parseListingEvent(event, opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined);
-    if (listing) listings.push(listing);
-  }, { subIdPrefix: 'global-newer', metricName: 'global-newer' });
+  const result = await collectListingEvents(nostr, {
+    filter,
+    parseOptions: opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined,
+    subIdPrefix: 'global-newer',
+    metricName: 'global-newer',
+  });
   return {
-    listings,
-    newest: newestCreatedAt === 0 ? null : newestCreatedAt,
-    resolvedByEose,
+    listings: result.listings,
+    newest: result.newestCreatedAt,
+    resolvedByEose: result.resolvedByEose,
   };
 }
 
@@ -243,9 +272,6 @@ export async function fetchOlder(
     verticalFromTag?: (tag: string) => ListingVertical | null;
   }
 ): Promise<FetchOlderResult> {
-  const listings: Listing[] = [];
-  const seen = new Set<string>();
-  let oldestCreatedAt = Infinity;
   const filter = buildListingFilter({
     tags: opts.tags,
     category: opts.category,
@@ -253,15 +279,14 @@ export async function fetchOlder(
     until: opts.until,
     limit: opts.limit ?? PAGE_SIZE,
   });
-  await runListingSubscription(nostr, filter, (event: NostrEvent) => {
-    if (seen.has(event.id)) return;
-    seen.add(event.id);
-    if (event.created_at < oldestCreatedAt) oldestCreatedAt = event.created_at;
-    const listing = parseListingEvent(event, opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined);
-    if (listing) listings.push(listing);
-  }, { subIdPrefix: 'global-older', metricName: 'global-older' });
+  const result = await collectListingEvents(nostr, {
+    filter,
+    parseOptions: opts.verticalFromTag ? { verticalFromTag: opts.verticalFromTag } : undefined,
+    subIdPrefix: 'global-older',
+    metricName: 'global-older',
+  });
   return {
-    listings,
-    oldest: oldestCreatedAt === Infinity ? null : oldestCreatedAt,
+    listings: result.listings,
+    oldest: result.oldestCreatedAt,
   };
 }

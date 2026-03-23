@@ -2,7 +2,7 @@ import * as Cesium from 'cesium';
 import { Entity, Cartesian3 } from 'cesium';
 import type { Writable } from 'svelte/store';
 import { clampToSurface } from './clampToSurface';
-import { flyToLonLat, isValidLonLat } from './cesiumHelpers';
+import { createPulseRingEntities, flyToLonLat, isValidLonLat } from './cesiumHelpers';
 
 export interface UserLocationHandle {
   startTracking(): void;
@@ -26,67 +26,12 @@ export function initUserLocation(
   let lastUpdateTime = 0;
 
   function createRing(pointId: string, position: Cartesian3): Entity[] {
-    const t0 = Date.now();
-
-    const outerPulse = new Cesium.CallbackProperty(() => {
-      const t = (Date.now() - t0) / 1000;
-      return 22 + 4 * Math.sin((2 * Math.PI * t) / 4);
-    }, false);
-
-    const innerPulse = new Cesium.CallbackProperty(() => {
-      const t = (Date.now() - t0) / 1000 - 0.7;
-      return 13 + 3 * Math.sin((2 * Math.PI * t) / 4);
-    }, false);
-
-    const outer = new Entity({
-      id: `${pointId}_outer`,
+    return createPulseRingEntities({
+      idBase: pointId,
       position,
-      point: {
-        pixelSize: outerPulse,
-        color: new Cesium.Color(0.26, 0.52, 0.96, 0.04),
-        outlineColor: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.7),
-        outlineWidth: 2,
-      },
+      outerColor: '#4285F4',
+      innerColor: '#FF6D00',
     });
-
-    const inner = new Entity({
-      id: `${pointId}_inner`,
-      position,
-      point: {
-        pixelSize: innerPulse,
-        color: new Cesium.Color(1.0, 0.43, 0.0, 0.04),
-        outlineColor: Cesium.Color.fromCssColorString('#FF6D00').withAlpha(0.7),
-        outlineWidth: 2,
-      },
-    });
-
-    const center = new Entity({
-      id: pointId,
-      position,
-      point: {
-        pixelSize: 4,
-        color: Cesium.Color.WHITE.withAlpha(0.85),
-      },
-    });
-
-    const hitCanvas = document.createElement('canvas');
-    hitCanvas.width = 1;
-    hitCanvas.height = 1;
-    const ctx = hitCanvas.getContext('2d');
-    if (ctx) { ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 1, 1); }
-
-    const hitArea = new Entity({
-      id: `${pointId}_hitarea`,
-      position,
-      billboard: {
-        image: hitCanvas,
-        width: 52,
-        height: 52,
-        color: new Cesium.Color(1, 1, 1, 0.01),
-      },
-    });
-
-    return [outer, inner, center, hitArea];
   }
 
   function updateRingPositions(entities: Entity[], longitude: number, latitude: number) {

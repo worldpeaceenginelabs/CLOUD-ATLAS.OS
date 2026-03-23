@@ -5,6 +5,11 @@
   import type { GigVertical, SwarmMissionCardPayload, SwarmMissionLane, SwarmMissionState } from '../types';
   import { openExternal } from '../utils/openExternal';
   import { ensureProtocol } from '../utils/urlUtils';
+  import {
+    createEmptySwarmMissionState,
+    isSwarmLaneOpenForParticipation,
+    isSwarmLaneSuccessVisible,
+  } from '../utils/swarmMission';
 
   export let mission: SwarmMissionCardPayload | null = null;
   export let viewerPubkey: string = '';
@@ -27,17 +32,10 @@
     { lane: 'crowdfunding', label: 'Fund', iconVertical: 'crowdfunding', color: '#EF5350', hasSuccess: true },
   ];
 
-  function emptySwarm(): SwarmMissionState {
-    return {
-      links: { brainstorming: '', meetanddo: '', petition: '', crowdfunding: '' },
-      success: { brainstorming: false, petition: false, crowdfunding: false },
-    };
-  }
-
   let localId = typeof crypto !== 'undefined' ? crypto.randomUUID() : `local-${Date.now()}`;
   let title = '';
   let description = '';
-  let swarm: SwarmMissionState = emptySwarm();
+  let swarm: SwarmMissionState = createEmptySwarmMissionState();
   let locationLat = '';
   let locationLon = '';
   let locationAddress = '';
@@ -73,13 +71,7 @@
 
   function whatsNextLine(): string {
     const parts: string[] = [];
-    const open = (lane: SwarmMissionLane): boolean => {
-      if (!swarm.links[lane]?.trim()) return false;
-      if (lane === 'meetanddo') return true;
-      if (lane === 'brainstorming') return !swarm.success.brainstorming;
-      if (lane === 'petition') return !swarm.success.petition;
-      return !swarm.success.crowdfunding;
-    };
+    const open = (lane: SwarmMissionLane): boolean => isSwarmLaneOpenForParticipation(swarm, lane);
     if (open('brainstorming')) parts.push('Brainstorming is open — join via the link.');
     if (open('meetanddo')) parts.push('On-site / coordination is linked — use Meet & do.');
     if (open('petition')) parts.push('Petition is open — sign via the link.');
@@ -125,10 +117,7 @@
 
   function successVisible(lane: SwarmMissionLane, hasSuccess: boolean): boolean {
     if (!hasSuccess) return false;
-    if (lane === 'brainstorming') return swarm.success.brainstorming;
-    if (lane === 'petition') return swarm.success.petition;
-    if (lane === 'crowdfunding') return swarm.success.crowdfunding;
-    return false;
+    return isSwarmLaneSuccessVisible(swarm, lane);
   }
 
   type SuccessLane = 'brainstorming' | 'petition' | 'crowdfunding';
@@ -152,20 +141,19 @@
     return canEditMeetPetitionFund;
   }
 
-  $: firstPublishValid =
-    title.trim().length > 0 &&
-    description.trim().length > 0 &&
-    swarm.links.brainstorming.trim().length > 0 &&
-    locationLat.trim().length > 0 &&
-    locationLon.trim().length > 0;
+  function missionDraftValid(requirePublished: boolean): boolean {
+    if (requirePublished && !published) return false;
+    return (
+      title.trim().length > 0 &&
+      description.trim().length > 0 &&
+      swarm.links.brainstorming.trim().length > 0 &&
+      locationLat.trim().length > 0 &&
+      locationLon.trim().length > 0
+    );
+  }
 
-  $: updateValid =
-    published &&
-    title.trim().length > 0 &&
-    description.trim().length > 0 &&
-    swarm.links.brainstorming.trim().length > 0 &&
-    locationLat.trim().length > 0 &&
-    locationLon.trim().length > 0;
+  $: firstPublishValid = missionDraftValid(false);
+  $: updateValid = missionDraftValid(true);
 
   function buildPayload(): SwarmMissionCardPayload {
     return {

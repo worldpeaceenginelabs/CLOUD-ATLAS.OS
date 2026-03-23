@@ -1,13 +1,11 @@
 <script lang="ts">
+  import MissionFrame from '../components/shared/MissionFrame.svelte';
+
   let missionTitleMain = 'Mission 2';
   let missionTitleSub = 'Start your first Brainstorming';
 </script>
 
-<div class="mission">
-  <p class="mission-title">
-    <span class="mission-title-main animated-gradient">{missionTitleMain}</span>
-    <span class="mission-title-sub animated-gradient">{missionTitleSub}</span>
-  </p>
+<MissionFrame titleMain={missionTitleMain} titleSub={missionTitleSub}>
   <p class="mission-bottom-heading">COMING SOON</p>
   
   <div class="mission-bottom">
@@ -24,62 +22,9 @@
       — like a game where everyone plays to make the world better.
     </p>
   </div>
-</div>
+</MissionFrame>
 
 <style>
-  .mission {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 1.5rem;
-    width: 100%;
-    height: auto;
-    min-height: 100%;
-    min-width: 0;
-    overflow-x: hidden;
-    text-align: center;
-    padding: 24px;
-    box-sizing: border-box;
-  }
-
-  .mission-title {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    margin: 0;
-    overflow-wrap: break-word;
-  }
-
-  .mission-title-main {
-    font-weight: 700;
-    font-size: clamp(2.25rem, 14vmin, 5.5rem);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    display: block;
-    max-width: 100%;
-    min-width: 0;
-    overflow-wrap: break-word;
-    word-break: break-word;
-  }
-
-  .mission-title-sub {
-    font-weight: 700;
-    font-size: clamp(1.2rem, 6.5vmin, 2.75rem);
-    line-height: 1.3;
-    letter-spacing: 0.02em;
-    display: block;
-    max-width: 100%;
-    min-width: 0;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    padding-bottom: 2px;
-  }
-
   .mission-bottom {
     font-size: clamp(0.95rem, 4vw, 25px);
     line-height: 1.5;
@@ -116,10 +61,4 @@
     100% { background-position: 0% 50%; }
   }
 
-  @media (max-width: 600px) {
-    .mission {
-      padding: 16px;
-      min-height: 100%;
-    }
-  }
 </style>

@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { loadPersistedState, persistStoreState } from './persistedState';
 
 const STORAGE_KEY = 'missionProgress:v1';
 
@@ -13,32 +14,18 @@ const defaultState: MissionProgressState = {
 };
 
 function loadInitial(): MissionProgressState {
-  if (typeof window === 'undefined') return defaultState;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState;
-    const parsed = JSON.parse(raw) as Partial<MissionProgressState>;
+  return loadPersistedState(STORAGE_KEY, defaultState, (value) => {
+    const parsed = value as Partial<MissionProgressState>;
     return {
       mission2FirstOpened: Boolean(parsed.mission2FirstOpened),
       mission3FirstOpened: Boolean(parsed.mission3FirstOpened),
     };
-  } catch {
-    return defaultState;
-  }
+  });
 }
 
 function createMissionProgress() {
   const state = writable<MissionProgressState>(loadInitial());
-
-  if (typeof window !== 'undefined') {
-    state.subscribe((value) => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-      } catch {
-        // Ignore persistence failures.
-      }
-    });
-  }
+  persistStoreState(state, STORAGE_KEY);
 
   return {
     subscribe: state.subscribe,

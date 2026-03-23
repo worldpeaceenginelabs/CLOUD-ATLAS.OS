@@ -17,16 +17,15 @@
  *   - On relay failure: fall back to IDB cache regardless of age
  */
 
-import { type NostrService, type NostrEvent } from './nostrService';
+import { type NostrService } from './nostrService';
 import { idb } from '../idb';
 import { logger } from '../utils/logger';
 import { fetchDeletions, applyDeletions } from './listingDeletionService';
 import { LISTING_MAX_AGE_MS } from './listingConstants';
 import {
-  parseListingEvent,
   trimByMaxAge,
   buildListingFilter,
-  runListingSubscription,
+  collectListingEvents,
   defaultSinceSec,
 } from './listingFeedHelpers';
 import type { Listing, ListingVertical } from '../types';
@@ -103,19 +102,17 @@ export class GeohashListingFeed {
    * Falls back to a timeout if EOSE never arrives.
    */
   private async fetchFromRelay(geohash4: string, verticalId?: ListingVertical): Promise<Listing[]> {
-    const listings: Listing[] = [];
-    const seen = new Set<string>();
     const filter = buildListingFilter({
       tags: this.listingTag,
       geohash: geohash4,
       since: defaultSinceSec(),
     });
-    await runListingSubscription(this.nostr, filter, (event: NostrEvent) => {
-      if (seen.has(event.id)) return;
-      seen.add(event.id);
-      const listing = parseListingEvent(event, verticalId ? { vertical: verticalId } : undefined);
-      if (listing) listings.push(listing);
-    }, { subIdPrefix: `geohash-${this.cacheType}` });
-    return listings;
+    const result = await collectListingEvents(this.nostr, {
+      filter,
+      parseOptions: verticalId ? { vertical: verticalId } : undefined,
+      subIdPrefix: `geohash-${this.cacheType}`,
+      metricName: `geohash-${this.cacheType}`,
+    });
+    return result.listings;
   }
 }

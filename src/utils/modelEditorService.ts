@@ -13,7 +13,7 @@ import {
   roamingClearSignal,
   pathClearSignal,
 } from '../store';
-import { modalService } from './modalService';
+import { showModal, hideModal } from './modalManager';
 import {
   addModel,
   updateModel,
@@ -107,7 +107,7 @@ class ModelEditorService {
   /** Open the editor in "add new model" mode */
   handleAddModel() {
     this.resetFormData();
-    modalService.showModelEditor(false);
+    showModal('model-editor', { editMode: false });
   }
 
   /** Open the editor in "edit existing model" mode */
@@ -156,7 +156,7 @@ class ModelEditorService {
     // Create temporary model for edit mode
     this.addTemporaryModelFromFormData();
 
-    modalService.showModelEditor(true, modelData);
+    showModal('model-editor', { editMode: true, modelData });
   }
 
   // ─── Temporary Model Management ────────────────────────────────────
@@ -298,7 +298,7 @@ class ModelEditorService {
 
       roamingClearSignal.update(n => n + 1);
       pathClearSignal.update(n => n + 1);
-      modalService.hideModelEditor();
+      hideModal('model-editor');
     } catch (error) {
       logger.error(`submitModel failed: ${error instanceof Error ? error.message : error}`, { component: 'ModelEditorService', operation: 'handleSubmit' });
       alert('Failed to save model. Please try again.');
@@ -310,7 +310,7 @@ class ModelEditorService {
     this.resetFormData();
     roamingClearSignal.update(n => n + 1);
     pathClearSignal.update(n => n + 1);
-    modalService.hideModelEditor();
+    hideModal('model-editor');
   }
 
   /** Called when coordinates change while a temporary model exists */

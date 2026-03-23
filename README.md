@@ -42,6 +42,7 @@ Become a part of Cloud Atlas today and join an exciting community that’s shapi
 - **Built on CesiumJS** — a powerful 3D geospatial engine  
 - **Concepts and relationships** are represented as spatial structures in 3D space  
 - **Causal graphs + spatial logic** replace statistical pattern matching  
+- **Code architecture notes**: see [`docs/ARCHITECTURE_NOTES.md`](docs/ARCHITECTURE_NOTES.md)
 
 ---
 

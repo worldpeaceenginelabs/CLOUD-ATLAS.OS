@@ -1,7 +1,7 @@
 import * as Cesium from 'cesium';
 import type { Viewer, Entity } from 'cesium';
 import type { Writable } from 'svelte/store';
-import { pickPositionToLonLat } from './cesiumHelpers';
+import { pickPositionToLonLat, setCameraControlsEnabled } from './cesiumHelpers';
 
 export interface RoamingAreaHandle {
   handleClick(click: any): void;
@@ -84,21 +84,11 @@ export function initRoamingArea(
   }
 
   function disableCamera() {
-    const ctrl = viewer.scene.screenSpaceCameraController;
-    ctrl.enableRotate = false;
-    ctrl.enableTranslate = false;
-    ctrl.enableZoom = false;
-    ctrl.enableTilt = false;
-    ctrl.enableLook = false;
+    setCameraControlsEnabled(viewer, false);
   }
 
   function enableCamera() {
-    const ctrl = viewer.scene.screenSpaceCameraController;
-    ctrl.enableRotate = true;
-    ctrl.enableTranslate = true;
-    ctrl.enableZoom = true;
-    ctrl.enableTilt = true;
-    ctrl.enableLook = true;
+    setCameraControlsEnabled(viewer, true);
   }
 
   function removeVisuals() {

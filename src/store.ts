@@ -122,6 +122,16 @@ export const layerRefresh = resettable<Record<string, number>>({});
 /** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
 export const layerListings = resettable<Record<string, Listing[]>>({});
 
+/** Increment refresh counter for a specific listing layer. */
+export function bumpLayerRefresh(verticalId: string): void {
+  layerRefresh.update((all) => ({ ...all, [verticalId]: (all[verticalId] ?? 0) + 1 }));
+}
+
+/** Replace listings for one vertical layer. */
+export function setLayerListings(verticalId: string, listings: Listing[]): void {
+  layerListings.update((all) => ({ ...all, [verticalId]: listings }));
+}
+
 /** Client-side filter: show swarm missions that still need participants in any selected lane (empty = no filter). */
 export const swarmMissionLaneFilters = resettable<Set<SwarmMissionLane>>(new Set());
 

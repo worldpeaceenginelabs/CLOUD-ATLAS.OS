@@ -3,7 +3,7 @@
   import { get } from 'svelte/store';
   import { fade, slide } from 'svelte/transition';
 import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, preselectedGigVertical, showOperatorHaloFromGig } from '../store';
-  import { modalService } from '../utils/modalService';
+  import { hideModal } from '../utils/modalManager';
   import type { GigRequest, GigVertical } from '../types';
   import { encode as geohashEncode } from '../utils/geohash';
   import { GEOHASH_PRECISION_MATCHING } from '../gig/constants';
@@ -42,7 +42,7 @@ import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, pre
         preselectedGigVertical.set(null);
         selectVertical(preselected);
       } else if (currentView === 'menu' && !config) {
-        modalService.hideGigEconomy();
+        hideModal('gig-economy');
       }
     }
   })();
@@ -131,7 +131,7 @@ import { viewer, userGigRole, userLiveLocation, currentGeohash, gigCanClose, pre
   function handleOffer() { currentView = 'offer'; }
 
   function closePanel() {
-    modalService.hideGigEconomy();
+    hideModal('gig-economy');
   }
 
   function goBackToOperatorHalo() {

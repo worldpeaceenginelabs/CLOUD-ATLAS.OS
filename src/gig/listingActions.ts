@@ -8,6 +8,7 @@
 
 import type { Listing } from '../types';
 import { getSharedNostr } from '../services/nostrPool';
+import type { NostrService } from '../services/nostrService';
 import { publishVerifiedReplaceable } from '../services/relayOrchestrator';
 import { logger } from '../utils/logger';
 import { DEFAULT_LISTING_TTL_SECS } from '../services/listingService';
@@ -22,8 +23,9 @@ export async function takeDownListing(
   _tagPrefix: string,
   onTakenDown?: (listingId: string) => void,
   onClose?: () => void,
+  nostr?: NostrService,
 ): Promise<void> {
-  const nostr = await getSharedNostr();
+  const activeNostr = nostr ?? (await getSharedNostr());
 
   const publishedAt = Math.floor(new Date(listing.timestamp).getTime() / 1000);
   const ttlSecs =
@@ -34,7 +36,7 @@ export async function takeDownListing(
     ['expiration', expiration],
   ];
 
-  const result = await publishVerifiedReplaceable(nostr, {
+  const result = await publishVerifiedReplaceable(activeNostr, {
     dTag: listing.id,
     extraTags: tags,
     content: '',

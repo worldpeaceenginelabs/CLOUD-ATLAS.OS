@@ -9,7 +9,7 @@ import * as Cesium from 'cesium';
 import type { Viewer, Entity, ScreenSpaceEventHandler } from 'cesium';
 import type { Writable } from 'svelte/store';
 import type { LatLon } from '../types';
-import { pickPositionToLonLat } from './cesiumHelpers';
+import { pickPositionToLonLat, setCameraControlsEnabled } from './cesiumHelpers';
 
 export interface PathDrawingHandle {
   handleClick(click: any): void;
@@ -173,22 +173,12 @@ export function initPathDrawing(
   }
 
   function disableCamera() {
-    const ctrl = viewer.scene.screenSpaceCameraController;
-    ctrl.enableRotate = false;
-    ctrl.enableTranslate = false;
-    ctrl.enableZoom = false;
-    ctrl.enableTilt = false;
-    ctrl.enableLook = false;
+    setCameraControlsEnabled(viewer, false);
     initDragHandlers();
   }
 
   function enableCamera() {
-    const ctrl = viewer.scene.screenSpaceCameraController;
-    ctrl.enableRotate = true;
-    ctrl.enableTranslate = true;
-    ctrl.enableZoom = true;
-    ctrl.enableTilt = true;
-    ctrl.enableLook = true;
+    setCameraControlsEnabled(viewer, true);
     destroyDragHandlers();
   }
 

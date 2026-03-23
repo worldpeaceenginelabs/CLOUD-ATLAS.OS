@@ -1,4 +1,5 @@
 import { derived, get, readable, writable } from 'svelte/store';
+import { loadPersistedState, persistStoreState } from './persistedState';
 
 export type Mission1Status = 'ready' | 'locked' | 'completed';
 
@@ -16,7 +17,7 @@ type Mission1View = {
 };
 
 const STORAGE_KEY = 'mission1:v1';
-const ONE_DAY_MS = 24* 60 * 60 * 1000;
+const ONE_DAY_MS = 3 * 1000;
 
 const defaultState: Mission1State = {
   stars: 0,
@@ -29,18 +30,12 @@ function clampStars(value: unknown): number {
 }
 
 function loadInitialState(): Mission1State {
-  if (typeof window === 'undefined') return defaultState;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState;
-    const parsed = JSON.parse(raw) as Partial<Mission1State>;
+  return loadPersistedState(STORAGE_KEY, defaultState, (value) => {
+    const parsed = value as Partial<Mission1State>;
     const stars = clampStars(parsed.stars);
     const lastStarAt = typeof parsed.lastStarAt === 'number' ? parsed.lastStarAt : null;
     return { stars, lastStarAt };
-  } catch {
-    return defaultState;
-  }
+  });
 }
 
 const now = readable<number>(Date.now(), (set) => {
@@ -63,16 +58,7 @@ function formatCountdown(ms: number): string {
 
 function createMission1() {
   const state = writable<Mission1State>(loadInitialState());
-
-  if (typeof window !== 'undefined') {
-    state.subscribe((value) => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-      } catch {
-        // Ignore persistence failures.
-      }
-    });
-  }
+  persistStoreState(state, STORAGE_KEY);
 
   const remainingMs = derived([state, now], ([$state, $now]) => {
     if ($state.stars >= 3 || !$state.lastStarAt) return 0;

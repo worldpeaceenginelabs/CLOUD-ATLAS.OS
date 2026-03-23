@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { gigCanClose, layerRefresh } from '../store';
+  import { gigCanClose, bumpLayerRefresh } from '../store';
   import type { Listing, ListingMode, ListingVertical } from '../types';
   import type { NostrService } from '../services/nostrService';
   import { getCurrentTimeIso8601 } from '../utils/timeUtils';
@@ -129,7 +129,7 @@
 
   function handleDone() {
     cleanup();
-    layerRefresh.update(r => ({ ...r, [vertical]: (r[vertical] ?? 0) + 1 }));
+    bumpLayerRefresh(vertical);
     onBack();
   }
 

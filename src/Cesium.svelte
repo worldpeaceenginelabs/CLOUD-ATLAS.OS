@@ -47,7 +47,8 @@ import {
 	import type { ModelData } from './types';
 	import { idb } from './idb';
 	import { setSceneCallbacks } from './utils/modelUtils';
-	import { modalService } from './utils/modalService';
+	import { showModal, hideModal, toggleModal, closeAllModals } from './utils/modalManager';
+	import { openMission2Workflow } from './services/modalWorkflows';
 	import { getCurrentTimeIso8601 } from './utils/timeUtils';
 	import { logger } from './utils/logger';
 	import { simulationEngine } from './utils/simulationEngine';
@@ -71,7 +72,7 @@ import {
 	import ListingDetail from './gig/ListingDetail.svelte';
   import OperatorHalo from './components/OperatorHalo.svelte';
   import Ticker from './components/Ticker.svelte';
-	import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, layerRefresh, gigHaloOrigin, swarmMissionLaneFilters } from './store';
+	import { preselectedGigVertical, showOperatorHaloFromGig, layerListings, activeMapLayers, bumpLayerRefresh, gigHaloOrigin, swarmMissionLaneFilters } from './store';
 import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/verticals';
 	import type { Listing, GigVertical, ListingVertical } from './types';
 	import { listingToMissionCardPayload, missionPassesSwarmFilters } from './services/listingFeedHelpers';
@@ -376,25 +377,8 @@ $: if ($showOperatorHaloFromGig) {
 	}
 }
 
-/** Open Operator Halo centered on screen. */
-function openOperatorHaloCentered() {
-	gigHaloOrigin.set('user-location');
-	operatorHaloScreenX = window.innerWidth / 2;
-	operatorHaloScreenY = window.innerHeight / 2;
-	showOperatorHalo = true;
-}
-
-/** Open Operator Halo centered on screen for the picked point. */
-function openOperatorHaloAtPickedPoint() {
-	gigHaloOrigin.set('picked-point');
-	operatorHaloScreenX = window.innerWidth / 2;
-	operatorHaloScreenY = window.innerHeight / 2;
-	showOperatorHalo = true;
-}
-
-/** Open Operator Halo at picked point without moving the camera. */
-function openOperatorHaloAtPickedPointNoFly() {
-	gigHaloOrigin.set('picked-point');
+function openOperatorHalo(origin: 'picked-point' | 'user-location') {
+	gigHaloOrigin.set(origin);
 	operatorHaloScreenX = window.innerWidth / 2;
 	operatorHaloScreenY = window.innerHeight / 2;
 	showOperatorHalo = true;
@@ -428,9 +412,9 @@ function applyPickedPoint(cartesian: Cartesian3, options?: LocationOptions) {
 	const openHalo = options?.openHalo ?? true;
 		if (openHalo) {
 		if (options?.haloOrigin === 'user-location') {
-			openOperatorHaloCentered();
+			openOperatorHalo('user-location');
 		} else {
-			openOperatorHaloAtPickedPointNoFly();
+			openOperatorHalo('picked-point');
 		}
 	}
 }
@@ -879,7 +863,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 						modelData = $models.find(model => model.id === parentId);
 					}
 					if (modelData) {
-						modalService.showModelDetails(modelData);
+						showModal('model-details', { model: modelData });
 					}
 				}
 			} else {
@@ -955,7 +939,7 @@ function updatePreviewModelInScene(modelData: ModelData) {
 	  cesiumViewer.imageryLayers.removeAll();
 	  cesiumViewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#17181b');
 	  setTimeout(() => {
-	    openOperatorHaloCentered();
+	    openOperatorHalo('user-location');
 	  }, 1000);
 
 	  // Initialize extracted modules
@@ -1092,8 +1076,8 @@ function trySelectListingEntity(pickedObject: any): boolean {
         if (v === 'swarmmission') {
           const payload = listingToMissionCardPayload(listing);
           if (payload) {
-            modalService.hideMission2();
-            modalService.showMission2({ seed: payload, skipWelcomeStack: true });
+            hideModal('mission-2');
+            openMission2Workflow({ seed: payload, skipWelcomeStack: true });
           }
         } else {
           selectedListing = { listing, vertical: v };
@@ -1132,7 +1116,7 @@ function handleListingTakenDown(listingId: string) {
     ...all,
     [v]: (all[v] ?? []).filter(l => l.id !== listingId),
   }));
-  layerRefresh.update(r => ({ ...r, [v]: (r[v] ?? 0) + 1 }));
+  bumpLayerRefresh(v);
   selectedListing = null;
 }
 
@@ -1196,10 +1180,10 @@ function wrapLabelEveryNChars(text: string | null | undefined, max: number = 25)
 /** Handle Operator Halo category selection → open gig panel to that vertical. */
 function handleOperatorHaloSelect(vertical: GigVertical) {
   showOperatorHalo = false;
-  modalService.hideGigEconomy();
+  hideModal('gig-economy');
   preselectedGigVertical.set(vertical);
   requestAnimationFrame(() => {
-    modalService.showGigEconomy();
+    showModal('gig-economy');
   });
 }
 function handleOperatorHaloClose() {
@@ -1221,8 +1205,8 @@ function handleCoordinatePick(result: any) {
 
   const cameraHeight = cesiumViewer.camera.positionCartographic.height;
   if (cameraHeight > 250000) {
-    modalService.showZoomRequired();
-    setTimeout(() => { modalService.hideZoomRequired(); }, 3000);
+    showModal('zoom-required');
+    setTimeout(() => { hideModal('zoom-required'); }, 3000);
     return;
   }
   
@@ -1300,7 +1284,7 @@ function handleCoordinatePick(result: any) {
 		createdObjectURLs.forEach(url => URL.revokeObjectURL(url));
 
 		resetAllStores();
-		modalService.closeAllModals();
+		closeAllModals();
 	});
 </script>
 
@@ -1331,7 +1315,7 @@ function handleCoordinatePick(result: any) {
   </div>
 
   <!-- MissionTV button (top left) -->
-  <button class="mission-tv-btn" on:click={() => modalService.showMissionTV()} title="MissionTV">
+  <button class="mission-tv-btn" on:click={() => showModal('mission-tv')} title="MissionTV">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
       <polyline points="17 2 12 7 7 2"/>
@@ -1351,7 +1335,7 @@ function handleCoordinatePick(result: any) {
   <!-- Download button (top right, below Layers) -->
   <button
     class="download-btn"
-    on:click={() => modalService.showDownload()}
+    on:click={() => showModal('download')}
     title="Download"
   >
     <svg
@@ -1373,7 +1357,7 @@ function handleCoordinatePick(result: any) {
   <!-- Layers button (top right) -->
   <button
     class="layers-menu-btn"
-    on:click={() => modalService.toggleLayersMenu()}
+    on:click={() => toggleModal('layers-menu')}
     title="Layers"
   >
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

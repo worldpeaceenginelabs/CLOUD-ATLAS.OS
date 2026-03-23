@@ -2,9 +2,8 @@
   import { slide } from 'svelte/transition';
   import { logger } from '../utils/logger';
 
-  import { openModals } from '../utils/modalManager';
   import { activeMapLayers, enable3DTileset, swarmMissionLaneFilters } from '../store';
-  import { modalService } from '../utils/modalService';
+  import { showModal, hideModal, toggleModal } from '../utils/modalManager';
   import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
   import { verticalIconSvg } from '../gig/verticalIcons';
   import type { ListingVertical, SwarmMissionLane } from '../types';
@@ -33,7 +32,7 @@
     event.stopPropagation();
     switch (item) {
       case 'model':
-        modalService.showSimulation();
+        showModal('simulation');
         return;
     }
   }
@@ -43,17 +42,16 @@
     switch (item) {
       case 'model':
         modelEditorService.handleAddModel();
-        modalService.hideLayersMenu();
+        hideModal('layers-menu');
         break;
       case 'omnipedia':
-        modalService.showOmnipedia();
+        showModal('omnipedia');
         break;
     }
   }
 
   function toggleAbout() {
-    if ($openModals.some((m) => m.id === 'about')) modalService.hideAbout();
-    else modalService.showAbout();
+    toggleModal('about');
   }
 
   function openLiveEdit() {

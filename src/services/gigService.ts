@@ -38,13 +38,8 @@ import type { GigRequest, GigVertical } from '../types';
 import { REQUEST_TTL_SECS, EXPAND_WHEN_EMPTY_SECS, EXPAND_WHEN_NO_MATCH_SECS } from '../gig/constants';
 import { cells3x3, cells4x4, cellsInG5 } from '../utils/geohash';
 import {
-  onRelayStatus,
   buildReplaceableFilter,
-  publishReplaceable,
   publishVerifiedReplaceable,
-  sendDm,
-  openStream,
-  openDmStream,
   type RelayStreamHandle,
 } from './relayOrchestrator';
 
@@ -65,6 +60,42 @@ const buildTags = (geohash: string, type: string): string[][] => [
   ['t', type],
   ['expiration', String(freshExpiration())],
 ];
+
+function openRelayStream(
+  nostr: NostrService,
+  options: {
+    id: string;
+    filter: Record<string, unknown>;
+    onEvent: (event: NostrEvent) => void;
+    onEose?: () => void;
+  },
+): RelayStreamHandle {
+  nostr.subscribe(options.id, options.filter, options.onEvent, options.onEose);
+  return {
+    id: options.id,
+    update: (filter: Record<string, unknown>) => {
+      nostr.updateSubscription(options.id, filter);
+    },
+    close: () => {
+      nostr.unsubscribe(options.id);
+    },
+  };
+}
+
+function openDmRelayStream(
+  nostr: NostrService,
+  lookbackSecs: number,
+  onMessage: (fromPubkey: string, payload: unknown) => void,
+): RelayStreamHandle {
+  const id = nostr.subscribeDMs(lookbackSecs, onMessage);
+  return {
+    id,
+    update: () => {},
+    close: () => {
+      nostr.unsubscribe(id);
+    },
+  };
+}
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -146,7 +177,7 @@ export class GigService {
     this.myGeohash = geohash;
     this.hasMatch = false;
 
-    onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
+    this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
     const result = await publishVerifiedReplaceable(this.nostr, {
       dTag: request.id,
@@ -167,7 +198,7 @@ export class GigService {
 
     // Subscribe to incoming accept DMs
     this.dmStream?.close();
-    this.dmStream = openDmStream(this.nostr, REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
+    this.dmStream = openDmRelayStream(this.nostr, REQUEST_TTL_SECS, (fromPubkey: string, payload: unknown) => {
       const dm = payload as AcceptDM;
       if (dm?.type === 'accept' && dm.requestId === this.myRequest?.id) {
         this.hasMatch = true;
@@ -181,7 +212,7 @@ export class GigService {
 
     // Subscribe to provider availability events to show count
     this.providerAvailStream?.close();
-    this.providerAvailStream = openStream(this.nostr, {
+    this.providerAvailStream = openRelayStream(this.nostr, {
       id: 'provider-avail',
       filter: buildReplaceableFilter({
         gTags: [geohash],
@@ -209,7 +240,7 @@ export class GigService {
       matchedProviderPubkey: providerPubkey,
     };
 
-    publishReplaceable(this.nostr, request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
+    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
 
     logger.info(`Match confirmed with provider ${providerPubkey.slice(0, 8)}`, { component: 'GigService', operation: 'confirmMatch' });
   }
@@ -225,7 +256,7 @@ export class GigService {
       matchedProviderPubkey: null,
     };
 
-    publishReplaceable(this.nostr, request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
+    this.nostr.publishReplaceable(request.id, buildTags(request.geohash, this.needTag), JSON.stringify(updated));
 
     logger.info('Request cancelled', { component: 'GigService', operation: 'cancelRequest' });
   }
@@ -247,7 +278,7 @@ export class GigService {
     this.myProviderDetails = details;
     this.hasMatch = false;
 
-    onRelayStatus(this.nostr, this.callbacks.onRelayStatus);
+    this.nostr.onRelayCountChange(this.callbacks.onRelayStatus);
 
     const result = await publishVerifiedReplaceable(this.nostr, {
       dTag: this.offerTag,
@@ -272,7 +303,7 @@ export class GigService {
 
     // Subscribe to requests in this cell
     this.needRequestsStream?.close();
-    this.needRequestsStream = openStream(this.nostr, {
+    this.needRequestsStream = openRelayStream(this.nostr, {
       id: 'need-requests',
       filter: buildReplaceableFilter({
         gTags: [geohash],
@@ -299,7 +330,7 @@ export class GigService {
         providerPubkey: this.pubkey,
         details: Object.keys(this.myProviderDetails).length > 0 ? this.myProviderDetails : undefined,
       };
-      sendDm(this.nostr, requesterPubkey, dm, REQUEST_TTL_SECS);
+      this.nostr.sendDM(requesterPubkey, dm, REQUEST_TTL_SECS);
       return true;
     } catch (e) {
       logger.error(`Failed to send accept DM: ${e}`, { component: 'GigService', operation: 'acceptRequest' });

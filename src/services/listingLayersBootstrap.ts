@@ -12,6 +12,7 @@ import { runGlobalFeedMap } from './globalListingFeed';
 import {
   activeMapLayers,
   layerListings,
+  setLayerListings,
   layerRefresh,
   userIonAccessToken,
   userLiveLocation,
@@ -152,7 +153,7 @@ export async function fetchLayer(verticalId: ListingVertical, forceRefresh = fal
     if (!get(activeMapLayers).has(verticalId)) return;
     const filtered = listings.filter((l) => l.location);
     layerCaches[verticalId] = { listings: filtered, cachedAt: Date.now() };
-    layerListings.update((all) => ({ ...all, [verticalId]: filtered }));
+    setLayerListings(verticalId, filtered);
   } finally {
     layerLoadingState[verticalId] = false;
     layerLoading.update((m) => ({ ...m, [verticalId]: false }));
@@ -169,7 +170,7 @@ export async function toggleLayer(verticalId: ListingVertical): Promise<void> {
   if (wasOn) {
     layers.delete(verticalId);
     activeMapLayers.set(layers);
-    layerListings.update((all) => ({ ...all, [verticalId]: [] }));
+    setLayerListings(verticalId, []);
     return;
   }
 
@@ -183,7 +184,7 @@ export async function toggleLayer(verticalId: ListingVertical): Promise<void> {
 
   const cache = layerCaches[verticalId];
   if (cache && cache.listings.length > 0 && Date.now() - cache.cachedAt < LAYER_CACHE_TTL_MS) {
-    layerListings.update((all) => ({ ...all, [verticalId]: cache.listings }));
+    setLayerListings(verticalId, cache.listings);
   }
   await fetchLayer(verticalId);
 }

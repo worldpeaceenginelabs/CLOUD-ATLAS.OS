@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { openModals, hideModal } from '../utils/modalManager';
+  import { openModals, hideModal, showModal } from '../utils/modalManager';
   import Modal from './Modal.svelte';
   import Editor from '../appmenu/Editor.svelte';
   import Simulation from '../appmenu/Simulation.svelte';
@@ -20,60 +20,30 @@
   import { removeModel } from '../utils/modelUtils';
   import { logger } from '../utils/logger';
   import { modelEditorService } from '../utils/modelEditorService';
-  import { modalService } from '../utils/modalService';
   import GlassmorphismButton from './GlassmorphismButton.svelte';
-  import { gigCanClose, layerRefresh } from '../store';
+  import { gigCanClose } from '../store';
   import { getSharedNostr } from '../services/nostrPool';
   import { VERTICALS, type ListingVerticalConfig } from '../gig/verticals';
+  import { setOperatorAgreementAccepted, setWelcomeMessageDismissed } from '../utils/appFlags';
   import type { SwarmMissionCardPayload } from '../types';
-  import { listingToMissionCardPayload } from '../services/listingFeedHelpers';
-  import { missionCardPayloadToListing, publishSwarmMission } from '../services/listingService';
-  import { takeDownListing } from '../gig/listingActions';
-
-  const CARD_MODALS = new Set(['model-editor', 'gig-economy']);
-  const NOTIFICATION_MODALS = new Set(['zoom-required']);
-
-  const MODAL_TITLES: Record<string, string> = {
-    about: 'ABOUT',
-    simulation: 'SIMULATION',
-    mission: 'MISSION',
-    'swarm-governance': 'SWARM GOVERNANCE',
-    'mission-2': 'MISSION 2',
-    'omnipedia-editor': 'MISSION',
-    'mission-log': 'LOG',
-    omnipedia: 'OMNIPEDIA',
-    'mission-tv': 'MISSION TV',
-    download: 'DOWNLOAD',
-    'operator-agreement': 'OPERATOR AGREEMENT',
-  };
-
-  /** Fixed z-index per modal id (not derived from open order). */
-  const MODAL_Z_INDEX: Record<string, number> = {
-    'model-details': 1000,
-    about: 1000,
-    simulation: 1000,
-    omnipedia: 1000,
-    'mission-tv': 1000,
-    download: 1000,
-    'layers-menu': 1000,
-    'zoom-required': 1000,
-    'mission-log': 1000,
-    mission: 1000,
-    'mission-2': 1000,
-    'swarm-governance': 1100,
-    'omnipedia-editor': 1000,
-    'operator-agreement': 3000,
-  };
+  import type { NostrService } from '../services/nostrService';
+  import { getModalConfig } from './modalRegistry';
+  import {
+    openMission2Workflow,
+    openOmnipediaEditorWorkflow,
+    publishMission2Workflow,
+    takeDownMission2Workflow,
+  } from '../services/modalWorkflows';
 
   function handleModelEdit(modelData: any) {
-    modalService.hideModelDetails();
+    hideModal('model-details');
     modelEditorService.handleEditModel(modelData);
   }
 
   async function handleModelRemove(modelData: any) {
     try {
       await removeModel(modelData.id);
-      modalService.hideModelDetails();
+      hideModal('model-details');
       logger.info('Model removed successfully', { component: 'ModalManager', operation: 'removeModel' });
     } catch (error) {
       logger.error('Failed to remove model', { component: 'ModalManager', operation: 'removeModel' });
@@ -81,12 +51,23 @@
   }
 
   function handleSelectMission(index: 1 | 2 | 3) {
-    if (index === 1) modalService.showMission();
-    if (index === 2) modalService.showMission2();
-    if (index === 3) modalService.showOmnipediaEditor();
+    if (index === 1) showModal('mission');
+    if (index === 2) openMission2Workflow();
+    if (index === 3) openOmnipediaEditorWorkflow();
   }
 
   const swarmCfg = VERTICALS.swarmmission as ListingVerticalConfig;
+  const MODAL_COMPONENTS: Record<string, any> = {
+    simulation: Simulation,
+    omnipedia: Omnipedia,
+    'mission-tv': MissionTV,
+    download: Download,
+    'layers-menu': LayersMenu,
+    about: About,
+    mission: Mission,
+    'swarm-governance': SwarmGovernance,
+    'omnipedia-editor': OmnipediaEditor,
+  };
 
   /** Card payload: seeded when mission-2 opens, then updated on publish. */
   let mission2Published: SwarmMissionCardPayload | null = null;
@@ -104,16 +85,24 @@
     wasMission2Open = true;
   }
 
-  async function publishSwarmMissionFromModal(data: SwarmMissionCardPayload): Promise<void> {
-    const nostr = await getSharedNostr();
-    const listing = await publishSwarmMission(nostr, data);
-    mission2Published = listingToMissionCardPayload(listing);
-    layerRefresh.update((r) => ({ ...r, swarmmission: (r.swarmmission ?? 0) + 1 }));
+  async function publishSwarmMissionFromModal(nostr: NostrService, data: SwarmMissionCardPayload): Promise<void> {
+    mission2Published = await publishMission2Workflow(nostr, data);
+  }
+
+  function closeModal(modalId: string): void {
+    if (modalId === 'about') setWelcomeMessageDismissed(true);
+    hideModal(modalId);
+  }
+
+  function acceptOperatorAgreement(): void {
+    setOperatorAgreementAccepted(true);
+    hideModal('operator-agreement');
   }
 </script>
 
 {#each $openModals as modal (modal.id)}
-  {#if CARD_MODALS.has(modal.id)}
+  {@const cfg = getModalConfig(modal.id)}
+  {#if cfg.isCard}
     {#if modal.id === 'model-editor'}
       <div class="modal-card-container">
         <Editor isEditMode={modal.data?.editMode || false} />
@@ -121,7 +110,7 @@
     {:else if modal.id === 'gig-economy'}
       <div class="gig-economy-panel">
         {#if $gigCanClose}
-          <button class="gig-close-btn" on:click={() => hideModal(modal.id)} aria-label="Close">
+          <button class="gig-close-btn" on:click={() => closeModal(modal.id)} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -133,31 +122,17 @@
   {:else}
     <Modal
       isVisible={true}
-      onClose={() => { if (modal.id === 'about') localStorage.setItem('welcomeMessageDismissed', 'true'); hideModal(modal.id); }}
-      title={MODAL_TITLES[modal.id] ?? ''}
-      maxWidth={modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'omnipedia-editor' ? '100%' : modal.id === 'mission-2' || modal.id === 'operator-agreement' || modal.id === 'about' ? '720px' : NOTIFICATION_MODALS.has(modal.id) ? '400px' : '600px'}
-      zIndex={MODAL_Z_INDEX[modal.id] ?? 1000}
-      showCloseButton={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement' && modal.id !== 'mission-log'}
-      showTopHeader={modal.id !== 'layers-menu'}
-      topHeaderTransparent={modal.id === 'mission-log'}
-      closeOnBackdropClick={modal.id !== 'layers-menu' && !NOTIFICATION_MODALS.has(modal.id) && modal.id !== 'operator-agreement'}
-      modalType={
-        modal.id === 'mission' || modal.id === 'swarm-governance' || modal.id === 'mission-2' || modal.id === 'omnipedia-editor'
-          ? 'mission'
-          : modal.id === 'layers-menu'
-            ? 'overlay'
-            : NOTIFICATION_MODALS.has(modal.id)
-              ? 'notification'
-              : 'default'
-      }
-      customClass={
-        modal.id === 'layers-menu'
-          ? 'layers-menu-modal'
-          : modal.id === 'mission-log'
-            ? 'missions'
-            : ''
-      }
-      forwardInputs={NOTIFICATION_MODALS.has(modal.id)}
+      onClose={() => closeModal(modal.id)}
+      title={cfg.title}
+      maxWidth={cfg.maxWidth}
+      zIndex={cfg.zIndex}
+      showCloseButton={cfg.showCloseButton}
+      showTopHeader={cfg.showTopHeader}
+      topHeaderTransparent={cfg.topHeaderTransparent}
+      closeOnBackdropClick={cfg.closeOnBackdropClick}
+      modalType={cfg.modalType}
+      customClass={cfg.customClass}
+      forwardInputs={cfg.forwardInputs}
     >
       {#if modal.id === 'model-details' && modal.data?.model}
         {@const model = modal.data.model}
@@ -197,26 +172,10 @@
             <GlassmorphismButton variant="danger" onClick={() => handleModelRemove(model)}>REMOVE MODEL</GlassmorphismButton>
           </div>
         </div>
-      {:else if modal.id === 'simulation'}
-        <Simulation />
-      {:else if modal.id === 'omnipedia'}
-        <Omnipedia />
-      {:else if modal.id === 'mission-tv'}
-        <MissionTV />
-      {:else if modal.id === 'download'}
-        <Download />
-      {:else if modal.id === 'layers-menu'}
-        <LayersMenu />
       {:else if modal.id === 'zoom-required'}
         <p>Zoom in closer to pick a precise location.</p>
-      {:else if modal.id === 'about'}
-        <About />
       {:else if modal.id === 'mission-log'}
         <Missions onSelectMission={handleSelectMission} />
-      {:else if modal.id === 'mission'}
-        <Mission />
-      {:else if modal.id === 'swarm-governance'}
-        <SwarmGovernance />
       {:else if modal.id === 'mission-2'}
         {#await getSharedNostr()}
           <p class="mission2-nostr-hint">Connecting…</p>
@@ -225,23 +184,20 @@
             mission={mission2Published}
             viewerPubkey={nostr.pubkey}
             accentColor={swarmCfg.color}
-            onCommit={async (d) => publishSwarmMissionFromModal(d)}
+            onCommit={async (d) => publishSwarmMissionFromModal(nostr, d)}
             onDelete={async (id) => {
-              if (!mission2Published || mission2Published.id !== id) return;
-              const listing = missionCardPayloadToListing(mission2Published, nostr.pubkey);
-              await takeDownListing(listing, swarmCfg.listingTag, () => {
-                layerRefresh.update((r) => ({ ...r, swarmmission: (r.swarmmission ?? 0) + 1 }));
-              }, () => modalService.hideMission2());
+              await takeDownMission2Workflow(nostr, mission2Published, id, swarmCfg);
             }}
-            onSuccessMark={async (d) => publishSwarmMissionFromModal(d)}
+            onSuccessMark={async (d) => publishSwarmMissionFromModal(nostr, d)}
           />
         {:catch}
           <p class="mission2-nostr-hint">Storage unavailable — Nostr requires local keys.</p>
         {/await}
-      {:else if modal.id === 'omnipedia-editor'}
-        <OmnipediaEditor />
       {:else if modal.id === 'operator-agreement'}
-        <OperatorAgreement onAccept={() => { localStorage.setItem('operatorAgreementAccepted', 'true'); hideModal('operator-agreement'); }} />
+        <OperatorAgreement onAccept={acceptOperatorAgreement} />
+      {:else if MODAL_COMPONENTS[modal.id]}
+        {@const ModalBody = MODAL_COMPONENTS[modal.id]}
+        <svelte:component this={ModalBody} />
       {/if}
     </Modal>
   {/if}

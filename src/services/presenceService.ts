@@ -5,7 +5,7 @@ import { get } from 'svelte/store';
 import { encode as geohashEncode } from '../utils/geohash';
 import { currentGeohash, userLiveLocation } from '../store';
 import { GEOHASH_PRECISION_LISTING } from '../gig/constants';
-import { buildReplaceableFilter, runReliableSnapshot, publishReplaceable, openStream, type RelayStreamHandle } from './relayOrchestrator';
+import { buildReplaceableFilter, runReliableSnapshot, type RelayStreamHandle } from './relayOrchestrator';
 import { logger } from '../utils/logger';
 
 const D_PRESENCE = 'presence';
@@ -48,13 +48,7 @@ function publishPresence(nostr: NostrService, dTag: string, ttlSecs: number): vo
 
   const extraTags: string[][] = [['expiration', String(nowSecs() + ttlSecs)]];
   if (geohash5) extraTags.push(['g', geohash5]);
-
-  publishReplaceable(
-    nostr,
-    dTag,
-    extraTags,
-    '',
-  );
+  nostr.publishReplaceable(dTag, extraTags, '');
 }
 
 function startOnlineNow(nostr: NostrService): { stop: () => void } {
@@ -74,10 +68,11 @@ function startOnlineNow(nostr: NostrService): { stop: () => void } {
     since: nowSecs() - ONLINE_WINDOW_SECS,
   });
 
-  stream = openStream(nostr, {
-    id: 'presence-online',
+  const streamId = 'presence-online';
+  nostr.subscribe(
+    streamId,
     filter,
-    onEvent: (event: NostrEvent) => {
+    (event: NostrEvent) => {
       if (!event.pubkey) return;
       const exp = getExpiration(event);
       // If no expiration tag, ignore (this metric depends on TTL)
@@ -88,7 +83,12 @@ function startOnlineNow(nostr: NostrService): { stop: () => void } {
       onlineNowCount.set(lastByPubkey.size);
       publishCellSet();
     },
-  });
+  );
+  stream = {
+    id: streamId,
+    update: (nextFilter: Record<string, unknown>) => nostr.updateSubscription(streamId, nextFilter),
+    close: () => nostr.unsubscribe(streamId),
+  };
 
   const pruneTimer = setInterval(() => {
     const now = nowSecs();
@@ -175,7 +175,6 @@ function startSeen24h(nostr: NostrService): { stop: () => void } {
 export async function startPresence(): Promise<void> {
   if (active) return;
   const nostr = await getSharedNostr();
-
   const online = startOnlineNow(nostr);
   const seen = startSeen24h(nostr);
 

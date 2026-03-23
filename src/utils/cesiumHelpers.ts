@@ -121,6 +121,98 @@ export function flyToEntityPosition(
   flyToLonLat(viewer, lon, lat, height, duration);
 }
 
+export function setCameraControlsEnabled(viewer: any, enabled: boolean): void {
+  const ctrl = viewer?.scene?.screenSpaceCameraController;
+  if (!ctrl) return;
+  ctrl.enableRotate = enabled;
+  ctrl.enableTranslate = enabled;
+  ctrl.enableZoom = enabled;
+  ctrl.enableTilt = enabled;
+  ctrl.enableLook = enabled;
+}
+
+export interface PulseRingOptions {
+  idBase: string;
+  position: any;
+  outerColor: string;
+  innerColor: string;
+  centerPixelSize?: number;
+  hitAreaSize?: number;
+  includeHitArea?: boolean;
+}
+
+export function createPulseRingEntities(options: PulseRingOptions): Entity[] {
+  const t0 = Date.now();
+  const centerPixelSize = options.centerPixelSize ?? 4;
+  const hitAreaSize = options.hitAreaSize ?? 52;
+  const includeHitArea = options.includeHitArea ?? true;
+
+  const outerPulse = new Cesium.CallbackProperty(() => {
+    const t = (Date.now() - t0) / 1000;
+    return 22 + 4 * Math.sin((2 * Math.PI * t) / 4);
+  }, false);
+
+  const innerPulse = new Cesium.CallbackProperty(() => {
+    const t = (Date.now() - t0) / 1000 - 0.7;
+    return 13 + 3 * Math.sin((2 * Math.PI * t) / 4);
+  }, false);
+
+  const outer = new Entity({
+    id: `${options.idBase}_outer`,
+    position: options.position,
+    point: {
+      pixelSize: outerPulse,
+      color: Color.fromCssColorString(options.outerColor).withAlpha(0.04),
+      outlineColor: Color.fromCssColorString(options.outerColor).withAlpha(0.7),
+      outlineWidth: 2,
+    },
+  });
+
+  const inner = new Entity({
+    id: `${options.idBase}_inner`,
+    position: options.position,
+    point: {
+      pixelSize: innerPulse,
+      color: Color.fromCssColorString(options.innerColor).withAlpha(0.04),
+      outlineColor: Color.fromCssColorString(options.innerColor).withAlpha(0.7),
+      outlineWidth: 2,
+    },
+  });
+
+  const center = new Entity({
+    id: options.idBase,
+    position: options.position,
+    point: {
+      pixelSize: centerPixelSize,
+      color: Cesium.Color.WHITE.withAlpha(0.85),
+    },
+  });
+
+  if (!includeHitArea) return [outer, inner, center];
+
+  const hitCanvas = document.createElement('canvas');
+  hitCanvas.width = 1;
+  hitCanvas.height = 1;
+  const ctx = hitCanvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, 1, 1);
+  }
+
+  const hitArea = new Entity({
+    id: `${options.idBase}_hitarea`,
+    position: options.position,
+    billboard: {
+      image: hitCanvas,
+      width: hitAreaSize,
+      height: hitAreaSize,
+      color: new Cesium.Color(1, 1, 1, 0.01),
+    },
+  });
+
+  return [outer, inner, center, hitArea];
+}
+
 // ─── Coordinate Helpers ─────────────────────────────────────────
 
 export function pickPositionToLonLat(
@@ -163,68 +255,12 @@ export function addPickedPointMarker(
   }
 
   removeMarkers(viewer, existingEntities);
-
-  const t0 = Date.now();
-
-  const outerPulse = new Cesium.CallbackProperty(() => {
-    const t = (Date.now() - t0) / 1000;
-    return 22 + 4 * Math.sin((2 * Math.PI * t) / 4);
-  }, false);
-
-  const innerPulse = new Cesium.CallbackProperty(() => {
-    const t = (Date.now() - t0) / 1000 - 0.7;
-    return 13 + 3 * Math.sin((2 * Math.PI * t) / 4);
-  }, false);
-
-  const outer = new Entity({
-    id: 'pickedPoint_outer',
+  const entities = createPulseRingEntities({
+    idBase: 'pickedPoint',
     position,
-    point: {
-      pixelSize: outerPulse,
-      color: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.04),
-      outlineColor: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.7),
-      outlineWidth: 2,
-    },
+    outerColor: PICKED_POINT_GREEN,
+    innerColor: PICKED_POINT_GREEN,
   });
-
-  const inner = new Entity({
-    id: 'pickedPoint_inner',
-    position,
-    point: {
-      pixelSize: innerPulse,
-      color: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.04),
-      outlineColor: Color.fromCssColorString(PICKED_POINT_GREEN).withAlpha(0.7),
-      outlineWidth: 2,
-    },
-  });
-
-  const center = new Entity({
-    id: 'pickedPoint',
-    position,
-    point: {
-      pixelSize: 4,
-      color: Cesium.Color.WHITE.withAlpha(0.85),
-    },
-  });
-
-  const hitCanvas = document.createElement('canvas');
-  hitCanvas.width = 1;
-  hitCanvas.height = 1;
-  const ctx = hitCanvas.getContext('2d');
-  if (ctx) { ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 1, 1); }
-
-  const hitArea = new Entity({
-    id: 'pickedPoint_hitarea',
-    position,
-    billboard: {
-      image: hitCanvas,
-      width: 52,
-      height: 52,
-      color: new Cesium.Color(1, 1, 1, 0.01),
-    },
-  });
-
-  const entities = [outer, inner, center, hitArea];
   entities.forEach(e => viewer.entities.add(e));
   return entities;
 }
