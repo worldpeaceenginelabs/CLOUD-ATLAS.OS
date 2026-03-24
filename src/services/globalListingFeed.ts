@@ -26,7 +26,7 @@ function listingTagToVertical(tag: string): ListingVertical | null {
 
 /**
  * Run global feed for map: fetch newer + older, merge with cache, trim, save, apply deletions.
- * Returns trimmed listings (only for verticals in activeVerticalIds).
+ * Returns listings from the global:map cache after deletions (so callers don’t re-inject removed rows).
  */
 export async function runGlobalFeedMap(
   nostr: NostrService,
@@ -92,7 +92,8 @@ export async function runGlobalFeedMap(
       newest,
     });
     await applyDeletions(deletedSet);
-    return trimmed;
+    const afterDelete = await idb.loadListingCache(GLOBAL_MAP_CACHE_KEY);
+    return trimListingsByVerticalAge(afterDelete?.listings ?? []);
   } catch (e) {
     logger.warn('Global feed (map) relay fetch failed', { component: 'globalListingFeed', operation: 'runGlobalFeedMap' });
     const cached = await idb.loadListingCache(GLOBAL_MAP_CACHE_KEY);
