@@ -83,7 +83,7 @@ export const MODAL_REGISTRY: Record<ModalId, ModalConfig> = {
   mission: { ...BASE, title: 'MISSION', modalType: 'mission', maxWidth: '100%', isCard: false },
   'mission-2': {
     ...BASE,
-    title: 'MISSION 2',
+    title: 'SWARM GOVERNANCE',
     modalType: 'mission',
     maxWidth: '720px',
     topHeaderTransparent: true,
