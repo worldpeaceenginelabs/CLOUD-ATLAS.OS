@@ -278,12 +278,14 @@
           {saving ? 'Publishing…' : 'Publish mission'}
         </button>
       {:else}
-        <button type="button" class="mc-btn mc-btn-primary" disabled={!updateValid || saving || !editing || !onCommit} on:click={handleCommit}>
-          {saving ? 'Saving…' : 'Save changes'}
-        </button>
-        <button type="button" class="mc-btn mc-btn-danger" disabled={deleting || !onDelete} on:click={handleDelete}>
-          {deleting ? 'Removing…' : 'Delete mission'}
-        </button>
+        {#if editing}
+          <button type="button" class="mc-btn mc-btn-primary" disabled={!updateValid || saving || !onCommit} on:click={handleCommit}>
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+          <button type="button" class="mc-btn mc-btn-danger" disabled={deleting || !onDelete} on:click={handleDelete}>
+            {deleting ? 'Removing…' : 'Delete mission'}
+          </button>
+        {/if}
       {/if}
     </div>
   {/if}
