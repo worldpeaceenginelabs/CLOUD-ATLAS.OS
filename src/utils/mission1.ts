@@ -17,7 +17,7 @@ type Mission1View = {
 };
 
 const STORAGE_KEY = 'mission1:v1';
-const ONE_DAY_MS = 3 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const defaultState: Mission1State = {
   stars: 0,
