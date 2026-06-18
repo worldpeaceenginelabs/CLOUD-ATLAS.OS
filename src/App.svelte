@@ -17,6 +17,7 @@
     onlinePanelOpen
   } from './store';
   import { onEnter } from './utils/keyboard';
+  import RadialMenu from './RadialMenu.svelte';
 
   let quote = "\"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.\" Buckminster Fuller";
 
@@ -59,6 +60,7 @@
   {:else}
     <div class="gridcontainer"><Grid on:gridReady={() => gridReady.set(true)} /></div>
     {#if $gridReady}
+    <div class="radialMenu"><RadialMenu /></div>
       <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
     {/if}
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
