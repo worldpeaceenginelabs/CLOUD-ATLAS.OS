@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import Cesium from "./Cesium.svelte";
   import Grid from "./components/Grid.svelte";
+  import HexMenu from "./components/HexMenu.svelte"
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
   import OnlineTopBar from "./components/OnlineTopBar.svelte";
@@ -59,7 +60,8 @@
   {:else}
     <div class="gridcontainer"><Grid on:gridReady={() => gridReady.set(true)} /></div>
     {#if $gridReady}
-      <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
+    <div class="radialMenu"><HexMenu /></div>
+      
     {/if}
     <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
     <OnlineTopBar />
@@ -83,14 +85,6 @@
     box-sizing: border-box;
   }
 
-  .gridcontainer {
-    top: 0;
-    z-index: 10;
-    position: absolute;
-    height: 100%;
-    width: 100%;
-  }
-
   .cesiumcontainer {
     display: flex;
     flex-direction: column;
@@ -99,6 +93,22 @@
     z-index: 20;
     position: relative;
   }
+
+  .gridcontainer {
+    top: 0;
+    left: 0;
+    z-index: 0;          
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
+
+.radialMenu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10;        
+}
 
   .picture-container {
     display: flex;
