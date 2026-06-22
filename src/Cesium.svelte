@@ -84,7 +84,6 @@ import { LISTING_VERTICALS, VERTICALS, type ListingVerticalConfig } from './gig/
 	import { loadCityLabels } from './utils/cesiumCityLabels';
   import { onlineGeohash5Cells, showOnlineCellsOverlay } from './stores/presenceStore';
   import { mission1 } from './utils/mission1';
-  
 
 // Global variables and states
 let modelDataSource: CustomDataSource | null = new CustomDataSource('models');
