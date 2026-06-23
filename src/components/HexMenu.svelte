@@ -1,190 +1,146 @@
 <script>
-  // ─── HEX GRID CONSTANTS ───
   const COL = 100.0;
-  const ROW = 86.6;
-  const ODD_OFFSET = 50.0;
-  const R = 56.15;
-
+  const ROW  = 86.6;
+  const R    = 56.15;
   const SVG_OFFSET_X = 0;
   const SVG_OFFSET_Y = 5;
 
-  // ─── STATE MACHINE ───
   const states = {
     start: {
       nodes: [
-        { id: 'offer',  label: 'OFFER',  col: 0, row: 0 },
-        { id: 'search', label: 'SEARCH', col: 1, row: 0 },
-        { id: 'next',   label: 'NEXT',   col: 2, row: 0 },
-        { id: 'bbq',    label: 'BBQ',    col: 3, row: 0, noop: true },
+        { id: 'offer',  label: 'OFFER',  col: 0, lrow: 0 },
+        { id: 'search', label: 'SEARCH', col: 1, lrow: 0 },
+        { id: 'next',   label: 'NEXT',   col: 2, lrow: 0 },
+        { id: 'bbq',    label: 'BBQ',    col: 3, lrow: 0, noop: true },
       ],
-      transitions: {
-        offer:  'offer',
-        search: 'search',
-        next:   'missions',
-      }
-    },
-
-    missions: {
-      nodes: [
-        { id: 'back',      label: 'OFFER\nSEARCH',    col: 0, row: 0, backTo: 'start' },
-        { id: 'mission1',  label: 'MISSION 1\nMISSION TV', col: 1, row: 0 },
-        { id: 'mission2',  label: 'MISSION 2\nSWARM GOV',  col: 2, row: 0 },
-        { id: 'mission3',  label: 'MISSION 3\nOMNIPEDIA',  col: 3, row: 0 },
-        { id: 'mission4',  label: 'MISSION 4\nCONSERV.',   col: 4, row: 0 },
-      ],
-      transitions: {
-        back: 'start',
-      }
+      transitions: { offer: 'offer', search: 'search', next: 'next' }
     },
 
     offer: {
       nodes: [
-        { id: 'rootRef',  label: 'OFFER',    col: 0, row: 0, selected: true },
-        { id: 'search',   label: 'SEARCH',   col: 1, row: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',     col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, row: 1 },
-        { id: 'listings', label: 'LISTINGS', col: 1, row: 1 },
+        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0, selected: true },
+        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0, dimmed: true },
+        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
+        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
       ],
-      transitions: {
-        rootRef:  'start',
-        search:   'search',
-        next:     'missions',
-        live:     'offerLive',
-        listings: 'offerListings',
-      }
+      transitions: { offer: 'start', search: 'search', next: 'next', live: 'offerLive', listings: 'offerListings' }
     },
 
     search: {
       nodes: [
-        { id: 'offer',    label: 'OFFER',    col: 0, row: 0, dimmed: true },
-        { id: 'rootRef',  label: 'SEARCH',   col: 1, row: 0, selected: true },
-        { id: 'next',     label: 'NEXT',     col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, row: 1 },
-        { id: 'listings', label: 'LISTINGS', col: 1, row: 1 },
+        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0, dimmed: true },
+        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0, selected: true },
+        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
+        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
       ],
-      transitions: {
-        offer:    'offer',
-        rootRef:  'start',
-        next:     'missions',
-        live:     'searchLive',
-        listings: 'searchListings',
-      }
+      transitions: { offer: 'offer', search: 'start', next: 'next', live: 'searchLive', listings: 'searchListings' }
+    },
+
+    next: {
+      nodes: [
+        { id: 'offer',  label: 'OFFER',              col: 0, lrow: 0, dimmed: true },
+        { id: 'search', label: 'SEARCH',             col: 1, lrow: 0, dimmed: true },
+        { id: 'next',   label: 'NEXT',               col: 2, lrow: 0, selected: true },
+        { id: 'bbq',    label: 'BBQ',                col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'm1',     label: 'MISSION 1\nTV',      col: 0, lrow: 1 },
+        { id: 'm2',     label: 'MISSION 2\nGOV',     col: 1, lrow: 1 },
+        { id: 'm3',     label: 'MISSION 3\nOMNI',    col: 2, lrow: 1 },
+        { id: 'm4',     label: 'MISSION 4\nCONSERV', col: 3, lrow: 1 },
+      ],
+      transitions: { offer: 'offer', search: 'search', next: 'start' }
+    },
+
+    offerLive: {
+      nodes: [
+        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0, selected: true },
+        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0, dimmed: true },
+        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1, selected: true },
+        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1, dimmed: true },
+      ],
+      transitions: { offer: 'start', search: 'searchLive', next: 'next', live: 'offer', listings: 'offerListings' }
+    },
+
+    searchLive: {
+      nodes: [
+        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0, dimmed: true },
+        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0, selected: true },
+        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1, selected: true },
+        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1, dimmed: true },
+      ],
+      transitions: { offer: 'offerLive', search: 'start', next: 'next', live: 'search', listings: 'searchListings' }
     },
 
     offerListings: {
       nodes: [
-        { id: 'rootRef',  label: 'OFFER',      col: 0, row: 0, selected: true },
-        { id: 'search',   label: 'SEARCH',     col: 1, row: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',       col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, row: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, row: 1, selected: true },
-        { id: 'c1',       label: 'MOVE',       col: 0, row: 2 },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, row: 2 },
-        { id: 'c3',       label: 'FOOD',       col: 2, row: 2 },
-        { id: 'c4',       label: 'SKILLS',     col: 3, row: 2 },
-        { id: 'c5',       label: 'STAY',       col: 0, row: 3 },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, row: 3 },
+        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0, selected: true },
+        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, dimmed: true },
+        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
+        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1, selected: true },
+        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2 },
+        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2 },
+        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2 },
+        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2 },
+        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3 },
+        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3 },
       ],
       transitions: {
-        rootRef:  'start',
-        search:   'searchListings',
-        next:     'missions',
-        live:     'offerLive',
-        listings: 'offer',
-        c1: 'offerTool', c2: 'offerTool', c3: 'offerTool',
-        c4: 'offerTool', c5: 'offerTool', c6: 'offerTool',
+        offer: 'start', search: 'searchListings', next: 'next', live: 'offerLive', listings: 'offer',
+        c1: 'offerTool', c2: 'offerTool', c3: 'offerTool', c4: 'offerTool', c5: 'offerTool', c6: 'offerTool',
       }
     },
 
     searchListings: {
       nodes: [
-        { id: 'offer',    label: 'OFFER',      col: 0, row: 0, dimmed: true },
-        { id: 'rootRef',  label: 'SEARCH',     col: 1, row: 0, selected: true },
-        { id: 'next',     label: 'NEXT',       col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, row: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, row: 1, selected: true },
-        { id: 'c1',       label: 'MOVE',       col: 0, row: 2 },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, row: 2 },
-        { id: 'c3',       label: 'FOOD',       col: 2, row: 2 },
-        { id: 'c4',       label: 'SKILLS',     col: 3, row: 2 },
-        { id: 'c5',       label: 'STAY',       col: 0, row: 3 },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, row: 3 },
+        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0, dimmed: true },
+        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, selected: true },
+        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
+        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1, selected: true },
+        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2 },
+        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2 },
+        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2 },
+        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2 },
+        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3 },
+        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3 },
       ],
       transitions: {
-        offer:    'offerListings',
-        rootRef:  'start',
-        next:     'missions',
-        live:     'searchLive',
-        listings: 'search',
-        c1: 'searchFilter', c2: 'searchFilter', c3: 'searchFilter',
-        c4: 'searchFilter', c5: 'searchFilter', c6: 'searchFilter',
-      }
-    },
-
-    offerLive: {
-      nodes: [
-        { id: 'rootRef',  label: 'OFFER',    col: 0, row: 0, selected: true },
-        { id: 'search',   label: 'SEARCH',   col: 1, row: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',     col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, row: 1, selected: true },
-        { id: 'listings', label: 'LISTINGS', col: 1, row: 1, dimmed: true },
-      ],
-      transitions: {
-        rootRef:  'start',
-        search:   'searchLive',
-        next:     'missions',
-        live:     'offer',
-        listings: 'offerListings',
-      }
-    },
-
-    searchLive: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',    col: 0, row: 0, dimmed: true },
-        { id: 'rootRef',  label: 'SEARCH',   col: 1, row: 0, selected: true },
-        { id: 'next',     label: 'NEXT',     col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, row: 1, selected: true },
-        { id: 'listings', label: 'LISTINGS', col: 1, row: 1, dimmed: true },
-      ],
-      transitions: {
-        offer:    'offerLive',
-        rootRef:  'start',
-        next:     'missions',
-        live:     'search',
-        listings: 'searchListings',
+        offer: 'offerListings', search: 'start', next: 'next', live: 'searchLive', listings: 'search',
+        c1: 'searchFilter', c2: 'searchFilter', c3: 'searchFilter', c4: 'searchFilter', c5: 'searchFilter', c6: 'searchFilter',
       }
     },
 
     offerTool: {
       nodes: [
-        { id: 'rootRef',  label: 'OFFER',      col: 0, row: 0, selected: true },
-        { id: 'search',   label: 'SEARCH',     col: 1, row: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',       col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, row: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, row: 1, selected: true },
-        { id: 'c1',       label: 'MOVE',       col: 0, row: 2, dimmed: true },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, row: 2, dimmed: true },
-        { id: 'c3',       label: 'FOOD',       col: 2, row: 2, selected: true },
-        { id: 'c4',       label: 'SKILLS',     col: 3, row: 2, dimmed: true },
-        { id: 'c5',       label: 'STAY',       col: 0, row: 3, dimmed: true },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, row: 3, dimmed: true },
-        { id: 't1',       label: 'TOOL 1',     col: 0, row: 4 },
-        { id: 't2',       label: 'TOOL 2',     col: 1, row: 4 },
-        { id: 't3',       label: 'TOOL 3',     col: 2, row: 4 },
+        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0, selected: true },
+        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, dimmed: true },
+        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
+        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1, selected: true },
+        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2, dimmed: true },
+        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2, dimmed: true },
+        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2, selected: true },
+        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2, dimmed: true },
+        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3, dimmed: true },
+        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3, dimmed: true },
+        { id: 't1',       label: 'TOOL 1',     col: 0, lrow: 4 },
+        { id: 't2',       label: 'TOOL 2',     col: 1, lrow: 4 },
+        { id: 't3',       label: 'TOOL 3',     col: 2, lrow: 4 },
       ],
       transitions: {
-        rootRef:  'start',
-        search:   'start',
-        next:     'missions',
-        live:     'offerLive',
-        listings: 'offerListings',
+        offer: 'start', search: 'start', next: 'next',
+        live: 'offerLive', listings: 'offerListings',
         c1: 'offerListings', c2: 'offerListings', c3: 'offerListings',
         c4: 'offerListings', c5: 'offerListings', c6: 'offerListings',
         t1: 'offerForm', t2: 'offerForm', t3: 'offerForm',
@@ -193,68 +149,55 @@
 
     offerForm: {
       nodes: [
-        { id: 'rootRef',  label: 'OFFER',      col: 0, row: 0, selected: true },
-        { id: 'search',   label: 'SEARCH',     col: 1, row: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',       col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, row: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, row: 1, selected: true },
-        { id: 'c1',       label: 'MOVE',       col: 0, row: 2, dimmed: true },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, row: 2, dimmed: true },
-        { id: 'c3',       label: 'FOOD',       col: 2, row: 2, selected: true },
-        { id: 'c4',       label: 'SKILLS',     col: 3, row: 2, dimmed: true },
-        { id: 'c5',       label: 'STAY',       col: 0, row: 3, dimmed: true },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, row: 3, dimmed: true },
-        { id: 't1',       label: 'TOOL 1',     col: 0, row: 4, dimmed: true },
-        { id: 't2',       label: 'TOOL 2',     col: 1, row: 4, selected: true },
-        { id: 't3',       label: 'TOOL 3',     col: 2, row: 4, dimmed: true },
-        { id: 'location', label: 'LOCATION',   col: 0, row: 5 },
-        { id: 'details',  label: 'DETAILS',    col: 1, row: 5 },
-        { id: 'anypay',   label: 'ANYPAY',     col: 2, row: 5 },
-        { id: 'submit',   label: 'SUBMIT',     col: 3, row: 5, type: 'submit' },
+        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0, selected: true },
+        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, dimmed: true },
+        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
+        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1, selected: true },
+        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2, dimmed: true },
+        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2, dimmed: true },
+        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2, selected: true },
+        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2, dimmed: true },
+        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3, dimmed: true },
+        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3, dimmed: true },
+        { id: 't1',       label: 'TOOL 1',     col: 0, lrow: 4, dimmed: true },
+        { id: 't2',       label: 'TOOL 2',     col: 1, lrow: 4, selected: true },
+        { id: 't3',       label: 'TOOL 3',     col: 2, lrow: 4, dimmed: true },
+        { id: 'location', label: 'LOCATION',   col: 0, lrow: 5 },
+        { id: 'details',  label: 'DETAILS',    col: 1, lrow: 5 },
+        { id: 'anypay',   label: 'ANYPAY',     col: 2, lrow: 5 },
+        { id: 'submit',   label: 'SUBMIT',     col: 3, lrow: 5, type: 'submit' },
       ],
-      transitions: {
-        rootRef:  'start',
-        submit:   'start',
-        listings: 'offerListings',
-        c3:       'offerTool',
-        t2:       'offerTool',
-      }
+      transitions: { offer: 'start', listings: 'offerListings', c3: 'offerTool', t2: 'offerTool', submit: 'start' }
     },
 
     searchFilter: {
       nodes: [
-        { id: 'offer',    label: 'OFFER',      col: 0, row: 0, dimmed: true },
-        { id: 'rootRef',  label: 'SEARCH',     col: 1, row: 0, selected: true },
-        { id: 'next',     label: 'NEXT',       col: 2, row: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, row: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, row: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, row: 1, selected: true },
-        { id: 'c1',       label: 'MOVE',       col: 0, row: 2, dimmed: true },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, row: 2, dimmed: true },
-        { id: 'c3',       label: 'FOOD',       col: 2, row: 2, selected: true },
-        { id: 'c4',       label: 'SKILLS',     col: 3, row: 2, dimmed: true },
-        { id: 'c5',       label: 'STAY',       col: 0, row: 3, dimmed: true },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, row: 3, dimmed: true },
-        { id: 'location', label: 'LOCATION',   col: 0, row: 4 },
-        { id: 'anypay',   label: 'ANYPAY',     col: 1, row: 4 },
-        { id: 'search',   label: 'SEARCH',     col: 2, row: 4, type: 'submit' },
+        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0, dimmed: true },
+        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, selected: true },
+        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
+        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
+        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
+        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1, selected: true },
+        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2, dimmed: true },
+        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2, dimmed: true },
+        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2, selected: true },
+        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2, dimmed: true },
+        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3, dimmed: true },
+        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3, dimmed: true },
+        { id: 'location', label: 'LOCATION',   col: 0, lrow: 4 },
+        { id: 'anypay',   label: 'ANYPAY',     col: 1, lrow: 4 },
+        { id: 'gosearch', label: 'SEARCH',     col: 2, lrow: 4, type: 'submit' },
       ],
-      transitions: {
-        rootRef:  'start',
-        search:   'start',
-        listings: 'searchListings',
-        c3:       'searchListings',
-      }
+      transitions: { search: 'start', listings: 'searchListings', c3: 'searchListings', gosearch: 'start' }
     },
   };
 
-  // ─── DRAG STATE ───
   let anchorCol = 0;
-  let anchorRow = 3;
-  let didDrag = false;
+  let anchorRow = 1;
+  let didDrag   = false;
 
-  // ─── CURRENT STATE ───
   let current = 'start';
   $: ui = states[current];
 
@@ -266,31 +209,24 @@
     if (next) current = next;
   }
 
-  // ─── HEX MATH: grid col/row → pixel center ───
-  function hexCenter(col, row) {
-    const isOdd = row % 2 === 1;
-    const x = (col * COL) + (isOdd ? ODD_OFFSET : 0) + SVG_OFFSET_X;
-    const y = (row * ROW) + SVG_OFFSET_Y;
+  // lrow drives alternating offset — FIXED, independent of anchorRow parity
+  function hexCenter(col, lrow) {
+    const absRow = anchorRow + lrow;
+    const xOffset = absRow % 2 === 1 ? 50.0 : 0;
+    // lrow+1 must always appear RIGHT of lrow regardless of anchorRow parity.
+    // When anchorRow is odd: lrow=0 already has xOffset=50, lrow=1 has 0 → lands LEFT.
+    // Compensate: shift lrow=1,3,5 by +1 col when anchorRow is odd.
+    const colShift = (anchorRow % 2 === 1 && lrow % 2 === 1) ? 1 : 0;
+    const x = ((col + colShift) * COL) + xOffset + SVG_OFFSET_X;
+    const y = (absRow * ROW) + SVG_OFFSET_Y;
     return { x, y };
   }
 
-  // ─── PIXEL → nearest grid col/row ───
-  function pixelToGrid(px, py) {
-    const adjustedPy = py - SVG_OFFSET_Y;
-    const row = Math.round(adjustedPy / ROW);
-    const isOdd = row % 2 === 1;
-    const adjustedPx = px - SVG_OFFSET_X - (isOdd ? ODD_OFFSET : 0);
-    const col = Math.round(adjustedPx / COL);
-    return { col: Math.max(0, col), row: Math.max(0, row) };
-  }
-
-  // ─── COMPUTE ABSOLUTE PIXEL POSITIONS for current nodes ───
   $: nodePositions = ui.nodes.map(n => {
-    const base = hexCenter(anchorCol + n.col, anchorRow + n.row);
+    const base = hexCenter(anchorCol + n.col, n.lrow);
     return { ...n, px: base.x, py: base.y };
   });
 
-  // ─── SVG HEXAGON PATH (pointy-top, radius R) ───
   function hexPath(cx, cy) {
     const pts = [];
     for (let i = 0; i < 6; i++) {
@@ -302,26 +238,21 @@
 
   const gradId = 'hexgrad_' + Math.random().toString(36).slice(2);
 
-  // ─── SVELTE ACTION: Draggable menu ───
   function draggable(node) {
-    let dragActive = false;
-    let baseAnchorCol = 0;
-    let baseAnchorRow = 0;
+    let dragActive       = false;
+    let baseAnchorCol    = 0;
+    let baseAnchorRow    = 0;
     let dragStartClientX = 0;
     let dragStartClientY = 0;
 
     function onDown(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      dragActive = true;
-      didDrag = false;
-      baseAnchorCol = anchorCol;
-      baseAnchorRow = anchorRow;
-      dragStartClientX = e.clientX;
-      dragStartClientY = e.clientY;
-      window.addEventListener('pointermove', onMove, { passive: false });
-      window.addEventListener('pointerup', onUp, { passive: false });
-      window.addEventListener('pointercancel', onUp, { passive: false });
+      e.preventDefault(); e.stopPropagation();
+      dragActive = true; didDrag = false;
+      baseAnchorCol = anchorCol; baseAnchorRow = anchorRow;
+      dragStartClientX = e.clientX; dragStartClientY = e.clientY;
+      window.addEventListener('pointermove',   onMove,  { passive: false });
+      window.addEventListener('pointerup',     onUp,    { passive: false });
+      window.addEventListener('pointercancel', onUp,    { passive: false });
     }
 
     function onMove(e) {
@@ -330,19 +261,17 @@
       const dx = e.clientX - dragStartClientX;
       const dy = e.clientY - dragStartClientY;
       if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didDrag = true;
-      const startPos = hexCenter(baseAnchorCol, baseAnchorRow);
-      const snapped = pixelToGrid(startPos.x + dx, startPos.y + dy);
-      if (snapped.col !== anchorCol || snapped.row !== anchorRow) {
-        anchorCol = Math.max(0, snapped.col);
-        anchorRow = Math.max(0, snapped.row);
-      }
+      const baseX = baseAnchorCol * COL + SVG_OFFSET_X;
+      const baseY = baseAnchorRow * ROW  + SVG_OFFSET_Y;
+      anchorCol = Math.max(0, Math.round((baseX + dx - SVG_OFFSET_X) / COL));
+      anchorRow = Math.max(0, Math.round((baseY + dy - SVG_OFFSET_Y) / ROW));
     }
 
     function onUp(e) {
       if (e) e.preventDefault();
       dragActive = false;
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointermove',   onMove);
+      window.removeEventListener('pointerup',     onUp);
       window.removeEventListener('pointercancel', onUp);
       setTimeout(() => { didDrag = false; }, 80);
     }
@@ -365,9 +294,9 @@
     </linearGradient>
   </defs>
 
-  <!-- Wire connections between consecutive nodes on the same row -->
+  <!-- Wires between consecutive nodes on the same logical row -->
   {#each nodePositions as node, i}
-    {#if i > 0 && nodePositions[i-1].row === node.row}
+    {#if i > 0 && nodePositions[i-1].lrow === node.lrow}
       <line
         x1={nodePositions[i-1].px} y1={nodePositions[i-1].py}
         x2={node.px} y2={node.py}
@@ -384,23 +313,16 @@
       style="
         pointer-events:{node.noop ? 'none' : 'all'};
         cursor:{node.noop ? 'default' : didDrag ? 'grabbing' : 'pointer'};
-        opacity:{node.noop ? 0.3 : node.dimmed ? 0.22 : 1};
+        opacity:{node.noop ? 0.35 : node.dimmed ? 0.22 : 1};
         transition: opacity 0.25s;
       "
       on:click={() => !didDrag && go(node.id)}
     >
-      <!-- Fill -->
       <path
         d={hexPath(node.px, node.py)}
-        fill={node.type === 'submit'
-          ? 'rgba(42,233,201,0.08)'
-          : node.selected
-            ? 'rgba(51,91,244,0.18)'
-            : '#111'}
+        fill={node.type === 'submit' ? 'rgba(42,233,201,0.08)' : node.selected ? 'rgba(51,91,244,0.18)' : '#111'}
         style="pointer-events:all;"
       />
-
-      <!-- Gradient border -->
       <path
         d={hexPath(node.px, node.py)}
         fill="none"
@@ -413,19 +335,13 @@
           <animate attributeName="opacity" values="0.5;1;0.5" dur="2.8s" repeatCount="indefinite"/>
         {/if}
       </path>
-
-      <!-- Label -->
       {#each node.label.split('\n') as line, li}
         <text
           x={node.px}
           y={node.py + (li - (node.label.split('\n').length - 1) / 2) * 14}
           text-anchor="middle"
           dominant-baseline="middle"
-          fill={node.type === 'submit'
-            ? '#2ae9c9'
-            : node.selected
-              ? '#a0b8ff'
-              : '#fff'}
+          fill={node.type === 'submit' ? '#2ae9c9' : node.selected ? '#a0b8ff' : '#fff'}
           font-size="11"
           font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
           font-weight="600"
