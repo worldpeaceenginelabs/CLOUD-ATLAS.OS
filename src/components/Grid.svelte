@@ -443,12 +443,13 @@
     </defs>
 
     <!-- BACKGROUND HEX TILES: same hexCenter()/hexPath() math as the menu.
-         Colors match the original grid.svg exactly (#1F1F1F fill / #0E0E0E
-         stroke) so the gaps between hexagons read as the root's #2b2b2b
-         gray, not pure black. -->
+         Fill radius is drawn slightly smaller than the true tiling radius
+         so a hairline of the root's #2b2b2b shows through between cells —
+         this is what gives the grid its visible line contrast (matching
+         the original grid.svg, which had the same intentional gap). -->
     <g class="bg-layer">
       {#each bgHexes as h}
-        <path d={hexPath(h.x, h.y, R)} fill="#1F1F1F" stroke="#0E0E0E" stroke-width="1"/>
+        <path d={hexPath(h.x, h.y, R * 0.97)} fill="#1F1F1F" stroke="#333" stroke-width={1.2 * scale}/>
       {/each}
     </g>
 
@@ -471,7 +472,7 @@
         style="
           pointer-events:{node.noop ? 'none' : 'all'};
           cursor:{node.noop ? 'default' : didDrag ? 'grabbing' : 'pointer'};
-          opacity:{node.noop ? 0.35 : node.dimmed ? 0.22 : 1};
+          opacity:{node.noop ? 0.35 : (node.dimmed && !node.selected) ? 0.22 : 1};
           transition: opacity 0.25s;
         "
         on:click={() => !didDrag && go(node.id)}
