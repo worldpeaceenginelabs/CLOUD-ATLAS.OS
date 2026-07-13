@@ -443,13 +443,15 @@
     </defs>
 
     <!-- BACKGROUND HEX TILES: same hexCenter()/hexPath() math as the menu.
-         Fill radius is drawn slightly smaller than the true tiling radius
-         so a hairline of the root's #2b2b2b shows through between cells —
-         this is what gives the grid its visible line contrast (matching
-         the original grid.svg, which had the same intentional gap). -->
+         Rendered as TWO nested FILLED hexagons per cell (outer border-color
+         shape + inner smaller fill-color shape) — exactly how the original
+         grid.svg was built. This avoids the blurry double-stroke seams you
+         get when adjacent cells each draw their own `stroke` on a shared
+         edge; solid fills give crisp lines instead. -->
     <g class="bg-layer">
       {#each bgHexes as h}
-        <path d={hexPath(h.x, h.y, R * 0.97)} fill="#1F1F1F" stroke="#333" stroke-width={1.2 * scale}/>
+        <path d={hexPath(h.x, h.y, R * 0.985)} fill="#0E0E0E"/>
+        <path d={hexPath(h.x, h.y, R * 0.985 - 2.2 * scale)} fill="#1F1F1F"/>
       {/each}
     </g>
 
