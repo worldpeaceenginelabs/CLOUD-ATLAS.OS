@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import Cesium from "./Cesium.svelte";
-  import Grid from "./components/Grid.svelte";
+  import HexMenu from "./components/HexMenu.svelte";
   import ProgressBar from "./components/ProgressBar.svelte";
   import ModalManager from "./components/ModalManager.svelte";
   import OnlineTopBar from "./components/OnlineTopBar.svelte";
@@ -57,11 +57,11 @@
       <div class="twpg-text under-enter animated-gradient">THE WORLD PEACE GAME</div>
     </div>
   {:else}
-    <div class="gridcontainer"><Grid on:gridReady={() => gridReady.set(true)} /></div>
+    <div class="hexcontainer"><HexMenu on:gridReady={() => gridReady.set(true)} /></div>
     {#if $gridReady}
-    <!-- <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div> -->
+    <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
     {/if}
-    <!-- <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} /> -->
+    <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} />
     <OnlineTopBar />
     {#if $onlinePanelOpen}
       <OnlineListings />
@@ -92,20 +92,13 @@
     position: relative;
   }
 
-  .gridcontainer {
+  .hexcontainer {
     top: 0;
     left: 0;
-    z-index: 0;          
+    z-index: 10;          
     position: absolute;
     height: 100%;
     width: 100%;
-}
-
-.radialMenu {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 10;        
 }
 
   .picture-container {
