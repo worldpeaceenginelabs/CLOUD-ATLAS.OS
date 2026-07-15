@@ -262,8 +262,9 @@
       nodes: [
         ...headerRow('search'), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(true),
         { id: 'location', label: 'LOCATION', col: 0, lrow: 5 },
-        { id: 'anypay',   label: 'ANYPAY',   col: 1, lrow: 5 },
-        { id: 'gosearch', label: 'SEARCH',   col: 2, lrow: 5, type: 'submit' },
+        { id: 'details',  label: 'DETAILS',  col: 1, lrow: 5 },
+        { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
+        { id: 'gosearch', label: 'SEARCH',   col: 3, lrow: 5, type: 'submit' },
       ],
       transitions: { search: 'start', listings: 'searchListings', gosearch: 'start' }
     },
