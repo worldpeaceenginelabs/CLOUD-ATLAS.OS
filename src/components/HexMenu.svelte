@@ -1,5 +1,7 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
 
   // ─── BASE HEX GRID CONSTANTS (unscaled, from grid.svg geometry) ───
   const BASE_COL = 100.0;
@@ -121,6 +123,103 @@
     }, 10000);
   }
 
+  // ─── STATE MACHINE DATA ───
+  // Single source of truth for the repeating rows. offer/search branches
+  // are structurally identical (same rows, same depth) — only the active
+  // mode and its leaf step differ. Generating them from this data means a
+  // node like TOOL 1-3 can never again exist in one branch and not the other.
+  const CATEGORIES = [
+    { id: 'c1', label: 'MOVE' },
+    { id: 'c2', label: 'SHARE\nUSE' },
+    { id: 'c3', label: 'FOOD' },
+    { id: 'c4', label: 'SKILLS' },
+    { id: 'c5', label: 'STAY' },
+    { id: 'c6', label: 'SOCIAL' },
+  ];
+  const TOOLS = [
+    { id: 't1', label: 'TOOL 1' },
+    { id: 't2', label: 'TOOL 2' },
+    { id: 't3', label: 'TOOL 3' },
+  ];
+
+  // Top row: OFFER / SEARCH / NEXT / BBQ. `active` is whichever of the
+  // three owns the current branch; everything else (incl. BBQ) dims.
+  function headerRow(active) {
+    return [
+      { id: 'offer',  label: 'OFFER',  col: 0, lrow: 0 },
+      { id: 'search', label: 'SEARCH', col: 1, lrow: 0 },
+      { id: 'next',   label: 'NEXT',   col: 2, lrow: 0 },
+      { id: 'bbq',    label: 'BBQ',    col: 3, lrow: 0, noop: true },
+    ].map(n => (n.id === active ? n : { ...n, dimmed: true }));
+  }
+
+  // LIVE / LISTINGS row. `pick` is null while still choosing, else the
+  // chosen id — the other one dims.
+  function liveListingsRow(pick) {
+    return [
+      { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
+      { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
+    ].map(n => (!pick || n.id === pick ? n : { ...n, dimmed: true }));
+  }
+
+  function categoryRow(dimAll) {
+    return CATEGORIES.map((c, i) => ({
+      id: c.id, label: c.label, col: i % 4, lrow: 2 + Math.floor(i / 4),
+      ...(dimAll ? { dimmed: true } : {}),
+    }));
+  }
+
+  function toolRow(dimAll) {
+    return TOOLS.map((t, i) => ({
+      id: t.id, label: t.label, col: i, lrow: 4,
+      ...(dimAll ? { dimmed: true } : {}),
+    }));
+  }
+
+  function toMap(ids, target) {
+    return Object.fromEntries(ids.map(id => [id, target]));
+  }
+
+  // Builds the four shared states of one branch ('offer' or 'search'):
+  // <mode>, <mode>Live, <mode>Listings, <mode>Tool. `formState` is the
+  // mode-specific leaf (offerForm / searchFilter) the tool row hands off to.
+  function buildBranch(mode, otherMode, formState) {
+    const Mode = mode[0].toUpperCase() + mode.slice(1);
+    const liveState = mode + 'Live';
+    const listingsState = mode + 'Listings';
+    const toolState = mode + 'Tool';
+
+    return {
+      // Top of branch: mode itself collapses back to start, the other
+      // mode is a plain lateral switch.
+      [mode]: {
+        nodes: [...headerRow(mode), ...liveListingsRow(null)],
+        transitions: { [mode]: 'start', [otherMode]: otherMode, next: 'next', live: liveState, listings: listingsState }
+      },
+      [liveState]: {
+        nodes: [...headerRow(mode), ...liveListingsRow('live')],
+        transitions: { [mode]: 'start', [otherMode]: otherMode + 'Live', next: 'next', live: mode, listings: listingsState }
+      },
+      [listingsState]: {
+        nodes: [...headerRow(mode), ...liveListingsRow('listings'), ...categoryRow(false)],
+        transitions: {
+          [mode]: 'start', [otherMode]: otherMode + 'Listings', next: 'next',
+          live: liveState, listings: mode,
+          ...toMap(CATEGORIES.map(c => c.id), toolState),
+        }
+      },
+      [toolState]: {
+        nodes: [...headerRow(mode), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(false)],
+        transitions: {
+          offer: 'start', search: 'start', next: 'next',
+          live: liveState, listings: listingsState,
+          ...toMap(CATEGORIES.map(c => c.id), listingsState),
+          ...toMap(TOOLS.map(t => t.id), formState),
+        }
+      },
+    };
+  }
+
   // ─── STATE MACHINE ───
   const states = {
     start: {
@@ -132,170 +231,39 @@
       ],
       transitions: { offer: 'offer', search: 'search', next: 'next' }
     },
-    offer: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0 },
-        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
-        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
-      ],
-      transitions: { offer: 'start', search: 'search', next: 'next', live: 'offerLive', listings: 'offerListings' }
-    },
-    search: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0, dimmed: true },
-        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0 },
-        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
-        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
-      ],
-      transitions: { offer: 'offer', search: 'start', next: 'next', live: 'searchLive', listings: 'searchListings' }
-    },
+
+    ...buildBranch('offer', 'search', 'offerForm'),
+    ...buildBranch('search', 'offer', 'searchFilter'),
+
     next: {
       nodes: [
-        { id: 'offer',  label: 'OFFER',              col: 0, lrow: 0, dimmed: true },
-        { id: 'search', label: 'SEARCH',             col: 1, lrow: 0, dimmed: true },
-        { id: 'next',   label: 'NEXT',               col: 2, lrow: 0 },
-        { id: 'bbq',    label: 'BBQ',                col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'm1',     label: 'MISSION 1\nTV',      col: 0, lrow: 1 },
-        { id: 'm2',     label: 'MISSION 2\nGOV',     col: 1, lrow: 1 },
-        { id: 'm3',     label: 'MISSION 3\nOMNI',    col: 2, lrow: 1 },
-        { id: 'm4',     label: 'MISSION 4\nCONSERV', col: 3, lrow: 1 },
+        ...headerRow('next'),
+        { id: 'm1', label: 'MISSION 1\nTV',      col: 0, lrow: 1 },
+        { id: 'm2', label: 'MISSION 2\nGOV',     col: 1, lrow: 1 },
+        { id: 'm3', label: 'MISSION 3\nOMNI',    col: 2, lrow: 1 },
+        { id: 'm4', label: 'MISSION 4\nCONSERV', col: 3, lrow: 1 },
       ],
       transitions: { offer: 'offer', search: 'search', next: 'start' }
     },
-    offerLive: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0 },
-        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
-        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1, dimmed: true },
-      ],
-      transitions: { offer: 'start', search: 'searchLive', next: 'next', live: 'offer', listings: 'offerListings' }
-    },
-    searchLive: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',    col: 0, lrow: 0, dimmed: true },
-        { id: 'search',   label: 'SEARCH',   col: 1, lrow: 0 },
-        { id: 'next',     label: 'NEXT',     col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
-        { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1, dimmed: true },
-      ],
-      transitions: { offer: 'offerLive', search: 'start', next: 'next', live: 'search', listings: 'searchListings' }
-    },
-    offerListings: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0 },
-        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1 },
-        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2 },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2 },
-        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2 },
-        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2 },
-        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3 },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3 },
-      ],
-      transitions: {
-        offer: 'start', search: 'searchListings', next: 'next', live: 'offerLive', listings: 'offer',
-        c1: 'offerTool', c2: 'offerTool', c3: 'offerTool', c4: 'offerTool', c5: 'offerTool', c6: 'offerTool',
-      }
-    },
-    searchListings: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0, dimmed: true },
-        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0 },
-        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1 },
-        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2 },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2 },
-        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2 },
-        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2 },
-        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3 },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3 },
-      ],
-      transitions: {
-        offer: 'offerListings', search: 'start', next: 'next', live: 'searchLive', listings: 'search',
-        c1: 'searchFilter', c2: 'searchFilter', c3: 'searchFilter', c4: 'searchFilter', c5: 'searchFilter', c6: 'searchFilter',
-      }
-    },
-    offerTool: {
-      nodes: [
-        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0 },
-        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1 },
-        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2, dimmed: true },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2, dimmed: true },
-        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2, dimmed: true },
-        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2, dimmed: true },
-        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3, dimmed: true },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3, dimmed: true },
-        { id: 't1',       label: 'TOOL 1',     col: 0, lrow: 4 },
-        { id: 't2',       label: 'TOOL 2',     col: 1, lrow: 4 },
-        { id: 't3',       label: 'TOOL 3',     col: 2, lrow: 4 },
-      ],
-      transitions: {
-        offer: 'start', search: 'start', next: 'next',
-        live: 'offerLive', listings: 'offerListings',
-        c1: 'offerListings', c2: 'offerListings', c3: 'offerListings',
-        c4: 'offerListings', c5: 'offerListings', c6: 'offerListings',
-        t1: 'offerForm', t2: 'offerForm', t3: 'offerForm',
-      }
-    },
+
+    // Leaves: same breadcrumb (header + listings + dimmed categories/tools),
+    // but each ends in its own mode-specific form fields.
     offerForm: {
       nodes: [
-        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0 },
-        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0, dimmed: true },
-        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1 },
-        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2, dimmed: true },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2, dimmed: true },
-        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2, dimmed: true },
-        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2, dimmed: true },
-        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3, dimmed: true },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3, dimmed: true },
-        { id: 't1',       label: 'TOOL 1',     col: 0, lrow: 4, dimmed: true },
-        { id: 't2',       label: 'TOOL 2',     col: 1, lrow: 4, dimmed: true },
-        { id: 't3',       label: 'TOOL 3',     col: 2, lrow: 4, dimmed: true },
-        { id: 'location', label: 'LOCATION',   col: 0, lrow: 5 },
-        { id: 'details',  label: 'DETAILS',    col: 1, lrow: 5 },
-        { id: 'anypay',   label: 'ANYPAY',     col: 2, lrow: 5 },
-        { id: 'submit',   label: 'SUBMIT',     col: 3, lrow: 5, type: 'submit' },
+        ...headerRow('offer'), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(true),
+        { id: 'location', label: 'LOCATION', col: 0, lrow: 5 },
+        { id: 'details',  label: 'DETAILS',  col: 1, lrow: 5 },
+        { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
+        { id: 'submit',   label: 'SUBMIT',   col: 3, lrow: 5, type: 'submit' },
       ],
       transitions: { offer: 'start', listings: 'offerListings', submit: 'start' }
     },
     searchFilter: {
       nodes: [
-        { id: 'offer',    label: 'OFFER',      col: 0, lrow: 0, dimmed: true },
-        { id: 'search',   label: 'SEARCH',     col: 1, lrow: 0 },
-        { id: 'next',     label: 'NEXT',       col: 2, lrow: 0, dimmed: true },
-        { id: 'bbq',      label: 'BBQ',        col: 3, lrow: 0, dimmed: true, noop: true },
-        { id: 'live',     label: 'LIVE',       col: 0, lrow: 1, dimmed: true },
-        { id: 'listings', label: 'LISTINGS',   col: 1, lrow: 1 },
-        { id: 'c1',       label: 'MOVE',       col: 0, lrow: 2, dimmed: true },
-        { id: 'c2',       label: 'SHARE\nUSE', col: 1, lrow: 2, dimmed: true },
-        { id: 'c3',       label: 'FOOD',       col: 2, lrow: 2, dimmed: true },
-        { id: 'c4',       label: 'SKILLS',     col: 3, lrow: 2, dimmed: true },
-        { id: 'c5',       label: 'STAY',       col: 0, lrow: 3, dimmed: true },
-        { id: 'c6',       label: 'SOCIAL',     col: 1, lrow: 3, dimmed: true },
-        { id: 'location', label: 'LOCATION',   col: 0, lrow: 4 },
-        { id: 'anypay',   label: 'ANYPAY',     col: 1, lrow: 4 },
-        { id: 'gosearch', label: 'SEARCH',     col: 2, lrow: 4, type: 'submit' },
+        ...headerRow('search'), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(true),
+        { id: 'location', label: 'LOCATION', col: 0, lrow: 5 },
+        { id: 'anypay',   label: 'ANYPAY',   col: 1, lrow: 5 },
+        { id: 'gosearch', label: 'SEARCH',   col: 2, lrow: 5, type: 'submit' },
       ],
       transitions: { search: 'start', listings: 'searchListings', gosearch: 'start' }
     },
@@ -311,8 +279,8 @@
     selMode = null; selType = null; selCategory = null; selTool = null;
   }
 
-  const CATEGORY_IDS = new Set(['c1','c2','c3','c4','c5','c6']);
-  const TOOL_IDS = new Set(['t1','t2','t3']);
+  const CATEGORY_IDS = new Set(CATEGORIES.map(c => c.id));
+  const TOOL_IDS = new Set(TOOLS.map(t => t.id));
 
   let current = 'start';
   $: ui = states[current];
@@ -411,6 +379,11 @@
     // observe(), but we set a sane default synchronously to avoid a
     // one-frame flash at scale=1 on very small screens).
     applySize(rootEl.clientWidth, rootEl.clientHeight);
+
+    // No external asset to preload anymore (background is pure SVG math,
+    // not an image), so "ready" simply means "we've measured our size
+    // and can render correctly" — fires once, immediately.
+    dispatch('gridReady');
 
     moveLightInterval = setInterval(moveLight, 8000);
     showMessage();
