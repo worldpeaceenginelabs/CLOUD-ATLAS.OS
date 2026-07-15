@@ -123,11 +123,7 @@
     }, 10000);
   }
 
-  // ─── STATE MACHINE DATA ───
-  // Single source of truth for the repeating rows. offer/search branches
-  // are structurally identical (same rows, same depth) — only the active
-  // mode and its leaf step differ. Generating them from this data means a
-  // node like TOOL 1-3 can never again exist in one branch and not the other.
+  // ─── MENU DATA ───
   const CATEGORIES = [
     { id: 'c1', label: 'MOVE' },
     { id: 'c2', label: 'SHARE\nUSE' },
@@ -142,173 +138,99 @@
     { id: 't3', label: 'TOOL 3' },
   ];
 
-  // Top row: OFFER / SEARCH / NEXT / BBQ. `active` is whichever of the
-  // three owns the current branch; everything else (incl. BBQ) dims.
-  function headerRow(active) {
-    return [
-      { id: 'offer',  label: 'OFFER',  col: 0, lrow: 0 },
-      { id: 'search', label: 'SEARCH', col: 1, lrow: 0 },
-      { id: 'next',   label: 'NEXT',   col: 2, lrow: 0 },
-      { id: 'bbq',    label: 'BBQ',    col: 3, lrow: 0, noop: true },
-    ].map(n => (n.id === active ? n : { ...n, dimmed: true }));
-  }
-
-  // LIVE / LISTINGS row. `pick` is null while still choosing, else the
-  // chosen id — the other one dims.
-  function liveListingsRow(pick) {
-    return [
-      { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
-      { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
-    ].map(n => (!pick || n.id === pick ? n : { ...n, dimmed: true }));
-  }
-
-  function categoryRow(dimAll) {
-    return CATEGORIES.map((c, i) => ({
-      id: c.id, label: c.label, col: i % 4, lrow: 2 + Math.floor(i / 4),
-      ...(dimAll ? { dimmed: true } : {}),
-    }));
-  }
-
-  function toolRow(dimAll) {
-    return TOOLS.map((t, i) => ({
-      id: t.id, label: t.label, col: i, lrow: 4,
-      ...(dimAll ? { dimmed: true } : {}),
-    }));
-  }
-
-  function toMap(ids, target) {
-    return Object.fromEntries(ids.map(id => [id, target]));
-  }
-
-  // Builds the four shared states of one branch ('offer' or 'search'):
-  // <mode>, <mode>Live, <mode>Listings, <mode>Tool. `formState` is the
-  // mode-specific leaf (offerForm / searchFilter) the tool row hands off to.
-  function buildBranch(mode, otherMode, formState) {
-    const Mode = mode[0].toUpperCase() + mode.slice(1);
-    const liveState = mode + 'Live';
-    const listingsState = mode + 'Listings';
-    const toolState = mode + 'Tool';
-
-    return {
-      // Top of branch: mode itself collapses back to start, the other
-      // mode is a plain lateral switch.
-      [mode]: {
-        nodes: [...headerRow(mode), ...liveListingsRow(null)],
-        transitions: { [mode]: 'start', [otherMode]: otherMode, next: 'next', live: liveState, listings: listingsState }
-      },
-      [liveState]: {
-        nodes: [...headerRow(mode), ...liveListingsRow('live')],
-        transitions: { [mode]: 'start', [otherMode]: otherMode + 'Live', next: 'next', live: mode, listings: listingsState }
-      },
-      [listingsState]: {
-        nodes: [...headerRow(mode), ...liveListingsRow('listings'), ...categoryRow(false)],
-        transitions: {
-          [mode]: 'start', [otherMode]: otherMode + 'Listings', next: 'next',
-          live: liveState, listings: mode,
-          ...toMap(CATEGORIES.map(c => c.id), toolState),
-        }
-      },
-      [toolState]: {
-        nodes: [...headerRow(mode), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(false)],
-        transitions: {
-          [mode]: 'start', [otherMode]: otherMode + 'Tool', next: 'next',
-          live: liveState, listings: listingsState,
-          ...toMap(CATEGORIES.map(c => c.id), listingsState),
-          ...toMap(TOOLS.map(t => t.id), formState),
-        }
-      },
-    };
-  }
-
-  // ─── STATE MACHINE ───
-  const states = {
-    start: {
-      nodes: [
-        { id: 'offer',  label: 'OFFER',  col: 0, lrow: 0 },
-        { id: 'search', label: 'SEARCH', col: 1, lrow: 0 },
-        { id: 'next',   label: 'NEXT',   col: 2, lrow: 0 },
-        { id: 'bbq',    label: 'BBQ',    col: 3, lrow: 0, noop: true },
-      ],
-      transitions: { offer: 'offer', search: 'search', next: 'next' }
-    },
-
-    ...buildBranch('offer', 'search', 'offerForm'),
-    ...buildBranch('search', 'offer', 'searchFilter'),
-
-    next: {
-      nodes: [
-        ...headerRow('next'),
-        { id: 'm1', label: 'MISSION 1\nTV',      col: 0, lrow: 1 },
-        { id: 'm2', label: 'MISSION 2\nGOV',     col: 1, lrow: 1 },
-        { id: 'm3', label: 'MISSION 3\nOMNI',    col: 2, lrow: 1 },
-        { id: 'm4', label: 'MISSION 4\nCONSERV', col: 3, lrow: 1 },
-      ],
-      transitions: { offer: 'offer', search: 'search', next: 'start' }
-    },
-
-    // Leaves: same breadcrumb (header + listings + dimmed categories/tools),
-    // but each ends in its own mode-specific form fields.
-    offerForm: {
-      nodes: [
-        ...headerRow('offer'), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(true),
-        { id: 'location', label: 'LOCATION', col: 0, lrow: 5 },
-        { id: 'details',  label: 'DETAILS',  col: 1, lrow: 5 },
-        { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
-        { id: 'submit',   label: 'SUBMIT',   col: 3, lrow: 5, type: 'submit' },
-      ],
-      transitions: { offer: 'start', search: 'searchFilter', live: 'offerLive', listings: 'offerListings', submit: 'start' }
-    },
-    searchFilter: {
-      nodes: [
-        ...headerRow('search'), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(true),
-        { id: 'location', label: 'LOCATION', col: 0, lrow: 5 },
-        { id: 'details',  label: 'DETAILS',  col: 1, lrow: 5 },
-        { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
-        { id: 'gosearch', label: 'SEARCH',   col: 3, lrow: 5, type: 'submit' },
-      ],
-      transitions: { search: 'start', offer: 'offerForm', live: 'searchLive', listings: 'searchListings', gosearch: 'start' }
-    },
-  };
-
-  // ─── DYNAMIC SELECTION TRACKING ───
-  let selMode = null;
-  let selType = null;
-  let selCategory = null;
-  let selTool = null;
-
-  function resetSelections() {
-    selMode = null; selType = null; selCategory = null; selTool = null;
-  }
+  // ─── SELECTIONS ───
+  // The entire menu is a pure function of these four values. There is no
+  // graph of named "states" to maintain transitions for — a hexagon click
+  // only ever touches its OWN variable. Nothing else changes, nothing
+  // resets, and nothing can be "unreachable": every row that's currently
+  // shown is always fully clickable, in any order, any number of times,
+  // right up until SUBMIT. Deselecting a prerequisite (e.g. leaving
+  // LISTINGS) hides the rows below it, but doesn't erase selCategory/
+  // selTool — go back to LISTINGS and your previous picks are still there.
+  let selMode = null;      // null | 'offer' | 'search' | 'next'
+  let selType = null;      // null | 'live' | 'listings'
+  let selCategory = null;  // null | one of CATEGORIES[].id
+  let selTool = null;      // null | one of TOOLS[].id
 
   const CATEGORY_IDS = new Set(CATEGORIES.map(c => c.id));
   const TOOL_IDS = new Set(TOOLS.map(t => t.id));
 
-  let current = 'start';
-  $: ui = states[current];
+  // Clicking an already-selected hexagon deselects it (and, since every
+  // row below is derived from "is the row above selected", the deeper
+  // rows just disappear — no explicit reset code needed for that).
+  function toggle(currentVal, id) {
+    return currentVal === id ? null : id;
+  }
 
   function go(id) {
     if (didDrag) return;
-    const node = ui.nodes.find(n => n.id === id);
-    if (node?.noop) return;
-    const next = ui.transitions?.[id];
-    if (!next) return;
+    if (id === 'bbq') return; // permanently inert placeholder
 
-    if (id === 'offer' || id === 'search') selMode = id;
-    if (id === 'live' || id === 'listings') selType = id;
-    if (CATEGORY_IDS.has(id)) selCategory = id;
-    if (TOOL_IDS.has(id)) selTool = id;
-
-    if (next === 'start') resetSelections();
-    current = next;
+    if (id === 'offer' || id === 'search' || id === 'next') { selMode = toggle(selMode, id); return; }
+    if (id === 'live' || id === 'listings')                 { selType = toggle(selType, id); return; }
+    if (CATEGORY_IDS.has(id)) {
+      const next = toggle(selCategory, id);
+      if (next !== selCategory) selTool = null; // tools are category-specific
+      selCategory = next;
+      return;
+    }
+    if (TOOL_IDS.has(id))                                    { selTool = toggle(selTool, id); return; }
+    if (id === 'submit' || id === 'gosearch') {
+      // The one true point of no return: hand off, then clear the slate.
+      dispatch(selMode === 'offer' ? 'offerSubmit' : 'searchSubmit', { selType, selCategory, selTool });
+      selMode = null; selType = null; selCategory = null; selTool = null;
+      return;
+    }
+    // location / details / anypay / m1-m4: reserved for future sub-flows.
   }
 
-  function isSelected(node) {
-    if (node.id === 'offer' || node.id === 'search') return node.id === selMode;
-    if (node.id === 'live' || node.id === 'listings') return node.id === selType;
-    if (CATEGORY_IDS.has(node.id)) return node.id === selCategory;
-    if (TOOL_IDS.has(node.id)) return node.id === selTool;
-    return false;
-  }
+  // ─── DERIVED NODE ROWS ───
+  // Each row's visibility depends only on the row above being selected;
+  // its own dim/select state depends only on its own sibling values.
+  $: headerNodes = [
+    { id: 'offer',  label: 'OFFER',  col: 0, lrow: 0 },
+    { id: 'search', label: 'SEARCH', col: 1, lrow: 0 },
+    { id: 'next',   label: 'NEXT',   col: 2, lrow: 0 },
+    { id: 'bbq',    label: 'BBQ',    col: 3, lrow: 0, noop: true },
+  ].map(n => ({ ...n, dimmed: selMode !== null && n.id !== selMode, selected: n.id === selMode }));
+
+  $: inOfferOrSearch = selMode === 'offer' || selMode === 'search';
+
+  $: liveListingsNodes = inOfferOrSearch ? [
+    { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
+    { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
+  ].map(n => ({ ...n, dimmed: selType !== null && n.id !== selType, selected: n.id === selType })) : [];
+
+  $: missionNodes = selMode === 'next' ? [
+    { id: 'm1', label: 'MISSION 1\nTV',      col: 0, lrow: 1 },
+    { id: 'm2', label: 'MISSION 2\nGOV',     col: 1, lrow: 1 },
+    { id: 'm3', label: 'MISSION 3\nOMNI',    col: 2, lrow: 1 },
+    { id: 'm4', label: 'MISSION 4\nCONSERV', col: 3, lrow: 1 },
+  ] : [];
+
+  $: showCategories = inOfferOrSearch && selType === 'listings';
+  $: categoryNodes = showCategories ? CATEGORIES.map((c, i) => ({
+    id: c.id, label: c.label, col: i % 4, lrow: 2 + Math.floor(i / 4),
+    dimmed: selCategory !== null && c.id !== selCategory, selected: c.id === selCategory,
+  })) : [];
+
+  $: showTools = showCategories && selCategory !== null;
+  $: toolNodes = showTools ? TOOLS.map((t, i) => ({
+    id: t.id, label: t.label, col: i, lrow: 4,
+    dimmed: selTool !== null && t.id !== selTool, selected: t.id === selTool,
+  })) : [];
+
+  $: showForm = showTools && selTool !== null;
+  $: formNodes = showForm ? [
+    { id: 'location', label: 'LOCATION', col: 0, lrow: 5 },
+    { id: 'details',  label: 'DETAILS',  col: 1, lrow: 5 },
+    { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
+    selMode === 'offer'
+      ? { id: 'submit',   label: 'SUBMIT', col: 3, lrow: 5, type: 'submit' }
+      : { id: 'gosearch', label: 'SEARCH', col: 3, lrow: 5, type: 'submit' },
+  ] : [];
+
+  $: nodes = [...headerNodes, ...liveListingsNodes, ...missionNodes, ...categoryNodes, ...toolNodes, ...formNodes];
 
   // ─── MENU GEOMETRY ───
   let anchorCol = 0;
@@ -319,9 +241,9 @@
   // hexCenter's closure) so Svelte's compiler registers them as
   // dependencies of this reactive statement. Without this, resizing
   // never propagated to the menu's node positions.
-  $: nodePositions = COL && ROW ? ui.nodes.map(n => {
+  $: nodePositions = COL && ROW ? nodes.map(n => {
     const base = hexCenter(anchorCol + n.col, n.lrow, anchorCol, anchorRow, COL, ROW);
-    return { ...n, px: base.x, py: base.y, selected: isSelected(n) };
+    return { ...n, px: base.x, py: base.y };
   }) : [];
 
   const gradId = 'hexgrad_' + Math.random().toString(36).slice(2);
