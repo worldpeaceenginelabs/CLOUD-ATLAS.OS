@@ -211,7 +211,7 @@
       [toolState]: {
         nodes: [...headerRow(mode), ...liveListingsRow('listings'), ...categoryRow(true), ...toolRow(false)],
         transitions: {
-          offer: 'start', search: 'start', next: 'next',
+          [mode]: 'start', [otherMode]: otherMode + 'Tool', next: 'next',
           live: liveState, listings: listingsState,
           ...toMap(CATEGORIES.map(c => c.id), listingsState),
           ...toMap(TOOLS.map(t => t.id), formState),
@@ -256,7 +256,7 @@
         { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
         { id: 'submit',   label: 'SUBMIT',   col: 3, lrow: 5, type: 'submit' },
       ],
-      transitions: { offer: 'start', listings: 'offerListings', submit: 'start' }
+      transitions: { offer: 'start', search: 'searchFilter', live: 'offerLive', listings: 'offerListings', submit: 'start' }
     },
     searchFilter: {
       nodes: [
@@ -266,7 +266,7 @@
         { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
         { id: 'gosearch', label: 'SEARCH',   col: 3, lrow: 5, type: 'submit' },
       ],
-      transitions: { search: 'start', listings: 'searchListings', gosearch: 'start' }
+      transitions: { search: 'start', offer: 'offerForm', live: 'searchLive', listings: 'searchListings', gosearch: 'start' }
     },
   };
 
@@ -293,7 +293,7 @@
     const next = ui.transitions?.[id];
     if (!next) return;
 
-    if ((id === 'offer' || id === 'search') && current === 'start') selMode = id;
+    if (id === 'offer' || id === 'search') selMode = id;
     if (id === 'live' || id === 'listings') selType = id;
     if (CATEGORY_IDS.has(id)) selCategory = id;
     if (TOOL_IDS.has(id)) selTool = id;
