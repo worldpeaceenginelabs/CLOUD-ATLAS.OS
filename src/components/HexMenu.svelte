@@ -7,7 +7,7 @@
   const BASE_COL = 100.0;
   const BASE_ROW = 86.6;
   const BASE_R   = 56.15;
-  const MIN_COLS_VISIBLE = 5;
+  const MIN_COLS_VISIBLE = 4;
 
   // ─── RESPONSIVE SCALE (drives EVERYTHING: background + menu) ───
   // Bound to the root element via ResizeObserver rather than window's
