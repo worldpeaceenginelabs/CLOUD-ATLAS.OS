@@ -10,9 +10,6 @@
   const MIN_COLS_VISIBLE = 4;
 
   // ─── RESPONSIVE SCALE (drives EVERYTHING: background + menu) ───
-  // Bound to the root element via ResizeObserver rather than window's
-  // 'resize' event — far more reliable across DevTools device emulation,
-  // orientation changes, and any future embedding in a smaller container.
   let rootEl;
   let scale = 1;
   let vw = 1024, vh = 768;
@@ -31,9 +28,6 @@
   $: FONT = Math.max(8, 11 * scale);
 
   // ─── SHARED HEX MATH (used for BOTH background tiles and menu nodes) ───
-  // COL/ROW are passed in explicitly (not closed over) so every call site
-  // that uses them is a plain, traceable data-flow — no hidden reactivity
-  // gaps between "COL changed" and "positions recomputed".
   function hexCenter(col, lrow, aCol, aRow, col_, row_) {
     const absRow = aRow + lrow;
     const xOffset = absRow % 2 === 1 ? col_ / 2 : 0;
@@ -52,9 +46,7 @@
     return `M${pts.join('L')}Z`;
   }
 
-  // ─── BACKGROUND HEX TILES (fills viewport, always in sync with menu math) ───
-  // Depends directly on COL, ROW, R, vw, vh — all textually present here,
-  // so Svelte's reactivity always sees this needs to re-run when they change.
+  // ─── BACKGROUND HEX TILES ───
   $: bgHexes = (() => {
     if (!R || !COL || !ROW) return [];
     const cols = Math.ceil(vw / COL) + 3;
@@ -139,25 +131,29 @@
   ];
 
   // ─── SELECTIONS ───
-  // The entire menu is a pure function of these four values. There is no
-  // graph of named "states" to maintain transitions for — a hexagon click
-  // only ever touches its OWN variable. Nothing else changes, nothing
-  // resets, and nothing can be "unreachable": every row that's currently
-  // shown is always fully clickable, in any order, any number of times,
-  // right up until SUBMIT. Deselecting a prerequisite (e.g. leaving
-  // LISTINGS) hides the rows below it, but doesn't erase selCategory/
-  // selTool — go back to LISTINGS and your previous picks are still there.
-  let selMode = null;      // null | 'offer' | 'search' | 'next'
-  let selType = null;      // null | 'live' | 'listings'
+  // Pure function of these state values, same principle as before: a
+  // hexagon click only ever touches its own variable, nothing resets
+  // automatically except cascading resets when a PARENT selection
+  // changes (since child rows disappear when their parent is deselected).
+  // Nothing is final until SUBMIT.
+  //
+  // Row 0 (header):      live | listings | next
+  // Row 1:
+  //   under 'live':      need_ride | offer_ride
+  //   under 'listings':  list_offer | list_search
+  //   under 'next':      m1..m4 (unchanged)
+  // Row 2+:
+  //   under 'live' + ride choice:            LOCATION / DETAILS / ANYPAY / SUBMIT
+  //   under 'listings' + offer/search choice: CATEGORY -> TOOL -> LOCATION / DETAILS / ANYPAY / SUBMIT
+  let selMode = null;      // null | 'live' | 'listings' | 'next'
+  let selRide = null;      // null | 'need_ride' | 'offer_ride'   (only under 'live')
+  let selAction = null;    // null | 'list_offer' | 'list_search' (only under 'listings')
   let selCategory = null;  // null | one of CATEGORIES[].id
   let selTool = null;      // null | one of TOOLS[].id
 
   const CATEGORY_IDS = new Set(CATEGORIES.map(c => c.id));
   const TOOL_IDS = new Set(TOOLS.map(t => t.id));
 
-  // Clicking an already-selected hexagon deselects it (and, since every
-  // row below is derived from "is the row above selected", the deeper
-  // rows just disappear — no explicit reset code needed for that).
   function toggle(currentVal, id) {
     return currentVal === id ? null : id;
   }
@@ -166,40 +162,60 @@
     if (didDrag) return;
     if (id === 'bbq') return; // permanently inert placeholder
 
-    if (id === 'offer' || id === 'search' || id === 'next') { selMode = toggle(selMode, id); return; }
-    if (id === 'live' || id === 'listings')                 { selType = toggle(selType, id); return; }
+    if (id === 'live' || id === 'listings' || id === 'next') {
+      const next = toggle(selMode, id);
+      if (next !== selMode) { selRide = null; selAction = null; selCategory = null; selTool = null; }
+      selMode = next;
+      return;
+    }
+    if (id === 'need_ride' || id === 'offer_ride') { selRide = toggle(selRide, id); return; }
+    if (id === 'list_offer' || id === 'list_search') {
+      const next = toggle(selAction, id);
+      if (next !== selAction) { selCategory = null; selTool = null; }
+      selAction = next;
+      return;
+    }
     if (CATEGORY_IDS.has(id)) {
       const next = toggle(selCategory, id);
       if (next !== selCategory) selTool = null; // tools are category-specific
       selCategory = next;
       return;
     }
-    if (TOOL_IDS.has(id))                                    { selTool = toggle(selTool, id); return; }
+    if (TOOL_IDS.has(id)) { selTool = toggle(selTool, id); return; }
     if (id === 'submit' || id === 'gosearch') {
       // The one true point of no return: hand off, then clear the slate.
-      dispatch(selMode === 'offer' ? 'offerSubmit' : 'searchSubmit', { selType, selCategory, selTool });
-      selMode = null; selType = null; selCategory = null; selTool = null;
+      if (selMode === 'live') {
+        dispatch(selRide === 'offer_ride' ? 'offerSubmit' : 'searchSubmit', {
+          selMode, selRide,
+        });
+      } else {
+        dispatch(selAction === 'list_offer' ? 'offerSubmit' : 'searchSubmit', {
+          selMode, selAction, selCategory, selTool,
+        });
+      }
+      selMode = null; selRide = null; selAction = null; selCategory = null; selTool = null;
       return;
     }
     // location / details / anypay / m1-m4: reserved for future sub-flows.
   }
 
   // ─── DERIVED NODE ROWS ───
-  // Each row's visibility depends only on the row above being selected;
-  // its own dim/select state depends only on its own sibling values.
   $: headerNodes = [
-    { id: 'offer',  label: 'OFFER',  col: 0, lrow: 0 },
-    { id: 'search', label: 'SEARCH', col: 1, lrow: 0 },
-    { id: 'next',   label: 'NEXT',   col: 2, lrow: 0 },
-    { id: 'bbq',    label: 'BBQ',    col: 3, lrow: 0, noop: true },
+    { id: 'live',     label: 'LIVE',     col: 0, lrow: 0 },
+    { id: 'listings', label: 'LISTINGS', col: 1, lrow: 0 },
+    { id: 'next',     label: 'NEXT',     col: 2, lrow: 0 },
+    { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, noop: true },
   ].map(n => ({ ...n, dimmed: selMode !== null && n.id !== selMode, selected: n.id === selMode }));
 
-  $: inOfferOrSearch = selMode === 'offer' || selMode === 'search';
+  $: rideNodes = selMode === 'live' ? [
+    { id: 'need_ride',  label: 'I NEED\nA RIDE',  col: 0, lrow: 1 },
+    { id: 'offer_ride', label: 'I OFFER\nA RIDE', col: 1, lrow: 1 },
+  ].map(n => ({ ...n, dimmed: selRide !== null && n.id !== selRide, selected: n.id === selRide })) : [];
 
-  $: liveListingsNodes = inOfferOrSearch ? [
-    { id: 'live',     label: 'LIVE',     col: 0, lrow: 1 },
-    { id: 'listings', label: 'LISTINGS', col: 1, lrow: 1 },
-  ].map(n => ({ ...n, dimmed: selType !== null && n.id !== selType, selected: n.id === selType })) : [];
+  $: actionNodes = selMode === 'listings' ? [
+    { id: 'list_offer',  label: 'OFFER',  col: 0, lrow: 1 },
+    { id: 'list_search', label: 'SEARCH', col: 1, lrow: 1 },
+  ].map(n => ({ ...n, dimmed: selAction !== null && n.id !== selAction, selected: n.id === selAction })) : [];
 
   $: missionNodes = selMode === 'next' ? [
     { id: 'm1', label: 'MISSION 1\nTV',      col: 0, lrow: 1 },
@@ -208,7 +224,7 @@
     { id: 'm4', label: 'MISSION 4\nCONSERV', col: 3, lrow: 1 },
   ] : [];
 
-  $: showCategories = inOfferOrSearch && selType === 'listings';
+  $: showCategories = selMode === 'listings' && selAction !== null;
   $: categoryNodes = showCategories ? CATEGORIES.map((c, i) => ({
     id: c.id, label: c.label, col: i % 4, lrow: 2 + Math.floor(i / 4),
     dimmed: selCategory !== null && c.id !== selCategory, selected: c.id === selCategory,
@@ -220,27 +236,31 @@
     dimmed: selTool !== null && t.id !== selTool, selected: t.id === selTool,
   })) : [];
 
-  $: showForm = showTools && selTool !== null;
+  // Two independent paths into the form: 'live' skips category/tool
+  // entirely and drops straight to the form at row 2; 'listings' only
+  // reaches it after category + tool are both picked, at row 5.
+  $: showFormLive = selMode === 'live' && selRide !== null;
+  $: showFormListings = showTools && selTool !== null;
+  $: showForm = showFormLive || showFormListings;
+  $: formLrow = showFormLive ? 2 : 5;
+  $: isSubmitKind = selMode === 'live' ? selRide === 'offer_ride' : selAction === 'list_offer';
+
   $: formNodes = showForm ? [
-    { id: 'location', label: 'LOCATION', col: 0, lrow: 5 },
-    { id: 'details',  label: 'DETAILS',  col: 1, lrow: 5 },
-    { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: 5 },
-    selMode === 'offer'
-      ? { id: 'submit',   label: 'SUBMIT', col: 3, lrow: 5, type: 'submit' }
-      : { id: 'gosearch', label: 'SEARCH', col: 3, lrow: 5, type: 'submit' },
+    { id: 'location', label: 'LOCATION', col: 0, lrow: formLrow },
+    { id: 'details',  label: 'DETAILS',  col: 1, lrow: formLrow },
+    { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: formLrow },
+    isSubmitKind
+      ? { id: 'submit',   label: 'SUBMIT', col: 3, lrow: formLrow, type: 'submit' }
+      : { id: 'gosearch', label: 'SEARCH', col: 3, lrow: formLrow, type: 'submit' },
   ] : [];
 
-  $: nodes = [...headerNodes, ...liveListingsNodes, ...missionNodes, ...categoryNodes, ...toolNodes, ...formNodes];
+  $: nodes = [...headerNodes, ...rideNodes, ...actionNodes, ...missionNodes, ...categoryNodes, ...toolNodes, ...formNodes];
 
   // ─── MENU GEOMETRY ───
   let anchorCol = 0;
   let anchorRow = 1;
   let didDrag = false;
 
-  // NOTE: COL, ROW are referenced directly in this line (not just inside
-  // hexCenter's closure) so Svelte's compiler registers them as
-  // dependencies of this reactive statement. Without this, resizing
-  // never propagated to the menu's node positions.
   $: nodePositions = COL && ROW ? nodes.map(n => {
     const base = hexCenter(anchorCol + n.col, n.lrow, anchorCol, anchorRow, COL, ROW);
     return { ...n, px: base.x, py: base.y };
@@ -269,7 +289,7 @@
       const dx = e.clientX - startClientX;
       const dy = e.clientY - startClientY;
       if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didDrag = true;
-      const c = COL, r = ROW; // snapshot current (possibly resized) grid
+      const c = COL, r = ROW;
       const baseX = baseAnchorCol * c;
       const baseY = baseAnchorRow * r;
       anchorCol = Math.max(0, Math.round((baseX + dx) / c));
@@ -287,9 +307,6 @@
   }
 
   onMount(() => {
-    // ResizeObserver on the root element itself — this is what actually
-    // fires reliably when DevTools device emulation changes the viewport,
-    // unlike window's 'resize' event which can be flaky there.
     resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
@@ -298,14 +315,8 @@
     });
     resizeObserver.observe(rootEl);
 
-    // Initial measurement (ResizeObserver also fires once immediately on
-    // observe(), but we set a sane default synchronously to avoid a
-    // one-frame flash at scale=1 on very small screens).
     applySize(rootEl.clientWidth, rootEl.clientHeight);
 
-    // No external asset to preload anymore (background is pure SVG math,
-    // not an image), so "ready" simply means "we've measured our size
-    // and can render correctly" — fires once, immediately.
     dispatch('gridReady');
 
     moveLightInterval = setInterval(moveLight, 8000);
@@ -338,12 +349,6 @@
       </filter>
     </defs>
 
-    <!-- BACKGROUND HEX TILES: same hexCenter()/hexPath() math as the menu.
-         Rendered as TWO nested FILLED hexagons per cell (outer border-color
-         shape + inner smaller fill-color shape) — exactly how the original
-         grid.svg was built. This avoids the blurry double-stroke seams you
-         get when adjacent cells each draw their own `stroke` on a shared
-         edge; solid fills give crisp lines instead. -->
     <g class="bg-layer">
       {#each bgHexes as h}
         <path d={hexPath(h.x, h.y, R * 0.985)} fill="#0E0E0E"/>
@@ -435,11 +440,6 @@
     pointer-events: none;
   }
 
-  /* z-index stack, bottom to top:
-     light (2) < hexmenu svg incl. background hexagons (10) < message (15)
-     The message must sit ABOVE the hexmenu since that svg now contains
-     the opaque background hexagon tiles that used to be a separate,
-     lower CSS background-image layer. */
   .message {
     position: absolute;
     width: 300px;
