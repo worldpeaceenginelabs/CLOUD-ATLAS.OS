@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import Anypay from './Anypay.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -44,6 +45,26 @@
       pts.push(`${cx + radius * Math.cos(angle)},${cy + radius * Math.sin(angle)}`);
     }
     return `M${pts.join('L')}Z`;
+  }
+
+  // Greedy word-wrap for hex labels — model names now come straight from
+  // the table (variable length) instead of hand-picked "TOOL 1" strings,
+  // so they need to wrap themselves instead of being hand-wrapped.
+  function wrapLabel(text, maxLineLen = 11) {
+    const words = text.toUpperCase().split(' ');
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      const candidate = cur ? `${cur} ${w}` : w;
+      if (cur && candidate.length > maxLineLen) {
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = candidate;
+      }
+    }
+    if (cur) lines.push(cur);
+    return lines.join('\n');
   }
 
   // ─── BACKGROUND HEX TILES ───
@@ -115,48 +136,152 @@
     }, 10000);
   }
 
-  // ─── MENU DATA ───
-  const CATEGORIES = [
-    { id: 'c1', label: 'MOVE' },
-    { id: 'c2', label: 'SHARE\nUSE' },
-    { id: 'c3', label: 'FOOD' },
-    { id: 'c4', label: 'SKILLS' },
-    { id: 'c5', label: 'STAY' },
-    { id: 'c6', label: 'SOCIAL' },
+  // ─── ANYPAY: 5 fixed payment modes, referenced by id from the table ───
+  const ANYPAY_OPTIONS = [
+    { id: 'money',      label: 'Money' },
+    { id: 'share',      label: 'Share' },
+    { id: 'zerodollar', label: 'ZeroDollar' },
+    { id: 'swap',       label: 'Swap' },
+    { id: 'free',       label: 'Free' },
   ];
-  const TOOLS = [
-    { id: 't1', label: 'TOOL 1' },
-    { id: 't2', label: 'TOOL 2' },
-    { id: 't3', label: 'TOOL 3' },
+
+  // ─── DOMAIN / MODEL TABLE ───
+  // This *is* the menu, from Row 2 down: one entry per domain, each with
+  // its own model list (length varies — 1 to 4). A domain with <= 1
+  // model has no model-selection row at all; the form appears right
+  // after the domain is picked, using that single model as the
+  // "effective model" for its AnyPay relations. A model with an empty
+  // anypay[] (only Social, today) makes the ANYPAY hex disappear from
+  // the form entirely — no special-casing needed, it all falls out of
+  // this one table.
+  const DOMAINS = [
+    {
+      id: 'move', label: 'MOVE',
+      models: [
+        { id: 'vehicle_exchange', label: 'Vehicle Exchange', anypay: ['share', 'swap'],
+          description: 'Share or swap existing vehicles between people.',
+          examples: 'Bikes, motorcycles, cars, boats, campers used jointly.' },
+        { id: 'vehicle_ride_sharing', label: 'Vehicle Ride Sharing', anypay: ['money', 'share', 'zerodollar', 'swap'],
+          description: 'Share planned trips with other people.',
+          examples: '"I\'m driving Cebu → Manila tomorrow, three seats free."' },
+        { id: 'p2p_vehicle_rental', label: 'P2P Vehicle Rental', anypay: ['money', 'zerodollar'],
+          description: 'Private individuals make vehicles temporarily available to others.',
+          examples: 'Renting out a private car, motorcycle, or camper.' },
+        { id: 'route_sharing', label: 'Route Sharing', anypay: ['free', 'share', 'zerodollar'],
+          description: 'People use trips they were already making to carry extra people or goods.',
+          examples: '"I\'m heading to Berlin anyway, I can take your package."' },
+      ],
+    },
+    {
+      id: 'goods', label: 'GOODS',
+      models: [
+        { id: 'goods_sharing', label: 'Goods Sharing', anypay: ['share', 'zerodollar', 'swap'],
+          description: 'Shared use of existing items or spaces.',
+          examples: 'Tools, tents, garages, workbenches, unused gardens, land.' },
+      ],
+    },
+    {
+      id: 'food', label: 'FOOD',
+      models: [
+        { id: 'food_production', label: 'Food Production', anypay: ['money', 'share', 'zerodollar', 'swap'],
+          description: 'People produce food or meals for others.',
+          examples: 'Home cooking, bread, cheese, garden produce, community kitchens.' },
+        { id: 'meal_sharing', label: 'Meal Sharing', anypay: ['share', 'zerodollar', 'swap'],
+          description: 'Cooking and eating together as a social activity.',
+          examples: 'Dinners, cookouts, community meals.' },
+        { id: 'food_exchange', label: 'Food Exchange', anypay: ['share', 'zerodollar', 'swap', 'free'],
+          description: 'Share existing food or meals.',
+          examples: 'Surplus food, garden produce, home-cooked meals.' },
+        { id: 'food_rescue', label: 'Food Rescue', anypay: ['swap', 'free'],
+          description: 'Rescue food from being wasted.',
+          examples: 'Surplus food from households or businesses.' },
+      ],
+    },
+    {
+      id: 'skills', label: 'SKILLS',
+      models: [
+        { id: 'freelance_work', label: 'Freelance Work', anypay: ['money', 'share', 'zerodollar', 'swap'],
+          description: 'Offer individual skills as a service.',
+          examples: 'Programming, design, consulting, repairs.' },
+        { id: 'production', label: 'Production', anypay: ['money', 'share', 'zerodollar', 'swap'],
+          description: 'Direct production of physical goods between people.',
+          examples: 'Carpentry, 3D printing, furniture making, craftwork.' },
+        { id: 'skill_pooling', label: 'Skill Pooling', anypay: ['money', 'share', 'zerodollar', 'swap'],
+          description: 'Pool several skills toward a shared goal.',
+          examples: 'Open source, house building, community projects.' },
+        { id: 'helpout', label: 'Helpout', anypay: ['share', 'zerodollar', 'swap'],
+          description: 'Direct everyday support.',
+          examples: 'Moving help, errands, neighborly assistance.' },
+      ],
+    },
+    {
+      id: 'stay', label: 'STAY',
+      models: [
+        { id: 'stay_exchange', label: 'Stay Exchange', anypay: ['share', 'zerodollar', 'swap'],
+          description: 'Share or swap existing accommodation.',
+          examples: 'Couchsurfing, home exchange, spare rooms.' },
+        { id: 'stay_pooling', label: 'Stay Pooling', anypay: ['money'],
+          description: 'Several people jointly fund a place to stay.',
+          examples: 'Splitting a hotel room, Airbnb, vacation rental, nomad apartment.' },
+      ],
+    },
+    {
+      id: 'social', label: 'SOCIAL',
+      models: [
+        { id: 'social_activity_sharing', label: 'Social Network / Activity Sharing', anypay: [],
+          description: 'People create, discover, and join shared activities. Focus: meeting people, leisure, and social connection.',
+          examples: 'Spontacts-like: hiking, game nights, sports, dining out, local groups, events.' },
+      ],
+    },
+    {
+      id: 'social_time', label: 'SOCIAL\nTIME',
+      models: [
+        { id: 'social_time', label: 'Social Time', anypay: ['free', 'zerodollar'],
+          description: 'People contribute time, experience, and voluntary work to community projects. Projects state their own requirements; people decide for themselves whether to join.',
+          examples: 'Animal shelter help, environmental action, reforestation, community gardens, health drives, education projects, repair days.' },
+      ],
+    },
   ];
 
   // ─── SELECTIONS ───
-  // Pure function of these state values, same principle as before: a
-  // hexagon click only ever touches its own variable, nothing resets
-  // automatically except cascading resets when a PARENT selection
-  // changes (since child rows disappear when their parent is deselected).
-  // Nothing is final until SUBMIT.
+  // Same principle as before: every value here is independent state that
+  // a click only ever flips on its own node; a row is only ever hidden
+  // because its *parent* selection was cleared, never reset explicitly.
+  // Nothing commits until SUBMIT.
   //
   // Row 0 (header):      live | listings | next
   // Row 1:
   //   under 'live':      need_ride | offer_ride
   //   under 'listings':  list_offer | list_search
   //   under 'next':      m1..m4 (unchanged)
-  // Row 2+:
-  //   under 'live' + ride choice:            LOCATION / DETAILS / ANYPAY / SUBMIT
-  //   under 'listings' + offer/search choice: CATEGORY -> TOOL -> LOCATION / DETAILS / ANYPAY / SUBMIT
+  // Row 2-3 (listings):  domain (7 hexagons, from DOMAINS)
+  // Row 4 (listings):    model — only rendered if the domain has > 1 models
+  // Row 4 or 5:          LOCATION / DETAILS / [ANYPAY] / SUBMIT
+  //   - 'live' path lands on this row right under the ride choice (row 2)
+  //   - 'listings' path lands here after domain (+ model, if any)
+  //   - ANYPAY is only shown if the effective model has anypay options
   let selMode = null;      // null | 'live' | 'listings' | 'next'
   let selRide = null;      // null | 'need_ride' | 'offer_ride'   (only under 'live')
   let selAction = null;    // null | 'list_offer' | 'list_search' (only under 'listings')
-  let selCategory = null;  // null | one of CATEGORIES[].id
-  let selTool = null;      // null | one of TOOLS[].id
+  let selCategory = null;  // null | one of DOMAINS[].id
+  let selModel = null;     // null | a model id from the selected domain
+  let selAnypay = [];      // array of ANYPAY_OPTIONS[].id — multi-select
+  let anypayModalOpen = false;
 
-  const CATEGORY_IDS = new Set(CATEGORIES.map(c => c.id));
-  const TOOL_IDS = new Set(TOOLS.map(t => t.id));
+  const CATEGORY_IDS = new Set(DOMAINS.map(d => d.id));
 
   function toggle(currentVal, id) {
     return currentVal === id ? null : id;
   }
+
+  // Current domain object + the model that's actually "in effect" for
+  // AnyPay purposes: either the one the user picked, or — for domains
+  // with only one model — that single model automatically.
+  $: currentDomain = selCategory ? DOMAINS.find(d => d.id === selCategory) : null;
+  $: hasModelChoice = !!currentDomain && currentDomain.models.length > 1;
+  $: effectiveModel = !currentDomain ? null
+    : hasModelChoice ? (currentDomain.models.find(m => m.id === selModel) || null)
+    : currentDomain.models[0];
 
   function go(id) {
     if (didDrag) return;
@@ -164,39 +289,52 @@
 
     if (id === 'live' || id === 'listings' || id === 'next') {
       const next = toggle(selMode, id);
-      if (next !== selMode) { selRide = null; selAction = null; selCategory = null; selTool = null; }
+      if (next !== selMode) { selRide = null; selAction = null; selCategory = null; selModel = null; selAnypay = []; }
       selMode = next;
       return;
     }
-    if (id === 'need_ride' || id === 'offer_ride') { selRide = toggle(selRide, id); return; }
+    if (id === 'need_ride' || id === 'offer_ride') { selRide = toggle(selRide, id); selAnypay = []; return; }
     if (id === 'list_offer' || id === 'list_search') {
       const next = toggle(selAction, id);
-      if (next !== selAction) { selCategory = null; selTool = null; }
+      if (next !== selAction) { selCategory = null; selModel = null; selAnypay = []; }
       selAction = next;
       return;
     }
     if (CATEGORY_IDS.has(id)) {
       const next = toggle(selCategory, id);
-      if (next !== selCategory) selTool = null; // tools are category-specific
+      if (next !== selCategory) { selModel = null; selAnypay = []; }
       selCategory = next;
       return;
     }
-    if (TOOL_IDS.has(id)) { selTool = toggle(selTool, id); return; }
+    if (currentDomain && currentDomain.models.some(m => m.id === id)) {
+      selModel = toggle(selModel, id);
+      selAnypay = [];
+      return;
+    }
+    if (id === 'anypay') { anypayModalOpen = true; return; }
     if (id === 'submit' || id === 'gosearch') {
       // The one true point of no return: hand off, then clear the slate.
       if (selMode === 'live') {
         dispatch(selRide === 'offer_ride' ? 'offerSubmit' : 'searchSubmit', {
-          selMode, selRide,
+          selMode, selRide, selAnypay,
         });
       } else {
         dispatch(selAction === 'list_offer' ? 'offerSubmit' : 'searchSubmit', {
-          selMode, selAction, selCategory, selTool,
+          selMode, selAction, selCategory, selModel, selAnypay,
         });
       }
-      selMode = null; selRide = null; selAction = null; selCategory = null; selTool = null;
+      selMode = null; selRide = null; selAction = null;
+      selCategory = null; selModel = null; selAnypay = [];
       return;
     }
-    // location / details / anypay / m1-m4: reserved for future sub-flows.
+    // location / details / m1-m4: reserved for future sub-flows.
+  }
+
+  function onAnypayToggle(e) {
+    const id = e.detail.id;
+    selAnypay = selAnypay.includes(id) ? selAnypay.filter(x => x !== id) : [...selAnypay, id];
+    // modal stays open — the user picks as many as they like, then
+    // closes it themselves via the X button
   }
 
   // ─── DERIVED NODE ROWS ───
@@ -225,36 +363,55 @@
   ] : [];
 
   $: showCategories = selMode === 'listings' && selAction !== null;
-  $: categoryNodes = showCategories ? CATEGORIES.map((c, i) => ({
-    id: c.id, label: c.label, col: i % 4, lrow: 2 + Math.floor(i / 4),
-    dimmed: selCategory !== null && c.id !== selCategory, selected: c.id === selCategory,
+  $: categoryNodes = showCategories ? DOMAINS.map((d, i) => ({
+    id: d.id, label: d.label, col: i % 4, lrow: 2 + Math.floor(i / 4),
+    dimmed: selCategory !== null && d.id !== selCategory, selected: d.id === selCategory,
   })) : [];
 
-  $: showTools = showCategories && selCategory !== null;
-  $: toolNodes = showTools ? TOOLS.map((t, i) => ({
-    id: t.id, label: t.label, col: i, lrow: 4,
-    dimmed: selTool !== null && t.id !== selTool, selected: t.id === selTool,
+  $: showModelRow = showCategories && hasModelChoice;
+  $: modelNodes = showModelRow ? currentDomain.models.map((m, i) => ({
+    id: m.id, label: wrapLabel(m.label), col: i, lrow: 4, isModel: true, model: m,
+    dimmed: selModel !== null && m.id !== selModel, selected: m.id === selModel,
   })) : [];
 
-  // Two independent paths into the form: 'live' skips category/tool
+  // Two independent paths into the form: 'live' skips domain/model
   // entirely and drops straight to the form at row 2; 'listings' only
-  // reaches it after category + tool are both picked, at row 5.
+  // reaches it once there's an effective model (either picked, or
+  // automatic for single-model domains) — at row 4 (no model row shown)
+  // or row 5 (model row shown).
   $: showFormLive = selMode === 'live' && selRide !== null;
-  $: showFormListings = showTools && selTool !== null;
+  $: showFormListings = showCategories && !!effectiveModel;
   $: showForm = showFormLive || showFormListings;
-  $: formLrow = showFormLive ? 2 : 5;
+  $: formLrow = showFormLive ? 2 : (hasModelChoice ? 5 : 4);
   $: isSubmitKind = selMode === 'live' ? selRide === 'offer_ride' : selAction === 'list_offer';
 
-  $: formNodes = showForm ? [
-    { id: 'location', label: 'LOCATION', col: 0, lrow: formLrow },
-    { id: 'details',  label: 'DETAILS',  col: 1, lrow: formLrow },
-    { id: 'anypay',   label: 'ANYPAY',   col: 2, lrow: formLrow },
-    isSubmitKind
-      ? { id: 'submit',   label: 'SUBMIT', col: 3, lrow: formLrow, type: 'submit' }
-      : { id: 'gosearch', label: 'SEARCH', col: 3, lrow: formLrow, type: 'submit' },
-  ] : [];
+  // AnyPay availability: driven by the effective model's table row when
+  // we're in the 'listings' path (this is also what makes the ANYPAY hex
+  // disappear entirely for Social, whose model has no anypay relations
+  // at all). The 'live' path isn't in the table, so all 5 stay open.
+  $: anypayAvailable = selMode === 'listings'
+    ? (effectiveModel ? effectiveModel.anypay : [])
+    : ANYPAY_OPTIONS.map(o => o.id);
+  $: showAnypayHex = showForm && anypayAvailable.length > 0;
 
-  $: nodes = [...headerNodes, ...rideNodes, ...actionNodes, ...missionNodes, ...categoryNodes, ...toolNodes, ...formNodes];
+  $: formNodes = showForm ? (() => {
+    const base = [
+      { id: 'location', label: 'LOCATION', col: 0, lrow: formLrow },
+      { id: 'details',  label: 'DETAILS',  col: 1, lrow: formLrow },
+    ];
+    if (showAnypayHex) {
+      base.push({ id: 'anypay', label: 'ANYPAY', col: 2, lrow: formLrow, selected: selAnypay.length > 0 });
+    }
+    const submitCol = showAnypayHex ? 3 : 2;
+    base.push(
+      isSubmitKind
+        ? { id: 'submit',   label: 'SUBMIT', col: submitCol, lrow: formLrow, type: 'submit' }
+        : { id: 'gosearch', label: 'SEARCH', col: submitCol, lrow: formLrow, type: 'submit' }
+    );
+    return base;
+  })() : [];
+
+  $: nodes = [...headerNodes, ...rideNodes, ...actionNodes, ...missionNodes, ...categoryNodes, ...modelNodes, ...formNodes];
 
   // ─── MENU GEOMETRY ───
   let anchorCol = 0;
@@ -268,6 +425,25 @@
 
   const gradId = 'hexgrad_' + Math.random().toString(36).slice(2);
   const glowId = 'hexglow_' + Math.random().toString(36).slice(2);
+
+  // ─── MODEL TOOLTIP (desktop hover only) ───
+  // Mouse-only on purpose: mouseenter/mousemove don't fire from touch on
+  // any mobile browser we care about, so this never fights the pan-drag
+  // gesture below. A tap-friendly equivalent for touch is still an open
+  // question — worth revisiting, possibly by scoping the pan-drag
+  // gesture to start only from the LIVE hexagon so every other hexagon
+  // (including model ones) is free to handle a tap-and-hold for the
+  // tooltip instead.
+  let hoveredModel = null; // { description, examples, x, y } | null
+
+  function onNodeMouseMove(node, e) {
+    if (!node.isModel) return;
+    hoveredModel = { description: node.model.description, examples: node.model.examples, x: e.clientX, y: e.clientY };
+  }
+  function onNodeMouseLeave(node) {
+    if (!node.isModel) return;
+    hoveredModel = null;
+  }
 
   // ─── DRAGGABLE ───
   function draggable(node) {
@@ -379,6 +555,8 @@
           transition: opacity 0.25s;
         "
         on:click={() => !didDrag && go(node.id)}
+        on:mousemove={(e) => onNodeMouseMove(node, e)}
+        on:mouseleave={() => onNodeMouseLeave(node)}
       >
         <path
           d={hexPath(node.px, node.py, R)}
@@ -415,6 +593,26 @@
       </g>
     {/each}
   </svg>
+
+  {#if hoveredModel}
+    <div
+      class="model-tooltip"
+      style="left:{hoveredModel.x + 16}px; top:{hoveredModel.y + 16}px;"
+    >
+      <p class="desc">{hoveredModel.description}</p>
+      <p class="ex">{hoveredModel.examples}</p>
+    </div>
+  {/if}
+
+  {#if anypayModalOpen}
+    <Anypay
+      options={ANYPAY_OPTIONS}
+      available={anypayAvailable}
+      selected={selAnypay}
+      on:toggle={onAnypayToggle}
+      on:close={() => anypayModalOpen = false}
+    />
+  {/if}
 </div>
 
 <style>
@@ -469,5 +667,30 @@
 
   .bg-layer {
     pointer-events: none;
+  }
+
+  .model-tooltip {
+    position: fixed;
+    z-index: 40;
+    max-width: 260px;
+    background: #161616;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.82em;
+    line-height: 1.4;
+    color: #ddd;
+    pointer-events: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  .model-tooltip .desc {
+    margin: 0 0 6px;
+    color: #fff;
+    font-weight: 600;
+  }
+  .model-tooltip .ex {
+    margin: 0;
+    color: #9aa4b2;
   }
 </style>
