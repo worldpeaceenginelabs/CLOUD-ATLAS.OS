@@ -59,7 +59,7 @@
   {:else}
     <div class="hexcontainer"><HexMenu on:gridReady={() => gridReady.set(true)} /></div>
     {#if $gridReady}
-    <!-- <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div> -->
+    <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
     {/if}
     <!-- <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} /> -->
     <OnlineTopBar />

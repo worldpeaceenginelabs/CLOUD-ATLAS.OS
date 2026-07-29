@@ -370,7 +370,7 @@
 
   $: showModelRow = showCategories && hasModelChoice;
   $: modelNodes = showModelRow ? currentDomain.models.map((m, i) => ({
-    id: m.id, label: wrapLabel(m.label), col: i, lrow: 4, isModel: true, model: m,
+    id: m.id, label: wrapLabel(m.label), col: i, lrow: 4,
     dimmed: selModel !== null && m.id !== selModel, selected: m.id === selModel,
   })) : [];
 
@@ -426,24 +426,12 @@
   const gradId = 'hexgrad_' + Math.random().toString(36).slice(2);
   const glowId = 'hexglow_' + Math.random().toString(36).slice(2);
 
-  // ─── MODEL TOOLTIP (desktop hover only) ───
-  // Mouse-only on purpose: mouseenter/mousemove don't fire from touch on
-  // any mobile browser we care about, so this never fights the pan-drag
-  // gesture below. A tap-friendly equivalent for touch is still an open
-  // question — worth revisiting, possibly by scoping the pan-drag
-  // gesture to start only from the LIVE hexagon so every other hexagon
-  // (including model ones) is free to handle a tap-and-hold for the
-  // tooltip instead.
-  let hoveredModel = null; // { description, examples, x, y } | null
-
-  function onNodeMouseMove(node, e) {
-    if (!node.isModel) return;
-    hoveredModel = { description: node.model.description, examples: node.model.examples, x: e.clientX, y: e.clientY };
-  }
-  function onNodeMouseLeave(node) {
-    if (!node.isModel) return;
-    hoveredModel = null;
-  }
+  // ─── MODEL TOOLTIP ───
+  // Not its own state at all — just a view onto the selection that
+  // already exists. effectiveModel is "the model currently in effect":
+  // for single-model domains that's immediate on category selection,
+  // for multi-model domains it becomes non-null once a model row is
+  // picked. Same value on mobile and desktop, no hover/hold needed.
 
   // ─── DRAGGABLE ───
   function draggable(node) {
@@ -452,6 +440,14 @@
     let startClientX = 0, startClientY = 0;
 
     function onDown(e) {
+      // Pan gesture stays scoped to row 0 (the header hexes) plus empty
+      // background space, so a quick tap elsewhere on a hexagon can't
+      // accidentally turn into a menu-drag.
+      const targetNode = e.target.closest('[data-node-id]');
+      if (targetNode) {
+        const entry = nodePositions.find(n => n.id === targetNode.getAttribute('data-node-id'));
+        if (entry && entry.lrow !== 0) return;
+      }
       dragActive = true; didDrag = false;
       baseAnchorCol = anchorCol; baseAnchorRow = anchorRow;
       startClientX = e.clientX; startClientY = e.clientY;
@@ -555,8 +551,6 @@
           transition: opacity 0.25s;
         "
         on:click={() => !didDrag && go(node.id)}
-        on:mousemove={(e) => onNodeMouseMove(node, e)}
-        on:mouseleave={() => onNodeMouseLeave(node)}
       >
         <path
           d={hexPath(node.px, node.py, R)}
@@ -594,13 +588,10 @@
     {/each}
   </svg>
 
-  {#if hoveredModel}
-    <div
-      class="model-tooltip"
-      style="left:{hoveredModel.x + 16}px; top:{hoveredModel.y + 16}px;"
-    >
-      <p class="desc">{hoveredModel.description}</p>
-      <p class="ex">{hoveredModel.examples}</p>
+  {#if effectiveModel}
+    <div class="model-tooltip">
+      <p class="desc">{effectiveModel.description}</p>
+      <p class="ex">{effectiveModel.examples}</p>
     </div>
   {/if}
 
@@ -672,15 +663,19 @@
   .model-tooltip {
     position: fixed;
     z-index: 40;
-    max-width: 260px;
+    top: max(16px, env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(320px, calc(100vw - 32px));
     background: #161616;
     border: 1px solid #333;
     border-radius: 10px;
-    padding: 10px 12px;
+    padding: 10px 14px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 0.82em;
     line-height: 1.4;
     color: #ddd;
+    text-align: center;
     pointer-events: none;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   }
