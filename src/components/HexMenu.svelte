@@ -1,6 +1,8 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import Anypay from './Anypay.svelte';
+  import Details from './Details.svelte';
+  import { FORM_SCHEMA } from './formSchema.ts';
 
   const dispatch = createEventDispatcher();
 
@@ -267,6 +269,9 @@
   let selModel = null;     // null | a model id from the selected domain
   let selAnypay = [];      // array of ANYPAY_OPTIONS[].id — multi-select
   let anypayModalOpen = false;
+  let detailsValues = {};  // { mode, title, categoryId|categoryIds, date, description, contact }
+  let detailsModalOpen = false;
+  let selLocation = null;  // not wired yet — LOCATION hex stays a no-op, see go()
 
   const CATEGORY_IDS = new Set(DOMAINS.map(d => d.id));
 
@@ -289,29 +294,33 @@
 
     if (id === 'live' || id === 'listings' || id === 'next') {
       const next = toggle(selMode, id);
-      if (next !== selMode) { selRide = null; selAction = null; selCategory = null; selModel = null; selAnypay = []; }
+      if (next !== selMode) { selRide = null; selAction = null; selCategory = null; selModel = null; selAnypay = []; detailsValues = {}; selLocation = null; }
       selMode = next;
       return;
     }
-    if (id === 'need_ride' || id === 'offer_ride') { selRide = toggle(selRide, id); selAnypay = []; return; }
+    if (id === 'need_ride' || id === 'offer_ride') { selRide = toggle(selRide, id); selAnypay = []; detailsValues = {}; selLocation = null; return; }
     if (id === 'list_offer' || id === 'list_search') {
       const next = toggle(selAction, id);
-      if (next !== selAction) { selCategory = null; selModel = null; selAnypay = []; }
+      if (next !== selAction) { selCategory = null; selModel = null; selAnypay = []; detailsValues = {}; selLocation = null; }
       selAction = next;
       return;
     }
     if (CATEGORY_IDS.has(id)) {
       const next = toggle(selCategory, id);
-      if (next !== selCategory) { selModel = null; selAnypay = []; }
+      if (next !== selCategory) { selModel = null; selAnypay = []; detailsValues = {}; selLocation = null; }
       selCategory = next;
       return;
     }
     if (currentDomain && currentDomain.models.some(m => m.id === id)) {
       selModel = toggle(selModel, id);
       selAnypay = [];
+      detailsValues = {};
+      selLocation = null;
       return;
     }
     if (id === 'anypay') { anypayModalOpen = true; return; }
+    if (id === 'details') { detailsModalOpen = true; return; }
+    if (id === 'location') { return; } // not built yet — see anypay-concept notes
     if (id === 'submit' || id === 'gosearch') {
       // The one true point of no return: hand off, then clear the slate.
       if (selMode === 'live') {
@@ -320,14 +329,21 @@
         });
       } else {
         dispatch(selAction === 'list_offer' ? 'offerSubmit' : 'searchSubmit', {
-          selMode, selAction, selCategory, selModel, selAnypay,
+          selMode, selAction, selCategory, selModel, selAnypay, detailsValues,
         });
       }
       selMode = null; selRide = null; selAction = null;
       selCategory = null; selModel = null; selAnypay = [];
+      detailsValues = {}; selLocation = null;
       return;
     }
-    // location / details / m1-m4: reserved for future sub-flows.
+    // m1-m4: reserved for future sub-flows.
+  }
+
+  function onDetailsUpdate(e) {
+    detailsValues = { ...detailsValues, [e.detail.key]: e.detail.value };
+    // modal stays open — same as Anypay, the user closes it themselves
+    // via the X button once they're done filling things in.
   }
 
   function onAnypayToggle(e) {
@@ -394,19 +410,53 @@
     : ANYPAY_OPTIONS.map(o => o.id);
   $: showAnypayHex = showForm && anypayAvailable.length > 0;
 
+  // ─── RED → GREEN READINESS CHAIN ───
+  // Every "done" flag below is a pure derivation off state that already
+  // exists — nothing here is its own source of truth, so there's no way
+  // for the readiness chain to drift out of sync with the actual data.
+  //
+  // detailsSchema is only defined on the 'listings' path (it comes from
+  // effectiveModel, which is null on 'live'); on 'live' — and for the
+  // 'vehicle_ride_sharing' gap noted in formSchema.ts — there's no
+  // schema to satisfy, so DETAILS counts as automatically done rather
+  // than being stuck red forever over a field set that doesn't exist.
+  // Same shape as anypayDone below, and as showAnypayHex above.
+  $: detailsSchema = effectiveModel ? FORM_SCHEMA[effectiveModel.id] : null;
+  $: detailsDone = !detailsSchema ? true : (
+    !!detailsValues.title &&
+    !!detailsValues.description &&
+    !!detailsValues.contact &&
+    (detailsSchema.category.multi
+      ? (detailsValues.categoryIds || []).length > 0
+      : !!detailsValues.categoryId) &&
+    (!detailsSchema.date || !detailsSchema.date.required || !!detailsValues.date)
+  );
+
+  // Not wired yet on purpose (see anypay-concept notes) — stays red
+  // until the LOCATION flow is built, which is honest rather than
+  // faking readiness.
+  $: locationDone = !!selLocation;
+
+  $: anypayDone = !showAnypayHex || selAnypay.length > 0;
+
+  $: submitReady = locationDone && detailsDone && anypayDone;
+
+  // formRow nodes use their own red→green language (see the readiness
+  // chain above) instead of the blue "selected" language every other
+  // hexagon uses — `done` is the only thing that varies per node here.
   $: formNodes = showForm ? (() => {
     const base = [
-      { id: 'location', label: 'LOCATION', col: 0, lrow: formLrow },
-      { id: 'details',  label: 'DETAILS',  col: 1, lrow: formLrow },
+      { id: 'location', label: 'LOCATION', col: 0, lrow: formLrow, formRow: true, done: locationDone },
+      { id: 'details',  label: 'DETAILS',  col: 1, lrow: formLrow, formRow: true, done: detailsDone },
     ];
     if (showAnypayHex) {
-      base.push({ id: 'anypay', label: 'ANYPAY', col: 2, lrow: formLrow, selected: selAnypay.length > 0 });
+      base.push({ id: 'anypay', label: 'ANYPAY', col: 2, lrow: formLrow, formRow: true, done: anypayDone });
     }
     const submitCol = showAnypayHex ? 3 : 2;
     base.push(
       isSubmitKind
-        ? { id: 'submit',   label: 'SUBMIT', col: submitCol, lrow: formLrow, type: 'submit' }
-        : { id: 'gosearch', label: 'SEARCH', col: submitCol, lrow: formLrow, type: 'submit' }
+        ? { id: 'submit',   label: 'SUBMIT', col: submitCol, lrow: formLrow, formRow: true, done: submitReady }
+        : { id: 'gosearch', label: 'SEARCH', col: submitCol, lrow: formLrow, formRow: true, done: submitReady }
     );
     return base;
   })() : [];
@@ -554,19 +604,23 @@
       >
         <path
           d={hexPath(node.px, node.py, R)}
-          fill={node.type === 'submit' ? 'rgba(42,233,201,0.1)' : node.selected ? 'rgba(51,91,244,0.38)' : '#111'}
+          fill={node.formRow
+            ? (node.done ? 'rgba(46,204,113,0.32)' : 'rgba(255,90,90,0.16)')
+            : (node.selected ? 'rgba(51,91,244,0.38)' : '#111')}
           style="pointer-events:all;"
         />
         <path
           d={hexPath(node.px, node.py, R)}
           fill="none"
-          stroke={node.selected ? '#8fb0ff' : `url(#${gradId})`}
-          stroke-width={(node.selected ? 3 : 1.5) * scale}
-          opacity={node.selected ? 1 : 0.85}
-          filter={node.selected ? `url(#${glowId})` : 'none'}
+          stroke={node.formRow
+            ? (node.done ? '#57e389' : '#ff6b6b')
+            : (node.selected ? '#8fb0ff' : `url(#${gradId})`)}
+          stroke-width={((node.formRow ? node.done : node.selected) ? 3 : 1.5) * scale}
+          opacity={(node.formRow ? node.done : node.selected) ? 1 : 0.85}
+          filter={(node.formRow ? node.done : node.selected) ? `url(#${glowId})` : 'none'}
           style="pointer-events:all;"
         >
-          {#if !node.selected && node.type !== 'submit'}
+          {#if !(node.formRow ? node.done : node.selected)}
             <animate attributeName="opacity" values="0.5;1;0.5" dur="2.8s" repeatCount="indefinite"/>
           {/if}
         </path>
@@ -576,10 +630,12 @@
             y={node.py + (li - (node.label.split('\n').length - 1) / 2) * (FONT + 3)}
             text-anchor="middle"
             dominant-baseline="middle"
-            fill={node.type === 'submit' ? '#2ae9c9' : node.selected ? '#e4ecff' : '#fff'}
+            fill={node.formRow
+              ? (node.done ? '#eafff0' : '#ffd6d6')
+              : (node.selected ? '#e4ecff' : '#fff')}
             font-size={FONT}
             font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-            font-weight={node.selected ? 700 : 600}
+            font-weight={(node.formRow ? node.done : node.selected) ? 700 : 600}
             letter-spacing="0.5"
             style="pointer-events:none; user-select:none;"
           >{line}</text>
@@ -602,6 +658,15 @@
       selected={selAnypay}
       on:toggle={onAnypayToggle}
       on:close={() => anypayModalOpen = false}
+    />
+  {/if}
+
+  {#if detailsModalOpen}
+    <Details
+      schema={detailsSchema}
+      values={detailsValues}
+      on:update={onDetailsUpdate}
+      on:close={() => detailsModalOpen = false}
     />
   {/if}
 </div>
