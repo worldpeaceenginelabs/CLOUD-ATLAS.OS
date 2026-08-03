@@ -163,9 +163,6 @@
         { id: 'vehicle_exchange', label: 'Vehicle Exchange', anypay: ['share', 'swap'],
           description: 'Share or swap existing vehicles between people.',
           examples: 'Bikes, motorcycles, cars, boats, campers used jointly.' },
-        { id: 'vehicle_ride_sharing', label: 'Vehicle Ride Sharing', anypay: ['money', 'share', 'zerodollar', 'swap'],
-          description: 'Share planned trips with other people.',
-          examples: '"I\'m driving Cebu → Manila tomorrow, three seats free."' },
         { id: 'p2p_vehicle_rental', label: 'P2P Vehicle Rental', anypay: ['money', 'zerodollar'],
           description: 'Private individuals make vehicles temporarily available to others.',
           examples: 'Renting out a private car, motorcycle, or camper.' },
@@ -415,20 +412,26 @@
   // exists — nothing here is its own source of truth, so there's no way
   // for the readiness chain to drift out of sync with the actual data.
   //
-  // detailsSchema is only defined on the 'listings' path (it comes from
-  // effectiveModel, which is null on 'live'); on 'live' — and for the
-  // 'vehicle_ride_sharing' gap noted in formSchema.ts — there's no
-  // schema to satisfy, so DETAILS counts as automatically done rather
-  // than being stuck red forever over a field set that doesn't exist.
-  // Same shape as anypayDone below, and as showAnypayHex above.
-  $: detailsSchema = effectiveModel ? FORM_SCHEMA[effectiveModel.id] : null;
+  // detailsSchema comes from two different sources depending on path:
+  // 'listings' keys off effectiveModel (the domain/model table), 'live'
+  // keys off selRide directly, since there's no domain/model there at
+  // all. Same FORM_SCHEMA object either way — need_ride/offer_ride just
+  // live in it under their own keys instead of a model id.
+  $: detailsSchema = selMode === 'live'
+    ? (selRide ? FORM_SCHEMA[selRide] : null)
+    : (effectiveModel ? FORM_SCHEMA[effectiveModel.id] : null);
+
+  // Every field group above is optional and independent — detailsDone
+  // only checks the groups the current schema actually declares, so
+  // need_ride/offer_ride (no title, no contact) are just as "complete"
+  // as a full listing form once their smaller field set is filled in.
   $: detailsDone = !detailsSchema ? true : (
-    !!detailsValues.title &&
-    !!detailsValues.description &&
-    !!detailsValues.contact &&
-    (detailsSchema.category.multi
+    (!detailsSchema.title || !!detailsValues.title) &&
+    (!detailsSchema.description || !!detailsValues.description) &&
+    (!detailsSchema.contact || !!detailsValues.contact) &&
+    (!detailsSchema.category || (detailsSchema.category.multi
       ? (detailsValues.categoryIds || []).length > 0
-      : !!detailsValues.categoryId) &&
+      : !!detailsValues.categoryId)) &&
     (!detailsSchema.date || !detailsSchema.date.required || !!detailsValues.date)
   );
 
