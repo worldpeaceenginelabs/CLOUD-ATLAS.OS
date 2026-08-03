@@ -1,0 +1,246 @@
+<script lang="ts">
+  import { onDestroy, onMount } from 'svelte';
+  import Cesium from "./Cesium.svelte";
+  import HexMenu from "./components/HexMenu.svelte";
+  import ProgressBar from "./components/ProgressBar.svelte";
+  import ModalManager from "./components/ModalManager.svelte";
+  import OnlineTopBar from "./components/OnlineTopBar.svelte";
+  import OnlineListings from "./gig/OnlineListings.svelte";
+  import { startPresence, stopPresence } from './services/presenceService';
+  import { initListingLayers } from './services/listingLayersBootstrap';
+  import {
+    showPicture,
+    gridReady,
+    basemapProgress,
+    tilesetProgress,
+    isInitialLoadComplete,
+    onlinePanelOpen
+  } from './store';
+  import { onEnter } from './utils/keyboard';
+
+  let quote = "\"You never change things by fighting the existing reality. To change something, build a new model that makes the existing model obsolete.\" Buckminster Fuller";
+
+  // Component references (only those actually used)
+  let cesiumComponent: Cesium | null = null;
+
+  let updateSimulationModel: ((modelData: any) => void) | undefined = undefined;
+
+  initListingLayers().catch(() => {});
+
+  onMount(() => {
+    startPresence().catch(() => {});
+  });
+
+  onDestroy(() => {
+    stopPresence();
+    showPicture.set(false);
+  });
+</script>
+
+<div class="app-container">
+  {#if $showPicture}
+    <div class="picture-container" on:click={() => showPicture.set(false)} on:keydown={(e) => onEnter(e, () => showPicture.set(false))} role="button" tabindex="0">
+      <video
+  autoplay
+  loop
+  muted
+  playsinline
+  poster="./cloudatlas8kzip.jpg"
+  class="picture"
+>
+  <source src="./cloudatlas8kzip.mp4" type="video/mp4" />
+</video>
+
+      <div class="overlay"></div>
+      <div class="quote">{quote}</div>
+      <div class="enter-text animated-gradient">ENTER</div>
+      <div class="twpg-text under-enter animated-gradient">THE WORLD PEACE GAME</div>
+    </div>
+  {:else}
+    <div class="hexcontainer"><HexMenu on:gridReady={() => gridReady.set(true)} /></div>
+    {#if $gridReady}
+    <div class="cesiumcontainer"><Cesium bind:this={cesiumComponent} bind:updateSimulationModel /></div>
+    {/if}
+    <!-- <ProgressBar basemapProgress={$basemapProgress} tilesetProgress={$tilesetProgress} isInitialLoadComplete={$isInitialLoadComplete} /> -->
+    <OnlineTopBar />
+    {#if $onlinePanelOpen}
+      <OnlineListings />
+    {/if}
+  {/if}
+  <ModalManager />
+</div>
+
+
+<style>
+  :global(body) {
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .app-container {
+    height: 100dvh;
+    width: 100vw;
+    box-sizing: border-box;
+  }
+
+  .cesiumcontainer {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    width: 100vw;
+    z-index: 20;
+    position: relative;
+  }
+
+  .hexcontainer {
+    top: 0;
+    left: 0;
+    z-index: 10;          
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
+
+  .picture-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    background-color: #000;
+    height: 100dvh;
+    width: 100vw;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .picture {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+    cursor: pointer;
+  }
+
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.7));
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .quote {
+    margin-top: 2em;
+    font-size: 1.5em;
+    font-style: italic;
+    color: white;
+    z-index: 3;
+    max-width: 90%;
+  }
+
+  .enter-text {
+    position: absolute;
+    top: 33%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    text-align: center;
+    font-size: 30vw;
+    line-height: 1.2;
+    cursor: pointer;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .twpg-text.under-enter {
+    position: absolute;
+    top: calc(33% + 18vw);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 4.3vw;
+    width: fit-content;
+    max-width: 100%;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  /* Gradient animation for ENTER + TWPG */
+  .animated-gradient {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientBG 5s ease infinite, pulse 10s infinite;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Mobile Layout */
+  @media (max-width: 768px) {
+  .picture-container {
+    background: black;
+    justify-content: center;
+    align-items: center;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .picture {
+    object-fit: contain;
+    background-color: rgba(255, 255, 255, 0.97);
+  }
+
+  .quote {
+    color: black;
+    position: absolute;
+    bottom: calc(10% + env(safe-area-inset-bottom, 0px));
+    font-size: 1.1em;
+    padding: 0 1em;
+    text-align: center;
+    max-width: 90%;
+    z-index: 3;
+  }
+
+  .enter-text {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    font-size: 30vw;
+  }
+
+  .twpg-text.under-enter {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    font-size: 7vw;
+  }
+}
+
+  /* Very small screens (under 400px) */
+  @media (max-width: 400px) {
+    .quote {
+      font-size: 1em;
+    }
+  }
+
+</style>

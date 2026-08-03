@@ -1,8 +1,8 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import Anypay from './Anypay.svelte';
-  import Details from './Details.svelte';
-  import { FORM_SCHEMA } from './formSchema.ts';
+  import Anypay from './hexmenu/Anypay.svelte';
+  import Details from './hexmenu/Details.svelte';
+  import { FORM_SCHEMA } from './hexmenu/formSchema.ts';
 
   const dispatch = createEventDispatcher();
 
@@ -675,12 +675,13 @@
 </div>
 
 <style>
-  .hex-root {
-    position: fixed;
-    inset: 0;
-    background: #2b2b2b;
+ .hex-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
-  }
+    background: #2b2b2b;
+}
 
   .light {
     position: absolute;
