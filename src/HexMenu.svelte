@@ -2,7 +2,7 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import Anypay from './hexmenu/Anypay.svelte';
   import Details from './hexmenu/Details.svelte';
-  import { FORM_SCHEMA } from './hexmenu/formSchema.ts';
+  import { FORM_SCHEMA } from './hexmenu/formSchema';
 
   const dispatch = createEventDispatcher();
 
@@ -11,18 +11,31 @@
   const BASE_ROW = 86.6;
   const BASE_R   = 56.15;
   const MIN_COLS_VISIBLE = 4;
+  const MIN_ROWS_VISIBLE = 6;
 
   // ─── RESPONSIVE SCALE (drives EVERYTHING: background + menu) ───
   let rootEl;
-  let scale = 1;
-  let vw = 1024, vh = 768;
   let resizeObserver;
 
+  let vw = 1024;
+  let vh = 768;
+
+  let scale = 1;
+
   function applySize(width, height) {
-    vw = width;
-    vh = height;
-    const neededWidth = MIN_COLS_VISIBLE * BASE_COL + BASE_R * 2;
-    scale = Math.min(1, vw / neededWidth);
+  vw = width;
+  vh = height;
+
+  const neededWidth =
+    MIN_COLS_VISIBLE * BASE_COL + BASE_R * 2;
+
+  const neededHeight =
+    MIN_ROWS_VISIBLE * BASE_ROW + BASE_R * 2;
+
+  const scaleX = vw / neededWidth;
+  const scaleY = vh / neededHeight;
+
+  scale = Math.min(1, scaleX, scaleY);
   }
 
   $: COL = BASE_COL * scale;
