@@ -1,16 +1,26 @@
 <script lang="ts">
   import HexMenu from "./HexMenu.svelte";
   import Cesium from "./Cesium.svelte";
+  import OverlayLayer from "./OverlayLayer.svelte";
+
+  let tooltip = null;
 </script>
 
 <div class="workspace">
 
   <div class="background-layer">
-    <HexMenu />
+    <HexMenu on:tooltip={(e) => tooltip = e.detail} />
   </div>
 
+
   <div class="globe-window">
-    <Cesium />
+
+    <div class="cesium-layer">
+      <Cesium />
+    </div>
+  
+    <OverlayLayer {tooltip}/>
+  
   </div>
 
 </div>
@@ -33,7 +43,6 @@
 .background-layer {
   position: absolute;
   inset: 0;
-  
 }
 
 .background-layer > :global(*) {
@@ -43,6 +52,7 @@
 
 .globe-window {
   position: absolute;
+
   top: 0;
   right: 0;
 
@@ -52,7 +62,7 @@
   z-index: 20;
 }
 
-.globe-window > :global(*) {
+.cesium-layer {
   width: 100%;
   height: 100%;
 }
