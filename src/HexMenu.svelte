@@ -242,7 +242,7 @@
       models: [
         { id: 'social_activity_sharing', label: 'Social Network / Activity Sharing', anypay: [],
           description: 'People create, discover, and join shared activities. Focus: meeting people, leisure, and social connection.',
-          examples: 'Spontacts-like: hiking, game nights, sports, dining out, local groups, events.' },
+          examples: 'Discover local activities, join interest-based groups, and connect with people for hiking, games, sports, dining, and spontaneous meetups.' },
       ],
     },
     {
