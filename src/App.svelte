@@ -33,7 +33,7 @@
 .background-layer {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  
 }
 
 .background-layer > :global(*) {
