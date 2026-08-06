@@ -20,7 +20,7 @@
   const BASE_ROW = 86.6;
   const BASE_R   = 56.15;
   const MIN_COLS_VISIBLE = 4;
-  const MIN_ROWS_VISIBLE = 6;
+  const MIN_ROWS_VISIBLE = 7;
 
   // ─── RESPONSIVE SCALE (drives EVERYTHING: background + menu) ───
   let rootEl;
