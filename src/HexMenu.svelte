@@ -1,7 +1,9 @@
-<script>
+<script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import Anypay from './hexmenu/Anypay.svelte';
   import Details from './hexmenu/Details.svelte';
+  import Location from './hexmenu/Location.svelte';
+  import { LOCATION_SCHEMA } from './hexmenu/locationschema';
   import HexGrid from './hexmenu/HexGrid.svelte';
   import { FORM_SCHEMA } from './hexmenu/formSchema';
   import {
@@ -272,7 +274,12 @@
   let anypayModalOpen = false;
   let detailsValues = {};  // { mode, title, categoryId|categoryIds, date, description, contact }
   let detailsModalOpen = false;
-  let selLocation = null;  // not wired yet — LOCATION hex stays a no-op, see go()
+  let selLocation: {
+  current?: { lat: number; lon: number };
+  from?: { lat: number; lon: number };
+  to?: { lat: number; lon: number };
+} | null = null;
+  let locationModalOpen = false;
 
   const CATEGORY_IDS = new Set(DOMAINS.map(d => d.id));
 
@@ -322,7 +329,10 @@
     }
     if (id === 'anypay') { anypayModalOpen = true; return; }
     if (id === 'details') { detailsModalOpen = true; return; }
-    if (id === 'location') { return; } // not built yet — see anypay-concept notes
+    if (id === 'location') {
+    locationModalOpen = true;
+    return;
+    }
     if (id === 'submit' || id === 'gosearch') {
       // The one true point of no return: hand off, then clear the slate.
       if (selMode === 'live') {
@@ -353,6 +363,15 @@
     selAnypay = selAnypay.includes(id) ? selAnypay.filter(x => x !== id) : [...selAnypay, id];
     // modal stays open — the user picks as many as they like, then
     // closes it themselves via the X button
+  }
+
+  function onLocationConfirm(e) {
+  selLocation = e.detail;
+  locationModalOpen = false;
+  }
+
+  function onLocationCancel() {
+  locationModalOpen = false;
   }
 
   // ─── DERIVED NODE ROWS ───
@@ -426,6 +445,10 @@
     ? (selRide ? FORM_SCHEMA[selRide] : null)
     : (effectiveModel ? FORM_SCHEMA[effectiveModel.id] : null);
 
+    $: locationSchema = selMode === 'live'
+  ? (selRide ? LOCATION_SCHEMA[selRide] : null)
+  : (effectiveModel ? LOCATION_SCHEMA[effectiveModel.id] : null);
+
   // Every field group above is optional and independent — detailsDone
   // only checks the groups the current schema actually declares, so
   // need_ride/offer_ride (no title, no contact) are just as "complete"
@@ -440,10 +463,13 @@
     (!detailsSchema.date || !detailsSchema.date.required || !!detailsValues.date)
   );
 
-  // Not wired yet on purpose (see anypay-concept notes) — stays red
-  // until the LOCATION flow is built, which is honest rather than
-  // faking readiness.
-  $: locationDone = !!selLocation;
+  $: locationDone =
+  !locationSchema ||
+  (
+    (!locationSchema.current || selLocation?.current) &&
+    (!locationSchema.from || selLocation?.from) &&
+    (!locationSchema.to || selLocation?.to)
+  );
 
   $: anypayDone = !showAnypayHex || selAnypay.length > 0;
 
@@ -665,6 +691,15 @@
       on:close={() => detailsModalOpen = false}
     />
   {/if}
+
+  {#if locationModalOpen}
+  <Location
+  schema={locationSchema}
+  on:confirm={onLocationConfirm}
+  on:cancel={onLocationCancel}
+/>
+  {/if}
+
 </div>
 
 <style>

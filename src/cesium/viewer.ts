@@ -37,6 +37,17 @@ const DEFAULT_VIEWER_OPTIONS: Cesium.Viewer.ConstructorOptions = {
   },
 };
 
+/**
+ * The viewer most recently created by createViewer() and not yet
+ * destroyed. This is not a new registry: viewer.ts already declares
+ * itself "the single place that knows how to build (and tear down) a
+ * Cesium Viewer" — tracking what it built is that same responsibility,
+ * kept entirely inside this file. Cesium.svelte is unaffected: it keeps
+ * calling createViewer()/destroyViewer() exactly as before and never
+ * touches this. Only cesium/api.ts reads it, via getActiveViewer().
+ */
+let activeViewer: Cesium.Viewer | undefined;
+
 export function createViewer(
   container: Element | string,
   options: CreateViewerOptions = {}
@@ -54,6 +65,8 @@ export function createViewer(
   configureGlobe(viewer);
   configureRendering(viewer);
 
+  activeViewer = viewer;
+
   return viewer;
 }
 
@@ -61,6 +74,14 @@ export function destroyViewer(viewer: Cesium.Viewer): void {
   if (!viewer.isDestroyed()) {
     viewer.destroy();
   }
+  if (activeViewer === viewer) {
+    activeViewer = undefined;
+  }
+}
+
+/** The current viewer, if createViewer() has been called and it hasn't been destroyed since. Used internally by cesium/api.ts. */
+export function getActiveViewer(): Cesium.Viewer | undefined {
+  return activeViewer;
 }
 
 /* -------------------------------------------------------------------------- */
