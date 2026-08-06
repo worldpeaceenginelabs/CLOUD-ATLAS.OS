@@ -2,25 +2,22 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import Anypay from './hexmenu/Anypay.svelte';
   import Details from './hexmenu/Details.svelte';
+  import HexGrid from './hexmenu/HexGrid.svelte';
   import { FORM_SCHEMA } from './hexmenu/formSchema';
+  import {
+    BASE_COL, BASE_ROW, BASE_R, MIN_COLS_VISIBLE, MIN_ROWS_VISIBLE,
+    hexCenter, hexPath, computeNeededBox, computeBgHexes, wrapLabel,
+  } from './hexmenu/geometry';
 
   const dispatch = createEventDispatcher();
 
-  // The HexMenu's root deliberately spans the entire viewport (see
-  // App.svelte: .background-layer uses inset:0), because the decorative
-  // hex background continues underneath the globe. Only the interactive
-  // menu itself is constrained. App.svelte (the window manager) measures
-  // the actual usable rectangle and passes it in here; this component
-  // simply scales the menu into whatever area it receives.
-  export let menuAreaWidth = 0;
-  export let menuAreaHeight = 0;
-
-  // ─── BASE HEX GRID CONSTANTS (unscaled, from grid.svg geometry) ───
-  const BASE_COL = 100.0;
-  const BASE_ROW = 86.6;
-  const BASE_R   = 56.15;
-  const MIN_COLS_VISIBLE = 4;
-  const MIN_ROWS_VISIBLE = 7;
+  // HexMenu is the container for the whole hex system: it owns the
+  // hex-root that deliberately spans the entire viewport (see below),
+  // because the decorative hex background continues underneath the
+  // globe. It measures its own usable rectangle via ResizeObserver, and
+  // derives everything else — scale, the interactive menu's layout, and
+  // the layout values HexGrid needs to draw the background — from that.
+  // No external caller computes or passes any of this in anymore.
 
   // ─── RESPONSIVE SCALE (drives EVERYTHING: background + menu) ───
   let rootEl;
@@ -44,35 +41,27 @@
     vh = height;
   }
 
-  // Area available for laying out the interactive menu.
-  // Supplied by App.svelte (the window manager). The menu deliberately
-  // does not know *why* this rectangle has its size (50/50 split today,
-  // snap layouts or floating windows later).
-  $: menuWidth = menuAreaWidth > 0 ? menuAreaWidth : vw;
-  $: menuHeight = menuAreaHeight > 0 ? menuAreaHeight : vh;
+  // ─── USABLE MENU AREA ───
+  // hex-root spans the full workspace (vw × vh above), but the
+  // *interactive* menu must only scale into the half of it the
+  // globe-window doesn't cover — this mirrors the landscape/portrait
+  // 50/50 split App.svelte's CSS applies to .globe-window. If that
+  // split ratio ever changes there, it needs to change here too; short
+  // of that, HexMenu no longer needs anything computed or passed in
+  // from App.svelte to know its own usable area.
+  $: landscape  = vw >= vh;
+  $: menuWidth  = landscape ? vw / 2 : vw;
+  $: menuHeight = landscape ? vh : vh / 2;
 
   // ─── WORST-CASE BOX: measured, not derived ───
-  // Probes a MIN_COLS_VISIBLE × MIN_ROWS_VISIBLE grid through the exact
-  // same hexCenter() used for the real nodes, at the current anchor
-  // position. This guarantees the box always matches whatever
-  // hexCenter() actually does — no separate formula to keep in sync by
-  // hand, and no assumption baked in about which rows end up wider
-  // because of colShift/xOffset. If hexCenter() ever changes, this
-  // keeps working without edits here.
-  function computeNeededBox(minCols, minRows, aCol, aRow, col_, row_, r) {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let lrow = 0; lrow < minRows; lrow++) {
-      for (let col = 0; col < minCols; col++) {
-        const { x, y } = hexCenter(col, lrow, aCol, aRow, col_, row_);
-        minX = Math.min(minX, x - r);
-        maxX = Math.max(maxX, x + r);
-        minY = Math.min(minY, y - r);
-        maxY = Math.max(maxY, y + r);
-      }
-    }
-    return { width: maxX - minX, height: maxY - minY };
-  }
-
+  // computeNeededBox (from geometry.ts) probes a MIN_COLS_VISIBLE ×
+  // MIN_ROWS_VISIBLE grid through the exact same hexCenter() used for
+  // the real nodes, at the current anchor position. This guarantees the
+  // box always matches whatever hexCenter() actually does — no separate
+  // formula to keep in sync by hand, and no assumption baked in about
+  // which rows end up wider because of colShift/xOffset. If hexCenter()
+  // ever changes, this keeps working without edits here.
+  //
   // Probed at BASE_* (unscaled) units. anchorCol/anchorRow are included
   // as live dependencies, so dragging the menu can never let it escape
   // the guaranteed minimum area — scale recomputes right along with it.
@@ -84,68 +73,22 @@
   // Scaled against menuWidth/menuHeight (the menu's own half), NOT the
   // full-screen vw/vh — otherwise the menu thinks it has twice the
   // space it actually gets before the globe overlaps it.
-  $: scale = Math.min(1, menuWidth / neededBox.width, menuHeight / neededBox.height);
+  const PORTRAIT_LAYOUT_MARGIN = 0.075;
+  $: scale = Math.min(
+  1,
+  menuWidth / neededBox.width,
+  menuHeight / (neededBox.height * (landscape ? 1 : 1 + PORTRAIT_LAYOUT_MARGIN))
+  );
 
   $: COL = BASE_COL * scale;
   $: ROW = BASE_ROW * scale;
   $: R   = BASE_R   * scale;
   $: FONT = Math.max(8, 11 * scale);
 
-  // ─── SHARED HEX MATH (used for BOTH background tiles and menu nodes) ───
-  function hexCenter(col, lrow, aCol, aRow, col_, row_) {
-    const absRow = aRow + lrow;
-    const xOffset = absRow % 2 === 1 ? col_ / 2 : 0;
-    const colShift = (aRow % 2 === 1 && lrow % 2 === 1) ? 1 : 0;
-    const x = (col + colShift) * col_ + xOffset;
-    const y = absRow * row_;
-    return { x, y };
-  }
-
-  function hexPath(cx, cy, radius) {
-    const pts = [];
-    for (let i = 0; i < 6; i++) {
-      const angle = Math.PI / 180 * (60 * i - 30);
-      pts.push(`${cx + radius * Math.cos(angle)},${cy + radius * Math.sin(angle)}`);
-    }
-    return `M${pts.join('L')}Z`;
-  }
-
-  // Greedy word-wrap for hex labels — model names now come straight from
-  // the table (variable length) instead of hand-picked "TOOL 1" strings,
-  // so they need to wrap themselves instead of being hand-wrapped.
-  function wrapLabel(text, maxLineLen = 11) {
-    const words = text.toUpperCase().split(' ');
-    const lines = [];
-    let cur = '';
-    for (const w of words) {
-      const candidate = cur ? `${cur} ${w}` : w;
-      if (cur && candidate.length > maxLineLen) {
-        lines.push(cur);
-        cur = w;
-      } else {
-        cur = candidate;
-      }
-    }
-    if (cur) lines.push(cur);
-    return lines.join('\n');
-  }
-
   // ─── BACKGROUND HEX TILES ───
-  $: bgHexes = (() => {
-    if (!R || !COL || !ROW) return [];
-    const cols = Math.ceil(vw / COL) + 3;
-    const rows = Math.ceil(vh / ROW) + 3;
-    const out = [];
-    for (let r = -1; r < rows; r++) {
-      for (let c = -1; c < cols; c++) {
-        const isOdd = r % 2 === 1;
-        const x = c * COL + (isOdd ? COL / 2 : 0);
-        const y = r * ROW;
-        out.push({ x, y });
-      }
-    }
-    return out;
-  })();
+  // Computed here (HexMenu owns the hex-system's scaling/layout) and
+  // handed down to HexGrid.svelte, which only draws them.
+  $: bgHexes = computeBgHexes(vw, vh, COL, ROW);
 
   // ─── AMBIENT LIGHT ───
   let light;
@@ -621,6 +564,8 @@
   <div bind:this={light} class="light"></div>
   <div bind:this={messageElement} class="message"></div>
 
+  <HexGrid hexes={bgHexes} radius={R} {scale} />
+
   <svg use:draggable class="hexmenu" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -635,13 +580,6 @@
         </feMerge>
       </filter>
     </defs>
-
-    <g class="bg-layer">
-      {#each bgHexes as h}
-        <path d={hexPath(h.x, h.y, R * 0.985)} fill="#0E0E0E"/>
-        <path d={hexPath(h.x, h.y, R * 0.985 - 2.2 * scale)} fill="#1F1F1F"/>
-      {/each}
-    </g>
 
     <!-- Wires -->
     {#each nodePositions as node, i}
@@ -747,7 +685,7 @@
     height: 15em;
     filter: blur(15px);
     background: linear-gradient(90deg, #335bf4 0%, #2ae9c9 100%);
-    z-index: 2;
+    z-index: 1; /* behind HexGrid's .hex-grid (z-index:2) */
     will-change: transform;
     backface-visibility: hidden;
     pointer-events: none;
@@ -778,9 +716,5 @@
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
-  }
-
-  .bg-layer {
-    pointer-events: none;
   }
 </style>
