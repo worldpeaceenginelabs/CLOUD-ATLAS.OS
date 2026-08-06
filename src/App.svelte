@@ -7,30 +7,55 @@
 
   let tooltip = null;
 
+  let workspaceEl;
+  let globeWindowEl;
+  let resizeObserver;
+
   let landscape = true;
 
+  // The single source of truth for "how much space does HexMenu
+  // actually get": measured directly from the two real DOM boxes
+  // (workspace and globe-window), not recomputed from a ratio anywhere
+  // else. If the CSS split below ever changes (50/50 -> 60/40, a third
+  // panel, whatever), this keeps working without touching this file
+  // OR HexMenu.svelte — HexMenu just gets whatever box is left over.
+  let menuAreaWidth = 0;
+  let menuAreaHeight = 0;
+
   function updateLayout() {
-    landscape = window.innerWidth >= window.innerHeight;
+    if (!workspaceEl || !globeWindowEl) return;
+    const ws = workspaceEl.getBoundingClientRect();
+    const gw = globeWindowEl.getBoundingClientRect();
+    landscape = ws.width >= ws.height;
+    menuAreaWidth  = landscape ? ws.width - gw.width : ws.width;
+    menuAreaHeight = landscape ? ws.height : ws.height - gw.height;
   }
 
   onMount(() => {
+    resizeObserver = new ResizeObserver(updateLayout);
+    resizeObserver.observe(workspaceEl);
+    resizeObserver.observe(globeWindowEl);
     updateLayout();
-    window.addEventListener("resize", updateLayout);
   });
 
   onDestroy(() => {
-    window.removeEventListener("resize", updateLayout);
+    if (resizeObserver) resizeObserver.disconnect();
   });
 </script>
 
-<div class="workspace">
+<div class="workspace" bind:this={workspaceEl}>
 
   <div class="background-layer">
-    <HexMenu {landscape} on:tooltip={(e) => (tooltip = e.detail)} />
+    <HexMenu
+      {menuAreaWidth}
+      {menuAreaHeight}
+      on:tooltip={(e) => (tooltip = e.detail)}
+    />
   </div>
 
   <div
     class="globe-window"
+    bind:this={globeWindowEl}
     class:landscape={landscape}
     class:portrait={!landscape}
   >

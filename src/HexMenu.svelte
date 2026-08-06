@@ -6,12 +6,14 @@
 
   const dispatch = createEventDispatcher();
 
-  // The HexMenu's own root always spans the full screen (see App.svelte
-  // — .background-layer has inset:0), but the globe sits on top of half
-  // of it at z-index:20. landscape tells us which half is actually ours
-  // to scale into. Defaults to true so the component still works if a
-  // parent forgets to pass it.
-  export let landscape = true;
+  // The HexMenu's root deliberately spans the entire viewport (see
+  // App.svelte: .background-layer uses inset:0), because the decorative
+  // hex background continues underneath the globe. Only the interactive
+  // menu itself is constrained. App.svelte (the window manager) measures
+  // the actual usable rectangle and passes it in here; this component
+  // simply scales the menu into whatever area it receives.
+  export let menuAreaWidth = 0;
+  export let menuAreaHeight = 0;
 
   // ─── BASE HEX GRID CONSTANTS (unscaled, from grid.svg geometry) ───
   const BASE_COL = 100.0;
@@ -42,12 +44,12 @@
     vh = height;
   }
 
-  // The area actually usable for the menu itself (excludes the half the
-  // globe sits on top of). Landscape: globe takes the right 50% width,
-  // full height. Portrait: globe takes the bottom 50% height, full
-  // width (mirrors .globe-window.landscape/.portrait in App.svelte).
-  $: menuWidth  = landscape ? vw / 2 : vw;
-  $: menuHeight = landscape ? vh : vh / 2;
+  // Area available for laying out the interactive menu.
+  // Supplied by App.svelte (the window manager). The menu deliberately
+  // does not know *why* this rectangle has its size (50/50 split today,
+  // snap layouts or floating windows later).
+  $: menuWidth = menuAreaWidth > 0 ? menuAreaWidth : vw;
+  $: menuHeight = menuAreaHeight > 0 ? menuAreaHeight : vh;
 
   // ─── WORST-CASE BOX: measured, not derived ───
   // Probes a MIN_COLS_VISIBLE × MIN_ROWS_VISIBLE grid through the exact
@@ -83,9 +85,6 @@
   // full-screen vw/vh — otherwise the menu thinks it has twice the
   // space it actually gets before the globe overlaps it.
   $: scale = Math.min(1, menuWidth / neededBox.width, menuHeight / neededBox.height);
-
-  // TEMP DEBUG — remove once confirmed working
-  $: console.log('[HexMenu debug]', { vw, vh, menuWidth, menuHeight, neededBox, scale });
 
   $: COL = BASE_COL * scale;
   $: ROW = BASE_ROW * scale;
