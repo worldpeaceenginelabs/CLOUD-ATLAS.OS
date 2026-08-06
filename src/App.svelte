@@ -26,7 +26,7 @@
 <div class="workspace">
 
   <div class="background-layer">
-    <HexMenu on:tooltip={(e) => (tooltip = e.detail)} />
+    <HexMenu {landscape} on:tooltip={(e) => (tooltip = e.detail)} />
   </div>
 
   <div

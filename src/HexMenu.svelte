@@ -6,6 +6,13 @@
 
   const dispatch = createEventDispatcher();
 
+  // The HexMenu's own root always spans the full screen (see App.svelte
+  // — .background-layer has inset:0), but the globe sits on top of half
+  // of it at z-index:20. landscape tells us which half is actually ours
+  // to scale into. Defaults to true so the component still works if a
+  // parent forgets to pass it.
+  export let landscape = true;
+
   // ─── BASE HEX GRID CONSTANTS (unscaled, from grid.svg geometry) ───
   const BASE_COL = 100.0;
   const BASE_ROW = 86.6;
@@ -17,26 +24,68 @@
   let rootEl;
   let resizeObserver;
 
+  // Full screen size — used for the decorative background hex tiling
+  // (bgHexes), which is meant to cover the whole screen regardless of
+  // where the menu itself is allowed to scale into.
   let vw = 1024;
   let vh = 768;
 
-  let scale = 1;
+  // anchorCol/anchorRow: where the menu starts in the hex grid (drag
+  // moves these — see draggable() further down). Declared here, ahead
+  // of the rest of "MENU GEOMETRY", because the scale calculation
+  // below needs their live values too — including while dragging.
+  let anchorCol = 0;
+  let anchorRow = 1; // visual starting row — intentional, keep as is
 
   function applySize(width, height) {
-  vw = width;
-  vh = height;
-
-  const neededWidth =
-    MIN_COLS_VISIBLE * BASE_COL + BASE_R * 2;
-
-  const neededHeight =
-    MIN_ROWS_VISIBLE * BASE_ROW + BASE_R * 2;
-
-  const scaleX = vw / neededWidth;
-  const scaleY = vh / neededHeight;
-
-  scale = Math.min(1, scaleX, scaleY);
+    vw = width;
+    vh = height;
   }
+
+  // The area actually usable for the menu itself (excludes the half the
+  // globe sits on top of). Landscape: globe takes the right 50% width,
+  // full height. Portrait: globe takes the bottom 50% height, full
+  // width (mirrors .globe-window.landscape/.portrait in App.svelte).
+  $: menuWidth  = landscape ? vw / 2 : vw;
+  $: menuHeight = landscape ? vh : vh / 2;
+
+  // ─── WORST-CASE BOX: measured, not derived ───
+  // Probes a MIN_COLS_VISIBLE × MIN_ROWS_VISIBLE grid through the exact
+  // same hexCenter() used for the real nodes, at the current anchor
+  // position. This guarantees the box always matches whatever
+  // hexCenter() actually does — no separate formula to keep in sync by
+  // hand, and no assumption baked in about which rows end up wider
+  // because of colShift/xOffset. If hexCenter() ever changes, this
+  // keeps working without edits here.
+  function computeNeededBox(minCols, minRows, aCol, aRow, col_, row_, r) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let lrow = 0; lrow < minRows; lrow++) {
+      for (let col = 0; col < minCols; col++) {
+        const { x, y } = hexCenter(col, lrow, aCol, aRow, col_, row_);
+        minX = Math.min(minX, x - r);
+        maxX = Math.max(maxX, x + r);
+        minY = Math.min(minY, y - r);
+        maxY = Math.max(maxY, y + r);
+      }
+    }
+    return { width: maxX - minX, height: maxY - minY };
+  }
+
+  // Probed at BASE_* (unscaled) units. anchorCol/anchorRow are included
+  // as live dependencies, so dragging the menu can never let it escape
+  // the guaranteed minimum area — scale recomputes right along with it.
+  $: neededBox = computeNeededBox(
+    MIN_COLS_VISIBLE, MIN_ROWS_VISIBLE,
+    anchorCol, anchorRow, BASE_COL, BASE_ROW, BASE_R
+  );
+
+  // Scaled against menuWidth/menuHeight (the menu's own half), NOT the
+  // full-screen vw/vh — otherwise the menu thinks it has twice the
+  // space it actually gets before the globe overlaps it.
+  $: scale = Math.min(1, menuWidth / neededBox.width, menuHeight / neededBox.height);
+
+  // TEMP DEBUG — remove once confirmed working
+  $: console.log('[HexMenu debug]', { vw, vh, menuWidth, menuHeight, neededBox, scale });
 
   $: COL = BASE_COL * scale;
   $: ROW = BASE_ROW * scale;
@@ -481,8 +530,8 @@
   $: nodes = [...headerNodes, ...rideNodes, ...actionNodes, ...missionNodes, ...categoryNodes, ...modelNodes, ...formNodes];
 
   // ─── MENU GEOMETRY ───
-  let anchorCol = 0;
-  let anchorRow = 1;
+  // anchorCol/anchorRow now live up top, next to the scale/neededBox
+  // calculation that depends on them — see RESPONSIVE SCALE section.
   let didDrag = false;
 
   $: nodePositions = COL && ROW ? nodes.map(n => {
