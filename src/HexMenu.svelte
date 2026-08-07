@@ -3,9 +3,8 @@
   import Anypay from './hexmenu/Anypay.svelte';
   import Details from './hexmenu/Details.svelte';
   import Location from './hexmenu/Location.svelte';
-  import { LOCATION_SCHEMA } from './hexmenu/locationschema';
   import HexGrid from './hexmenu/HexGrid.svelte';
-  import { FORM_SCHEMA } from './hexmenu/formSchema';
+  import { DOMAINS, RIDE_MODELS, ANYPAY_OPTIONS } from './hexmenu/domains';
   import {
     BASE_COL, BASE_ROW, BASE_R, MIN_COLS_VISIBLE, MIN_ROWS_VISIBLE,
     hexCenter, hexPath, computeNeededBox, computeBgHexes, wrapLabel,
@@ -144,109 +143,15 @@
     }, 10000);
   }
 
-  // ─── ANYPAY: 5 fixed payment modes, referenced by id from the table ───
-  const ANYPAY_OPTIONS = [
-    { id: 'money',      label: 'Money' },
-    { id: 'share',      label: 'Share' },
-    { id: 'zerodollar', label: 'ZeroDollar' },
-    { id: 'swap',       label: 'Swap' },
-    { id: 'free',       label: 'Free' },
-  ];
-
   // ─── DOMAIN / MODEL TABLE ───
-  // This *is* the menu, from Row 2 down: one entry per domain, each with
-  // its own model list (length varies — 1 to 4). A domain with <= 1
-  // model has no model-selection row at all; the form appears right
-  // after the domain is picked, using that single model as the
-  // "effective model" for its AnyPay relations. A model with an empty
-  // anypay[] (only Social, today) makes the ANYPAY hex disappear from
-  // the form entirely — no special-casing needed, it all falls out of
-  // this one table.
-  const DOMAINS = [
-    {
-      id: 'move', label: 'MOVE',
-      models: [
-        { id: 'vehicle_exchange', label: 'Vehicle Exchange', anypay: ['share', 'swap'],
-          description: 'Share or swap existing vehicles between people.',
-          examples: 'Bikes, motorcycles, cars, boats, campers used jointly.' },
-        { id: 'p2p_vehicle_rental', label: 'P2P Vehicle Rental', anypay: ['money', 'zerodollar'],
-          description: 'Private individuals make vehicles temporarily available to others.',
-          examples: 'Renting out a private car, motorcycle, or camper.' },
-        { id: 'route_sharing', label: 'Route Sharing', anypay: ['free', 'share', 'zerodollar'],
-          description: 'People use trips they were already making to carry extra people or goods.',
-          examples: '"I\'m heading to Berlin anyway, I can take your package."' },
-      ],
-    },
-    {
-      id: 'goods', label: 'GOODS',
-      models: [
-        { id: 'goods_sharing', label: 'Goods Sharing', anypay: ['share', 'zerodollar', 'swap'],
-          description: 'Shared use of existing items or spaces.',
-          examples: 'Tools, tents, garages, workbenches, unused gardens, land.' },
-      ],
-    },
-    {
-      id: 'food', label: 'FOOD',
-      models: [
-        { id: 'food_production', label: 'Food Production', anypay: ['money', 'share', 'zerodollar', 'swap'],
-          description: 'People produce food or meals for others.',
-          examples: 'Home cooking, bread, cheese, garden produce, community kitchens.' },
-        { id: 'meal_sharing', label: 'Meal Sharing', anypay: ['share', 'zerodollar', 'swap'],
-          description: 'Cooking and eating together as a social activity.',
-          examples: 'Dinners, cookouts, community meals.' },
-        { id: 'food_exchange', label: 'Food Exchange', anypay: ['share', 'zerodollar', 'swap', 'free'],
-          description: 'Share existing food or meals.',
-          examples: 'Surplus food, garden produce, home-cooked meals.' },
-        { id: 'food_rescue', label: 'Food Rescue', anypay: ['swap', 'free'],
-          description: 'Rescue food from being wasted.',
-          examples: 'Surplus food from households or businesses.' },
-      ],
-    },
-    {
-      id: 'skills', label: 'SKILLS',
-      models: [
-        { id: 'freelance_work', label: 'Freelance Work', anypay: ['money', 'share', 'zerodollar', 'swap'],
-          description: 'Offer individual skills as a service.',
-          examples: 'Programming, design, consulting, repairs.' },
-        { id: 'production', label: 'Production', anypay: ['money', 'share', 'zerodollar', 'swap'],
-          description: 'Direct production of physical goods between people.',
-          examples: 'Carpentry, 3D printing, furniture making, craftwork.' },
-        { id: 'skill_pooling', label: 'Skill Pooling', anypay: ['money', 'share', 'zerodollar', 'swap'],
-          description: 'Pool several skills toward a shared goal.',
-          examples: 'Open source, house building, community projects.' },
-        { id: 'helpout', label: 'Helpout', anypay: ['share', 'zerodollar', 'swap'],
-          description: 'Direct everyday support.',
-          examples: 'Moving help, errands, neighborly assistance.' },
-      ],
-    },
-    {
-      id: 'stay', label: 'STAY',
-      models: [
-        { id: 'stay_exchange', label: 'Stay Exchange', anypay: ['share', 'zerodollar', 'swap'],
-          description: 'Share or swap existing accommodation.',
-          examples: 'Couchsurfing, home exchange, spare rooms.' },
-        { id: 'stay_pooling', label: 'Stay Pooling', anypay: ['money'],
-          description: 'Several people jointly fund a place to stay.',
-          examples: 'Splitting a hotel room, Airbnb, vacation rental, nomad apartment.' },
-      ],
-    },
-    {
-      id: 'social', label: 'SOCIAL',
-      models: [
-        { id: 'social_activity_sharing', label: 'Social Network / Activity Sharing', anypay: [],
-          description: 'People create, discover, and join shared activities. Focus: meeting people, leisure, and social connection.',
-          examples: 'Discover local activities, join interest-based groups, and connect with people for hiking, games, sports, dining, and spontaneous meetups.' },
-      ],
-    },
-    {
-      id: 'social_time', label: 'SOCIAL\nTIME',
-      models: [
-        { id: 'social_time', label: 'Social Time', anypay: ['free', 'zerodollar'],
-          description: 'People contribute time, experience, and voluntary work to community projects. Projects state their own requirements; people decide for themselves whether to join.',
-          examples: 'Animal shelter help, environmental action, reforestation, community gardens, health drives, education projects, repair days.' },
-      ],
-    },
-  ];
+  // Sourced entirely from domains.ts (see import above). One entry per
+  // domain, each with its own model list (length varies — 1 to 4). A
+  // domain with <= 1 model has no model-selection row at all; the form
+  // appears right after the domain is picked, using that single model
+  // as the "effective model" for its AnyPay/Location/Details config. A
+  // model with an empty anypay[] (only Social, today) makes the ANYPAY
+  // hex disappear from the form entirely — no special-casing needed,
+  // it all falls out of the domains.ts table.
 
   // ─── SELECTIONS ───
   // Same principle as before: every value here is independent state that
@@ -381,10 +286,10 @@
     { id: 'bbq',      label: 'BBQ',      col: 3, lrow: 0, noop: true },
   ].map(n => ({ ...n, dimmed: selMode !== null && n.id !== selMode, selected: n.id === selMode }));
 
-  $: rideNodes = selMode === 'live' ? [
-    { id: 'need_ride',  label: 'I NEED\nA RIDE',  col: 0, lrow: 1 },
-    { id: 'offer_ride', label: 'I OFFER\nA RIDE', col: 1, lrow: 1 },
-  ].map(n => ({ ...n, dimmed: selRide !== null && n.id !== selRide, selected: n.id === selRide })) : [];
+  $: rideNodes = selMode === 'live' ? RIDE_MODELS.map((m, i) => ({
+    id: m.id, label: m.label, col: i, lrow: 1,
+    dimmed: selRide !== null && m.id !== selRide, selected: m.id === selRide,
+  })) : [];
 
   $: actionNodes = selMode === 'listings' ? [
     { id: 'list_offer',  label: 'OFFER',  col: 0, lrow: 1 },
@@ -435,18 +340,21 @@
   // exists — nothing here is its own source of truth, so there's no way
   // for the readiness chain to drift out of sync with the actual data.
   //
-  // detailsSchema comes from two different sources depending on path:
-  // 'listings' keys off effectiveModel (the domain/model table), 'live'
-  // keys off selRide directly, since there's no domain/model there at
-  // all. Same FORM_SCHEMA object either way — need_ride/offer_ride just
-  // live in it under their own keys instead of a model id.
-  $: detailsSchema = selMode === 'live'
-    ? (selRide ? FORM_SCHEMA[selRide] : null)
-    : (effectiveModel ? FORM_SCHEMA[effectiveModel.id] : null);
+  // detailsSchema/locationSchema come from two different sources
+  // depending on path: 'listings' keys off effectiveModel (the
+  // domain/model table in domains.ts), 'live' keys off selRide against
+  // RIDE_MODELS, since there's no domain/model there at all. Both are
+  // now just `.details` / `.location` on that same model object — no
+  // separate lookup table to keep in sync anymore.
+  $: effectiveRideModel = selRide ? RIDE_MODELS.find(m => m.id === selRide) : null;
 
-    $: locationSchema = selMode === 'live'
-  ? (selRide ? LOCATION_SCHEMA[selRide] : null)
-  : (effectiveModel ? LOCATION_SCHEMA[effectiveModel.id] : null);
+  $: detailsSchema = selMode === 'live'
+    ? (effectiveRideModel ? effectiveRideModel.details : null)
+    : (effectiveModel ? effectiveModel.details : null);
+
+  $: locationSchema = selMode === 'live'
+    ? (effectiveRideModel ? effectiveRideModel.location : null)
+    : (effectiveModel ? effectiveModel.location : null);
 
   // Every field group above is optional and independent — detailsDone
   // only checks the groups the current schema actually declares, so
