@@ -92,9 +92,7 @@ if (geometry==='route') {
     });
   </script>
   
-  <div class="backdrop" on:click={(e) => {
-    if (e.target === e.currentTarget) cancel();
-  }}>
+  <div class="backdrop">
     <div class="modal" role="dialog" aria-modal="true" aria-label="Location">
   
       <button class="close" on:click={cancel} aria-label="Close">✕</button>
@@ -164,6 +162,7 @@ if (geometry==='route') {
   justify-content: center;
   z-index: 999;
   padding: 24px 0;
+  pointer-events: none;
 }
 
 .modal {
@@ -175,6 +174,7 @@ if (geometry==='route') {
   width: min(360px, calc(100vw - 40px));
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  pointer-events: auto;
 }
 
 h2 {

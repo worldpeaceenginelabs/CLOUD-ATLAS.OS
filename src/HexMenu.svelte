@@ -274,11 +274,10 @@
   let anypayModalOpen = false;
   let detailsValues = {};  // { mode, title, categoryId|categoryIds, date, description, contact }
   let detailsModalOpen = false;
-  let selLocation: {
-  current?: { lat: number; lon: number };
-  from?: { lat: number; lon: number };
-  to?: { lat: number; lon: number };
-} | null = null;
+  let selLocation:
+  | { geometry: 'point'; point: { latitude: number; longitude: number } }
+  | { geometry: 'route'; from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number } }
+  | null = null;
   let locationModalOpen = false;
 
   const CATEGORY_IDS = new Set(DOMAINS.map(d => d.id));
@@ -463,13 +462,11 @@
     (!detailsSchema.date || !detailsSchema.date.required || !!detailsValues.date)
   );
 
-  $: locationDone =
-  !locationSchema ||
-  (
-    (!locationSchema.current || selLocation?.current) &&
-    (!locationSchema.from || selLocation?.from) &&
-    (!locationSchema.to || selLocation?.to)
-  );
+  $: locationDone = !locationSchema
+  ? true
+  : locationSchema.geometry === 'point'
+    ? !!selLocation?.point
+    : !!(selLocation?.from && selLocation?.to);
 
   $: anypayDone = !showAnypayHex || selAnypay.length > 0;
 
