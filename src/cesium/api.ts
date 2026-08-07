@@ -116,6 +116,48 @@ export const pick = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* Marker                                                                      */
+/* -------------------------------------------------------------------------- */
+
+export interface MarkerPreview {
+  /** Remove this marker from the globe. */
+  remove(): void;
+}
+
+/** Named marker looks, kept in one place so every caller stays visually consistent. */
+export type MarkerKind = 'pickup' | 'dropoff' | 'point';
+
+const MARKER_COLORS: Record<MarkerKind, Cesium.Color> = {
+  pickup: Cesium.Color.CYAN,
+  dropoff: Cesium.Color.ORANGE,
+  point: Cesium.Color.CYAN,
+};
+
+export const marker = {
+  /** Place a single pin at the given coordinates. Caller owns the returned handle and must call remove() themselves. */
+  place(coords: Coordinates, kind: MarkerKind = 'point'): MarkerPreview {
+    const viewer = requireViewer();
+
+    const entity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(coords.longitude, coords.latitude),
+      point: {
+        pixelSize: 10,
+        color: MARKER_COLORS[kind],
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 1,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+      }
+    });
+
+    return {
+      remove(): void {
+        viewer.entities.remove(entity);
+      }
+    };
+  }
+};
+
+/* -------------------------------------------------------------------------- */
 /* Route preview                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -178,4 +220,4 @@ export const route = {
 /* -------------------------------------------------------------------------- */
 
 /** Same four capabilities, grouped for call sites that prefer `globe.camera...`, `globe.pick...` etc. */
-export const globe = { camera, location, pick, route };
+export const globe = { camera, location, pick, route, marker };

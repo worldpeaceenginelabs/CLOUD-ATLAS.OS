@@ -691,7 +691,7 @@
 
   {#if locationModalOpen}
   <Location
-  schema={locationSchema}
+  geometry={locationSchema?.geometry ?? 'point'}
   on:confirm={onLocationConfirm}
   on:cancel={onLocationCancel}
 />
