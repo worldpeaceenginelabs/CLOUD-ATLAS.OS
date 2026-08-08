@@ -18,23 +18,24 @@
 // The LIVE mode is not a second data model — it's a fixed binding to
 // domain='move', model='ridehailing' (see that model's comment). A
 // model may be `internalOnly` (reachable only through a mode other
-// than the normal DOMAIN→MODEL hex path) and/or carry
-// `detailsByAction` (when its Details schema genuinely differs
-// between 'offer' and 'search' — today only ridehailing).
+// than the normal DOMAIN→MODEL hex path) and/or declare its `details`
+// per-action (when its Details schema genuinely differs between
+// 'offer' and 'search' — today only ridehailing); resolve it via
+// detailsFor(), never by reading `.details` directly.
 //
 // Location.svelte keeps its own Globe-/Location-API runtime binding —
 // that's fachliche Laufzeit-Logik of the Location domain, not
 // configuration, so it deliberately stays out of this file.
 
 // ─── Shared field-shape types (unchanged from formSchema.ts) ───
-// modeSelector: true | undefined
+// interactionMode: true | undefined
 // title:        { label, placeholder } | undefined
 // category:     { options, multi } | undefined
 // date:         { label, required } | undefined
 // description:  { placeholder } | undefined
 // contact:      { hint } | undefined
 // Everything present is required, EXCEPT date (only required when
-// date.required === true) and modeSelector (never blocks readiness).
+// date.required === true) and interactionMode (never blocks readiness).
 
 export type GeometryType = 'point' | 'route';
 
@@ -49,7 +50,11 @@ export interface CategoryOption {
 }
 
 export interface DetailsConfig {
-  modeSelector?: true;
+  // Whether this model's form should include the in-person/online/both
+  // selector (Details.svelte). Named `interactionMode` — not `mode` —
+  // to avoid colliding with the app-level MODE concept (live/listings,
+  // see HexMenu.svelte's selMode); this is an unrelated per-model field.
+  interactionMode?: true;
   title?: { label: string; placeholder: string };
   category?: { options: CategoryOption[]; multi: boolean };
   date?: { label?: string; required: boolean };
@@ -64,7 +69,15 @@ export interface ModelConfig {
   examples: string;
   anypay: string[]; // ANYPAY_OPTIONS[].id this model allows
   location: LocationConfig;
-  details: DetailsConfig;
+  // Details field spec. Either one DetailsConfig shared by both actions
+  // (the normal case — every model except ridehailing), or one
+  // DetailsConfig per action, for the rare case where the Details
+  // schema genuinely differs between 'offer' and 'search' (today only
+  // ridehailing: cargo category is single-select + has a description
+  // field on 'search', multi-select with no description on 'offer').
+  // Resolve with detailsFor() below rather than reading this directly —
+  // it's the one place that knows how to pick between the two shapes.
+  details: DetailsConfig | { offer: DetailsConfig; search: DetailsConfig };
   // Set on models that exist in the domain/model table but are reached
   // through a different mode than the normal DOMAIN → MODEL selector —
   // today only 'ridehailing' (reached via the LIVE mode's fixed
@@ -72,13 +85,18 @@ export interface ModelConfig {
   // HexMenu filters these out when building the Listings model row, so
   // they never appear as a selectable hexagon there.
   internalOnly?: true;
-  // Only needed when a model's Details schema genuinely differs
-  // between the two actions (today only 'ridehailing': the cargo
-  // category is single-select + has a description field on `search`,
-  // multi-select with no description on `offer`). When absent, the
-  // `details` above applies to both actions unchanged. `details` still
-  // must be set even when this is present — it's the fallback/default.
-  detailsByAction?: { offer: DetailsConfig; search: DetailsConfig };
+}
+
+// Resolves a model's Details schema for the action currently in effect.
+// Centralized here so callers (HexMenu.svelte) never need to know
+// whether a given model varies its Details schema by action — they
+// just ask for "the schema for this model + this action".
+export function detailsFor(model: ModelConfig, action: 'offer' | 'search' | null): DetailsConfig {
+  const spec = model.details;
+  if ('offer' in spec && 'search' in spec) {
+    return action === 'offer' ? spec.offer : spec.search;
+  }
+  return spec;
 }
 
 export interface DomainConfig {
@@ -301,11 +319,11 @@ export const DOMAINS: DomainConfig[] = [
       // Labels ("I NEED A RIDE" / "I OFFER A RIDE") sind reine UI-
       // Navigation und leben in HexMenu.svelte, nicht hier.
       //
-      // `details` unten ist die 'search'-Variante (== need_ride) als
-      // Default; `detailsByAction` überschreibt sie pro Action, weil
-      // sich das Schema hier tatsächlich fachlich unterscheidet (bei
-      // keinem anderen Model nötig). Open question carried over from
-      // formSchema.ts: 'search' conceptually needs *two* points
+      // `details` ist hier die einzige Stelle im ganzen Table, wo sich
+      // das Schema tatsächlich fachlich zwischen den Actions
+      // unterscheidet — daher die Pro-Action-Form statt eines einzelnen
+      // DetailsConfig; siehe detailsFor(). Open question carried over
+      // from formSchema.ts: 'search' conceptually needs *two* points
       // (pickup + drop-off), but LOCATION as designed only carries
       // one — worth a second look once that becomes relevant.
       {
@@ -316,10 +334,6 @@ export const DOMAINS: DomainConfig[] = [
         internalOnly: true,
         location: { geometry: 'route' },
         details: {
-          category: { options: RIDE_CARGO_CATEGORIES, multi: false },
-          description: { placeholder: 'Anything the driver should know — pickup details, luggage, timing, etc.' },
-        },
-        detailsByAction: {
           search: {
             category: { options: RIDE_CARGO_CATEGORIES, multi: false },
             description: { placeholder: 'Anything the driver should know — pickup details, luggage, timing, etc.' },
@@ -411,7 +425,7 @@ export const DOMAINS: DomainConfig[] = [
         examples: 'Programming, design, consulting, repairs.',
         location: { geometry: 'point' },
         details: {
-          modeSelector: true,
+          interactionMode: true,
           title: { label: 'Title', placeholder: 'e.g. Logo Design, Web Development...' },
           category: { options: HELPOUT_CATEGORIES, multi: false },
           description: { placeholder: "What can you offer, and what's your experience?" },
@@ -424,7 +438,7 @@ export const DOMAINS: DomainConfig[] = [
         examples: 'Carpentry, 3D printing, furniture making, craftwork.',
         location: { geometry: 'point' },
         details: {
-          modeSelector: true,
+          interactionMode: true,
           title: { label: 'Title', placeholder: 'e.g. Custom Furniture, 3D-Printed Parts...' },
           category: { options: PRODUCTION_CATEGORIES, multi: false },
           description: { placeholder: 'What can you make, and what do you need from the other person to get started?' },
@@ -437,7 +451,7 @@ export const DOMAINS: DomainConfig[] = [
         examples: 'Open source, house building, community projects.',
         location: { geometry: 'point' },
         details: {
-          modeSelector: true,
+          interactionMode: true,
           title: { label: 'Project Title', placeholder: 'e.g. Open Source App...' },
           category: { options: HELPOUT_CATEGORIES, multi: false },
           description: { placeholder: "What's the project, and what skills are you looking to combine?" },
@@ -450,7 +464,7 @@ export const DOMAINS: DomainConfig[] = [
         examples: 'Moving help, errands, neighborly assistance.',
         location: { geometry: 'point' },
         details: {
-          modeSelector: true,
+          interactionMode: true,
           title: { label: 'Title', placeholder: 'e.g. Help Installing Shelves, Need Gardening Help...' },
           category: { options: HELPOUT_CATEGORIES, multi: false },
           description: { placeholder: 'What do you need help with, or what would you like to help others with?' },
@@ -497,7 +511,7 @@ export const DOMAINS: DomainConfig[] = [
         examples: 'Discover local activities, join interest-based groups, and connect with people for hiking, games, sports, dining, and spontaneous meetups.',
         location: { geometry: 'point' },
         details: {
-          modeSelector: true,
+          interactionMode: true,
           title: { label: 'Event Title', placeholder: 'e.g. Saturday Morning Run, Board Game Night...' },
           category: { options: SOCIAL_CATEGORIES, multi: false },
           date: { label: 'Date & Time', required: false },

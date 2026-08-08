@@ -14,7 +14,7 @@
 
   const dispatch = createEventDispatcher();
 
-  const MODE_OPTIONS = [
+  const INTERACTION_MODE_OPTIONS = [
     { id: 'in_person', label: 'In-Person' },
     { id: 'online', label: 'Online' },
     { id: 'both', label: 'Both' },
@@ -50,13 +50,13 @@
       <h2>DETAILS</h2>
       <p class="hint">Fill in what applies, then close with ✕.</p>
 
-      {#if schema.modeSelector}
+      {#if schema.interactionMode}
         <div class="mode-row">
-          {#each MODE_OPTIONS as m}
+          {#each INTERACTION_MODE_OPTIONS as m}
             <button
               class="mode-opt"
-              class:selected={(values.mode || 'in_person') === m.id}
-              on:click={() => set('mode', m.id)}
+              class:selected={(values.interactionMode || 'in_person') === m.id}
+              on:click={() => set('interactionMode', m.id)}
             >{m.label}</button>
           {/each}
         </div>

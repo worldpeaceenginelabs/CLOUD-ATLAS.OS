@@ -4,7 +4,7 @@
     import Details from './hexmenu/Details.svelte';
     import Location from './hexmenu/Location.svelte';
     import HexGrid from './hexmenu/HexGrid.svelte';
-    import { DOMAINS, ANYPAY_OPTIONS } from './hexmenu/domains';
+    import { DOMAINS, ANYPAY_OPTIONS, detailsFor } from './hexmenu/domains';
     import {
       BASE_COL, BASE_ROW, BASE_R, MIN_COLS_VISIBLE, MIN_ROWS_VISIBLE,
       hexCenter, hexPath, computeNeededBox, computeBgHexes, wrapLabel,
@@ -371,13 +371,9 @@
     // detailsSchema/locationSchema come from the same place regardless of
     // path now — effectiveModel — since 'live' resolves to a real model
     // (move.ridehailing) via the fixed binding in go(), same as any
-    // 'listings' model. detailsByAction is the one override: only
-    // ridehailing's Details schema actually differs between 'search' and
-    // 'offer', so every other model just falls through to `.details`.
-    $: detailsSchema = !effectiveModel ? null
-      : effectiveModel.detailsByAction
-        ? effectiveModel.detailsByAction[selAction === 'offer' ? 'offer' : 'search']
-        : effectiveModel.details;
+    // 'listings' model. detailsFor() is the one place that knows whether
+    // a model's Details schema varies by action; HexMenu doesn't need to.
+    $: detailsSchema = effectiveModel ? detailsFor(effectiveModel, selAction) : null;
   
     $: locationSchema = effectiveModel ? effectiveModel.location : null;
   
