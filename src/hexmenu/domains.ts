@@ -14,6 +14,14 @@
 // no longer contains any model-specific data — it only reads this file,
 // manages state, and coordinates the Location/Details/AnyPay components.
 //
+// There is exactly one MODE/ACTION/DOMAIN/MODEL table: DOMAINS below.
+// The LIVE mode is not a second data model — it's a fixed binding to
+// domain='move', model='ridehailing' (see that model's comment). A
+// model may be `internalOnly` (reachable only through a mode other
+// than the normal DOMAIN→MODEL hex path) and/or carry
+// `detailsByAction` (when its Details schema genuinely differs
+// between 'offer' and 'search' — today only ridehailing).
+//
 // Location.svelte keeps its own Globe-/Location-API runtime binding —
 // that's fachliche Laufzeit-Logik of the Location domain, not
 // configuration, so it deliberately stays out of this file.
@@ -57,6 +65,20 @@ export interface ModelConfig {
   anypay: string[]; // ANYPAY_OPTIONS[].id this model allows
   location: LocationConfig;
   details: DetailsConfig;
+  // Set on models that exist in the domain/model table but are reached
+  // through a different mode than the normal DOMAIN → MODEL selector —
+  // today only 'ridehailing' (reached via the LIVE mode's fixed
+  // domain=move/model=ridehailing binding, not picked from a hex row).
+  // HexMenu filters these out when building the Listings model row, so
+  // they never appear as a selectable hexagon there.
+  internalOnly?: true;
+  // Only needed when a model's Details schema genuinely differs
+  // between the two actions (today only 'ridehailing': the cargo
+  // category is single-select + has a description field on `search`,
+  // multi-select with no description on `offer`). When absent, the
+  // `details` above applies to both actions unchanged. `details` still
+  // must be set even when this is present — it's the fallback/default.
+  detailsByAction?: { offer: DetailsConfig; search: DetailsConfig };
 }
 
 export interface DomainConfig {
@@ -272,6 +294,41 @@ export const DOMAINS: DomainConfig[] = [
           contact: { hint: 'Telegram, WhatsApp, Signal, or any link' },
         },
       },
+      // Fachlich Teil von MOVE, wie jedes andere Model hier — nur
+      // erreichbar über den LIVE-Mode statt über den DOMAIN→MODEL-Hex-
+      // Pfad (siehe `internalOnly`). HexMenu bindet mode=live intern
+      // fest auf domain=move / model=ridehailing; die sichtbaren LIVE-
+      // Labels ("I NEED A RIDE" / "I OFFER A RIDE") sind reine UI-
+      // Navigation und leben in HexMenu.svelte, nicht hier.
+      //
+      // `details` unten ist die 'search'-Variante (== need_ride) als
+      // Default; `detailsByAction` überschreibt sie pro Action, weil
+      // sich das Schema hier tatsächlich fachlich unterscheidet (bei
+      // keinem anderen Model nötig). Open question carried over from
+      // formSchema.ts: 'search' conceptually needs *two* points
+      // (pickup + drop-off), but LOCATION as designed only carries
+      // one — worth a second look once that becomes relevant.
+      {
+        id: 'ridehailing', label: 'Ridehailing',
+        anypay: ANYPAY_OPTIONS.map(o => o.id), // live path leaves all 5 open
+        description: 'Real-time matching between someone who needs a ride and someone driving right now.',
+        examples: 'Person or package pickup, on-demand — no listing, no browsing.',
+        internalOnly: true,
+        location: { geometry: 'route' },
+        details: {
+          category: { options: RIDE_CARGO_CATEGORIES, multi: false },
+          description: { placeholder: 'Anything the driver should know — pickup details, luggage, timing, etc.' },
+        },
+        detailsByAction: {
+          search: {
+            category: { options: RIDE_CARGO_CATEGORIES, multi: false },
+            description: { placeholder: 'Anything the driver should know — pickup details, luggage, timing, etc.' },
+          },
+          offer: {
+            category: { options: RIDE_CARGO_CATEGORIES, multi: true },
+          },
+        },
+      },
     ],
   },
   {
@@ -467,45 +524,5 @@ export const DOMAINS: DomainConfig[] = [
         },
       },
     ],
-  },
-];
-
-// ─── 'live' path — need_ride / offer_ride ───
-// Structurally these are models too (same location + details shape as
-// any DOMAINS model), but they aren't reached through the
-// domain/category selector — the 'live' header hex drops straight to
-// a ride-type choice instead. They carry no `anypay` (the 'live' path
-// leaves all 5 AnyPay options open, see HexMenu's anypayAvailable) and
-// no `examples` (unused outside tooltips, which only exist for
-// DOMAINS models today).
-//
-// pickupLocation / dropoffLocation / currentLocation are NOT part of
-// `details` — they belong to the LOCATION flow (see `location` below),
-// not the Details field vocabulary. Open question carried over from
-// formSchema.ts: 'need_ride' conceptually needs *two* points (pickup +
-// drop-off), but LOCATION as designed only carries one — worth a
-// second look once that becomes relevant.
-export interface RideModelConfig {
-  id: string;
-  label: string;
-  location: LocationConfig;
-  details: DetailsConfig;
-}
-
-export const RIDE_MODELS: RideModelConfig[] = [
-  {
-    id: 'need_ride', label: 'I NEED\nA RIDE',
-    location: { geometry: 'route' },
-    details: {
-      category: { options: RIDE_CARGO_CATEGORIES, multi: false },
-      description: { placeholder: 'Anything the driver should know — pickup details, luggage, timing, etc.' },
-    },
-  },
-  {
-    id: 'offer_ride', label: 'I OFFER\nA RIDE',
-    location: { geometry: 'route' },
-    details: {
-      category: { options: RIDE_CARGO_CATEGORIES, multi: true },
-    },
   },
 ];
