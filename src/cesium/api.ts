@@ -1,21 +1,32 @@
-import * as Cesium from 'cesium';
 import { getActiveViewer } from './viewer';
 import { flyTo, setView, zoomIn, zoomOut, getCameraState, flyToRectangle } from './camera';
 import type { FlyToTarget, CameraState } from './camera';
 import { getCurrentLocation, isGeolocationSupported } from './location';
 import { createLocationPicker } from './pickLocation';
 import type { LocationPicker, PickedLocation } from './pickLocation';
+import { createEntityPicker } from './pickEntity';
+import type { EntityPicker, PickedEntity } from './pickEntity';
+import { createAreaPicker } from './pickArea';
+import type { AreaPicker, BoundingBox } from './pickArea';
+import { placeMarker } from './marker';
+import type { Coordinates, MarkerKind, MarkerHandle } from './marker';
+import { previewRoute } from './route';
+import type { RouteHandle } from './route';
 
 /**
  * cesium/api.ts
  * -----------------------------------------------------------------------
  * The ONLY public interface between Svelte components and the Cesium
- * engine. Structured by capability (camera / location / pick / route),
- * no UI logic, no knowledge of any component.
+ * engine. Structured by capability (camera / location / pick / marker /
+ * route), no UI logic, no knowledge of any component, and — as of this
+ * revision — no direct Cesium implementation knowledge either: every
+ * function below is a thin pass-through to one of the seven internal
+ * modules.
  *
- * Internal modules (viewer.ts, camera.ts, pickLocation.ts, pickEntity.ts,
- * pickArea.ts, location.ts) stay implementation details — components
- * import only from here:
+ * Internal modules (viewer.ts, camera.ts, location.ts, pickLocation.ts,
+ * pickEntity.ts, pickArea.ts, marker.ts, route.ts) own all Cesium-specific
+ * logic and stay implementation details — components import only from
+ * here:
  *
  *   Location.svelte -> cesium/api.ts -> internal Cesium modules
  *
@@ -29,12 +40,9 @@ import type { LocationPicker, PickedLocation } from './pickLocation';
  */
 
 /** Plain lat/lon pair. The only coordinate shape components ever see. */
-export interface Coordinates {
-  longitude: number;
-  latitude: number;
-}
+export type { Coordinates };
 
-function requireViewer(): Cesium.Viewer {
+function requireViewer(): NonNullable<ReturnType<typeof getActiveViewer>> {
   const viewer = getActiveViewer();
   if (!viewer) {
     throw new Error(
@@ -87,73 +95,79 @@ export const location = {
 };
 
 /* -------------------------------------------------------------------------- */
-/* Picking (globe position)                                                   */
+/* Picking (globe position / entity / area)                                   */
 /* -------------------------------------------------------------------------- */
 
 function toCoordinates(picked: PickedLocation): Coordinates {
   return { longitude: picked.longitude, latitude: picked.latitude };
 }
 
-// Holds the currently enabled picker so disable() can find it again — the
-// same shape of local state pickLocation.ts/pickEntity.ts/pickArea.ts
-// already keep for their own controllers, not a cross-component registry.
-let activePicker: LocationPicker | undefined;
+// Holds the currently enabled picker per pick kind so disable() can find it
+// again — the same shape of local state pickLocation.ts/pickEntity.ts/
+// pickArea.ts already keep for their own controllers, not a cross-component
+// registry.
+let activeLocationPicker: LocationPicker | undefined;
+let activeEntityPicker: EntityPicker | undefined;
+let activeAreaPicker: AreaPicker | undefined;
 
 export const pick = {
   /** Start listening for clicks on the globe. Fires onPick with the picked coordinates, or null on a miss. */
   enable(onPick: (coords: Coordinates | null) => void): void {
-    activePicker?.disable();
-    activePicker = createLocationPicker(requireViewer(), (picked) =>
+    activeLocationPicker?.disable();
+    activeLocationPicker = createLocationPicker(requireViewer(), (picked) =>
       onPick(picked ? toCoordinates(picked) : null)
     );
-    activePicker.enable();
+    activeLocationPicker.enable();
   },
   /** Stop listening. No-op if not enabled. */
   disable(): void {
-    activePicker?.disable();
-    activePicker = undefined;
+    activeLocationPicker?.disable();
+    activeLocationPicker = undefined;
+  },
+
+  entity: {
+    /** Start listening for clicks on the globe. Fires onPick with the picked entity, or null on a miss. */
+    enable(onPick: (entity: PickedEntity) => void): void {
+      activeEntityPicker?.disable();
+      activeEntityPicker = createEntityPicker(requireViewer(), onPick);
+      activeEntityPicker.enable();
+    },
+    /** Stop listening. No-op if not enabled. */
+    disable(): void {
+      activeEntityPicker?.disable();
+      activeEntityPicker = undefined;
+    }
+  },
+
+  area: {
+    /** Start listening for click-drag-release rectangle selection. onSelect fires once per completed drag; onChange fires continuously while dragging. */
+    enable(onSelect: (box: BoundingBox) => void, onChange?: (box: BoundingBox) => void): void {
+      activeAreaPicker?.disable();
+      activeAreaPicker = createAreaPicker(requireViewer(), onSelect, onChange);
+      activeAreaPicker.enable();
+    },
+    /** Stop listening and remove any in-progress preview. No-op if not enabled. */
+    disable(): void {
+      activeAreaPicker?.disable();
+      activeAreaPicker = undefined;
+    }
   }
 };
+
+export type { PickedEntity, BoundingBox };
 
 /* -------------------------------------------------------------------------- */
 /* Marker                                                                      */
 /* -------------------------------------------------------------------------- */
 
-export interface MarkerPreview {
-  /** Remove this marker from the globe. */
-  remove(): void;
-}
-
-/** Named marker looks, kept in one place so every caller stays visually consistent. */
-export type MarkerKind = 'pickup' | 'dropoff' | 'point';
-
-const MARKER_COLORS: Record<MarkerKind, Cesium.Color> = {
-  pickup: Cesium.Color.CYAN,
-  dropoff: Cesium.Color.ORANGE,
-  point: Cesium.Color.CYAN,
-};
+/** @deprecated kept as an alias for the existing public name; same shape as MarkerHandle. */
+export type MarkerPreview = MarkerHandle;
+export type { MarkerKind };
 
 export const marker = {
   /** Place a single pin at the given coordinates. Caller owns the returned handle and must call remove() themselves. */
   place(coords: Coordinates, kind: MarkerKind = 'point'): MarkerPreview {
-    const viewer = requireViewer();
-
-    const entity = viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(coords.longitude, coords.latitude),
-      point: {
-        pixelSize: 10,
-        color: MARKER_COLORS[kind],
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 1,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-      }
-    });
-
-    return {
-      remove(): void {
-        viewer.entities.remove(entity);
-      }
-    };
+    return placeMarker(requireViewer(), coords, kind);
   }
 };
 
@@ -161,57 +175,13 @@ export const marker = {
 /* Route preview                                                              */
 /* -------------------------------------------------------------------------- */
 
-export interface RoutePreview {
-  /** Remove the preview (start marker, end marker, connecting line) from the globe. */
-  remove(): void;
-}
+/** @deprecated kept as an alias for the existing public name; same shape as RouteHandle. */
+export type RoutePreview = RouteHandle;
 
 export const route = {
   /** Draw a temporary start marker, end marker, and connecting line between two coordinates. */
   preview(from: Coordinates, to: Coordinates): RoutePreview {
-    const viewer = requireViewer();
-
-    const startPosition = Cesium.Cartesian3.fromDegrees(from.longitude, from.latitude);
-    const endPosition = Cesium.Cartesian3.fromDegrees(to.longitude, to.latitude);
-
-    const startEntity = viewer.entities.add({
-      position: startPosition,
-      point: {
-        pixelSize: 10,
-        color: Cesium.Color.CYAN,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 1,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-      }
-    });
-
-    const endEntity = viewer.entities.add({
-      position: endPosition,
-      point: {
-        pixelSize: 10,
-        color: Cesium.Color.ORANGE,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 1,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-      }
-    });
-
-    const lineEntity = viewer.entities.add({
-      polyline: {
-        positions: [startPosition, endPosition],
-        width: 3,
-        material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.CYAN }),
-        clampToGround: true
-      }
-    });
-
-    return {
-      remove(): void {
-        viewer.entities.remove(startEntity);
-        viewer.entities.remove(endEntity);
-        viewer.entities.remove(lineEntity);
-      }
-    };
+    return previewRoute(requireViewer(), from, to);
   }
 };
 
@@ -219,5 +189,5 @@ export const route = {
 /* Convenience aggregate                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** Same four capabilities, grouped for call sites that prefer `globe.camera...`, `globe.pick...` etc. */
+/** Same capabilities, grouped for call sites that prefer `globe.camera...`, `globe.pick...` etc. */
 export const globe = { camera, location, pick, route, marker };
