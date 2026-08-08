@@ -216,6 +216,21 @@
       : hasModelChoice ? (listableModels.find(m => m.id === selModel) || null)
       : (listableModels[0] || null);
     $: dispatch('tooltip', effectiveModel);
+
+    function buildPayload() {
+    return {
+      tags: [
+        ['domain', selDomain],
+        ['model', selModel],
+        ['action', selAction],
+        ...selAnypay.map(id => ['anypay', id]),
+      ],
+      content: JSON.stringify({
+        ...detailsValues,
+        location: selLocation,
+      }),
+    };
+    }
   
     function go(id) {
       if (didDrag) return;
@@ -265,17 +280,21 @@
       return;
       }
       if (id === 'submit' || id === 'gosearch') {
-        // The one true point of no return: hand off, then clear the slate.
-        // Same payload shape for both modes now — 'live' and 'listings'
-        // resolve to the same domain/model/action data, just reached
-        // through different UI paths.
-        dispatch(selAction === 'offer' ? 'offerSubmit' : 'searchSubmit', {
-          selMode, selAction, selDomain, selModel, selAnypay, detailsValues, selLocation,
-        });
-        selMode = null; selAction = null;
-        selDomain = null; selModel = null; selAnypay = [];
-        detailsValues = {}; selLocation = null;
-        return;
+      const payload = buildPayload();
+
+      dispatch(
+        selAction === 'offer' ? 'offerSubmit' : 'searchSubmit',
+        payload
+      );
+
+      selMode = null;
+      selAction = null;
+      selDomain = null;
+      selModel = null;
+      selAnypay = [];
+      detailsValues = {};
+      selLocation = null;
+      return;
       }
       // m1-m4: reserved for future sub-flows.
     }
