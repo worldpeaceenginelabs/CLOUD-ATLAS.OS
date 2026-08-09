@@ -135,12 +135,17 @@ export function isDetailsComplete(schema: DetailsConfig | null, values: Record<s
   );
 }
 
-// Whether a Location value satisfies its schema's geometry.
+// Whether a Location value satisfies its schema's geometry. Narrows on
+// value.geometry (not schema.geometry) — LocationValue is discriminated
+// by its own `geometry` field, and TS can only narrow a union based on
+// a check against that same value, not a same-named field on a
+// different variable. Behaviorally identical: a confirmed value's
+// geometry always matches the schema it was confirmed against (see
+// Location.svelte), so this picks the same branch either way.
 export function isLocationComplete(schema: LocationConfig | null, value: LocationValue | null): boolean {
   if (!schema) return true;
-  return schema.geometry === 'point'
-    ? !!value?.point
-    : !!(value?.from && value?.to);
+  if (!value) return false;
+  return value.geometry === 'point' ? !!value.point : !!(value.from && value.to);
 }
 
 export interface DomainConfig {
