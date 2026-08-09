@@ -15,13 +15,25 @@
 // manages state, and coordinates the Location/Details/AnyPay components.
 //
 // There is exactly one MODE/ACTION/DOMAIN/MODEL table: DOMAINS below.
-// The LIVE mode is not a second data model — it's a fixed binding to
-// domain='move', model='ridehailing' (see that model's comment). A
-// model may be `internalOnly` (reachable only through a mode other
-// than the normal DOMAIN→MODEL hex path) and/or declare its `details`
-// per-action (when its Details schema genuinely differs between
-// 'offer' and 'search' — today only ridehailing); resolve it via
-// detailsFor(), never by reading `.details` directly.
+// A model may be `internalOnly` (reachable only through a shortcut mode
+// rather than the normal DOMAIN→MODEL hex path — see SHORTCUT_MODES)
+// and/or declare its `details` per-action (when its Details schema
+// genuinely differs between 'offer' and 'search' — today only
+// ridehailing); resolve it via detailsFor(), never by reading
+// `.details` directly.
+//
+// Everything HexMenu.svelte needs to label and route its own hexagons —
+// header modes, shortcut-mode buttons, listings actions, form-step
+// labels, and the placeholder 'next' mode's content — is declared
+// below in ─── MENU STRUCTURE ───, so a different app only has to
+// redefine this file; HexMenu.svelte carries no app-specific strings.
+// The one exception is the ambient flavor text shown in HexMenu's
+// background, which lives in hexMessages.ts (unrelated to the domain
+// model, so kept separate rather than crammed in here).
+//
+// isDetailsComplete()/isLocationComplete() mirror detailsFor(): they
+// centralize interpreting a schema's shape so HexMenu never needs to
+// know DetailsConfig/LocationConfig's field vocabulary itself.
 //
 // Location.svelte keeps its own Globe-/Location-API runtime binding —
 // that's fachliche Laufzeit-Logik of the Location domain, not
@@ -42,6 +54,13 @@ export type GeometryType = 'point' | 'route';
 export interface LocationConfig {
   geometry: GeometryType;
 }
+
+// The confirmed value HexMenu stores in selLocation and passes to
+// isLocationComplete() — declared once here so HexMenu.svelte doesn't
+// need its own copy of this union.
+export type LocationValue =
+  | { geometry: 'point'; point: { latitude: number; longitude: number } }
+  | { geometry: 'route'; from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number } };
 
 export interface CategoryOption {
   id: string;
@@ -97,6 +116,31 @@ export function detailsFor(model: ModelConfig, action: 'offer' | 'search' | null
     return action === 'offer' ? spec.offer : spec.search;
   }
   return spec;
+}
+
+// Whether a Details form is filled in enough to submit. Same idea as
+// detailsFor(): the field vocabulary (title/category/date/description/
+// contact) is interpreted once, here, rather than in HexMenu.svelte —
+// interactionMode is intentionally excluded, it never blocks readiness.
+export function isDetailsComplete(schema: DetailsConfig | null, values: Record<string, any>): boolean {
+  if (!schema) return true;
+  return (
+    (!schema.title || !!values.title) &&
+    (!schema.description || !!values.description) &&
+    (!schema.contact || !!values.contact) &&
+    (!schema.category || (schema.category.multi
+      ? (values.categoryIds || []).length > 0
+      : !!values.categoryId)) &&
+    (!schema.date || !schema.date.required || !!values.date)
+  );
+}
+
+// Whether a Location value satisfies its schema's geometry.
+export function isLocationComplete(schema: LocationConfig | null, value: LocationValue | null): boolean {
+  if (!schema) return true;
+  return schema.geometry === 'point'
+    ? !!value?.point
+    : !!(value?.from && value?.to);
 }
 
 export interface DomainConfig {
@@ -313,11 +357,11 @@ export const DOMAINS: DomainConfig[] = [
         },
       },
       // Fachlich Teil von MOVE, wie jedes andere Model hier — nur
-      // erreichbar über den LIVE-Mode statt über den DOMAIN→MODEL-Hex-
-      // Pfad (siehe `internalOnly`). HexMenu bindet mode=live intern
-      // fest auf domain=move / model=ridehailing; die sichtbaren LIVE-
-      // Labels ("I NEED A RIDE" / "I OFFER A RIDE") sind reine UI-
-      // Navigation und leben in HexMenu.svelte, nicht hier.
+      // erreichbar über einen Shortcut-Mode statt über den DOMAIN→
+      // MODEL-Hex-Pfad (siehe `internalOnly`). Welcher Mode hierher
+      // bindet und wie seine Buttons heißen ("I NEED A RIDE" / "I
+      // OFFER A RIDE") steht in SHORTCUT_MODES weiter unten — auch das
+      // ist fachliche Konfiguration, nicht HexMenu-Wissen.
       //
       // `details` ist hier die einzige Stelle im ganzen Table, wo sich
       // das Schema tatsächlich fachlich zwischen den Actions
@@ -540,3 +584,105 @@ export const DOMAINS: DomainConfig[] = [
     ],
   },
 ];
+
+// ─── MENU STRUCTURE (mode / action / form-step vocabulary) ───
+// Everything below is what makes HexMenu.svelte a generic engine: it
+// labels and routes the component's own hexagons (header, shortcut
+// buttons, listings actions, form steps), so none of this wording or
+// ID vocabulary has to be hardcoded there. A different app wanting the
+// same hex-menu engine redefines DOMAINS above plus this section —
+// HexMenu.svelte itself stays untouched.
+
+export interface ModeConfig {
+  id: string;
+  label: string;
+  noop?: true; // inert placeholder hex (today: BBQ) — renders, does nothing on click
+  // Exactly one MODES entry should set this: the mode that drives the
+  // generic ACTION → DOMAIN → MODEL flow below (today: 'listings').
+  // HexMenu checks this flag rather than any mode's id, so renaming or
+  // replacing 'listings' in a different app needs no HexMenu.svelte edit.
+  genericFlow?: true;
+  // For a mode that's neither genericFlow nor a SHORTCUT_MODES entry —
+  // a reserved placeholder with no flow wired up yet (today: 'next').
+  // Its hexagons render at row 1 and go nowhere.
+  placeholderNodes?: { id: string; label: string }[];
+}
+
+// Row 0 (header). 'listings' is the one mode that drives the generic
+// ACTION → DOMAIN → MODEL flow below (see `genericFlow`); every other
+// mode is either a SHORTCUT_MODES entry (bound to one fixed
+// domain/model) or, like 'next', just shows its own placeholderNodes.
+export const MODES: ModeConfig[] = [
+  { id: 'live', label: 'LIVE' },
+  { id: 'listings', label: 'LISTINGS', genericFlow: true },
+  {
+    id: 'next', label: 'NEXT',
+    placeholderNodes: [
+      { id: 'm1', label: 'MISSION 1\nTV' },
+      { id: 'm2', label: 'MISSION 2\nGOV' },
+      { id: 'm3', label: 'MISSION 3\nOMNI' },
+      { id: 'm4', label: 'MISSION 4\nCONSERV' },
+    ],
+  },
+  { id: 'bbq', label: 'BBQ', noop: true },
+];
+
+export interface ShortcutActionConfig {
+  id: string;                  // hex id for this button
+  label: string;
+  action: 'offer' | 'search';  // must match one of ACTIONS[].id below
+}
+
+export interface ShortcutModeConfig {
+  modeId: string;   // references MODES[].id
+  domain: string;   // references DOMAINS[].id
+  model: string;    // references a model id within that domain — normally `internalOnly`
+  actions: ShortcutActionConfig[];
+}
+
+// A "shortcut mode" skips DOMAIN/MODEL selection entirely and binds
+// straight onto one fixed model. Today's only one: LIVE → move →
+// ridehailing (see that model's comment above). Its two buttons are
+// UI navigation, but which action they mean and which domain/model
+// they bind to is fachliche Konfiguration, so it lives here rather
+// than as literals in HexMenu.svelte.
+export const SHORTCUT_MODES: ShortcutModeConfig[] = [
+  {
+    modeId: 'live',
+    domain: 'move',
+    model: 'ridehailing',
+    actions: [
+      { id: 'need_ride', label: 'I NEED\nA RIDE', action: 'search' },
+      { id: 'offer_ride', label: 'I OFFER\nA RIDE', action: 'offer' },
+    ],
+  },
+];
+
+export interface ActionConfig {
+  id: 'offer' | 'search'; // the value stored as selAction; also the row-1 hex id under 'listings'
+  label: string;          // row-1 hex label under 'listings'
+  submitNodeId: string;   // hex id for the final form-row button
+  submitLabel: string;    // its label
+  submitEvent: string;    // event name HexMenu dispatches on submit
+}
+
+// The two actions shared by every mode — 'listings' shows them
+// directly as its row-1 choice; SHORTCUT_MODES entries reference the
+// same `action` values from their own buttons instead of showing this
+// row (see shortcutNodes/actionNodes in HexMenu.svelte).
+export const ACTIONS: ActionConfig[] = [
+  { id: 'offer', label: 'OFFER', submitNodeId: 'submit', submitLabel: 'SUBMIT', submitEvent: 'offerSubmit' },
+  { id: 'search', label: 'SEARCH', submitNodeId: 'gosearch', submitLabel: 'SEARCH', submitEvent: 'searchSubmit' },
+];
+
+// Labels for the three fixed form-row hexagons (LOCATION/DETAILS always
+// shown when the form is; ANYPAY only when the effective model has
+// anypay options — see HexMenu's showAnypayHex). Their ids stay literal
+// in HexMenu.svelte since each is wired to one specific component
+// (Location/Details/Anypay.svelte) — only the label text is data here,
+// not the component wiring itself.
+export const FORM_STEP_LABELS = {
+  location: 'LOCATION',
+  details: 'DETAILS',
+  anypay: 'ANYPAY',
+} as const;
