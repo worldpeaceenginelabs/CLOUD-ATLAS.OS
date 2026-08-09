@@ -155,10 +155,18 @@
   // it all falls out of the domains.ts table.
 
   // ─── SELECTIONS ───
-  // Same principle as before: every value here is independent state that
-  // a click only ever flips on its own node; a row is only ever hidden
-  // because its *parent* selection was cleared, never reset explicitly.
-  // Nothing commits until SUBMIT.
+  // Every value here is independent state that a click only ever flips
+  // on its own node; a row is only ever hidden because its *parent*
+  // selection was cleared, never reset explicitly — with one
+  // deliberate exception: selAction. Switching selAction (OFFER↔SEARCH,
+  // or a shortcut mode's own two buttons) never clears anything
+  // downstream — domain, model, anypay, details, and location all
+  // survive an action switch, since selAction isn't a parent of any of
+  // them, it's a sibling. Only an actual change to domain or model
+  // (a real parent) still invalidates what depends on it. SUBMIT no
+  // longer clears the slate either — selections persist after
+  // dispatch, so the same intent can be re-submitted under a different
+  // action without re-entering anything.
   //
   // selAction is the one shared ACTION concept for every mode — a
   // shortcut mode (see activeShortcut below) and 'listings' just show
@@ -229,6 +237,26 @@
     : (listableModels[0] || null);
   $: dispatch('tooltip', effectiveModel);
 
+  // Assembles the outward-facing submit payload from the current
+  // selections — unchanged from the existing implementation, just
+  // placed here since it reads HexMenu's own selection state directly
+  // (selDomain/selModel/selAction/selAnypay/detailsValues/selLocation
+  // already match its parameter-free reads 1:1).
+  function buildPayload() {
+    return {
+      tags: [
+        ['domain', selDomain],
+        ['model', selModel],
+        ['action', selAction],
+        ...selAnypay.map(id => ['anypay', id]),
+      ],
+      content: JSON.stringify({
+        ...detailsValues,
+        location: selLocation,
+      }),
+    };
+  }
+
   function go(id) {
     if (didDrag) return;
     if (MODES.some(m => m.id === id && m.noop)) return; // inert placeholder hex (today: BBQ)
@@ -244,19 +272,23 @@
       if (a) {
         // UI navigation only — the fachliche binding (which domain and
         // model this shortcut points to) comes entirely from
-        // activeShortcut, never a literal here.
-        const next = selAction === a.action ? null : a.action;
-        selAction = next;
-        selDomain = next ? activeShortcut.domain : null;
-        selModel = next ? activeShortcut.model : null;
-        selAnypay = []; detailsValues = {}; selLocation = null;
+        // activeShortcut, never a literal here. Domain/model are this
+        // shortcut's fixed binding, not a per-click choice, so they
+        // stay set regardless of which way selAction toggles —
+        // anypay/details/location are untouched too, same reasoning
+        // as the genericFlow action row above.
+        selAction = selAction === a.action ? null : a.action;
+        selDomain = activeShortcut.domain;
+        selModel = activeShortcut.model;
         return;
       }
     }
     if (isGenericFlow && ACTIONS.some(a => a.id === id)) {
-      const next = selAction === id ? null : id;
-      if (next !== selAction) { selDomain = null; selModel = null; selAnypay = []; detailsValues = {}; selLocation = null; }
-      selAction = next;
+      // Only selAction toggles here. Domain/model (and everything that
+      // depends on them — anypay/details/location) are untouched: an
+      // OFFER↔SEARCH switch is a change to selAction, not to any
+      // higher-level selection, so nothing downstream invalidates.
+      selAction = selAction === id ? null : id;
       return;
     }
     if (DOMAIN_IDS.has(id)) {
@@ -279,17 +311,14 @@
     return;
     }
     if (ACTIONS.some(a => a.submitNodeId === id)) {
-      // The one true point of no return: hand off, then clear the slate.
-      // Same payload shape for every mode now — a shortcut mode and the
-      // genericFlow mode both resolve to the same domain/model/action
-      // data, just reached through different UI paths.
+      // Hand off via the existing buildPayload()/submitEvent mechanism.
+      // No state reset anymore — selections (including selAction)
+      // persist after submit, so e.g. an OFFER can be followed by a
+      // SEARCH on the same intent without re-entering anything.
       const actionCfg = ACTIONS.find(a => a.id === selAction);
-      dispatch(actionCfg.submitEvent, {
-        selMode, selAction, selDomain, selModel, selAnypay, detailsValues, selLocation,
-      });
-      selMode = null; selAction = null;
-      selDomain = null; selModel = null; selAnypay = [];
-      detailsValues = {}; selLocation = null;
+      const payload = buildPayload();
+      console.log(payload);
+      dispatch(actionCfg.submitEvent, payload);
       return;
     }
     // A mode with placeholderNodes (today: 'next') is reserved: those
