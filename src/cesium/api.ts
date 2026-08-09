@@ -9,24 +9,25 @@ import type { EntityPicker, PickedEntity } from './pickEntity';
 import { createAreaPicker } from './pickArea';
 import type { AreaPicker, BoundingBox } from './pickArea';
 import { placeMarker } from './marker';
-import type { Coordinates, MarkerKind, MarkerHandle } from './marker';
+import type { Coordinates, MarkerKind, MarkerHandle, MarkerOptions } from './marker';
 import { previewRoute } from './route';
 import type { RouteHandle } from './route';
+import { addEntity, removeEntity } from './entity';
+import type { EntityOptions } from './entity';
 
 /**
  * cesium/api.ts
  * -----------------------------------------------------------------------
  * The ONLY public interface between Svelte components and the Cesium
  * engine. Structured by capability (camera / location / pick / marker /
- * route), no UI logic, no knowledge of any component, and — as of this
- * revision — no direct Cesium implementation knowledge either: every
- * function below is a thin pass-through to one of the seven internal
- * modules.
+ * route / entity), no UI logic, no knowledge of any component, and — as of
+ * this revision — no direct Cesium implementation knowledge either: every
+ * function below is a thin pass-through to one of the internal modules.
  *
  * Internal modules (viewer.ts, camera.ts, location.ts, pickLocation.ts,
- * pickEntity.ts, pickArea.ts, marker.ts, route.ts) own all Cesium-specific
- * logic and stay implementation details — components import only from
- * here:
+ * pickEntity.ts, pickArea.ts, marker.ts, route.ts, entity.ts) own all
+ * Cesium-specific logic and stay implementation details — components
+ * import only from here:
  *
  *   Location.svelte -> cesium/api.ts -> internal Cesium modules
  *
@@ -162,12 +163,19 @@ export type { PickedEntity, BoundingBox };
 
 /** @deprecated kept as an alias for the existing public name; same shape as MarkerHandle. */
 export type MarkerPreview = MarkerHandle;
-export type { MarkerKind };
+export type { MarkerKind, MarkerOptions };
 
 export const marker = {
-  /** Place a single pin at the given coordinates. Caller owns the returned handle and must call remove() themselves. */
-  place(coords: Coordinates, kind: MarkerKind = 'point'): MarkerPreview {
-    return placeMarker(requireViewer(), coords, kind);
+  /**
+   * Place a single pin at the given coordinates. Caller owns the returned
+   * handle and must call remove() themselves.
+   *
+   * `options` lets the caller override individual appearance properties
+   * (color, pixelSize, outlineColor, outlineWidth) for this one marker;
+   * anything left unset falls back to `kind`'s default look.
+   */
+  place(coords: Coordinates, kind: MarkerKind = 'point', options?: MarkerOptions): MarkerPreview {
+    return placeMarker(requireViewer(), coords, kind, options);
   }
 };
 
@@ -186,8 +194,30 @@ export const route = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* Entity (generic add/remove)                                                */
+/* -------------------------------------------------------------------------- */
+
+export type { EntityOptions };
+
+export const entity = {
+  /**
+   * Add an arbitrary Cesium entity under `id`. Unlike marker.place(), this
+   * has no opinion on appearance — pass whatever Cesium entity options
+   * (point, billboard, polyline, polygon, label, ...) the component needs.
+   * `id` must be unique; reusing an id that's still on the globe throws.
+   */
+  add(id: string, options: EntityOptions): void {
+    addEntity(requireViewer(), id, options);
+  },
+  /** Remove the entity previously added under `id`. No-op if it's already gone or was never added. */
+  remove(id: string): void {
+    removeEntity(requireViewer(), id);
+  }
+};
+
+/* -------------------------------------------------------------------------- */
 /* Convenience aggregate                                                      */
 /* -------------------------------------------------------------------------- */
 
 /** Same capabilities, grouped for call sites that prefer `globe.camera...`, `globe.pick...` etc. */
-export const globe = { camera, location, pick, route, marker };
+export const globe = { camera, location, pick, route, marker, entity };

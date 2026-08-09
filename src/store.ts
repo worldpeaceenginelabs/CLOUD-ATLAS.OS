@@ -1,152 +1,172 @@
-import { writable, type Writable } from 'svelte/store';
-import type { Coordinates, ModelData, SceneData, LatLon, GigVertical, Listing } from './types';
-import { GLOBAL_FEED_MAP_VERTICALS } from './gig/verticals';
+/**
+ * store.ts — Generic runtime state infrastructure.
+ *
+ * This module is a small, framework-agnostic reactive container for a
+ * single value of arbitrary type `T`. It has no knowledge of any
+ * particular application: no domain models, no persistence, no network
+ * concerns, and no UI framework dependency.
+ *
+ * Architectural boundary
+ * -----------------------
+ * This file MUST stay independent of:
+ *   - persistence (e.g. idb.ts / IndexedDB)
+ *   - network/protocol layers (e.g. nostr.ts)
+ *   - any UI framework (Svelte, React, etc.)
+ *   - domain-specific state shapes or business logic
+ *
+ * Higher-level orchestration code (e.g. an app's root component) is
+ * responsible for deciding what `T` represents, when to persist it,
+ * and when to update it in response to external events. This module
+ * only provides the mechanism for holding a value and notifying
+ * interested parties when it changes.
+ *
+ * Design notes
+ * ------------
+ * - `set`/`update` replace the stored reference rather than mutating
+ *   or inspecting it. No deep cloning, freezing, diffing, or
+ *   serialization is performed — the caller owns the shape of `T`.
+ * - Notification is synchronous: subscribers are called immediately
+ *   after a successful change, in the order they subscribed.
+ * - A subscriber is called once immediately upon subscribing, with
+ *   the current value, similar to common store conventions. This
+ *   keeps consumers from needing a separate `get()` call just to
+ *   read the initial state.
+ * - `set()` is a no-op (no notification) when the new value is
+ *   `Object.is`-equal to the current value, avoiding redundant
+ *   notifications for identical primitives/references without
+ *   attempting any deeper equality check.
+ * - Errors thrown by one subscriber are isolated so they cannot
+ *   prevent other subscribers from being notified, and cannot leave
+ *   the store's internal bookkeeping in a broken state.
+ * - Unsubscribing (including unsubscribing from within a
+ *   notification callback) is safe at any time.
+ */
 
-// ─── Store registry ──────────────────────────────────────────
-type ResetFn = () => void;
-const registry: ResetFn[] = [];
+/** A function invoked with the current value whenever the store changes. */
+export type Subscriber<T> = (value: T) => void;
 
-function resettable<T>(initial: T): Writable<T> {
-  const s = writable(initial);
-  registry.push(() => s.set(typeof initial === 'object' && initial !== null
-    ? structuredClone(initial)
-    : initial));
-  return s;
+/** Call to stop receiving notifications from a store. Safe to call multiple times. */
+export type Unsubscribe = () => void;
+
+/**
+ * Minimal generic store interface. Higher-level code can depend on this
+ * shape instead of the concrete `createStore` implementation, making it
+ * easy to substitute a different implementation later without changing
+ * consumers.
+ */
+export interface Store<T> {
+  /** Returns the current value synchronously. */
+  get(): T;
+
+  /** Replaces the current value. No-op if `value` is `Object.is`-equal to the current value. */
+  set(value: T): void;
+
+  /** Computes and stores a new value from the previous one, e.g. `update(n => n + 1)`. */
+  update(updater: (current: T) => T): void;
+
+  /**
+   * Subscribes to value changes. The subscriber is invoked immediately
+   * with the current value, and again on every subsequent change.
+   * Returns a function that removes the subscription.
+   */
+  subscribe(subscriber: Subscriber<T>): Unsubscribe;
+
+  /** Resets the value back to the initial value the store was created with. */
+  reset(): void;
 }
 
-export function resetAllStores() {
-  for (const reset of registry) reset();
-}
+/**
+ * Creates a new generic, strongly typed reactive store.
+ *
+ * @param initialValue The value the store starts with, and the value
+ *   restored by `reset()`.
+ */
+export function createStore<T>(initialValue: T): Store<T> {
+  let currentValue: T = initialValue;
 
-// ─── UI State ────────────────────────────────────────────────
-export const showPicture = resettable(true);
-export const gridReady = resettable(false);
-export const isEditorOpen = resettable(false);
+  // Ordered set of active subscribers. A Set preserves insertion order
+  // in JavaScript, which gives us deterministic notification order
+  // while still allowing O(1) add/remove for cleanup.
+  const subscribers = new Set<Subscriber<T>>();
 
-// ─── 3D Scene State ──────────────────────────────────────────
-export const cesiumReady = resettable(false);
-export const viewer = resettable<any>(null);
-export const currentHeight = resettable(0);
-export const is3DTilesetActive = resettable(false);
-export const isBasemapLoaded = resettable(false);
-export const isTilesetLoaded = resettable(false);
-export const enable3DTileset = resettable(false);
-/** User-provided Cesium Ion access token (overrides the env default) */
-export const userIonAccessToken = resettable('');
+  function notify(): void {
+    // Snapshot subscribers before iterating so that subscribers added
+    // or removed *during* notification (e.g. a subscriber that
+    // unsubscribes itself, or another one) don't corrupt iteration or
+    // cause skipped/duplicate calls within this notification round.
+    const toNotify = Array.from(subscribers);
 
-// ─── Progress ────────────────────────────────────────────────
-export const basemapProgress = resettable(0);
-export const tilesetProgress = resettable(0);
-export const isInitialLoadComplete = resettable(false);
+    for (const subscriber of toNotify) {
+      // A subscriber may have unsubscribed itself during this same
+      // notification round (e.g. from an earlier callback); skip it.
+      if (!subscribers.has(subscriber)) continue;
 
-// ─── Data ────────────────────────────────────────────────────
-export const coordinates: Writable<Coordinates> = resettable<Coordinates>({
-  latitude: '',
-  longitude: '',
-  height: 0,
-});
-export const models: Writable<ModelData[]> = resettable<ModelData[]>([]);
-
-// ─── Roaming Area Painting State ─────────────────────────────
-export const isRoamingAreaMode = resettable(false);
-export const roamingAreaBounds = resettable<{
-  north: number; south: number; east: number; west: number;
-} | null>(null);
-export const roamingPaintSignal = resettable(0);
-export const roamingCancelSignal = resettable(0);
-export const roamingClearSignal = resettable(0);
-
-// ─── Path Drawing State ──────────────────────────────────────
-export const isPathDrawingMode = resettable(false);
-export const pathWaypoints = resettable<LatLon[]>([]);
-/** Increment to signal Cesium to enter path-drawing mode */
-export const pathPaintSignal = resettable(0);
-/** Increment to signal Cesium to cancel path drawing */
-export const pathCancelSignal = resettable(0);
-/** Increment to signal Cesium to clear path visuals */
-export const pathClearSignal = resettable(0);
-
-// ─── Simulation State ────────────────────────────────────────
-export const isSimulationRunning = resettable(false);
-export const simulationSpeed = resettable(1.0);
-/** Number of entities in the simulation system (models + herd members) */
-export const simulationEntityCount = resettable(0);
-
-// ─── Scene State ─────────────────────────────────────────────
-export const scenes: Writable<SceneData[]> = resettable<SceneData[]>([]);
-
-// ─── Preview Model State ─────────────────────────────────────
-export const previewModel = resettable<ModelData | null>(null);
-export const isPreviewMode = resettable(false);
-export const editingModelId = resettable<string | null>(null);
-
-// ─── Temporary Model State ───────────────────────────────────
-export const temporaryModelId = resettable<string | null>(null);
-
-// ─── User Live GPS Location ──────────────────────────────────
-export const userLiveLocation = resettable<{ latitude: number; longitude: number } | null>(null);
-
-// ─── Gig Economy ─────────────────────────────────────────────
-export const userGigRole = resettable<'requester' | 'provider' | null>(null);
-export const currentGeohash = resettable('');
-/** Whether the gig economy panel can be closed via the X button */
-export const gigCanClose = resettable(true);
-/** Pre-selected vertical from the Operator Halo (auto-navigated on panel open) */
-export const preselectedGigVertical = resettable<GigVertical | null>(null);
-/** Signal Cesium to reopen the Operator Halo from the gig panel (set by back buttons) */
-export const showOperatorHaloFromGig = resettable(false);
-
-// ─── Fly-to ──────────────────────────────────────────────────
-export type LocationOptions = {
-  openHalo?: boolean;
-  haloOrigin?: 'picked-point' | 'user-location';
-  /** Whether to update the coordinates store (defaults to true). */
-  updateCoordinates?: boolean;
-  /** Whether to create/move the green picked-point marker (defaults to true). */
-  createPickedMarker?: boolean;
-};
-
-export type FlyToLocationPayload = {
-  lat: number;
-  lon: number;
-  options?: LocationOptions;
-};
-
-export const flyToLocation = resettable<FlyToLocationPayload | null>(null);
-
-// ─── Map Layers ──────────────────────────────────────────────
-/** Set of currently active map layer IDs (e.g. 'helpouts', 'brainstorming'). Starts with SG verticals on, helpouts/social off. */
-export const activeMapLayers = resettable<Set<string>>(new Set(GLOBAL_FEED_MAP_VERTICALS));
-/** Per-vertical refresh counter — increment a key to force-refresh that layer */
-export const layerRefresh = resettable<Record<string, number>>({});
-/** Per-vertical listings to render on the map (written by LayersMenu, read by Cesium) */
-export const layerListings = resettable<Record<string, Listing[]>>({});
-
-/** Increment refresh counter for a specific listing layer. */
-export function bumpLayerRefresh(verticalId: string): void {
-  layerRefresh.update((all) => ({ ...all, [verticalId]: (all[verticalId] ?? 0) + 1 }));
-}
-
-/** Replace listings for one vertical layer. */
-export function setLayerListings(verticalId: string, listings: Listing[]): void {
-  layerListings.update((all) => ({ ...all, [verticalId]: listings }));
-}
-
-// Remember where the Operator Halo was opened from (user location vs picked point)
-export const gigHaloOrigin = resettable<'user-location' | 'picked-point' | null>(null);
-
-/** Remove listings that match deletedSet (entries are 'id:pubkey'). Used after applying DELETEs from relay. */
-export function applyDeletionsToLayerListings(deletedSet: Set<string>): void {
-  if (deletedSet.size === 0) return;
-  layerListings.update((all) => {
-    const next: Record<string, Listing[]> = {};
-    for (const k of Object.keys(all)) {
-      next[k] = all[k].filter((l) => !deletedSet.has(`${l.id}:${l.pubkey}`));
+      try {
+        subscriber(currentValue);
+      } catch (error) {
+        // Isolate subscriber errors: one misbehaving subscriber must
+        // not stop others from being notified, and must not corrupt
+        // the store's internal state. Surface the error asynchronously
+        // so it isn't silently swallowed.
+        reportSubscriberError(error);
+      }
     }
-    return next;
-  });
+  }
+
+  function get(): T {
+    return currentValue;
+  }
+
+  function set(value: T): void {
+    // Avoid redundant notifications for identical values. `Object.is`
+    // is used (rather than `===`) so that e.g. NaN is treated as equal
+    // to NaN, matching intuitive "did the value actually change?"
+    // semantics without attempting any deep/structural comparison.
+    if (Object.is(currentValue, value)) return;
+
+    currentValue = value;
+    notify();
+  }
+
+  function update(updater: (current: T) => T): void {
+    set(updater(currentValue));
+  }
+
+  function subscribe(subscriber: Subscriber<T>): Unsubscribe {
+    subscribers.add(subscriber);
+
+    // Emit the current value immediately so subscribers don't need a
+    // separate get() call to obtain the initial state.
+    try {
+      subscriber(currentValue);
+    } catch (error) {
+      reportSubscriberError(error);
+    }
+
+    let active = true;
+    return () => {
+      if (!active) return; // Safe to call more than once.
+      active = false;
+      subscribers.delete(subscriber);
+    };
+  }
+
+  function reset(): void {
+    set(initialValue);
+  }
+
+  return { get, set, update, subscribe, reset };
 }
 
-// ─── Online Listings ─────────────────────────────────────────
-/** Whether the online listings panel is open */
-export const onlinePanelOpen = resettable(false);
+/**
+ * Reports an error thrown by a subscriber without letting it propagate
+ * into the store's own call stack. Deferred via a microtask/macrotask
+ * so it surfaces (e.g. as an unhandled exception in dev tools / Node)
+ * instead of being silently discarded, while still not disrupting the
+ * synchronous notification loop.
+ */
+function reportSubscriberError(error: unknown): void {
+  setTimeout(() => {
+    throw error;
+  }, 0);
+}

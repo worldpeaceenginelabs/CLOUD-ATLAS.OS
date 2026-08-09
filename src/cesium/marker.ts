@@ -28,19 +28,33 @@ export interface MarkerHandle {
   remove(): void;
 }
 
+/**
+ * Appearance overrides for a single marker. Anything left unset falls back
+ * to the kind's default (MARKER_COLORS) or the previous hardcoded value, so
+ * existing call sites that don't pass options keep looking exactly as
+ * before.
+ */
+export interface MarkerOptions {
+  color?: Cesium.Color;
+  pixelSize?: number;
+  outlineColor?: Cesium.Color;
+  outlineWidth?: number;
+}
+
 /** Place a single pin at the given coordinates. Caller owns the returned handle and must call remove() themselves. */
 export function placeMarker(
   viewer: Cesium.Viewer,
   coords: Coordinates,
-  kind: MarkerKind = 'point'
+  kind: MarkerKind = 'point',
+  options?: MarkerOptions
 ): MarkerHandle {
   const entity = viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees(coords.longitude, coords.latitude),
     point: {
-      pixelSize: 10,
-      color: MARKER_COLORS[kind],
-      outlineColor: Cesium.Color.BLACK,
-      outlineWidth: 1,
+      pixelSize: options?.pixelSize ?? 10,
+      color: options?.color ?? MARKER_COLORS[kind],
+      outlineColor: options?.outlineColor ?? Cesium.Color.BLACK,
+      outlineWidth: options?.outlineWidth ?? 1,
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
     }
   });
