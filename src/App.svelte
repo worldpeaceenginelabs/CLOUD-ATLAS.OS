@@ -4,12 +4,27 @@
   import HexMenu from "./HexMenu.svelte";
   import Cesium from "./Cesium.svelte";
   import OverlayLayer from "./OverlayLayer.svelte";
+  import Orchestrator from "./Orchestrator.svelte";
 
   let tooltip = null;
+  let orchestrator: Orchestrator;
 
   let workspaceEl;
   let resizeObserver;
   let landscape = true;
+
+  // HexMenu's submit events only bubble to its direct parent (this
+  // component), so App.svelte forwards them to Orchestrator — see
+  // Orchestrator.svelte's own header comment for the full integration
+  // contract. Wrapped rather than bound directly so a submit fired before
+  // orchestrator finishes mounting is simply a (harmless) no-op instead of
+  // throwing.
+  function handleOfferSubmit(e) {
+    orchestrator?.handleOfferSubmit(e);
+  }
+  function handleSearchSubmit(e) {
+    orchestrator?.handleSearchSubmit(e);
+  }
 
   function updateLayout() {
     if (!workspaceEl) return;
@@ -31,7 +46,11 @@
 <div class="workspace" bind:this={workspaceEl}>
 
   <div class="background-layer">
-    <HexMenu on:tooltip={(e) => (tooltip = e.detail)} />
+    <HexMenu
+      on:tooltip={(e) => (tooltip = e.detail)}
+      on:offerSubmit={handleOfferSubmit}
+      on:searchSubmit={handleSearchSubmit}
+    />
   </div>
 
   <div
@@ -42,6 +61,8 @@
     <div class="cesium-layer">
       <Cesium />
     </div>
+
+    <Orchestrator bind:this={orchestrator} />
 
     <OverlayLayer {tooltip} />
   </div>
