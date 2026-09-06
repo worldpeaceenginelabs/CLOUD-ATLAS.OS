@@ -4,27 +4,30 @@
   import HexMenu from "./HexMenu.svelte";
   import Cesium from "./Cesium.svelte";
   import OverlayLayer from "./OverlayLayer.svelte";
+  import EntityLayer from "./cesium/EntityLayer.svelte";
   import Orchestrator from "./Orchestrator.svelte";
 
   let tooltip = null;
-  let orchestrator: Orchestrator;
+
+  // Orchestrator is mounted persistently (it owns a standing relay
+  // connection, the tombstone watcher and any in-progress LIVE session —
+  // none of that should restart on every submit). New work reaches it
+  // purely as a prop: HexMenu's submit events only bubble to their direct
+  // parent (this component), so they're captured here as plain reactive
+  // state and passed straight down — no event forwarding, no bind:this,
+  // no controller layer.
+  let submit: { payload: { tags: string[][]; content: string }; action: "offer" | "search" } | null = null;
+
+  function handleOfferSubmit(e) {
+    submit = { payload: e.detail, action: "offer" };
+  }
+  function handleSearchSubmit(e) {
+    submit = { payload: e.detail, action: "search" };
+  }
 
   let workspaceEl;
   let resizeObserver;
   let landscape = true;
-
-  // HexMenu's submit events only bubble to its direct parent (this
-  // component), so App.svelte forwards them to Orchestrator — see
-  // Orchestrator.svelte's own header comment for the full integration
-  // contract. Wrapped rather than bound directly so a submit fired before
-  // orchestrator finishes mounting is simply a (harmless) no-op instead of
-  // throwing.
-  function handleOfferSubmit(e) {
-    orchestrator?.handleOfferSubmit(e);
-  }
-  function handleSearchSubmit(e) {
-    orchestrator?.handleSearchSubmit(e);
-  }
 
   function updateLayout() {
     if (!workspaceEl) return;
@@ -62,10 +65,12 @@
       <Cesium />
     </div>
 
-    <Orchestrator bind:this={orchestrator} />
+    <EntityLayer />
 
     <OverlayLayer {tooltip} />
   </div>
+
+  <Orchestrator {submit} />
 
 </div>
 

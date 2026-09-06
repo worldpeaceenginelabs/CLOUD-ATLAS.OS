@@ -14,7 +14,7 @@
  */
 
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
-import { IdbDatabase } from './idb';
+import { IdbDatabase } from '../idb';
 
 const DB_NAME = 'app-identity';
 const DB_VERSION = 1;

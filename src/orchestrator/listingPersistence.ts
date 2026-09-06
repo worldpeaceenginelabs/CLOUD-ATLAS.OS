@@ -10,7 +10,7 @@
  * layer at all (see orchestrator-prompt.md §11).
  */
 
-import { IdbDatabase } from './idb';
+import { IdbDatabase } from '../idb';
 import type { ListingRecord } from './appStore';
 
 const DB_NAME = 'app-listings';

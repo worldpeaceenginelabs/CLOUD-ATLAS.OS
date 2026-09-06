@@ -13,7 +13,7 @@
  * the "higher-level orchestration code" to do).
  */
 
-import { createStore, type Store } from './store';
+import { createStore, type Store } from '../store';
 
 /** A single LIVE match/claim record, as far as the rest of the app needs to see it. */
 export interface LiveRecord {
@@ -53,6 +53,8 @@ export interface AppState {
   live: LiveRecord | null;
   /** All known, non-expired LISTING records, keyed by `${author}:${dTag}`. */
   listings: Record<string, ListingRecord>;
+  /** The active LISTING search's model and whether a coarser "Load More" page is available (orchestrator-prompt.md §3.4). Null when no search is active. */
+  listingSearch: { model: string; canLoadMore: boolean } | null;
   /** Last user-facing validation/operational error, if any (e.g. a lead-time violation on publish). Cleared on the next successful operation. */
   lastError: string | null;
 }
@@ -61,6 +63,7 @@ const initialState: AppState = {
   inFlight: false,
   live: null,
   listings: {},
+  listingSearch: null,
   lastError: null,
 };
 
