@@ -26,7 +26,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { entity, pick } from './api';
   import type { EntityOptions, PickedEntity } from './api';
-  import { appStore, type AppState, type EntityRecord } from '../Orchestrator/appStore';
+  import { appStore, type AppState, type EntityRecord } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
 
   const activeMarkerIds = new Set<string>(); // record ids currently rendered as Cesium entities

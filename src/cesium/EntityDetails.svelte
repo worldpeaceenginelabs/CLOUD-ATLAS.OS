@@ -15,7 +15,7 @@
   // — this is an unrelated, read-only "show what I clicked on" panel.
   // -----------------------------------------------------------------------
   import { createEventDispatcher } from 'svelte';
-  import type { EntityRecord } from '../Orchestrator/appStore';
+  import type { EntityRecord } from '../orchestrator/appStore';
 
   export let record: EntityRecord | null = null;
 
