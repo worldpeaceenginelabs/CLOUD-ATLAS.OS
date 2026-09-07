@@ -47,19 +47,19 @@
     type NostrFilter,
     type SubscriptionHandle,
   } from './nostr';
-  import { encode, cells3x3, cells4x4, cellsInParent } from './Orchestrator/geohash';
+  import { encode, cells3x3, cells4x4, cellsInParent } from './orchestrator/geohash';
   import {
     getModelPolicy,
     ABSOLUTE_MAX_VALIDITY_DAYS,
     type ListingModelPolicy,
-  } from './Orchestrator/listingPolicy';
-  import { getKeypair } from './Orchestrator/keyManager';
-  import { appStore, type AppState, type LiveRecord, type ListingRecord } from './Orchestrator/appStore';
+  } from './orchestrator/listingPolicy';
+  import { getKeypair } from './orchestrator/keyManager';
+  import { appStore, type AppState, type LiveRecord, type ListingRecord } from './orchestrator/appStore';
   import {
     saveListing,
     deleteListing as deleteListingPersisted,
     loadAllListings,
-  } from './Orchestrator/listingPersistence';
+  } from './orchestrator/listingPersistence';
   import type { LocationValue } from './hexmenu/domains';
 
   // ─── Tuning constants (orchestrator's own policy, not infrastructure) ──
