@@ -110,11 +110,26 @@ export interface ModelConfig {
 // Centralized here so callers (HexMenu.svelte) never need to know
 // whether a given model varies its Details schema by action — they
 // just ask for "the schema for this model + this action".
-export function detailsFor(model: ModelConfig, action: 'offer' | 'search' | null): DetailsConfig {
+export function detailsFor(
+  model: ModelConfig,
+  action: 'offer' | 'search' | null
+): DetailsConfig {
   const spec = model.details;
+
   if ('offer' in spec && 'search' in spec) {
     return action === 'offer' ? spec.offer : spec.search;
   }
+
+  if (action === 'search') {
+    const searchSchema = { ...spec };
+
+    delete searchSchema.title;
+    delete searchSchema.description;
+    delete searchSchema.contact;
+
+    return searchSchema;
+  }
+
   return spec;
 }
 

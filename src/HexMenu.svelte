@@ -243,6 +243,36 @@
   // (selDomain/selModel/selAction/selAnypay/detailsValues/selLocation
   // already match its parameter-free reads 1:1).
   function buildPayload() {
+    const payloadDetails = {};
+
+    if (detailsSchema?.interactionMode && detailsValues.interactionMode !== undefined) {
+      payloadDetails.interactionMode = detailsValues.interactionMode;
+    }
+
+    if (detailsSchema?.title && detailsValues.title !== undefined) {
+      payloadDetails.title = detailsValues.title;
+    }
+
+    if (detailsSchema?.category && detailsValues.categoryId !== undefined) {
+      payloadDetails.categoryId = detailsValues.categoryId;
+    }
+
+    if (detailsSchema?.category && detailsValues.categoryIds !== undefined) {
+      payloadDetails.categoryIds = detailsValues.categoryIds;
+    }
+
+    if (detailsSchema?.date && detailsValues.date !== undefined) {
+      payloadDetails.date = detailsValues.date;
+    }
+
+    if (detailsSchema?.description && detailsValues.description !== undefined) {
+      payloadDetails.description = detailsValues.description;
+    }
+
+    if (detailsSchema?.contact && detailsValues.contact !== undefined) {
+      payloadDetails.contact = detailsValues.contact;
+    }
+
     return {
       tags: [
         ['domain', selDomain],
@@ -251,7 +281,7 @@
         ...selAnypay.map(id => ['anypay', id]),
       ],
       content: JSON.stringify({
-        ...detailsValues,
+        ...payloadDetails,
         location: selLocation,
       }),
     };
