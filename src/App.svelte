@@ -9,6 +9,31 @@
 
   let tooltip = null;
 
+  // Web deep link (§4-§8 of the marketing/delete instruction): parsed
+  // once on mount from the current URL, e.g. /listing/abc123 ->
+  // { domain: 'listing', eventId: 'abc123' }. This is the only URL
+  // handling in the app — no router. An unrecognized path just leaves
+  // `deepLink` null and the app behaves exactly as it always did.
+  let deepLink: { domain: string; eventId: string } | null = null;
+
+  function parseDeepLinkPath(pathname: string): { domain: string; eventId: string } | null {
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length !== 2) return null;
+    const [domain, eventId] = parts;
+    if (!domain || !eventId) return null;
+    return { domain, eventId };
+  }
+
+  // Owner-initiated deletion (cesium/EntityDetails.svelte's Delete button)
+  // bubbles up through EntityLayer as a plain `delete` event, exactly like
+  // HexMenu's submit events — captured here as reactive state and passed
+  // straight down to Orchestrator, never forwarded as a direct call.
+  let deleteRequest: { id: string } | null = null;
+
+  function handleDeleteRequest(e) {
+    deleteRequest = { id: e.detail.id };
+  }
+
   // Orchestrator is mounted persistently (it owns a standing relay
   // connection, the tombstone watcher and any in-progress LIVE session —
   // none of that should restart on every submit). New work reaches it
@@ -39,6 +64,8 @@
     resizeObserver = new ResizeObserver(updateLayout);
     resizeObserver.observe(workspaceEl);
     updateLayout();
+
+    deepLink = parseDeepLinkPath(window.location.pathname);
   });
 
   onDestroy(() => {
@@ -65,12 +92,12 @@
       <Cesium />
     </div>
 
-    <EntityLayer />
+    <EntityLayer {deepLink} on:delete={handleDeleteRequest} />
 
     <OverlayLayer {tooltip} />
   </div>
 
-  <Orchestrator {submit} />
+  <Orchestrator {submit} {deleteRequest} openEventId={deepLink?.eventId ?? null} />
 
 </div>
 

@@ -31,6 +31,14 @@
   // state, errors, the current LIVE match, "Load More" for LISTING
   // search). `$appStore.inFlight` reflects exactly this "a workflow is
   // active" state for any other consumer that needs it.
+  //
+  // Two more props follow the exact same prop-down + reactive-statement
+  // pattern as `submit`, each its own small isolated operation rather than
+  // a bounded workflow (neither is gated by the single-workflow lock):
+  // `deleteRequest` (owner deletion, bubbled up from cesium/EntityDetails.svelte
+  // via its parent) and `openEventId` (deep-link resolution: fetches one
+  // specific event by id if it isn't already known — App.svelte sets this
+  // from the current URL).
   // -----------------------------------------------------------------------
 
   import { onMount, onDestroy } from 'svelte';
@@ -93,6 +101,28 @@
   export let submit: { payload: HexMenuPayload; action: 'offer' | 'search' } | null = null;
 
   $: if (submit) handleSubmit(submit.payload, submit.action);
+
+  /**
+   * Owner-initiated deletion of one of the caller's own listings (see
+   * cesium/EntityDetails.svelte's Delete button). Same prop-down pattern
+   * as `submit` — no exported imperative method, no bind:this. `id` is
+   * the `${author}:${dTag}` logical id shown in the store.
+   */
+  export let deleteRequest: { id: string } | null = null;
+
+  $: if (deleteRequest) deleteOwnListing(deleteRequest.id);
+
+  /**
+   * A specific Nostr event id to fetch and bring into the Store if it
+   * isn't already known — the network-side half of opening a deep link
+   * (cesium/EntityLayer.svelte does the Store-side half: selecting it
+   * once present). Reuses the exact same fetch-by-id + processListingEvent
+   * pipeline already used for our own publish-echo and for deleteOwnListing's
+   * confirmation — not a second discovery mechanism.
+   */
+  export let openEventId: string | null = null;
+
+  $: if (openEventId) fetchListingByEventId(openEventId);
 
   // ─── Single active workflow (§1/§2 of the second review) ────────────
   //
@@ -204,7 +234,7 @@
   // ═══════════════════════════════════════════════════════════════════
 
   /** Publish a tombstone for one of the caller's own listings and wait for it to come back through the normal receive path (§3.2/§4), same as any other listing mutation. `id` is the `${author}:${dTag}` logical id shown in the store. */
-  export async function deleteOwnListing(id: string) {
+  async function deleteOwnListing(id: string) {
     if (!client) return;
     const dTag = id.slice(id.indexOf(':') + 1);
     const marker = client.publishDeletionMarker(dTag, [], LISTING_KIND);
@@ -213,6 +243,23 @@
       { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 },
     );
     for (const event of own.events) await processListingEvent(event, { persist: true });
+  }
+
+  /**
+   * Fetches one specific listing by its actual Nostr event id and feeds it
+   * through the normal receive pipeline (verify/interpret/persist/store) —
+   * exactly like the tombstone watcher or a live subscription: a single,
+   * isolated event, applied directly, not part of any bounded in-flight
+   * batch. Deep-linking to an event nobody has discovered yet is the only
+   * reason this exists; it's still the same pipeline everything else uses.
+   */
+  async function fetchListingByEventId(eventId: string) {
+    if (!client) return;
+    const result = await client.query(
+      { kinds: [LISTING_KIND], ids: [eventId] },
+      { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 },
+    );
+    for (const event of result.events) await processListingEvent(event, { persist: true });
   }
 
   async function handleSubmit(payload: HexMenuPayload, action: 'offer' | 'search') {
@@ -832,6 +879,7 @@
     const record: ListingRecord = {
       kind: 'listing',
       id,
+      eventId: event.id,
       author: event.pubkey,
       dTag,
       domain: event.tags.find((t) => t[0] === 'domain')?.[1] ?? '',
@@ -902,6 +950,7 @@
     client = new NostrClient(sk, {
       onLog: (level, message) => (level === 'warn' ? console.warn : console.log)(`[nostr] ${message}`),
     });
+    appStore.update((s) => ({ ...s, ownPubkey: client!.pubkey }));
     client.onRelayCountChange((connected) => {
       connectedRelays = connected;
     });

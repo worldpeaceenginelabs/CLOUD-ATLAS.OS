@@ -34,6 +34,8 @@ export interface ListingRecord {
   kind: 'listing';
   /** `${author}:${dTag}` — the record's logical (application-level) identity. */
   id: string;
+  /** The actual Nostr event id of the current version of this listing — used for shareable links (Marketing), never for application-level identity/dedup (that's `id`/`dTag`, which stays stable across republishes; `eventId` changes on every update). */
+  eventId: string;
   author: string;
   dTag: string;
   domain: string;
@@ -57,6 +59,8 @@ export interface AppState {
   listingSearch: { model: string; canLoadMore: boolean } | null;
   /** Last user-facing validation/operational error, if any (e.g. a lead-time violation on publish). Cleared on the next successful operation. */
   lastError: string | null;
+  /** This client's own public key, once known (set once, right after the Nostr client is created) — lets any reader determine "am I the author of this record" without talking to Nostr itself. */
+  ownPubkey: string | null;
 }
 
 const initialState: AppState = {
@@ -65,6 +69,7 @@ const initialState: AppState = {
   listings: {},
   listingSearch: null,
   lastError: null,
+  ownPubkey: null,
 };
 
 export const appStore: Store<AppState> = createStore(initialState);

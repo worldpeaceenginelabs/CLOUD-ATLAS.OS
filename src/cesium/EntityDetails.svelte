@@ -13,16 +13,37 @@
   // Named "EntityDetails" rather than "Details" to avoid colliding with
   // the existing hexmenu/Details.svelte (the listing-creation form modal)
   // — this is an unrelated, read-only "show what I clicked on" panel.
+  //
+  // Owner-only actions (Delete, Marketing): still no direct Nostr
+  // communication here. Delete just dispatches an event upward — the
+  // actual tombstone publish stays entirely in Orchestrator's existing
+  // flow (see EntityLayer.svelte, which forwards this event, and
+  // App.svelte, which turns it into Orchestrator's `deleteRequest` prop).
+  // Marketing is pure UI composition (a link built from two plain fields
+  // already on the record), so it opens locally with no event needed.
   // -----------------------------------------------------------------------
   import { createEventDispatcher } from 'svelte';
   import type { EntityRecord } from '../orchestrator/appStore';
+  import Marketing from '../shared/Marketing.svelte';
 
   export let record: EntityRecord | null = null;
+  /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's `author` to decide whether to show the owner-only actions below. */
+  export let ownPubkey: string | null = null;
 
   const dispatch = createEventDispatcher();
 
+  $: isOwner = !!record && !!ownPubkey && record.kind === 'listing' && record.author === ownPubkey;
+
+  let showMarketing = false;
+
   function close() {
     dispatch('close');
+  }
+
+  function requestDelete() {
+    if (!record) return;
+    dispatch('delete', record);
+    close(); // optimistic — the record disappears from the map once the tombstone round-trips; no reason to keep showing it now
   }
 
   function onKeydown(e: KeyboardEvent) {
@@ -143,7 +164,18 @@
         <span class="value mono">{formatCoords(record.location)}</span>
       </div>
     {/if}
+
+    {#if isOwner}
+      <div class="owner-actions">
+        <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Marketing</button>
+        <button class="owner-btn delete" on:click={requestDelete}>Delete</button>
+      </div>
+    {/if}
   </div>
+{/if}
+
+{#if showMarketing && record?.kind === 'listing'}
+  <Marketing domain={record.domain} eventId={record.eventId} on:close={() => (showMarketing = false)} />
 {/if}
 
 <style>
@@ -284,6 +316,43 @@
     font-size: 0.88em;
     line-height: 1.5;
     color: #dcdcdc;
+  }
+
+  .owner-actions {
+    display: flex;
+    gap: 0.6em;
+    margin-top: 1.1em;
+    padding-top: 1em;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .owner-btn {
+    flex: 1;
+    padding: 0.45em 0;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85em;
+    cursor: pointer;
+  }
+
+  .owner-btn.marketing {
+    background: linear-gradient(90deg, #335bf4, #2ae9c9);
+    border: none;
+    color: #0b0b0d;
+  }
+  .owner-btn.marketing:hover,
+  .owner-btn.marketing:focus-visible {
+    filter: brightness(1.08);
+  }
+
+  .owner-btn.delete {
+    background: transparent;
+    border: 1px solid #ff6b6b;
+    color: #ff6b6b;
+  }
+  .owner-btn.delete:hover,
+  .owner-btn.delete:focus-visible {
+    background: rgba(255, 107, 107, 0.12);
   }
 
   @media (prefers-reduced-motion: no-preference) {
