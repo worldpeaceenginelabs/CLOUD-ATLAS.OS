@@ -114,8 +114,10 @@ export function waitForGlobeLoaded(): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 function configureIon(options: CreateViewerOptions): void {
-  if (options.ionAccessToken) {
-    Cesium.Ion.defaultAccessToken = options.ionAccessToken;
+  const token = options.ionAccessToken || import.meta.env.VITE_ION_ACCESS_TOKEN;
+
+  if (token) {
+    Cesium.Ion.defaultAccessToken = token;
   }
 }
 
