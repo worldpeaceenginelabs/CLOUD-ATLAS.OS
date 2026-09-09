@@ -93,6 +93,26 @@ export const MODEL_POLICIES: Record<string, ModelPolicy> = {
 /** Absolute ceiling on listing validity, regardless of model (orchestrator-prompt.md §3.1). */
 export const ABSOLUTE_MAX_VALIDITY_DAYS = 14;
 
-export function getModelPolicy(model: string): ModelPolicy | undefined {
-  return MODEL_POLICIES[model];
+/**
+ * Domains with no model-selection step at all (today: "goods" — its
+ * payload carries no `model` tag, by design). For these, the domain id
+ * itself is what determines the operating mode/policy. Kept as its own
+ * small map, separate from MODEL_POLICIES (which stays exactly what its
+ * name says — a lookup by model id), rather than overloading one map
+ * with two different kinds of keys.
+ */
+export const MODELLESS_DOMAIN_POLICIES: Record<string, ModelPolicy> = {
+  goods: { mode: 'LISTING', maxLeadDays: 14 },
+};
+
+/**
+ * Looks up the policy for a submission. Most domains have a model, and
+ * `model` is looked up directly. A domain with no model-selection step
+ * (see MODELLESS_DOMAIN_POLICIES) has no `model` at all — `domain` is
+ * used instead in that case. Returns undefined if neither resolves,
+ * exactly like an unrecognized model id would have before.
+ */
+export function getModelPolicy(model: string | undefined, domain: string): ModelPolicy | undefined {
+  if (model) return MODEL_POLICIES[model];
+  return MODELLESS_DOMAIN_POLICIES[domain];
 }

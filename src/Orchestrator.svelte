@@ -145,7 +145,10 @@
   function beginWorkflow(): symbol {
     const token = Symbol('workflow');
     activeWorkflowToken = token;
-    appStore.update((s) => ({ ...s, inFlight: true }));
+    // A new workflow starting is exactly "a new relevant HexMenu
+    // interaction" — clear any stale error/status from a previous one so
+    // it doesn't stay shown forever once this one's own outcome is known.
+    appStore.update((s) => ({ ...s, inFlight: true, lastError: null }));
     return token;
   }
 
@@ -277,10 +280,12 @@
     }
 
     const domain = tagValue(payload.tags, 'domain');
+    // Absent for domains with no model-selection step (e.g. "goods") —
+    // that's expected, not an error; see getModelPolicy below.
     const model = tagValue(payload.tags, 'model');
     const anypay = payload.tags.filter((t) => t[0] === 'anypay').map((t) => t[1]);
-    if (!domain || !model) {
-      setError('Payload is missing domain/model.');
+    if (!domain) {
+      setError('Payload is missing domain.');
       return;
     }
 
@@ -292,27 +297,33 @@
       return;
     }
 
-    // The operating mode comes ONLY from the model's policy — never from
-    // `action`. `action` merely selects the intent *within* whichever
-    // mode the model already determined (orchestrator-prompt.md §1/§11).
-    const policy = getModelPolicy(model);
+    // The operating mode comes ONLY from the model's (or, for a
+    // model-less domain, the domain's own) policy — never from `action`.
+    // `action` merely selects the intent *within* whichever mode was
+    // already determined (orchestrator-prompt.md §1/§11).
+    const policy = getModelPolicy(model, domain);
     if (!policy) {
-      setError(`No operating-mode policy known for model "${model}".`);
+      setError(model ? `No operating-mode policy known for model "${model}".` : `Domain "${domain}" requires a model.`);
       return;
     }
+
+    // Model-less domains use their own domain id as the tag/filter key
+    // everywhere a model id would otherwise go (e.g. the `t` tag, LIVE's
+    // need-/offer- prefix) — same mechanism, just keyed by domain instead.
+    const effectiveModel = model ?? domain;
 
     const token = beginWorkflow();
 
     if (policy.mode === 'LIVE') {
       const role = action === 'offer' ? 'provider' : 'requester';
-      await startLiveSession(role, model, content);
+      await startLiveSession(role, effectiveModel, content);
     } else if (policy.mode === 'LISTING' && action === 'offer') {
-      await publishListing(domain, model, anypay, content, policy, token);
+      await publishListing(domain, effectiveModel, anypay, content, policy, token);
     } else {
       // LISTING + search: content is search criteria (location/category/
       // model), not an offer payload — searchListings never reads
       // title/description/contact, so no offer-only fields are required.
-      await searchListings(model, content, policy, token);
+      await searchListings(effectiveModel, content, policy, token);
     }
   }
 
@@ -792,6 +803,9 @@
     });
     listingSearch = { ...listingSearch, liveSub };
 
+    // canLoadMore is purely "is there a coarser precision left to try" —
+    // never gated by how many results this search actually found; a
+    // 0-, 1-, or many-result search all still get to Load More.
     endWorkflow({ listingSearch: { model, canLoadMore: !!geohash4 } });
   }
 
@@ -1023,7 +1037,7 @@
       </span>
     {/if}
 
-    {#if $appStore.listingSearch?.canLoadMore}
+    {#if $appStore.listingSearch?.canLoadMore && !$appStore.inFlight}
       <button class="load-more" on:click={loadMoreListings}>Load More</button>
     {/if}
   </div>

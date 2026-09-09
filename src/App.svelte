@@ -7,13 +7,17 @@
   import EntityLayer from "./cesium/EntityLayer.svelte";
   import Orchestrator from "./Orchestrator.svelte";
 
+  import { appStore } from "./orchestrator/appStore";
+
   let tooltip = null;
 
   // Web deep link (§4-§8 of the marketing/delete instruction): parsed
-  // once on mount from the current URL, e.g. /listing/abc123 ->
-  // { domain: 'listing', eventId: 'abc123' }. This is the only URL
-  // handling in the app — no router. An unrecognized path just leaves
-  // `deepLink` null and the app behaves exactly as it always did.
+  // once on mount from the current URL, e.g. /move/abc123 ->
+  // { domain: 'move', eventId: 'abc123' } — `domain` here is a real
+  // Cloud Atlas domain (move, goods, food, skills, ...), never "listing"
+  // (that's an operating mode, LIVE/LISTING, not a domain). This is the
+  // only URL handling in the app — no router. An unrecognized path just
+  // leaves `deepLink` null and the app behaves exactly as it always did.
   let deepLink: { domain: string; eventId: string } | null = null;
 
   function parseDeepLinkPath(pathname: string): { domain: string; eventId: string } | null {
@@ -50,6 +54,10 @@
     submit = { payload: e.detail, action: "search" };
   }
 
+  function handleHexMenuInteraction() {
+    appStore.update((s) => ({ ...s, lastError: null }));
+  }
+
   let workspaceEl;
   let resizeObserver;
   let landscape = true;
@@ -80,6 +88,7 @@
       on:tooltip={(e) => (tooltip = e.detail)}
       on:offerSubmit={handleOfferSubmit}
       on:searchSubmit={handleSearchSubmit}
+      on:interaction={handleHexMenuInteraction}
     />
   </div>
 

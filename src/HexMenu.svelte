@@ -243,36 +243,6 @@
   // (selDomain/selModel/selAction/selAnypay/detailsValues/selLocation
   // already match its parameter-free reads 1:1).
   function buildPayload() {
-    const payloadDetails = {};
-
-    if (detailsSchema?.interactionMode && detailsValues.interactionMode !== undefined) {
-      payloadDetails.interactionMode = detailsValues.interactionMode;
-    }
-
-    if (detailsSchema?.title && detailsValues.title !== undefined) {
-      payloadDetails.title = detailsValues.title;
-    }
-
-    if (detailsSchema?.category && detailsValues.categoryId !== undefined) {
-      payloadDetails.categoryId = detailsValues.categoryId;
-    }
-
-    if (detailsSchema?.category && detailsValues.categoryIds !== undefined) {
-      payloadDetails.categoryIds = detailsValues.categoryIds;
-    }
-
-    if (detailsSchema?.date && detailsValues.date !== undefined) {
-      payloadDetails.date = detailsValues.date;
-    }
-
-    if (detailsSchema?.description && detailsValues.description !== undefined) {
-      payloadDetails.description = detailsValues.description;
-    }
-
-    if (detailsSchema?.contact && detailsValues.contact !== undefined) {
-      payloadDetails.contact = detailsValues.contact;
-    }
-
     return {
       tags: [
         ['domain', selDomain],
@@ -281,7 +251,7 @@
         ...selAnypay.map(id => ['anypay', id]),
       ],
       content: JSON.stringify({
-        ...payloadDetails,
+        ...detailsValues,
         location: selLocation,
       }),
     };
@@ -290,6 +260,20 @@
   function go(id) {
     if (didDrag) return;
     if (MODES.some(m => m.id === id && m.noop)) return; // inert placeholder hex (today: BBQ)
+
+    dispatch('interaction');
+
+    // A new HexMenu interaction closes an already-open Location modal —
+    // re-clicking "location" itself is exempt (that's how it (re)opens).
+    // This only ever fires from HexMenu's own dispatch here; the globe/
+    // Cesium click that actually picks a location goes through
+    // Location.svelte's own on:confirm (onLocationConfirm below), which
+    // this never touches, and neither does a click inside the modal
+    // itself. Not a generic "click outside" handler — scoped to exactly
+    // this one dispatch point.
+    if (locationModalOpen && id !== 'location') {
+      locationModalOpen = false;
+    }
 
     if (MODES.some(m => m.id === id && !m.noop)) {
       const next = toggle(selMode, id);

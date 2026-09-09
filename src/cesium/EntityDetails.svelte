@@ -187,6 +187,7 @@
   }
 
   .panel {
+    box-sizing: border-box;
     position: fixed;
     top: 50%;
     right: 2em;
@@ -368,6 +369,36 @@
     to {
       opacity: 1;
       transform: translateY(-50%) translateX(0);
+    }
+  }
+
+  /* Mobile/narrow viewports: center the panel instead of anchoring it to
+     the right edge, and keep it within the viewport either way. The
+     entrance animation gets its own mobile variant too, since it
+     otherwise re-applies the desktop transform (translateY only, no
+     horizontal centering) and would jump on first appearance. */
+  @media (max-width: 700px) {
+    .panel {
+      left: 50%;
+      right: auto;
+      transform: translate(-50%, -50%);
+      width: min(360px, calc(100vw - 2em));
+      max-height: calc(100vh - 2em);
+    }
+  }
+  @media (max-width: 700px) and (prefers-reduced-motion: no-preference) {
+    .panel {
+      animation: slide-in-mobile 0.18s ease-out;
+    }
+  }
+  @keyframes slide-in-mobile {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
     }
   }
 </style>
