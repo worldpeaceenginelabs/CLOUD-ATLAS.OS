@@ -21,7 +21,7 @@ const DEFAULT_VIEWER_OPTIONS: Cesium.Viewer.ConstructorOptions = {
   vrButton: false,
   geocoder: false,
   homeButton: false,
-  infoBox: true,
+  infoBox: false,
   selectionIndicator: false,
   timeline: false,
   navigationHelpButton: false,
@@ -47,6 +47,7 @@ const DEFAULT_VIEWER_OPTIONS: Cesium.Viewer.ConstructorOptions = {
  * touches this. Only cesium/api.ts reads it, via getActiveViewer().
  */
 let activeViewer: Cesium.Viewer | undefined;
+let globeReadyPromise: Promise<void> | undefined;
 
 export function createViewer(
   container: Element | string,
@@ -59,6 +60,25 @@ export function createViewer(
   const viewer = new Cesium.Viewer(container, {
     ...DEFAULT_VIEWER_OPTIONS,
     ...viewerOptions,
+  });
+
+  globeReadyPromise = new Promise((resolve) => {
+    let loadingStarted = false;
+
+    const removeListener =
+      viewer.scene.globe.tileLoadProgressEvent.addEventListener(
+        (queuedTiles) => {
+          if (queuedTiles > 0) {
+            loadingStarted = true;
+            return;
+          }
+
+          if (loadingStarted) {
+            removeListener();
+            resolve();
+          }
+        }
+      );
   });
 
   configureScene(viewer);
@@ -76,12 +96,17 @@ export function destroyViewer(viewer: Cesium.Viewer): void {
   }
   if (activeViewer === viewer) {
     activeViewer = undefined;
+    globeReadyPromise = undefined;
   }
 }
 
 /** The current viewer, if createViewer() has been called and it hasn't been destroyed since. Used internally by cesium/api.ts. */
 export function getActiveViewer(): Cesium.Viewer | undefined {
   return activeViewer;
+}
+
+export function waitForGlobeLoaded(): Promise<void> {
+  return globeReadyPromise ?? Promise.resolve();
 }
 
 /* -------------------------------------------------------------------------- */

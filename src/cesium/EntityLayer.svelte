@@ -38,11 +38,14 @@
   import { appStore, type AppState, type EntityRecord } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
 
+  import { waitForGlobeLoaded } from './viewer';
+
   /** Set by App.svelte from the current URL (see its own header comment) — the event this deep link should open, once it's known locally. */
   export let deepLink: { domain: string; eventId: string } | null = null;
 
   const activeMarkerIds = new Set<string>(); // record ids currently rendered as Cesium entities
   let selectedRecord: EntityRecord | null = null;
+  let globeReady = false;
 
   /** The one place a record gets selected, regardless of *why* — an entity click or a resolved deep link both funnel through this. */
   function selectRecordById(recordId: string): boolean {
@@ -110,7 +113,7 @@
     }
   }
 
-  $: syncMarkers($appStore);
+  $: if (globeReady) syncMarkers($appStore);
 
   function enableEntityPicking() {
     try {
@@ -187,9 +190,14 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
+    await waitForGlobeLoaded();
+
+    globeReady = true;
+    syncMarkers($appStore);
+
     enableEntityPicking();
-    showUserLocation();
+    await showUserLocation();
   });
 
   onDestroy(() => {

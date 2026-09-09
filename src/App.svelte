@@ -6,6 +6,7 @@
   import OverlayLayer from "./OverlayLayer.svelte";
   import EntityLayer from "./cesium/EntityLayer.svelte";
   import Orchestrator from "./Orchestrator.svelte";
+  import ProgressBar from "./shared/ProgressBar.svelte";
 
   import { appStore } from "./orchestrator/appStore";
 
@@ -100,6 +101,8 @@
     <div class="cesium-layer">
       <Cesium />
     </div>
+
+    <ProgressBar />
 
     <EntityLayer {deepLink} on:delete={handleDeleteRequest} />
 
