@@ -33,7 +33,7 @@
 
   import * as Cesium from 'cesium';
   import { onMount, onDestroy } from 'svelte';
-  import { entity, pick } from './api';
+  import { camera, entity, pick, location } from './api';
   import type { EntityOptions, PickedEntity } from './api';
   import { appStore, type AppState, type EntityRecord } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
@@ -128,8 +128,68 @@
     }
   }
 
+  async function showUserLocation() {
+    try {
+      const { longitude, latitude } = await location.getCurrentPosition();
+
+      const position = Cesium.Cartesian3.fromDegrees(longitude, latitude);
+
+      const startTime = Date.now();
+
+      const outerPulse = new Cesium.CallbackProperty(() => {
+        const t = (Date.now() - startTime) / 1000;
+        return 22 + 4 * Math.sin((2 * Math.PI * t) / 4);
+      }, false);
+
+      const innerPulse = new Cesium.CallbackProperty(() => {
+        const t = (Date.now() - startTime) / 1000 - 0.7;
+        return 13 + 3 * Math.sin((2 * Math.PI * t) / 4);
+      }, false);
+
+      entity.add('Your Location!_outer', {
+        position,
+        point: {
+          pixelSize: outerPulse,
+          color: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.04),
+          outlineColor: Cesium.Color.fromCssColorString('#4285F4').withAlpha(0.7),
+          outlineWidth: 2,
+        },
+      });
+
+      entity.add('Your Location!_inner', {
+        position,
+        point: {
+          pixelSize: innerPulse,
+          color: Cesium.Color.fromCssColorString('#FF6D00').withAlpha(0.04),
+          outlineColor: Cesium.Color.fromCssColorString('#FF6D00').withAlpha(0.7),
+          outlineWidth: 2,
+        },
+      });
+
+      entity.add('Your Location!', {
+        position,
+        point: {
+          pixelSize: 4,
+          color: Cesium.Color.WHITE.withAlpha(0.85),
+        },
+      });
+
+      await camera.flyTo(
+        {
+          longitude,
+          latitude,
+          height: 10000000,
+        },
+        { duration: 1.5 }
+      );
+    } catch (error) {
+      console.warn('[EntityLayer] User location unavailable:', error);
+    }
+  }
+
   onMount(() => {
     enableEntityPicking();
+    showUserLocation();
   });
 
   onDestroy(() => {
