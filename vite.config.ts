@@ -3,7 +3,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import cesium from 'vite-plugin-cesium'
 
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [
     svelte(),
     cesium(),
