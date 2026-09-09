@@ -62,6 +62,10 @@ export function createViewer(
     ...viewerOptions,
   });
 
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(0, 0, 10000000),
+  });
+
   globeReadyPromise = new Promise((resolve) => {
     let loadingStarted = false;
 
