@@ -4,6 +4,9 @@
   import Details from './hexmenu/Details.svelte';
   import Location from './hexmenu/Location.svelte';
   import HexGrid from './hexmenu/HexGrid.svelte';
+  import MissionTV from './missions/MissionTV.svelte';
+  import SwarmGovernance from './missions/SwarmGovernance.svelte';
+  import Omnipedia from './missions/Omnipedia.svelte';
   import {
     DOMAINS, ANYPAY_OPTIONS, detailsFor, isDetailsComplete, isLocationComplete,
     MODES, SHORTCUT_MODES, ACTIONS, FORM_STEP_LABELS,
@@ -198,7 +201,20 @@
   let selLocation: LocationValue | null = null;
   let locationModalOpen = false;
 
+  // Which mission modal (if any) is open — 'next' mode's own row, not
+  // part of the genericFlow/shortcut/domain state above, so it's its
+  // own independent flag rather than reusing selMode/selModel for it.
+  let missionModal: 1 | 2 | 3 | null = null;
+
   const DOMAIN_IDS = new Set(DOMAINS.map(d => d.id));
+
+  // Which placeholder id opens which mission component. Same pattern as
+  // FORM_STEP_LABELS' location/details/anypay ids: domains.ts owns the
+  // ids and labels (see MODES → 'next' → placeholderNodes), the
+  // component each one opens is UI wiring and stays literal here. Only
+  // m1/m2/m3 are wired; any other placeholder hex (today: m4) still
+  // renders and goes nowhere, unchanged.
+  const MISSION_MODALS: Record<string, 1 | 2 | 3> = { m1: 1, m2: 2, m3: 3 };
 
   function toggle(currentVal, id) {
     return currentVal === id ? null : id;
@@ -335,8 +351,13 @@
       dispatch(actionCfg.submitEvent, payload);
       return;
     }
-    // A mode with placeholderNodes (today: 'next') is reserved: those
-    // hexagons render but go nowhere.
+    if (id in MISSION_MODALS) {
+      missionModal = toggle(missionModal, MISSION_MODALS[id]);
+      return;
+    }
+    // A mode with placeholderNodes (today: 'next') is reserved: any
+    // hexagon not covered above (today: m4) still renders and goes
+    // nowhere.
   }
 
   function onDetailsUpdate(e) {
@@ -686,6 +707,26 @@
 />
   {/if}
 
+  {#if missionModal}
+    <div class="mission-modal-backdrop" on:click={() => missionModal = null}>
+      <div class="mission-modal-content" on:click|stopPropagation>
+        <button
+          type="button"
+          class="mission-modal-close"
+          aria-label="Close"
+          on:click={() => missionModal = null}
+        >×</button>
+        {#if missionModal === 1}
+          <MissionTV />
+        {:else if missionModal === 2}
+          <SwarmGovernance />
+        {:else if missionModal === 3}
+          <Omnipedia />
+        {/if}
+      </div>
+    </div>
+  {/if}
+
 </div>
 
 <style>
@@ -737,5 +778,54 @@
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  /* Mission modal — deliberately plain: fixed + centered, above both
+     .hexmenu (z-index 10) and the Cesium globe rendered outside this
+     component. Closes on backdrop click or the × button; none of the
+     three mission components bring their own close mechanic, so this
+     is the one small addition that covers all of them. */
+  .mission-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 9999;
+  }
+
+  .mission-modal-content {
+    position: relative;
+    max-width: min(640px, 92vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    background: #1b1b1b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 2.5rem 1.5rem 1.5rem;
+  }
+
+  .mission-modal-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .mission-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 </style>
