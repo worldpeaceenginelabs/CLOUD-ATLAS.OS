@@ -357,12 +357,17 @@
       // No state reset anymore — selections (including selAction)
       // persist after submit, so e.g. an OFFER can be followed by a
       // SEARCH on the same intent without re-entering anything.
-      const actionCfg = ACTIONS.find(a => a.id === selAction);
-      const payload = buildPayload();
-      console.log(payload);
-      dispatch(actionCfg.submitEvent, payload);
-      return;
-    }
+      if (!submitReady) return;
+
+        const actionCfg = ACTIONS.find(a => a.id === selAction);
+        if (!actionCfg) return;
+
+        const payload = buildPayload();
+        console.log(payload);
+        dispatch(actionCfg.submitEvent, payload);
+        return;
+      }
+
     if (id in MISSION_MODALS) {
       missionModal = toggle(missionModal, MISSION_MODALS[id]);
       return;
