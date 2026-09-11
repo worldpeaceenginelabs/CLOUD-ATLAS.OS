@@ -730,31 +730,24 @@
   {/if}
 
   {#if missionModal}
-      <div
-        class="mission-modal-backdrop"
-        class:picking={missionPicking}
-        on:click={() => {
-          if (!missionPicking) missionModal = null;
-        }}
-      >
-      <div class="mission-modal-content" on:click|stopPropagation>
-        <button
-          type="button"
-          class="mission-modal-close"
-          aria-label="Close"
-          on:click={() => missionModal = null}
-        >×</button>
-        {#if missionModal === 1}
-          <MissionTV />
-        {:else if missionModal === 2}
+    <div class="mission-modal-content">
+      <button
+        type="button"
+        class="mission-modal-close"
+        aria-label="Close"
+        on:click={() => missionModal = null}
+      >×</button>
+
+      {#if missionModal === 1}
+        <MissionTV />
+      {:else if missionModal === 2}
         <SwarmGovernance
           on:submit={handleMissionSubmit}
           on:picking={(e) => (missionPicking = e.detail)}
         />
-        {:else if missionModal === 3}
-          <Omnipedia />
-        {/if}
-      </div>
+      {:else if missionModal === 3}
+        <Omnipedia />
+      {/if}
     </div>
   {/if}
 
@@ -816,42 +809,32 @@
      opened without a record. Existing missions selected from Cesium
      are different: SwarmGovernance renders their own detail backdrop,
      panel, and close button, just like EntityDetails.svelte. */
-     .mission-modal-backdrop {
-       position: fixed;
-       inset: 0;
-       display: flex;
-       align-items: center;
-       justify-content: flex-start;
-       padding-left: 4vw;
-       box-sizing: border-box;
-       background: transparent;
-       z-index: 9999;
-     }
 
      .mission-modal-content {
-       position: relative;
+       position: fixed;
+       top: 50%;
+       left: 4vw;
+       transform: translateY(-50%);
+
        width: min(640px, 44vw);
        max-height: 88vh;
        overflow-y: auto;
        box-sizing: border-box;
+
        background: #1b1b1b;
        border: 1px solid rgba(255, 255, 255, 0.12);
        border-radius: 14px;
        padding: 2.5rem 1.5rem 1.5rem;
-     }
 
-     .mission-modal-backdrop.picking {
-       pointer-events: none;
+       z-index: 9999;
      }
 
      @media (max-width: 700px) {
-       .mission-modal-backdrop {
-         align-items: flex-start;
-         justify-content: center;
-         padding: 5vh 1rem 0;
-       }
-
        .mission-modal-content {
+         top: 5vh;
+         left: 50%;
+         transform: translateX(-50%);
+
          width: min(640px, 92vw);
          max-height: 42vh;
        }

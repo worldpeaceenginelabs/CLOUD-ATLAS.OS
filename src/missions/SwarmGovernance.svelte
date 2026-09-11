@@ -223,13 +223,13 @@
 <svelte:window on:keydown={handleKeydown} />
 
 {#if isExisting}
-  <div class="backdrop" on:click={close}>
+
     <div
       class="panel"
       role="dialog"
       aria-modal="true"
       aria-label="Mission details"
-      on:click|stopPropagation
+
     >
       <button class="close-btn" type="button" aria-label="Close" on:click={close}>✕</button>
 
@@ -400,7 +400,7 @@
         {/if}
       </div>
     </div>
-  </div>
+
 {:else}
   <div class="mission-card">
     <form class="mf" on:submit|preventDefault={handleSubmit}>
