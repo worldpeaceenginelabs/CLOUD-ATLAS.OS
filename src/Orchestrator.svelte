@@ -62,19 +62,33 @@
     type ListingModelPolicy,
   } from './orchestrator/listingPolicy';
   import { getKeypair } from './orchestrator/keyManager';
-  import { appStore, type AppState, type LiveRecord, type ListingRecord } from './orchestrator/appStore';
+  import {
+    appStore,
+    type AppState,
+    type LiveRecord,
+    type ListingRecord,
+    type MissionRecord,
+    type MissionLocation,
+    type MissionLanes,
+  } from './orchestrator/appStore';
   import {
     saveListing,
     deleteListing as deleteListingPersisted,
     loadAllListings,
   } from './orchestrator/listingPersistence';
+  import {
+    saveMission,
+    deleteMission as deleteMissionPersisted,
+    loadAllMissions,
+  } from './orchestrator/missionPersistence';
   import type { LocationValue } from './hexmenu/domains';
 
   // ─── Tuning constants (orchestrator's own policy, not infrastructure) ──
 
-  /** Distinct replaceable-event kinds so LIVE claims and LISTINGs never share a NIP-33 identity space. */
+  /** Distinct replaceable-event kinds so LIVE claims, LISTINGs and Missions never share a NIP-33 identity space. */
   const LIVE_KIND = 30079;
   const LISTING_KIND = 30078;
+  const MISSION_KIND = 30080;
 
   const LIVE_G6_PRECISION = 6;
   /** Short claim lifetime — renewed by heartbeat well before it elapses. */
@@ -88,6 +102,10 @@
 
   const LISTING_SEARCH_PRECISION_INITIAL = 5;
   const LISTING_QUERY_TIMEOUT_MS = 15_000;
+
+  /** Mission discovery is global/unbounded (no geohash, no limit — see the mission spec §11) and just re-runs on this interval; no scheduler needed for something this simple. */
+  const MISSION_DISCOVERY_INTERVAL_MS = 30 * 60 * 1000;
+  const MISSION_QUERY_TIMEOUT_MS = 20_000;
 
   // ═══════════════════════════════════════════════════════════════════
   // Entry point (§1) — plain prop, no exported imperative methods
@@ -103,26 +121,54 @@
   $: if (submit) handleSubmit(submit.payload, submit.action);
 
   /**
-   * Owner-initiated deletion of one of the caller's own listings (see
-   * cesium/EntityDetails.svelte's Delete button). Same prop-down pattern
-   * as `submit` — no exported imperative method, no bind:this. `id` is
-   * the `${author}:${dTag}` logical id shown in the store.
+   * Owner-initiated deletion of one of the caller's own listings or
+   * missions (see cesium/EntityDetails.svelte's and missions/
+   * SwarmGovernance.svelte's Delete buttons). Same prop-down pattern as
+   * `submit` — no exported imperative method, no bind:this. `id` is the
+   * `${author}:${dTag}` logical id shown in the store; `kind` picks which
+   * of the two (otherwise identical) tombstone flows applies.
    */
-  export let deleteRequest: { id: string } | null = null;
+  export let deleteRequest: { id: string; kind: 'listing' | 'mission' } | null = null;
 
-  $: if (deleteRequest) deleteOwnListing(deleteRequest.id);
+  $: if (deleteRequest) {
+    if (deleteRequest.kind === 'mission') deleteOwnMission(deleteRequest.id);
+    else deleteOwnListing(deleteRequest.id);
+  }
+
+  /**
+   * A newly created or edited mission (see missions/SwarmGovernance.svelte's
+   * Submit/Save). Same prop-down pattern as `submit`. Fed from two places —
+   * HexMenu's own "new mission" modal, and cesium/EntityLayer.svelte's
+   * "existing mission" card — both funnel into this one prop, same as any
+   * other Svelte event forwarding in this app.
+   */
+  export let missionSubmit: {
+    dTag?: string;
+    title: string;
+    description: string;
+    location: MissionLocation;
+    lanes: MissionLanes;
+  } | null = null;
+
+  $: if (missionSubmit) publishMission(missionSubmit);
 
   /**
    * A specific Nostr event id to fetch and bring into the Store if it
    * isn't already known — the network-side half of opening a deep link
    * (cesium/EntityLayer.svelte does the Store-side half: selecting it
-   * once present). Reuses the exact same fetch-by-id + processListingEvent
-   * pipeline already used for our own publish-echo and for deleteOwnListing's
-   * confirmation — not a second discovery mechanism.
+   * once present, across both listings and missions). Reuses the exact
+   * same fetch-by-id + processListingEvent/processMissionEvent pipeline
+   * already used for our own publish-echoes and for delete confirmations
+   * — not a second discovery mechanism. The event's own `kind` (not the
+   * deep link's URL domain) decides which of the two it is.
    */
   export let openEventId: string | null = null;
 
-  $: if (openEventId) fetchListingByEventId(openEventId);
+  // Deep links are resolved explicitly from onMount after the Nostr client
+  // exists. There is deliberately no reactive `openEventId` fetch here:
+  // App.svelte may provide the prop before `client` has been initialized,
+  // and a reactive statement depending only on openEventId would then
+  // never rerun when client becomes available.
 
   // ─── Single active workflow (§1/§2 of the second review) ────────────
   //
@@ -145,9 +191,6 @@
   function beginWorkflow(): symbol {
     const token = Symbol('workflow');
     activeWorkflowToken = token;
-    // A new workflow starting is exactly "a new relevant HexMenu
-    // interaction" — clear any stale error/status from a previous one so
-    // it doesn't stay shown forever once this one's own outcome is known.
     appStore.update((s) => ({ ...s, inFlight: true, lastError: null }));
     return token;
   }
@@ -164,21 +207,27 @@
    * primitives) are left to resolve naturally; every workflow function
    * checks activeWorkflowToken right after its own await and discards its
    * result once it no longer matches, so nothing an aborted workflow was
-   * doing can still reach the Store after this runs. Wired to this
-   * component's own "Abort" control below.
+   * doing can still reach the Store after this runs.
    */
   function abortActiveWorkflow() {
     if (!activeWorkflowToken) return;
+
     activeWorkflowToken = null;
 
-    if (liveSession) cancelActiveLiveSession(); // already closes every sub/timer and detaches the session identity every LIVE guard checks
+    if (liveSession) {
+      cancelActiveLiveSession();
+    }
 
     if (listingSearch) {
-      listingSearch.liveSub?.close(); // no-op if the aborted step hadn't reached "open a live subscription" yet
+      listingSearch.liveSub?.close();
       listingSearch = null;
     }
 
-    appStore.update((s) => ({ ...s, inFlight: false, listingSearch: null }));
+    appStore.update((s) => ({
+      ...s,
+      inFlight: false,
+      listingSearch: null,
+    }));
   }
 
   // ─── Nostr client lifecycle ─────────────────────────────────────────
@@ -232,6 +281,8 @@
   let tombstoneSub: SubscriptionHandle | null = null;
   let tombstoneCursor = Math.floor(Date.now() / 1000);
 
+  let missionDiscoveryTimer: ReturnType<typeof setInterval> | undefined;
+
   // ═══════════════════════════════════════════════════════════════════
   // Payload contract (§1)
   // ═══════════════════════════════════════════════════════════════════
@@ -239,30 +290,57 @@
   /** Publish a tombstone for one of the caller's own listings and wait for it to come back through the normal receive path (§3.2/§4), same as any other listing mutation. `id` is the `${author}:${dTag}` logical id shown in the store. */
   async function deleteOwnListing(id: string) {
     if (!client) return;
+
     const dTag = id.slice(id.indexOf(':') + 1);
     const marker = client.publishDeletionMarker(dTag, [], LISTING_KIND);
+
     const own = await client.query(
       { kinds: [LISTING_KIND], ids: [marker.id] },
       { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 },
     );
-    for (const event of own.events) await processListingEvent(event, { persist: true });
+
+    for (const event of own.events) {
+      await processListingEvent(event, { persist: true });
+    }
+  }
+
+  /** Same as deleteOwnListing, for a Mission's replaceable identity/kind instead of a listing's. */
+  async function deleteOwnMission(id: string) {
+    if (!client) return;
+
+    const dTag = id.slice(id.indexOf(':') + 1);
+    const marker = client.publishDeletionMarker(dTag, [], MISSION_KIND);
+
+    const own = await client.query(
+      { kinds: [MISSION_KIND], ids: [marker.id] },
+      { timeoutMs: MISSION_QUERY_TIMEOUT_MS, retries: 1 },
+    );
+
+    for (const event of own.events) {
+      processMissionEvent(event);
+    }
   }
 
   /**
-   * Fetches one specific listing by its actual Nostr event id and feeds it
-   * through the normal receive pipeline (verify/interpret/persist/store) —
-   * exactly like the tombstone watcher or a live subscription: a single,
-   * isolated event, applied directly, not part of any bounded in-flight
-   * batch. Deep-linking to an event nobody has discovered yet is the only
-   * reason this exists; it's still the same pipeline everything else uses.
+   * Fetches one specific event by its actual Nostr event id — a listing
+   * or a mission, whichever it turns out to be — and feeds it through the
+   * matching normal receive pipeline.
    */
-  async function fetchListingByEventId(eventId: string) {
+  async function fetchEntityByEventId(eventId: string) {
     if (!client) return;
+
     const result = await client.query(
-      { kinds: [LISTING_KIND], ids: [eventId] },
+      { kinds: [LISTING_KIND, MISSION_KIND], ids: [eventId] },
       { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 },
     );
-    for (const event of result.events) await processListingEvent(event, { persist: true });
+
+    for (const event of result.events) {
+      if (event.kind === MISSION_KIND) {
+        processMissionEvent(event);
+      } else {
+        await processListingEvent(event, { persist: true });
+      }
+    }
   }
 
   async function handleSubmit(payload: HexMenuPayload, action: 'offer' | 'search') {
@@ -271,25 +349,22 @@
       return;
     }
 
-    // §1: exactly one workflow at a time — a new submit while one is
-    // already running is simply ignored. Stopping the active workflow is
-    // what the Abort control (wired to abortActiveWorkflow) is for.
     if (activeWorkflowToken) {
       console.warn('[Orchestrator] Ignoring submit — a workflow is already active. Use Abort first.');
       return;
     }
 
     const domain = tagValue(payload.tags, 'domain');
-    // Absent for domains with no model-selection step (e.g. "goods") —
-    // that's expected, not an error; see getModelPolicy below.
     const model = tagValue(payload.tags, 'model');
     const anypay = payload.tags.filter((t) => t[0] === 'anypay').map((t) => t[1]);
+
     if (!domain) {
       setError('Payload is missing domain.');
       return;
     }
 
     let content: Record<string, any>;
+
     try {
       content = JSON.parse(payload.content);
     } catch {
@@ -297,21 +372,18 @@
       return;
     }
 
-    // The operating mode comes ONLY from the model's (or, for a
-    // model-less domain, the domain's own) policy — never from `action`.
-    // `action` merely selects the intent *within* whichever mode was
-    // already determined (orchestrator-prompt.md §1/§11).
     const policy = getModelPolicy(model, domain);
+
     if (!policy) {
-      setError(model ? `No operating-mode policy known for model "${model}".` : `Domain "${domain}" requires a model.`);
+      setError(
+        model
+          ? `No operating-mode policy known for model "${model}".`
+          : `Domain "${domain}" requires a model.`,
+      );
       return;
     }
 
-    // Model-less domains use their own domain id as the tag/filter key
-    // everywhere a model id would otherwise go (e.g. the `t` tag, LIVE's
-    // need-/offer- prefix) — same mechanism, just keyed by domain instead.
     const effectiveModel = model ?? domain;
-
     const token = beginWorkflow();
 
     if (policy.mode === 'LIVE') {
@@ -320,9 +392,6 @@
     } else if (policy.mode === 'LISTING' && action === 'offer') {
       await publishListing(domain, effectiveModel, anypay, content, policy, token);
     } else {
-      // LISTING + search: content is search criteria (location/category/
-      // model), not an offer payload — searchListings never reads
-      // title/description/contact, so no offer-only fields are required.
       await searchListings(effectiveModel, content, policy, token);
     }
   }
@@ -355,13 +424,22 @@
     content: Record<string, any>,
   ) {
     if (!client) return;
-    const location = extractStartCoordinate(content.location as LocationValue | undefined);
+
+    const location = extractStartCoordinate(
+      content.location as LocationValue | undefined,
+    );
+
     if (!location) {
       setError('LIVE requires a location.');
       return;
     }
 
-    const geohash = encode(location.latitude, location.longitude, LIVE_G6_PRECISION);
+    const geohash = encode(
+      location.latitude,
+      location.longitude,
+      LIVE_G6_PRECISION,
+    );
+
     const dTag = `live-${role}-${crypto.randomUUID()}`;
 
     const session: LiveSessionInternal = {
@@ -377,11 +455,18 @@
       seenCounterpartAuthors: new Set(),
       repliedTo: new Set(),
     };
+
     liveSession = session;
-    appStore.update((s) => ({ ...s, live: toLiveRecord(session) })); // inFlight already set by beginWorkflow()
+
+    appStore.update((s) => ({
+      ...s,
+      live: toLiveRecord(session),
+    }));
 
     const published = await publishLiveClaim(session);
-    if (liveSession !== session) return; // aborted while we were awaiting the initial publish
+
+    if (liveSession !== session) return;
+
     if (!published) {
       endLiveSession(session, 'expired');
       return;
@@ -390,14 +475,23 @@
     scheduleLiveHeartbeat(session);
     startLiveDiscovery(session);
     startLiveExpansionTimers(session);
-    if (role === 'requester') startLiveDmListener(session);
+
+    if (role === 'requester') {
+      startLiveDmListener(session);
+    }
   }
 
-  /** Publishes (or re-publishes, for the heartbeat) this session's own claim event. Returns whether at least one relay confirmed it. */
-  async function publishLiveClaim(session: LiveSessionInternal): Promise<boolean> {
+  async function publishLiveClaim(
+    session: LiveSessionInternal,
+  ): Promise<boolean> {
     if (!client) return false;
-    const expiresAt = Math.floor(Date.now() / 1000) + LIVE_TTL_SECS;
-    const counterKind = session.role === 'requester' ? 'need' : 'offer';
+
+    const expiresAt =
+      Math.floor(Date.now() / 1000) + LIVE_TTL_SECS;
+
+    const counterKind =
+      session.role === 'requester' ? 'need' : 'offer';
+
     const body = JSON.stringify({
       ...session.content,
       status: session.status,
@@ -413,37 +507,70 @@
         ['expiration', String(expiresAt)],
       ],
       content: body,
-      verifyFilter: { kinds: [LIVE_KIND], authors: [client.pubkey], '#d': [session.dTag] },
-      query: { timeoutMs: 8000, retries: 1 },
+      verifyFilter: {
+        kinds: [LIVE_KIND],
+        authors: [client.pubkey],
+        '#d': [session.dTag],
+      },
+      query: {
+        timeoutMs: 8000,
+        retries: 1,
+      },
     });
 
     if (result.status === 'failed') return false;
+
     session.expiresAt = expiresAt;
     return true;
   }
 
   function scheduleLiveHeartbeat(session: LiveSessionInternal) {
     const nowSecs = Math.floor(Date.now() / 1000);
-    const delayMs = Math.max(1000, (session.expiresAt - LIVE_HEARTBEAT_LEAD_SECS - nowSecs) * 1000);
+
+    const delayMs = Math.max(
+      1000,
+      (session.expiresAt - LIVE_HEARTBEAT_LEAD_SECS - nowSecs) * 1000,
+    );
+
     session.heartbeatTimer = setTimeout(async () => {
-      if (liveSession !== session || session.status !== 'searching') return;
+      if (
+        liveSession !== session ||
+        session.status !== 'searching'
+      ) {
+        return;
+      }
+
       const ok = await publishLiveClaim(session);
+
       if (liveSession !== session) return;
+
       if (!ok) {
-        // §2.2: no relay confirmed the renewal — treat our own session as locally expired.
         endLiveSession(session, 'expired');
         return;
       }
+
       scheduleLiveHeartbeat(session);
     }, delayMs);
   }
 
   function startLiveDiscovery(session: LiveSessionInternal) {
     if (!client) return;
-    const counterTag = `${session.role === 'requester' ? 'offer' : 'need'}-${session.model}`;
-    const filter = buildFilter({ kinds: [LIVE_KIND], tags: { t: [counterTag], g: [session.geohash] } });
-    session.discoverySub = client.subscribe(`live-disc-${session.dTag}`, filter, (event) =>
-      handleLiveCandidate(session, event),
+
+    const counterTag =
+      `${session.role === 'requester' ? 'offer' : 'need'}-${session.model}`;
+
+    const filter = buildFilter({
+      kinds: [LIVE_KIND],
+      tags: {
+        t: [counterTag],
+        g: [session.geohash],
+      },
+    });
+
+    session.discoverySub = client.subscribe(
+      `live-disc-${session.dTag}`,
+      filter,
+      (event) => handleLiveCandidate(session, event),
     );
   }
 
@@ -451,11 +578,21 @@
     return event.tags.find((t) => t[0] === 'd')?.[1];
   }
 
-  function handleLiveCandidate(session: LiveSessionInternal, event: NostrEvent) {
-    if (liveSession !== session || session.status !== 'searching') return;
-    if (isDeletionEvent(event)) return; // LIVE claims expire naturally; tombstones aren't part of this protocol.
+  function handleLiveCandidate(
+    session: LiveSessionInternal,
+    event: NostrEvent,
+  ) {
+    if (
+      liveSession !== session ||
+      session.status !== 'searching'
+    ) {
+      return;
+    }
+
+    if (isDeletionEvent(event)) return;
 
     let body: any;
+
     try {
       body = JSON.parse(event.content);
     } catch {
@@ -465,13 +602,9 @@
     session.seenCounterpartAuthors.add(event.pubkey);
 
     if (session.role === 'requester') {
-      // Matching for the requester happens via the encrypted "accept" DM
-      // (startLiveDmListener), not off this discovery stream directly —
-      // this only feeds the empty/no-match expansion triggers above.
       return;
     }
 
-    // Provider: `event` is a 'need-<model>' request from a requester.
     if (body?.status === 'taken') {
       if (body?.winnerPubkey === client?.pubkey) {
         session.peerPubkey = event.pubkey;
@@ -479,39 +612,68 @@
       }
       return;
     }
-    if (body?.status && body.status !== 'open') return; // cancelled/expired from the requester's own perspective
 
-    if (session.repliedTo.has(event.pubkey)) return; // one "accept" per distinct requester
+    if (body?.status && body.status !== 'open') return;
+
+    if (session.repliedTo.has(event.pubkey)) return;
+
     session.repliedTo.add(event.pubkey);
 
     const requestId = dTagOf(event);
     if (!requestId) return;
+
     client?.sendEncrypted(
       event.pubkey,
-      JSON.stringify({ type: 'accept', requestId }),
-      [['expiration', String(Math.floor(Date.now() / 1000) + LIVE_TTL_SECS)]],
+      JSON.stringify({
+        type: 'accept',
+        requestId,
+      }),
+      [
+        [
+          'expiration',
+          String(
+            Math.floor(Date.now() / 1000) + LIVE_TTL_SECS,
+          ),
+        ],
+      ],
     );
   }
 
   function startLiveDmListener(session: LiveSessionInternal) {
     if (!client) return;
+
     const since = Math.floor(Date.now() / 1000);
+
     const filter = buildFilter({
       kinds: [DEFAULT_ENCRYPTED_KIND],
       tags: { p: [client.pubkey] },
       since,
     });
+
     session.dmSub = client.subscribeEncrypted(
       filter,
       (fromPubkey, plaintext) => {
-        if (liveSession !== session || session.status !== 'searching') return; // FCFS lock — first accept only
+        if (
+          liveSession !== session ||
+          session.status !== 'searching'
+        ) {
+          return;
+        }
+
         let msg: any;
+
         try {
           msg = JSON.parse(plaintext);
         } catch {
           return;
         }
-        if (msg?.type !== 'accept' || msg?.requestId !== session.dTag) return;
+
+        if (
+          msg?.type !== 'accept' ||
+          msg?.requestId !== session.dTag
+        ) {
+          return;
+        }
 
         session.peerPubkey = fromPubkey;
         confirmLiveMatch(session);
@@ -521,82 +683,156 @@
   }
 
   async function confirmLiveMatch(session: LiveSessionInternal) {
-    session.status = 'matched'; // synchronous FCFS lock before the async publish below
+    session.status = 'matched';
+
     clearLiveTimers(session);
     session.discoverySub?.close();
     session.dmSub?.close();
-    await publishLiveClaim(session); // republish so the peer (and any losing candidates) observe the "taken" state
+
+    await publishLiveClaim(session);
+
     if (liveSession === session) {
-      endWorkflow({ live: toLiveRecord(session) });
+      endWorkflow({
+        live: toLiveRecord(session),
+      });
     }
   }
 
   function startLiveExpansionTimers(session: LiveSessionInternal) {
     session.expandEmptyTimer = setInterval(() => {
-      if (liveSession !== session || session.status !== 'searching') return;
-      if (session.seenCounterpartAuthors.size === 0) tickExpansion(session);
+      if (
+        liveSession !== session ||
+        session.status !== 'searching'
+      ) {
+        return;
+      }
+
+      if (session.seenCounterpartAuthors.size === 0) {
+        tickExpansion(session);
+      }
     }, LIVE_EXPAND_EMPTY_INTERVAL_MS);
 
     session.expandNoMatchTimer = setInterval(() => {
-      if (liveSession !== session || session.status !== 'searching') return;
-      if (session.seenCounterpartAuthors.size > 0) tickExpansion(session);
+      if (
+        liveSession !== session ||
+        session.status !== 'searching'
+      ) {
+        return;
+      }
+
+      if (session.seenCounterpartAuthors.size > 0) {
+        tickExpansion(session);
+      }
     }, LIVE_EXPAND_NOMATCH_INTERVAL_MS);
   }
 
   function tickExpansion(session: LiveSessionInternal) {
-    if (session.expandLevel >= LIVE_MAX_EXPAND_LEVEL) return; // final grace timer (below) owns the end condition now
+    if (session.expandLevel >= LIVE_MAX_EXPAND_LEVEL) return;
     expandLiveScope(session);
   }
 
   function expandLiveScope(session: LiveSessionInternal) {
-    session.expandLevel = (session.expandLevel + 1) as 1 | 2 | 3;
-    const cells =
-      session.expandLevel === 1 ? cells3x3(session.geohash) :
-      session.expandLevel === 2 ? cells4x4(session.geohash) :
-      cellsInParent(session.geohash);
+    session.expandLevel =
+      (session.expandLevel + 1) as 1 | 2 | 3;
 
-    const counterTag = `${session.role === 'requester' ? 'offer' : 'need'}-${session.model}`;
-    session.discoverySub?.update(buildFilter({ kinds: [LIVE_KIND], tags: { t: [counterTag], g: cells } }));
+    const cells =
+      session.expandLevel === 1
+        ? cells3x3(session.geohash)
+        : session.expandLevel === 2
+          ? cells4x4(session.geohash)
+          : cellsInParent(session.geohash);
+
+    const counterTag =
+      `${session.role === 'requester' ? 'offer' : 'need'}-${session.model}`;
+
+    session.discoverySub?.update(
+      buildFilter({
+        kinds: [LIVE_KIND],
+        tags: {
+          t: [counterTag],
+          g: cells,
+        },
+      }),
+    );
 
     if (session.expandLevel >= LIVE_MAX_EXPAND_LEVEL) {
-      if (session.expandEmptyTimer) clearInterval(session.expandEmptyTimer);
-      if (session.expandNoMatchTimer) clearInterval(session.expandNoMatchTimer);
+      if (session.expandEmptyTimer) {
+        clearInterval(session.expandEmptyTimer);
+      }
+
+      if (session.expandNoMatchTimer) {
+        clearInterval(session.expandNoMatchTimer);
+      }
+
       session.expandEmptyTimer = undefined;
       session.expandNoMatchTimer = undefined;
-      // One final window at the widest supported scope before giving up entirely (§2.5: "endet ergebnislos").
+
       session.finalGraceTimer = setTimeout(() => {
-        if (liveSession === session && session.status === 'searching') endLiveSession(session, 'expired');
+        if (
+          liveSession === session &&
+          session.status === 'searching'
+        ) {
+          endLiveSession(session, 'expired');
+        }
       }, LIVE_EXPAND_NOMATCH_INTERVAL_MS);
     }
   }
 
   function clearLiveTimers(session: LiveSessionInternal) {
-    if (session.heartbeatTimer) clearTimeout(session.heartbeatTimer);
-    if (session.expandEmptyTimer) clearInterval(session.expandEmptyTimer);
-    if (session.expandNoMatchTimer) clearInterval(session.expandNoMatchTimer);
-    if (session.finalGraceTimer) clearTimeout(session.finalGraceTimer);
+    if (session.heartbeatTimer) {
+      clearTimeout(session.heartbeatTimer);
+    }
+
+    if (session.expandEmptyTimer) {
+      clearInterval(session.expandEmptyTimer);
+    }
+
+    if (session.expandNoMatchTimer) {
+      clearInterval(session.expandNoMatchTimer);
+    }
+
+    if (session.finalGraceTimer) {
+      clearTimeout(session.finalGraceTimer);
+    }
   }
 
-  function endLiveSession(session: LiveSessionInternal, finalStatus: 'matched' | 'expired' | 'cancelled') {
+  function endLiveSession(
+    session: LiveSessionInternal,
+    finalStatus: 'matched' | 'expired' | 'cancelled',
+  ) {
     if (liveSession !== session) return;
+
     session.status = finalStatus;
+
     clearLiveTimers(session);
     session.discoverySub?.close();
     session.dmSub?.close();
-    endWorkflow({ live: toLiveRecord(session) });
+
+    endWorkflow({
+      live: toLiveRecord(session),
+    });
   }
 
   function cancelActiveLiveSession() {
     if (!liveSession) return;
+
     const session = liveSession;
+
     clearLiveTimers(session);
     session.discoverySub?.close();
     session.dmSub?.close();
+
     liveSession = null;
-    appStore.update((s) => ({ ...s, live: null }));
+
+    appStore.update((s) => ({
+      ...s,
+      live: null,
+    }));
   }
 
-  function toLiveRecord(session: LiveSessionInternal): LiveRecord {
+  function toLiveRecord(
+    session: LiveSessionInternal,
+  ): LiveRecord {
     return {
       kind: 'live',
       id: session.dTag,
@@ -615,11 +851,20 @@
 
   function parseTimestamp(raw: unknown): number | null {
     if (raw == null || raw === '') return null;
-    if (typeof raw === 'number') return raw > 1e12 ? Math.floor(raw / 1000) : Math.floor(raw);
+
+    if (typeof raw === 'number') {
+      return raw > 1e12
+        ? Math.floor(raw / 1000)
+        : Math.floor(raw);
+    }
+
     if (typeof raw === 'string') {
       const ms = Date.parse(raw);
-      return Number.isNaN(ms) ? null : Math.floor(ms / 1000);
+      return Number.isNaN(ms)
+        ? null
+        : Math.floor(ms / 1000);
     }
+
     return null;
   }
 
@@ -632,38 +877,55 @@
     token: symbol,
   ) {
     if (!client) return;
+
     const now = Math.floor(Date.now() / 1000);
 
-    // §3.1 — lead time is a publish-time gate; expiration is the reference
-    // timestamp itself, never "reference minus lead time".
     let expiresAt: number;
+
     if (policy.referenceField) {
-      const refTs = parseTimestamp(content[policy.referenceField]);
+      const refTs = parseTimestamp(
+        content[policy.referenceField],
+      );
+
       if (refTs != null) {
         const maxLeadSecs = policy.maxLeadDays * 86400;
+
         if (refTs <= now) {
           setError('That date is already in the past.');
           return;
         }
+
         if (refTs - now > maxLeadSecs) {
-          setError(`This can only be published up to ${policy.maxLeadDays} day(s) in advance.`);
+          setError(
+            `This can only be published up to ${policy.maxLeadDays} day(s) in advance.`,
+          );
           return;
         }
+
         expiresAt = refTs;
       } else {
-        expiresAt = now + policy.maxLeadDays * 86400; // reference field present in schema but not filled in — fall back
+        expiresAt =
+          now + policy.maxLeadDays * 86400;
       }
     } else {
-      expiresAt = now + policy.maxLeadDays * 86400;
+      expiresAt =
+        now + policy.maxLeadDays * 86400;
     }
-    expiresAt = Math.min(expiresAt, now + ABSOLUTE_MAX_VALIDITY_DAYS * 86400);
 
-    const location = extractStartCoordinate(content.location as LocationValue | undefined);
-    const interactionMode = content.interactionMode as string | undefined;
-    // §3.2/§3.4 (corrected): geohash tag exists purely because a location
-    // exists — "online" listings simply have none relevant to tag; this is
-    // never a discovery filter decision.
-    const shouldTag = !!location && interactionMode !== 'online';
+    expiresAt = Math.min(
+      expiresAt,
+      now + ABSOLUTE_MAX_VALIDITY_DAYS * 86400,
+    );
+
+    const location = extractStartCoordinate(
+      content.location as LocationValue | undefined,
+    );
+
+    const interactionMode =
+      content.interactionMode as string | undefined;
+
+    const shouldTag =
+      !!location && interactionMode !== 'online';
 
     const tags: string[][] = [
       ['t', `listing-${model}`],
@@ -672,85 +934,152 @@
       ['expiration', String(expiresAt)],
       ...anypay.map((id) => ['anypay', id]),
     ];
+
     if (shouldTag && location) {
-      const g5 = encode(location.latitude, location.longitude, LISTING_SEARCH_PRECISION_INITIAL);
-      tags.push(['g', g5], ['g', g5.slice(0, 4)]);
+      const g5 = encode(
+        location.latitude,
+        location.longitude,
+        LISTING_SEARCH_PRECISION_INITIAL,
+      );
+
+      tags.push(
+        ['g', g5],
+        ['g', g5.slice(0, 4)],
+      );
     }
 
-    const dTag = `listing-${crypto.randomUUID()}`;
+    const dTag =
+      `listing-${crypto.randomUUID()}`;
 
-    const result = await client.publishReplaceableWithVerify({
-      dTag,
-      kind: LISTING_KIND,
-      tags,
-      content: JSON.stringify(content),
-      verifyFilter: { kinds: [LISTING_KIND], authors: [client.pubkey], '#d': [dTag] },
-      query: { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 },
-    });
-    // §1/§4 (second review): the publish request itself can't be
-    // cancelled mid-flight (nostr.ts exposes no such primitive) — but if
-    // this workflow was aborted while it was in flight, its result must
-    // never reach the Store. The listing was legitimately published
-    // either way; only its visibility to this now-cancelled workflow is
-    // suppressed.
+    const result =
+      await client.publishReplaceableWithVerify({
+        dTag,
+        kind: LISTING_KIND,
+        tags,
+        content: JSON.stringify(content),
+        verifyFilter: {
+          kinds: [LISTING_KIND],
+          authors: [client.pubkey],
+          '#d': [dTag],
+        },
+        query: {
+          timeoutMs: LISTING_QUERY_TIMEOUT_MS,
+          retries: 1,
+        },
+      });
+
     if (activeWorkflowToken !== token) return;
 
     if (result.status === 'failed') {
-      setError('Failed to publish — no relay confirmed it.');
+      setError(
+        'Failed to publish — no relay confirmed it.',
+      );
       return;
     }
 
-    // §3.2 "kein Sonderweg": even our own listing only enters the store
-    // once it has round-tripped through the identical receive path used
-    // for discovered listings — never written directly off the publish
-    // result, and (§7/§13) buffered the same way any bounded discovery
-    // batch is, so the store gets one flush, not a partial glimpse.
     const own = await client.query(
-      { kinds: [LISTING_KIND], authors: [client.pubkey], '#d': [dTag] },
-      { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 },
+      {
+        kinds: [LISTING_KIND],
+        authors: [client.pubkey],
+        '#d': [dTag],
+      },
+      {
+        timeoutMs: LISTING_QUERY_TIMEOUT_MS,
+        retries: 1,
+      },
     );
+
     if (activeWorkflowToken !== token) return;
 
-    const buffer = new Map<string, ListingRecord | null>();
-    for (const event of own.events) await processListingEvent(event, { persist: true, buffer });
+    const buffer =
+      new Map<string, ListingRecord | null>();
+
+    for (const event of own.events) {
+      await processListingEvent(event, {
+        persist: true,
+        buffer,
+      });
+    }
+
     if (activeWorkflowToken !== token) return;
 
     flushListingBuffer(buffer);
     endWorkflow();
   }
 
-  function normalizeCategoryFilter(content: Record<string, any>): string[] | null {
-    if (Array.isArray(content.categoryIds) && content.categoryIds.length) return content.categoryIds;
-    if (typeof content.categoryId === 'string' && content.categoryId) return [content.categoryId];
+  function normalizeCategoryFilter(
+    content: Record<string, any>,
+  ): string[] | null {
+    if (
+      Array.isArray(content.categoryIds) &&
+      content.categoryIds.length
+    ) {
+      return content.categoryIds;
+    }
+
+    if (
+      typeof content.categoryId === 'string' &&
+      content.categoryId
+    ) {
+      return [content.categoryId];
+    }
+
     return null;
   }
 
-  function eventMatchesCategory(event: NostrEvent, wanted: string[]): boolean {
+  function eventMatchesCategory(
+    event: NostrEvent,
+    wanted: string[],
+  ): boolean {
     try {
       const content = JSON.parse(event.content);
-      const ids: string[] = content.categoryId ? [content.categoryId] : content.categoryIds ?? [];
-      return ids.some((id: string) => wanted.includes(id));
+
+      const ids: string[] = content.categoryId
+        ? [content.categoryId]
+        : content.categoryIds ?? [];
+
+      return ids.some((id: string) =>
+        wanted.includes(id),
+      );
     } catch {
       return false;
     }
   }
 
-  /**
-   * Runs one bounded query and processes every matching event into a
-   * fresh buffer (never straight into the store) — see processListingEvent
-   * below. Callers flush the buffer once, after the whole batch is done.
-   */
   async function runListingQuery(
     filter: NostrFilter,
     categoryFilter: string[] | null,
   ): Promise<Map<string, ListingRecord | null>> {
-    const buffer = new Map<string, ListingRecord | null>();
+    const buffer =
+      new Map<string, ListingRecord | null>();
+
     if (!client) return buffer;
-    const result = await client.query(filter, { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 });
+
+    const result = await client.query(
+      filter,
+      {
+        timeoutMs: LISTING_QUERY_TIMEOUT_MS,
+        retries: 1,
+      },
+    );
+
     for (const event of result.events) {
-      if (categoryFilter && !eventMatchesCategory(event, categoryFilter)) continue;
-      await processListingEvent(event, { persist: true, buffer });
+      if (
+        categoryFilter &&
+        !eventMatchesCategory(
+          event,
+          categoryFilter,
+        )
+      ) {
+        continue;
+      }
+
+      await processListingEvent(event, {
+        persist: true,
+        buffer,
+      });
     }
+
     return buffer;
   }
 
@@ -761,129 +1090,249 @@
     token: symbol,
   ) {
     if (!client) return;
-    // Search criteria only — location/category/model. Never reads
-    // title/description/contact; those are offer-only fields (§1/§7) and
-    // nothing here requires them to be present.
-    const location = extractStartCoordinate(content.location as LocationValue | undefined);
-    const categoryFilter = normalizeCategoryFilter(content);
 
-    // A new search payload is a new Vorgang (§11) — its result set starts fresh.
-    appStore.update((s) => ({ ...s, listings: {}, listingSearch: null }));
+    const location =
+      extractStartCoordinate(
+        content.location as LocationValue | undefined,
+      );
+
+    const categoryFilter =
+      normalizeCategoryFilter(content);
+
+    appStore.update((s) => ({
+      ...s,
+      listings: {},
+      listingSearch: null,
+    }));
 
     if (!location) {
-      // No location relevant to this search — content/type/category-driven only (§3.4).
-      listingSearch = { model, categoryFilter, geohash5: '', geohash4: '', precision: 5 };
+      const nextSearch: ListingSearchState = {
+        model,
+        categoryFilter,
+        geohash5: '',
+        geohash4: '',
+        precision: 5,
+      };
+
       const buffer = await runListingQuery(
-        buildFilter({ kinds: [LISTING_KIND], tags: { t: [`listing-${model}`] } }),
+        buildFilter({
+          kinds: [LISTING_KIND],
+          tags: {
+            t: [`listing-${model}`],
+          },
+        }),
         categoryFilter,
       );
-      if (activeWorkflowToken !== token) return; // aborted mid-query — discard, nothing left to flush against
+
+      if (activeWorkflowToken !== token) return;
+
       flushListingBuffer(buffer);
+
+      listingSearch = nextSearch;
+
       endWorkflow();
       return;
     }
 
-    const geohash5 = encode(location.latitude, location.longitude, LISTING_SEARCH_PRECISION_INITIAL);
+    const geohash5 = encode(
+      location.latitude,
+      location.longitude,
+      LISTING_SEARCH_PRECISION_INITIAL,
+    );
+
     const geohash4 = geohash5.slice(0, 4);
-    listingSearch = { model, categoryFilter, geohash5, geohash4, precision: 5 };
 
-    const filter = buildFilter({ kinds: [LISTING_KIND], tags: { t: [`listing-${model}`], g: [geohash5] } });
-    const buffer = await runListingQuery(filter, categoryFilter);
-    // §1/§4 (second review): if aborted while this bounded query was in
-    // flight, stop here — don't flush stale results and, critically,
-    // don't open a live subscription for a search that no longer exists.
-    if (activeWorkflowToken !== token) return;
-    flushListingBuffer(buffer);
-
-    // Ongoing live updates after the initial cycle completes (§7) — these
-    // apply straight through, one at a time, no buffering (this is no
-    // longer part of a bounded in-flight batch).
-    const liveSub = client.subscribe(`listing-live-${geohash5}`, filter, (event) => {
-      processListingEvent(event, { persist: true });
-    });
-    listingSearch = { ...listingSearch, liveSub };
-
-    // canLoadMore is purely "is there a coarser precision left to try" —
-    // never gated by how many results this search actually found; a
-    // 0-, 1-, or many-result search all still get to Load More.
-    endWorkflow({ listingSearch: { model, canLoadMore: !!geohash4 } });
-  }
-
-  /** Fetch the next, coarser page of the current LISTING search (§3.4's user-triggered "Load More"). No-op if there's no active search, one is already at the coarsest supported precision, or another workflow is somehow already running. Wired directly to this component's own "Load More" button below. */
-  async function loadMoreListings() {
-    if (!client || activeWorkflowToken || !listingSearch || listingSearch.precision !== 5 || !listingSearch.geohash4) {
-      return;
-    }
-    const token = beginWorkflow();
-    const scope = { ...listingSearch, precision: 4 as const };
-    listingSearch = scope;
+    const nextSearch: ListingSearchState = {
+      model,
+      categoryFilter,
+      geohash5,
+      geohash4,
+      precision: 5,
+    };
 
     const filter = buildFilter({
       kinds: [LISTING_KIND],
-      tags: { t: [`listing-${scope.model}`], g: [scope.geohash4] },
+      tags: {
+        t: [`listing-${model}`],
+        g: [geohash5],
+      },
     });
-    const buffer = await runListingQuery(filter, scope.categoryFilter);
-    if (activeWorkflowToken !== token) return; // aborted mid-query — same rule as searchListings above
+
+    const buffer =
+      await runListingQuery(
+        filter,
+        categoryFilter,
+      );
+
+    if (activeWorkflowToken !== token) return;
 
     flushListingBuffer(buffer);
 
-    scope.liveSub?.close();
-    const liveSub = client.subscribe(`listing-live-${scope.geohash4}`, filter, (event) => {
-      processListingEvent(event, { persist: true });
-    });
-    listingSearch = { ...scope, liveSub };
+    const liveSub = client.subscribe(
+      `listing-live-${geohash5}`,
+      filter,
+      (event) => {
+        processListingEvent(event, {
+          persist: true,
+        });
+      },
+    );
 
-    endWorkflow({ listingSearch: { model: scope.model, canLoadMore: false } });
+    listingSearch = {
+      ...nextSearch,
+      liveSub,
+    };
+
+    endWorkflow({
+      listingSearch: {
+        model: nextSearch.model,
+        canLoadMore: !!nextSearch.geohash4,
+      },
+    });
+  }
+
+  /**
+   * Fetch the next, coarser page of the current LISTING search.
+   *
+   * Important abort rule:
+   * the current search remains at precision 5 until the bounded query has
+   * completed and the workflow token has been verified. Therefore an Abort
+   * during the query cannot leave `listingSearch` falsely marked as
+   * precision 4.
+   */
+  async function loadMoreListings() {
+    if (
+      !client ||
+      activeWorkflowToken ||
+      !listingSearch ||
+      listingSearch.precision !== 5 ||
+      !listingSearch.geohash4
+    ) {
+      return;
+    }
+
+    const token = beginWorkflow();
+
+    const scope: ListingSearchState = {
+      ...listingSearch,
+      precision: 4,
+    };
+
+    const filter = buildFilter({
+      kinds: [LISTING_KIND],
+      tags: {
+        t: [`listing-${scope.model}`],
+        g: [scope.geohash4],
+      },
+    });
+
+    const buffer =
+      await runListingQuery(
+        filter,
+        scope.categoryFilter,
+      );
+
+    // Abort happened while the bounded query was in flight.
+    // Do not flush anything and do not modify the existing search scope.
+    if (activeWorkflowToken !== token) return;
+
+    flushListingBuffer(buffer);
+
+    // Only after the bounded batch has completed successfully does the
+    // old precision-5 subscription get replaced by the precision-4 one.
+    listingSearch?.liveSub?.close();
+
+    const liveSub = client.subscribe(
+      `listing-live-${scope.geohash4}`,
+      filter,
+      (event) => {
+        processListingEvent(event, {
+          persist: true,
+        });
+      },
+    );
+
+    listingSearch = {
+      ...scope,
+      liveSub,
+    };
+
+    endWorkflow({
+      listingSearch: {
+        model: scope.model,
+        canLoadMore: false,
+      },
+    });
   }
 
   /**
    * The single receive-path pipeline for every listing-kind event,
    * regardless of source (discovery query, live subscription, our own
-   * just-published listing fetched back, or the tombstone watcher) — see
-   * orchestrator-prompt.md §6. Verify/dedup against relay origin is
-   * already handled inside nostr.ts; this only interprets, applies
-   * create/update/delete semantics, and projects into store + (for
-   * LISTING) the persistence layer.
-   *
-   * §7/§13: persistence always happens per-event, as events arrive — but
-   * the Store write does NOT, when `opts.buffer` is supplied. Bounded
-   * discovery batches (an initial search, Load More, our own publish
-   * echo) pass a buffer and flush it once, after the whole batch is
-   * processed, so the Store never shows a partial snapshot mid-in-flight.
-   * Standing subscriptions and the tombstone watcher call this without a
-   * buffer, applying each event to the Store immediately — they aren't
-   * part of any bounded in-flight cycle.
+   * just-published listing fetched back, or the tombstone watcher).
    */
   async function processListingEvent(
     event: NostrEvent,
-    opts: { persist: boolean; buffer?: Map<string, ListingRecord | null> },
+    opts: {
+      persist: boolean;
+      buffer?: Map<string, ListingRecord | null>;
+    },
   ) {
     if (isDeletionEvent(event)) {
       const target = getDeletionTarget(event);
+
       if (!target) return;
-      const id = `${target.author}:${target.dTag}`;
+
+      const id =
+        `${target.author}:${target.dTag}`;
+
       listingExpiryTracker.clear(id);
-      if (opts.persist) await deleteListingPersisted(id);
-      if (opts.buffer) opts.buffer.set(id, null);
-      else removeListingFromStore(id);
+
+      if (opts.persist) {
+        await deleteListingPersisted(id);
+      }
+
+      if (opts.buffer) {
+        opts.buffer.set(id, null);
+      } else {
+        removeListingFromStore(id);
+      }
+
       return;
     }
 
     const dTag = dTagOf(event);
     if (!dTag) return;
-    const id = `${event.pubkey}:${dTag}`;
 
-    const expiresAt = getExpiration(event);
-    const now = Math.floor(Date.now() / 1000);
-    if (expiresAt != null && expiresAt <= now) {
+    const id =
+      `${event.pubkey}:${dTag}`;
+
+    const expiresAt =
+      getExpiration(event);
+
+    const now =
+      Math.floor(Date.now() / 1000);
+
+    if (
+      expiresAt != null &&
+      expiresAt <= now
+    ) {
       listingExpiryTracker.clear(id);
-      if (opts.persist) await deleteListingPersisted(id);
-      if (opts.buffer) opts.buffer.set(id, null);
-      else removeListingFromStore(id);
+
+      if (opts.persist) {
+        await deleteListingPersisted(id);
+      }
+
+      if (opts.buffer) {
+        opts.buffer.set(id, null);
+      } else {
+        removeListingFromStore(id);
+      }
+
       return;
     }
 
     let content: Record<string, any>;
+
     try {
       content = JSON.parse(event.content);
     } catch {
@@ -896,63 +1345,352 @@
       eventId: event.id,
       author: event.pubkey,
       dTag,
-      domain: event.tags.find((t) => t[0] === 'domain')?.[1] ?? '',
-      model: event.tags.find((t) => t[0] === 'model')?.[1] ?? '',
-      expiresAt: expiresAt ?? now + ABSOLUTE_MAX_VALIDITY_DAYS * 86400,
-      location: extractStartCoordinate(content.location as LocationValue | undefined),
+      domain:
+        event.tags.find(
+          (t) => t[0] === 'domain',
+        )?.[1] ?? '',
+      model:
+        event.tags.find(
+          (t) => t[0] === 'model',
+        )?.[1] ?? '',
+      expiresAt:
+        expiresAt ??
+        now +
+          ABSOLUTE_MAX_VALIDITY_DAYS *
+            86400,
+      location:
+        extractStartCoordinate(
+          content.location as
+            | LocationValue
+            | undefined,
+        ),
       content,
     };
 
-    if (opts.persist) await saveListing(record);
-    if (opts.buffer) opts.buffer.set(id, record);
-    else upsertListingInStore(record);
+    if (opts.persist) {
+      await saveListing(record);
+    }
+
+    if (opts.buffer) {
+      opts.buffer.set(
+        id,
+        record,
+      );
+    } else {
+      upsertListingInStore(record);
+    }
 
     if (expiresAt != null) {
-      // Expiry timers always act directly on the store — by the time one
-      // fires, whatever batch this record arrived in is long finished.
-      listingExpiryTracker.set(id, expiresAt, () => {
-        removeListingFromStore(id);
-        deleteListingPersisted(id).catch(() => {});
-      });
+      listingExpiryTracker.set(
+        id,
+        expiresAt,
+        () => {
+          removeListingFromStore(id);
+          deleteListingPersisted(id).catch(
+            () => {},
+          );
+        },
+      );
     }
   }
 
-  function upsertListingInStore(record: ListingRecord) {
-    appStore.update((s) => ({ ...s, listings: { ...s.listings, [record.id]: record } }));
+  function upsertListingInStore(
+    record: ListingRecord,
+  ) {
+    appStore.update((s) => ({
+      ...s,
+      listings: {
+        ...s.listings,
+        [record.id]: record,
+      },
+    }));
   }
 
-  function removeListingFromStore(id: string) {
+  function removeListingFromStore(
+    id: string,
+  ) {
     appStore.update((s) => {
-      if (!(id in s.listings)) return s;
-      const listings = { ...s.listings };
+      if (!(id in s.listings)) {
+        return s;
+      }
+
+      const listings = {
+        ...s.listings,
+      };
+
       delete listings[id];
-      return { ...s, listings };
+
+      return {
+        ...s,
+        listings,
+      };
     });
   }
 
-  /** Applies a whole discovery batch to the Store in one update — the in-flight completion point (§7/§13). */
-  function flushListingBuffer(buffer: Map<string, ListingRecord | null>) {
+  function flushListingBuffer(
+    buffer: Map<string, ListingRecord | null>,
+  ) {
     if (buffer.size === 0) return;
+
     appStore.update((s) => {
-      const listings = { ...s.listings };
+      const listings = {
+        ...s.listings,
+      };
+
       for (const [id, record] of buffer) {
-        if (record) listings[id] = record;
-        else delete listings[id];
+        if (record) {
+          listings[id] = record;
+        } else {
+          delete listings[id];
+        }
       }
-      return { ...s, listings };
+
+      return {
+        ...s,
+        listings,
+      };
     });
   }
 
   function startTombstoneWatcher() {
     if (!client) return;
+
     tombstoneSub = client.subscribe(
       'tombstones',
-      buildFilter({ kinds: [LISTING_KIND], tags: { t: [DELETION_TAG_VALUE] }, since: tombstoneCursor }),
+      buildFilter({
+        kinds: [
+          LISTING_KIND,
+          MISSION_KIND,
+        ],
+        tags: {
+          t: [DELETION_TAG_VALUE],
+        },
+        since: tombstoneCursor,
+      }),
       (event) => {
-        tombstoneCursor = Math.max(tombstoneCursor, event.created_at);
-        processListingEvent(event, { persist: true }); // standing subscription — applied immediately, no buffer
+        tombstoneCursor = Math.max(
+          tombstoneCursor,
+          event.created_at,
+        );
+
+        if (event.kind === MISSION_KIND) {
+          processMissionEvent(event);
+        } else {
+          processListingEvent(event, {
+            persist: true,
+          });
+        }
       },
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Mission mode
+  // ═══════════════════════════════════════════════════════════════════
+
+  async function publishMission(payload: {
+    dTag?: string;
+    title: string;
+    description: string;
+    location: MissionLocation;
+    lanes: MissionLanes;
+  }) {
+    if (!client) return;
+
+    const dTag =
+      payload.dTag ??
+      `mission-${crypto.randomUUID()}`;
+
+    const tags: string[][] = [
+      ['t', 'mission'],
+    ];
+
+    if (
+      payload.location.kind === 'point'
+    ) {
+      tags.push([
+        'g',
+        encode(
+          payload.location.latitude,
+          payload.location.longitude,
+          LIVE_G6_PRECISION,
+        ),
+      ]);
+    }
+
+    const content = JSON.stringify({
+      title: payload.title,
+      description: payload.description,
+      lanes: payload.lanes,
+      location: payload.location,
+    });
+
+    const result =
+      await client.publishReplaceableWithVerify({
+        dTag,
+        kind: MISSION_KIND,
+        tags,
+        content,
+        verifyFilter: {
+          kinds: [MISSION_KIND],
+          authors: [client.pubkey],
+          '#d': [dTag],
+        },
+        query: {
+          timeoutMs: MISSION_QUERY_TIMEOUT_MS,
+          retries: 1,
+        },
+      });
+
+    if (result.status === 'failed') {
+      setError(
+        'Failed to publish mission — no relay confirmed it.',
+      );
+      return;
+    }
+
+    const own = await client.query(
+      {
+        kinds: [MISSION_KIND],
+        authors: [client.pubkey],
+        '#d': [dTag],
+      },
+      {
+        timeoutMs: MISSION_QUERY_TIMEOUT_MS,
+        retries: 1,
+      },
+    );
+
+    for (const event of own.events) {
+      processMissionEvent(event);
+    }
+  }
+
+  function processMissionEvent(
+    event: NostrEvent,
+  ) {
+    if (isDeletionEvent(event)) {
+      const target =
+        getDeletionTarget(event);
+
+      if (!target) return;
+
+      const id =
+        `${target.author}:${target.dTag}`;
+
+      removeMissionFromStore(id);
+      deleteMissionPersisted(id).catch(
+        () => {},
+      );
+
+      return;
+    }
+
+    const dTag = dTagOf(event);
+    if (!dTag) return;
+
+    const id =
+      `${event.pubkey}:${dTag}`;
+
+    let parsed: any;
+
+    try {
+      parsed = JSON.parse(event.content);
+    } catch {
+      return;
+    }
+
+    const location =
+      parsed?.location;
+
+    if (
+      !location ||
+      (location.kind !== 'point' &&
+        location.kind !== 'area')
+    ) {
+      return;
+    }
+
+    const record: MissionRecord = {
+      kind: 'mission',
+      id,
+      eventId: event.id,
+      author: event.pubkey,
+      dTag,
+      location,
+      content: {
+        title:
+          typeof parsed.title === 'string'
+            ? parsed.title
+            : '',
+        description:
+          typeof parsed.description === 'string'
+            ? parsed.description
+            : '',
+        lanes: {
+          brainstorming:
+            parsed.lanes?.brainstorming ?? '',
+          meetanddo:
+            parsed.lanes?.meetanddo ?? '',
+          petition:
+            parsed.lanes?.petition ?? '',
+          crowdfunding:
+            parsed.lanes?.crowdfunding ?? '',
+        },
+      },
+    };
+
+    upsertMissionInStore(record);
+    saveMission(record);
+  }
+
+  function upsertMissionInStore(
+    record: MissionRecord,
+  ) {
+    appStore.update((s) => ({
+      ...s,
+      missions: {
+        ...s.missions,
+        [record.id]: record,
+      },
+    }));
+  }
+
+  function removeMissionFromStore(
+    id: string,
+  ) {
+    appStore.update((s) => {
+      if (!(id in s.missions)) {
+        return s;
+      }
+
+      const missions = {
+        ...s.missions,
+      };
+
+      delete missions[id];
+
+      return {
+        ...s,
+        missions,
+      };
+    });
+  }
+
+  async function discoverMissions() {
+    if (!client) return;
+
+    const result = await client.query(
+      { kinds: [MISSION_KIND] },
+      {
+        timeoutMs: MISSION_QUERY_TIMEOUT_MS,
+        retries: 1,
+      },
+    );
+
+    for (const event of result.events) {
+      processMissionEvent(event);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -961,49 +1699,134 @@
 
   onMount(async () => {
     const { sk } = await getKeypair();
+
     client = new NostrClient(sk, {
-      onLog: (level, message) => (level === 'warn' ? console.warn : console.log)(`[nostr] ${message}`),
+      onLog: (level, message) =>
+        (level === 'warn'
+          ? console.warn
+          : console.log)(
+          `[nostr] ${message}`,
+        ),
     });
-    appStore.update((s) => ({ ...s, ownPubkey: client!.pubkey }));
-    client.onRelayCountChange((connected) => {
-      connectedRelays = connected;
-    });
+
+    appStore.update((s) => ({
+      ...s,
+      ownPubkey: client!.pubkey,
+    }));
+
+    client.onRelayCountChange(
+      (connected) => {
+        connectedRelays = connected;
+      },
+    );
+
     client.connect();
 
-    // Hydrate from local cache immediately — not a discovery cycle, no
-    // inFlight (§3.5/§8), but still applied as one batch rather than N
-    // separate store writes.
-    const cached = await loadAllListings();
-    const now = Math.floor(Date.now() / 1000);
-    const hydrated: Record<string, ListingRecord> = {};
+    // Resolve an App.svelte deep link only after the Nostr client exists.
+    // This avoids the startup race where openEventId is already populated
+    // while client is still null.
+    if (openEventId) {
+      fetchEntityByEventId(openEventId);
+    }
+
+    const cached =
+      await loadAllListings();
+
+    const now =
+      Math.floor(Date.now() / 1000);
+
+    const hydrated:
+      Record<string, ListingRecord> = {};
+
     for (const record of cached) {
       if (record.expiresAt <= now) {
-        deleteListingPersisted(record.id).catch(() => {});
+        deleteListingPersisted(
+          record.id,
+        ).catch(() => {});
         continue;
       }
+
       hydrated[record.id] = record;
-      listingExpiryTracker.set(record.id, record.expiresAt, () => {
-        removeListingFromStore(record.id);
-        deleteListingPersisted(record.id).catch(() => {});
-      });
+
+      listingExpiryTracker.set(
+        record.id,
+        record.expiresAt,
+        () => {
+          removeListingFromStore(
+            record.id,
+          );
+
+          deleteListingPersisted(
+            record.id,
+          ).catch(() => {});
+        },
+      );
     }
-    if (Object.keys(hydrated).length > 0) {
-      appStore.update((s) => ({ ...s, listings: { ...s.listings, ...hydrated } }));
+
+    if (
+      Object.keys(hydrated).length > 0
+    ) {
+      appStore.update((s) => ({
+        ...s,
+        listings: {
+          ...s.listings,
+          ...hydrated,
+        },
+      }));
     }
+
+    const cachedMissions =
+      await loadAllMissions();
+
+    if (cachedMissions.length > 0) {
+      const hydratedMissions:
+        Record<string, MissionRecord> = {};
+
+      for (const mission of cachedMissions) {
+        hydratedMissions[mission.id] =
+          mission;
+      }
+
+      appStore.update((s) => ({
+        ...s,
+        missions: {
+          ...s.missions,
+          ...hydratedMissions,
+        },
+      }));
+    }
+
+    discoverMissions();
+
+    missionDiscoveryTimer =
+      setInterval(
+        discoverMissions,
+        MISSION_DISCOVERY_INTERVAL_MS,
+      );
 
     startTombstoneWatcher();
   });
 
   onDestroy(() => {
     cancelActiveLiveSession();
+
     listingSearch?.liveSub?.close();
+
     tombstoneSub?.close();
+
     listingExpiryTracker.clearAll();
+
+    if (missionDiscoveryTimer) {
+      clearInterval(
+        missionDiscoveryTimer,
+      );
+    }
+
     client?.disconnect();
   });
 
   // ═══════════════════════════════════════════════════════════════════
-  // Workflow-status UI (§1/§10/§11) — deliberately small and self-contained
+  // Workflow-status UI
   // ═══════════════════════════════════════════════════════════════════
 
   $: statusVisible =
@@ -1017,18 +1840,34 @@
 {#if statusVisible}
   <div class="orchestrator-status">
     {#if connectedRelays === 0}
-      <span class="row warn">Connecting…</span>
+      <span class="row warn">
+        Connecting…
+      </span>
     {:else}
-      <span class="row">{connectedRelays} relay{connectedRelays === 1 ? '' : 's'} connected</span>
+      <span class="row">
+        {connectedRelays}
+        relay{connectedRelays === 1 ? '' : 's'}
+        connected
+      </span>
     {/if}
 
     {#if $appStore.inFlight}
-      <span class="row busy">Synchronizing…</span>
-      <button class="abort" on:click={abortActiveWorkflow}>Abort</button>
+      <span class="row busy">
+        Synchronizing…
+      </span>
+
+      <button
+        class="abort"
+        on:click={abortActiveWorkflow}
+      >
+        Abort
+      </button>
     {/if}
 
     {#if $appStore.lastError}
-      <span class="row error">{$appStore.lastError}</span>
+      <span class="row error">
+        {$appStore.lastError}
+      </span>
     {/if}
 
     {#if $appStore.live}
@@ -1038,7 +1877,12 @@
     {/if}
 
     {#if $appStore.listingSearch?.canLoadMore && !$appStore.inFlight}
-      <button class="load-more" on:click={loadMoreListings}>Load More</button>
+      <button
+        class="load-more"
+        on:click={loadMoreListings}
+      >
+        Load More
+      </button>
     {/if}
   </div>
 {/if}
@@ -1065,15 +1909,19 @@
   .row {
     white-space: nowrap;
   }
+
   .row.warn {
     color: #ffcc66;
   }
+
   .row.busy {
     color: #2ae9c9;
   }
+
   .row.error {
     color: #ff6b6b;
   }
+
   .row.live {
     color: #8fb0ff;
   }
@@ -1088,6 +1936,7 @@
     cursor: pointer;
     font-size: 1em;
   }
+
   .load-more:hover,
   .load-more:focus-visible {
     filter: brightness(1.08);
@@ -1103,6 +1952,7 @@
     cursor: pointer;
     font-size: 1em;
   }
+
   .abort:hover,
   .abort:focus-visible {
     background: rgba(255, 107, 107, 0.12);

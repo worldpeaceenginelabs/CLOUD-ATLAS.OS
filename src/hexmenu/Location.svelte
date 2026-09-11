@@ -38,7 +38,7 @@ const dispatch = createEventDispatcher<{
     status = 'previewing';
   }
 
-  
+
 function handlePick(coords: Coordinates | null): void {
     if (!coords) return;
     if (geometry === 'point') {
@@ -92,7 +92,7 @@ function handlePick(coords: Coordinates | null): void {
 
   onMount(async () => {
     try {
-      
+
 if (geometry==='route') {
         fromCoords = await globe.location.getCurrentPosition();
         pickupMarker = globe.marker.place(fromCoords, 'pickup');
@@ -174,20 +174,30 @@ if (geometry==='route') {
 </div>
 
 <style>
-  .modal {
-position: fixed;
-top: 50%;
-left: 50%;
-transform: translate(-50%, -50%);
-z-index: 999;
-background: #161616;
-border: 1px solid #333;
-border-radius: 14px;
-padding: 28px 24px 24px;
-width: min(360px, calc(100vw - 40px));
-box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 25%;
+      transform: translate(-50%, -50%);
+      z-index: 999;
+      background: #161616;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 28px 24px 24px;
+      width: min(360px, 44vw);
+      box-sizing: border-box;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    @media (max-width: 700px) {
+      .modal {
+        top: 25%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(360px, 92vw);
+      }
+    }
 
 h2 {
 margin: 0 0 6px;

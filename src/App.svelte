@@ -8,7 +8,11 @@
   import Orchestrator from "./Orchestrator.svelte";
   import ProgressBar from "./shared/ProgressBar.svelte";
 
-  import { appStore } from "./orchestrator/appStore";
+  import {
+    appStore,
+    type MissionLocation,
+    type MissionLanes
+  } from "./orchestrator/appStore";
 
   let tooltip = null;
 
@@ -29,14 +33,35 @@
     return { domain, eventId };
   }
 
-  // Owner-initiated deletion (cesium/EntityDetails.svelte's Delete button)
-  // bubbles up through EntityLayer as a plain `delete` event, exactly like
+  // Owner-initiated deletion (cesium/EntityDetails.svelte's or missions/
+  // SwarmGovernance.svelte's Delete button) bubbles up through EntityLayer
+  // as a plain `delete` event carrying the full record — exactly like
   // HexMenu's submit events — captured here as reactive state and passed
   // straight down to Orchestrator, never forwarded as a direct call.
-  let deleteRequest: { id: string } | null = null;
+  // `kind` picks which of the two (otherwise identical) tombstone flows
+  // applies; it's already on the record, no extra lookup needed.
+  let deleteRequest: { id: string; kind: 'listing' | 'mission' } | null = null;
 
   function handleDeleteRequest(e) {
-    deleteRequest = { id: e.detail.id };
+    deleteRequest = { id: e.detail.id, kind: e.detail.kind };
+  }
+
+  // A newly created or edited mission (missions/SwarmGovernance.svelte's
+  // Submit/Save) reaches here from two different places — HexMenu's own
+  // "new mission" modal (missionSubmit) and EntityLayer's "existing
+  // mission" card (also missionSubmit, forwarded the same way) — both
+  // just set the same reactive state and pass it down, same pattern as
+  // everything else in this file.
+  let missionSubmit: {
+    dTag?: string;
+    title: string;
+    description: string;
+    location: MissionLocation;
+    lanes: MissionLanes;
+  } | null = null;
+
+  function handleMissionSubmit(e) {
+    missionSubmit = e.detail;
   }
 
   // Orchestrator is mounted persistently (it owns a standing relay
@@ -90,6 +115,7 @@
       on:offerSubmit={handleOfferSubmit}
       on:searchSubmit={handleSearchSubmit}
       on:interaction={handleHexMenuInteraction}
+      on:missionSubmit={handleMissionSubmit}
     />
   </div>
 
@@ -103,13 +129,12 @@
     </div>
 
     <ProgressBar />
-
-    <EntityLayer {deepLink} on:delete={handleDeleteRequest} />
+    <EntityLayer {deepLink} on:delete={handleDeleteRequest} on:missionSubmit={handleMissionSubmit} />
 
     <OverlayLayer {tooltip} />
   </div>
 
-  <Orchestrator {submit} {deleteRequest} openEventId={deepLink?.eventId ?? null} />
+  <Orchestrator {submit} {deleteRequest} {missionSubmit} openEventId={deepLink?.eventId ?? null} />
 
 </div>
 

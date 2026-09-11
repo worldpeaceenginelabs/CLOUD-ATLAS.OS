@@ -205,6 +205,7 @@
   // part of the genericFlow/shortcut/domain state above, so it's its
   // own independent flag rather than reusing selMode/selModel for it.
   let missionModal: 1 | 2 | 3 | null = null;
+  let missionPicking = false;
 
   const DOMAIN_IDS = new Set(DOMAINS.map(d => d.id));
 
@@ -215,6 +216,16 @@
   // m1/m2/m3 are wired; any other placeholder hex (today: m4) still
   // renders and goes nowhere, unchanged.
   const MISSION_MODALS: Record<string, 1 | 2 | 3> = { m1: 1, m2: 2, m3: 3 };
+
+  // Forwards a newly-created mission's payload straight out to whatever
+  // mounts HexMenu (App.svelte) — the same "dispatch, don't reach past
+  // the parent" shape as offerSubmit/searchSubmit above, just its own
+  // event name since it's a different payload shape. Closes the modal
+  // optimistically, same as the rest of this file's submit flows.
+  function handleMissionSubmit(e) {
+    dispatch('missionSubmit', e.detail);
+    missionModal = null;
+  }
 
   function toggle(currentVal, id) {
     return currentVal === id ? null : id;
@@ -708,7 +719,13 @@
   {/if}
 
   {#if missionModal}
-    <div class="mission-modal-backdrop" on:click={() => missionModal = null}>
+      <div
+        class="mission-modal-backdrop"
+        class:picking={missionPicking}
+        on:click={() => {
+          if (!missionPicking) missionModal = null;
+        }}
+      >
       <div class="mission-modal-content" on:click|stopPropagation>
         <button
           type="button"
@@ -719,7 +736,10 @@
         {#if missionModal === 1}
           <MissionTV />
         {:else if missionModal === 2}
-          <SwarmGovernance />
+        <SwarmGovernance
+          on:submit={handleMissionSubmit}
+          on:picking={(e) => (missionPicking = e.detail)}
+        />
         {:else if missionModal === 3}
           <Omnipedia />
         {/if}
@@ -780,32 +800,52 @@
     -webkit-user-select: none;
   }
 
-  /* Mission modal — deliberately plain: fixed + centered, above both
-     .hexmenu (z-index 10) and the Cesium globe rendered outside this
-     component. Closes on backdrop click or the × button; none of the
-     three mission components bring their own close mechanic, so this
-     is the one small addition that covers all of them. */
-  .mission-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.65);
-    z-index: 9999;
-  }
+  /* Mission modal — the new-mission flow is hosted here, so HexMenu
+     owns the surrounding modal chrome for SwarmGovernance when it is
+     opened without a record. Existing missions selected from Cesium
+     are different: SwarmGovernance renders their own detail backdrop,
+     panel, and close button, just like EntityDetails.svelte. */
+     .mission-modal-backdrop {
+       position: fixed;
+       inset: 0;
+       display: flex;
+       align-items: center;
+       justify-content: flex-start;
+       padding-left: 4vw;
+       box-sizing: border-box;
+       background: rgba(0, 0, 0, 0.65);
+       z-index: 9999;
+     }
 
-  .mission-modal-content {
-    position: relative;
-    max-width: min(640px, 92vw);
-    max-height: 88vh;
-    overflow-y: auto;
-    box-sizing: border-box;
-    background: #1b1b1b;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
-    padding: 2.5rem 1.5rem 1.5rem;
-  }
+     .mission-modal-content {
+       position: relative;
+       width: min(640px, 44vw);
+       max-height: 88vh;
+       overflow-y: auto;
+       box-sizing: border-box;
+       background: #1b1b1b;
+       border: 1px solid rgba(255, 255, 255, 0.12);
+       border-radius: 14px;
+       padding: 2.5rem 1.5rem 1.5rem;
+     }
+
+     .mission-modal-backdrop.picking {
+       pointer-events: none;
+       background: transparent;
+     }
+
+     @media (max-width: 700px) {
+       .mission-modal-backdrop {
+         align-items: flex-start;
+         justify-content: center;
+         padding: 5vh 1rem 0;
+       }
+
+       .mission-modal-content {
+         width: min(640px, 92vw);
+         max-height: 42vh;
+       }
+     }
 
   .mission-modal-close {
     position: absolute;

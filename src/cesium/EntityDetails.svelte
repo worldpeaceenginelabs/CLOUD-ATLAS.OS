@@ -23,10 +23,10 @@
   // already on the record), so it opens locally with no event needed.
   // -----------------------------------------------------------------------
   import { createEventDispatcher } from 'svelte';
-  import type { EntityRecord } from '../orchestrator/appStore';
+  import type { LiveRecord, ListingRecord } from '../orchestrator/appStore';
   import Marketing from '../shared/Marketing.svelte';
 
-  export let record: EntityRecord | null = null;
+  export let record: LiveRecord | ListingRecord | null = null;
   /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's `author` to decide whether to show the owner-only actions below. */
   export let ownPubkey: string | null = null;
 
@@ -57,13 +57,13 @@
     return s.replace(/[_-]/g, ' ');
   }
 
-  function titleOf(r: EntityRecord): string {
+  function titleOf(r: LiveRecord | ListingRecord): string {
     const content = r.content as Record<string, unknown>;
     if (typeof content?.title === 'string' && content.title) return content.title;
     return humanize(r.model);
   }
 
-  function categoryOf(r: EntityRecord): string | null {
+  function categoryOf(r: LiveRecord | ListingRecord): string | null {
     const content = r.content as Record<string, unknown>;
     if (typeof content?.categoryId === 'string') return humanize(content.categoryId);
     if (Array.isArray(content?.categoryIds) && content.categoryIds.length) {
@@ -72,7 +72,7 @@
     return null;
   }
 
-  function fieldOf(r: EntityRecord, key: string): string | null {
+  function fieldOf(r: LiveRecord | ListingRecord, key: string): string | null {
     const content = r.content as Record<string, unknown>;
     const value = content?.[key];
     return typeof value === 'string' && value ? value : null;
@@ -187,7 +187,6 @@
   }
 
   .panel {
-    box-sizing: border-box;
     position: fixed;
     top: 50%;
     right: 2em;
