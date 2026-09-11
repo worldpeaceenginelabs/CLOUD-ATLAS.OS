@@ -17,6 +17,7 @@
     BASE_COL, BASE_ROW, BASE_R, MIN_COLS_VISIBLE, MIN_ROWS_VISIBLE,
     hexCenter, hexPath, computeNeededBox, computeBgHexes, wrapLabel,
   } from './hexmenu/geometry';
+  import { pick } from './cesium/api';
 
   const dispatch = createEventDispatcher();
 
@@ -390,7 +391,8 @@
   }
 
   function onLocationCancel() {
-  locationModalOpen = false;
+    locationModalOpen = false;
+    selLocation = null;
   }
 
   // ─── DERIVED NODE ROWS ───
@@ -489,6 +491,15 @@
   // never needs to know the field vocabulary itself.
   $: detailsDone = isDetailsComplete(detailsSchema, detailsValues);
   $: locationDone = isLocationComplete(locationSchema, selLocation);
+  let previousLocationDone = false;
+
+  $: {
+    if (previousLocationDone && !locationDone) {
+      pick.clear();
+      pick.area.clear();
+    }
+    previousLocationDone = locationDone;
+  }
 
   $: anypayDone = !showAnypayHex || selAnypay.length > 0;
 
@@ -813,7 +824,7 @@
        justify-content: flex-start;
        padding-left: 4vw;
        box-sizing: border-box;
-       background: rgba(0, 0, 0, 0.65);
+       background: transparent;
        z-index: 9999;
      }
 
@@ -831,7 +842,6 @@
 
      .mission-modal-backdrop.picking {
        pointer-events: none;
-       background: transparent;
      }
 
      @media (max-width: 700px) {

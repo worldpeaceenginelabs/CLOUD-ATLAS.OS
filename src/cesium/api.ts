@@ -115,15 +115,23 @@ export const pick = {
   /** Start listening for clicks on the globe. Fires onPick with the picked coordinates, or null on a miss. */
   enable(onPick: (coords: Coordinates | null) => void): void {
     activeLocationPicker?.disable();
+    activeLocationPicker?.clear();
+
     activeLocationPicker = createLocationPicker(requireViewer(), (picked) =>
       onPick(picked ? toCoordinates(picked) : null)
     );
+
     activeLocationPicker.enable();
   },
-  /** Stop listening. No-op if not enabled. */
+
+  /** Stop listening. The selected point remains visible. */
   disable(): void {
     activeLocationPicker?.disable();
-    activeLocationPicker = undefined;
+  },
+
+  /** Remove the selected point from the globe. */
+  clear(): void {
+    activeLocationPicker?.clear();
   },
 
   entity: {
@@ -133,6 +141,7 @@ export const pick = {
       activeEntityPicker = createEntityPicker(requireViewer(), onPick);
       activeEntityPicker.enable();
     },
+
     /** Stop listening. No-op if not enabled. */
     disable(): void {
       activeEntityPicker?.disable();
@@ -142,15 +151,25 @@ export const pick = {
 
   area: {
     /** Start listening for click-drag-release rectangle selection. onSelect fires once per completed drag; onChange fires continuously while dragging. */
-    enable(onSelect: (box: BoundingBox) => void, onChange?: (box: BoundingBox) => void): void {
+    enable(
+      onSelect: (box: BoundingBox) => void,
+      onChange?: (box: BoundingBox) => void
+    ): void {
       activeAreaPicker?.disable();
+      activeAreaPicker?.clear();
+
       activeAreaPicker = createAreaPicker(requireViewer(), onSelect, onChange);
       activeAreaPicker.enable();
     },
-    /** Stop listening and remove any in-progress preview. No-op if not enabled. */
+
+    /** Stop listening. The selected rectangle remains visible. */
     disable(): void {
       activeAreaPicker?.disable();
-      activeAreaPicker = undefined;
+    },
+
+    /** Remove the selected rectangle from the globe. */
+    clear(): void {
+      activeAreaPicker?.clear();
     }
   }
 };
@@ -209,6 +228,7 @@ export const entity = {
   add(id: string, options: EntityOptions): void {
     addEntity(requireViewer(), id, options);
   },
+
   /** Remove the entity previously added under `id`. No-op if it's already gone or was never added. */
   remove(id: string): void {
     removeEntity(requireViewer(), id);

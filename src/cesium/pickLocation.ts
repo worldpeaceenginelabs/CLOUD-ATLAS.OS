@@ -4,9 +4,8 @@ import * as Cesium from 'cesium';
  * Globe position picking helpers.
  *
  * pickLocationAt: a one-shot pick for a known screen position.
- * createLocationPicker: an enable/disable-able click-to-pick controller,
- * same shape as createEntityPicker. No "mode" concept — the caller just
- * calls enable()/disable() on the controller it got back.
+ * createLocationPicker: an enable/disable-able click-to-pick controller.
+ * The selected point remains visible until clear() is called.
  */
 
 export interface PickedLocation {
@@ -36,6 +35,7 @@ export function pickLocationAt(
   }
 
   const carto = Cesium.Cartographic.fromCartesian(cartesian);
+
   return {
     longitude: Cesium.Math.toDegrees(carto.longitude),
     latitude: Cesium.Math.toDegrees(carto.latitude),
@@ -46,32 +46,72 @@ export function pickLocationAt(
 export interface LocationPicker {
   /** Start listening for left-clicks on the globe. No-op if already enabled. */
   enable(): void;
-  /** Stop listening and release the underlying event handler. No-op if already disabled. */
+
+  /** Stop listening and release the event handler. The selected point remains visible. */
   disable(): void;
+
+  /** Remove the selected point from the globe. */
+  clear(): void;
 }
 
 /**
- * Build a click-to-pick controller for globe positions. Reports the
- * picked lat/lon/height (or null when the click missed the globe
- * entirely) via onPick. Nothing happens until enable() is called.
+ * Build a click-to-pick controller for globe positions.
+ * Reports the picked lat/lon/height via onPick.
+ * The selected point remains visible until clear() is called.
  */
 export function createLocationPicker(
   viewer: Cesium.Viewer,
   onPick: (location: PickedLocation | null) => void
 ): LocationPicker {
   let handler: Cesium.ScreenSpaceEventHandler | undefined;
+  let markerEntity: Cesium.Entity | null = null;
+
+  function clear(): void {
+    if (markerEntity) {
+      viewer.entities.remove(markerEntity);
+      markerEntity = null;
+    }
+  }
 
   return {
     enable(): void {
       if (handler) return;
+
       handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
       handler.setInputAction((click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
-        onPick(pickLocationAt(viewer, click.position));
+        const location = pickLocationAt(viewer, click.position);
+
+        if (!location) {
+          onPick(null);
+          return;
+        }
+
+        clear();
+
+        markerEntity = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(
+            location.longitude,
+            location.latitude,
+            location.height
+          ),
+          point: {
+            pixelSize: 12,
+            color: Cesium.Color.CYAN,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2
+          }
+        });
+
+        onPick(location);
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     },
+
     disable(): void {
       handler?.destroy();
       handler = undefined;
-    }
+    },
+
+    clear
   };
 }

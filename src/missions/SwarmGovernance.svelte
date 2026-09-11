@@ -15,9 +15,9 @@
   //
   // Still primarily UI: it renders fields, lets the user pick a Point or
   // Area location through cesium/api.ts's public picker capability (never
-  // getActiveViewer() or any other Cesium-internal API), builds the
-  // mission payload, and dispatches `submit`/`delete`/`close` — no direct
-  // Nostr communication here. The actual publish/tombstone stays entirely
+  // getActiveViewer() or any other Cesium-internal API), builds the mission
+  // payload, and dispatches `submit`/`delete`/`close` — no direct Nostr
+  // communication here. The actual publish/tombstone stays entirely
   // in Orchestrator's existing flow.
   // -----------------------------------------------------------------------
 
@@ -91,8 +91,17 @@
     links.brainstorming.trim().length > 0 &&
     pickedLocation !== null;
 
+  // The picker owns its Cesium preview. Submit is the explicit point
+  // at which the preview is cleared.
+  function clearPickerPreview(): void {
+    pick.clear();
+    pick.area.clear();
+  }
+
   function handleSubmit() {
     if (!formValid || !pickedLocation) return;
+
+    clearPickerPreview();
 
     dispatch('submit', {
       dTag: record?.dTag,
@@ -112,7 +121,7 @@
 
   function cancelEdit() {
     if (!record) return;
-
+    clearPickerPreview();
     title = record.content.title;
     description = record.content.description;
     links = { ...record.content.lanes };
@@ -127,6 +136,7 @@
   }
 
   function close() {
+    clearPickerPreview();
     stopPicking();
     dispatch('close');
   }
@@ -157,6 +167,7 @@
           };
         }
 
+        // disable() only stops picking. The selected point remains visible.
         stopPicking();
       });
 
@@ -169,6 +180,7 @@
         ...box,
       };
 
+      // disable() only stops picking. The selected rectangle remains visible.
       stopPicking();
     });
   }
@@ -194,10 +206,14 @@
   }
 
   function clearLocation() {
+    clearPickerPreview();
     pickedLocation = null;
   }
 
-  onDestroy(stopPicking);
+  onDestroy(() => {
+    clearPickerPreview();
+    stopPicking();
+  });
 
   // ─── Marketing ──────────────────────────────────────────────────────────
 
@@ -205,9 +221,8 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
+
 {#if isExisting}
-
-
   <div class="backdrop" on:click={close}>
     <div
       class="panel"
@@ -495,7 +510,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.65);
+    background: transparent;
     z-index: 9999;
   }
 
