@@ -79,6 +79,7 @@ export function createAreaPicker(
               () => rectangleFromCartos(startCarto!, startCarto!),
               false
             ),
+            height: 0,
             material: Cesium.Color.CYAN.withAlpha(0.3),
             outline: true,
             outlineColor: Cesium.Color.CYAN
