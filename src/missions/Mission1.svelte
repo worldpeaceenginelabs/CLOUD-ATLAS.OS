@@ -125,13 +125,11 @@
   }
 
   function handleShareClick() {
-    if (stars >= 3 || countdownActive) return;
-
     earnStar();
   }
 
   async function copyToClipboard() {
-    if (stars >= 3 || countdownActive) return;
+    if (stars >= 3) return;
 
     try {
       await navigator.clipboard.writeText(shareText);
@@ -176,7 +174,7 @@
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            aria-disabled={countdownActive || stars >= 3}
+            aria-disabled={stars >= 3}
             on:click={handleShareClick}
           >
             {name}
@@ -187,7 +185,7 @@
           type="button"
           class="share-btn"
           on:click={copyToClipboard}
-          disabled={countdownActive || stars >= 3}
+          disabled={stars >= 3}
         >
           {copied ? 'Copied!' : 'Copy Text'}
         </button>
@@ -209,7 +207,7 @@
 
       <p class="animated-gradient">
         <span class="mission-bottom-heading">How do we see we won?</span>
-        We're having a global live user count in the running status ticker. Watch the number grow as a direct signal of your impact.
+        The Revolution Will Not Be Televised 😂✊ We're having a global live user count coming soon. Watch the number grow as a direct signal of your impact.
       </p>
     </div>
 
