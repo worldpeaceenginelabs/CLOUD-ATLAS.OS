@@ -67,6 +67,7 @@ export function createViewer(
   });
 
   setupTouchTiltHandler(viewer);
+  viewer.scene.screenSpaceCameraController.zoomFactor = 10.0;
 
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(0, 0, 10000000),
