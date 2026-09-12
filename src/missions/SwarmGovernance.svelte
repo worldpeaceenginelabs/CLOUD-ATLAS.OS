@@ -26,6 +26,7 @@
   import type { Coordinates, BoundingBox } from '../cesium/api';
   import type { MissionRecord, MissionLocation } from '../orchestrator/appStore';
   import Marketing from '../shared/Marketing.svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
 
   export let record: MissionRecord | null = null;
   /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a mission's `author` to decide whether to show owner-only actions, same convention as cesium/EntityDetails.svelte. */
@@ -231,7 +232,7 @@
       aria-label="Mission details"
 
     >
-      <button class="close-btn" type="button" aria-label="Close" on:click={close}>✕</button>
+      <CloseButton onClose={close} />
 
       <div class="mission-card">
         {#if editable}
@@ -524,26 +525,6 @@
     border: 1px solid rgba(126, 87, 194, 0.5);
     border-radius: 14px;
     padding: 2.5rem 1.5rem 1.5rem;
-  }
-
-  .close-btn {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    color: #eee;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-
-  .close-btn:hover,
-  .close-btn:focus-visible {
-    background: rgba(255, 255, 255, 0.15);
   }
 
   .mission-card {

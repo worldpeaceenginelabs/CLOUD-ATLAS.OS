@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { globe, type Coordinates, type RoutePreview } from '../cesium/api';
+  import CloseButton from '../shared/CloseButton.svelte';
 
   export let geometry: 'point' | 'route' = 'point';
 
@@ -127,7 +128,7 @@
 
 <div class="modal" role="dialog" aria-modal="true" aria-label="Location">
 
-  <button class="close" on:click={cancel} aria-label="Close">✕</button>
+  <CloseButton onClose={cancel} />
 
   <h2>LOCATION</h2>
 
@@ -221,23 +222,6 @@
     color: #888;
     font-size: 0.78em;
     text-align: center;
-  }
-
-  .close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    color: #888;
-    font-size: 1em;
-    cursor: pointer;
-    line-height: 1;
-    padding: 6px;
-  }
-
-  .close:hover {
-    color: #fff;
   }
 
   .actions {

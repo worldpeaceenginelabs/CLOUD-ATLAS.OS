@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
 
   // schema: one entry from formSchema.ts, or null/undefined if the
   // current model/ride-type has no schema — Details renders a small
@@ -41,7 +42,7 @@
 
 <div class="backdrop" on:click={onBackdrop}>
   <div class="modal" role="dialog" aria-modal="true" aria-label="Details">
-    <button class="close" on:click={() => dispatch('close')} aria-label="Close">✕</button>
+    <CloseButton onClose={() => dispatch('close')} />
 
     {#if !schema}
       <h2>DETAILS</h2>
@@ -172,20 +173,6 @@
     font-size: 0.78em;
     text-align: center;
   }
-
-  .close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    color: #888;
-    font-size: 1em;
-    cursor: pointer;
-    line-height: 1;
-    padding: 6px;
-  }
-  .close:hover { color: #fff; }
 
   .mode-row {
     display: flex;

@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
 
   export let options = [];     // [{ id, label }] — always all 5, in fixed order
   export let available = [];   // ids that are enabled for the current domain/model
@@ -19,7 +20,7 @@
 
 <div class="backdrop" on:click={onBackdrop}>
   <div class="modal" role="dialog" aria-modal="true" aria-label="AnyPay">
-    <button class="close" on:click={() => dispatch('close')} aria-label="Close">✕</button>
+    <CloseButton onClose={() => dispatch('close')} />
     <h2>ANYPAY</h2>
     <p class="hint">Select any that apply, then close with ✕.</p>
     <div class="options">
@@ -74,20 +75,6 @@
     font-size: 0.78em;
     text-align: center;
   }
-
-  .close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    color: #888;
-    font-size: 1em;
-    cursor: pointer;
-    line-height: 1;
-    padding: 6px;
-  }
-  .close:hover { color: #fff; }
 
   .options {
     display: flex;

@@ -18,6 +18,7 @@
     hexCenter, hexPath, computeNeededBox, computeBgHexes, wrapLabel,
   } from './hexmenu/geometry';
   import { pick } from './cesium/api';
+  import CloseButton from './shared/CloseButton.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -736,12 +737,7 @@
 
   {#if missionModal}
     <div class="mission-modal-content">
-      <button
-        type="button"
-        class="mission-modal-close"
-        aria-label="Close"
-        on:click={() => missionModal = null}
-      >×</button>
+      <CloseButton onClose={() => missionModal = null} />
 
       {#if missionModal === 1}
         <MissionTV />
@@ -845,25 +841,4 @@
        }
      }
 
-  .mission-modal-close {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.75rem;
-    width: 2rem;
-    height: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    font-size: 1.25rem;
-    line-height: 1;
-    cursor: pointer;
-  }
-
-  .mission-modal-close:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
 </style>

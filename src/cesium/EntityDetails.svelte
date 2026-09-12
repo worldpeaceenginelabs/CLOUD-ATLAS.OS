@@ -25,6 +25,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { LiveRecord, ListingRecord } from '../orchestrator/appStore';
   import Marketing from '../shared/Marketing.svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
 
   export let record: LiveRecord | ListingRecord | null = null;
   /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's `author` to decide whether to show the owner-only actions below. */
@@ -108,7 +109,7 @@
       <span class="kind-badge" class:live={record.kind === 'live'}>
         {record.kind === 'live' ? 'LIVE' : 'LISTING'}
       </span>
-      <button class="close-btn" on:click={close} aria-label="Close">✕</button>
+      <CloseButton onClose={close} position="relative" top="0" right="0" />
     </div>
 
     <h2 class="title">{titleOf(record)}</h2>
@@ -223,25 +224,6 @@
   }
   .kind-badge.live {
     color: #2ae9c9;
-  }
-
-  .close-btn {
-    background: none;
-    border: none;
-    color: #aaa;
-    font-size: 1.1em;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0.25em;
-  }
-  .close-btn:hover,
-  .close-btn:focus-visible {
-    color: #fff;
-  }
-  .close-btn:focus-visible {
-    outline: 2px solid #2ae9c9;
-    outline-offset: 2px;
-    border-radius: 4px;
   }
 
   .title {
