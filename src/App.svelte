@@ -88,6 +88,16 @@
   let resizeObserver;
   let landscape = true;
 
+  // Toggle Workspace: switches between the existing 50/50 landscape/
+  // portrait split and a 100% globe view. Plain local boolean, no store —
+  // the existing landscape/portrait logic above is untouched and simply
+  // gets overridden by the .fullscreen class when this is true.
+  let fullGlobe = false;
+
+  function toggleWorkspace() {
+    fullGlobe = !fullGlobe;
+  }
+
   function updateLayout() {
     if (!workspaceEl) return;
     const ws = workspaceEl.getBoundingClientRect();
@@ -109,20 +119,23 @@
 
 <div class="workspace" bind:this={workspaceEl}>
 
-  <div class="background-layer">
-    <HexMenu
-      on:tooltip={(e) => (tooltip = e.detail)}
-      on:offerSubmit={handleOfferSubmit}
-      on:searchSubmit={handleSearchSubmit}
-      on:interaction={handleHexMenuInteraction}
-      on:missionSubmit={handleMissionSubmit}
-    />
-  </div>
+  {#if !fullGlobe}
+    <div class="background-layer">
+      <HexMenu
+        on:tooltip={(e) => (tooltip = e.detail)}
+        on:offerSubmit={handleOfferSubmit}
+        on:searchSubmit={handleSearchSubmit}
+        on:interaction={handleHexMenuInteraction}
+        on:missionSubmit={handleMissionSubmit}
+      />
+    </div>
+  {/if}
 
   <div
     class="globe-window"
     class:landscape={landscape}
     class:portrait={!landscape}
+    class:fullscreen={fullGlobe}
   >
     <div class="cesium-layer">
       <Cesium />
@@ -135,6 +148,10 @@
   </div>
 
   <Orchestrator {submit} {deleteRequest} {missionSubmit} openEventId={deepLink?.eventId ?? null} />
+
+  <button class="workspace-toggle" on:click={toggleWorkspace}>
+    {fullGlobe ? 'Split View' : 'Fullscreen'}
+  </button>
 
 </div>
 
@@ -183,8 +200,24 @@
   height: 50%;
 }
 
+.globe-window.fullscreen {
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .cesium-layer {
   width: 100%;
   height: 100%;
+}
+
+.workspace-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
 }
 </style>
