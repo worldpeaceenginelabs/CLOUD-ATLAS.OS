@@ -832,12 +832,14 @@
 
      @media (max-width: 700px) {
        .mission-modal-content {
-         top: 5vh;
-         left: 50%;
-         transform: translateX(-50%);
+         top: 0;
+         left: 0;
+         transform: none;
 
-         width: min(640px, 92vw);
-         max-height: 42vh;
+         width: 100%;
+         max-height: 50vh;
+
+         box-sizing: border-box;
        }
      }
 
