@@ -119,17 +119,15 @@
 
 <div class="workspace" bind:this={workspaceEl}>
 
-  {#if !fullGlobe}
-    <div class="background-layer">
-      <HexMenu
-        on:tooltip={(e) => (tooltip = e.detail)}
-        on:offerSubmit={handleOfferSubmit}
-        on:searchSubmit={handleSearchSubmit}
-        on:interaction={handleHexMenuInteraction}
-        on:missionSubmit={handleMissionSubmit}
-      />
-    </div>
-  {/if}
+  <div class="background-layer" class:hidden={fullGlobe}>
+    <HexMenu
+      on:tooltip={(e) => (tooltip = e.detail)}
+      on:offerSubmit={handleOfferSubmit}
+      on:searchSubmit={handleSearchSubmit}
+      on:interaction={handleHexMenuInteraction}
+      on:missionSubmit={handleMissionSubmit}
+    />
+  </div>
 
   <div
     class="globe-window"
@@ -173,6 +171,11 @@
 .background-layer {
   position: absolute;
   inset: 0;
+}
+
+.background-layer.hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .background-layer > :global(*) {
