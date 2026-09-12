@@ -207,7 +207,7 @@
 
       <p class="animated-gradient">
         <span class="mission-bottom-heading">How do we see we won?</span>
-        The Revolution Will Not Be Televised 😂✊ We're having a global live user count coming soon. Watch the number grow as a direct signal of your impact.
+        The Revolution Will Not Be Televised <span class="mission-emoji">😂✊</span> We're having a global live user count coming soon. Watch the number grow as a direct signal of your impact.
       </p>
     </div>
 
@@ -350,6 +350,11 @@
     letter-spacing: 0.08em;
     margin-right: 0.25rem;
     -webkit-text-fill-color: #ffd700;
+    background: none;
+  }
+
+  .mission-emoji {
+    -webkit-text-fill-color: initial;
     background: none;
   }
 
