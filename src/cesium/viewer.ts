@@ -1,4 +1,8 @@
 import * as Cesium from 'cesium';
+import {
+  setupTouchTiltHandler,
+  destroyTouchTiltHandler,
+} from './touchTiltHandler';
 
 /**
  * The single place that knows how to build (and tear down) a Cesium
@@ -62,6 +66,8 @@ export function createViewer(
     ...viewerOptions,
   });
 
+  setupTouchTiltHandler(viewer);
+
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(0, 0, 10000000),
   });
@@ -95,6 +101,8 @@ export function createViewer(
 }
 
 export function destroyViewer(viewer: Cesium.Viewer): void {
+  destroyTouchTiltHandler();
+
   if (!viewer.isDestroyed()) {
     viewer.destroy();
   }
