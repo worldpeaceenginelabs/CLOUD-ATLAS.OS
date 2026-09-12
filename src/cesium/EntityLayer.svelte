@@ -52,6 +52,9 @@
   let selectedRecord: EntityRecord | null = null;
   let globeReady = false;
 
+  /** Set once showUserLocation() resolves the device position — reused so a click on the "Your Location!" entity can fly back there without re-fetching position. */
+  let userLocationCoords: { longitude: number; latitude: number } | null = null;
+
   /** Same value as selectedRecord, narrowed to exclude Mission — EntityDetails.svelte's prop type never included Mission and shouldn't have to; computed once here instead of relying on template-level narrowing propagating through to a child component's prop. */
   $: nonMissionRecord =
     selectedRecord && selectedRecord.kind !== 'mission' ? selectedRecord : null;
@@ -207,6 +210,17 @@
 
         if (!recordId) return;
 
+        if (recordId === 'Your Location!' && userLocationCoords) {
+          camera.flyTo(
+            {
+              longitude: userLocationCoords.longitude,
+              latitude: userLocationCoords.latitude,
+              height: 7500,
+            },
+            { duration: 1.5 }
+          );
+        }
+
         selectRecordById(recordId);
       });
     } catch {
@@ -218,6 +232,8 @@
   async function showUserLocation() {
     try {
       const { longitude, latitude } = await location.getCurrentPosition();
+
+      userLocationCoords = { longitude, latitude };
 
       const position = Cesium.Cartesian3.fromDegrees(longitude, latitude);
 
