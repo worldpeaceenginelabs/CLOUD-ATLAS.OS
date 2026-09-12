@@ -4,7 +4,7 @@
   import Details from './hexmenu/Details.svelte';
   import Location from './hexmenu/Location.svelte';
   import HexGrid from './hexmenu/HexGrid.svelte';
-  import MissionTV from './missions/MissionTV.svelte';
+  import Mission1 from './missions/Mission1.svelte';
   import SwarmGovernance from './missions/SwarmGovernance.svelte';
   import Omnipedia from './missions/Omnipedia.svelte';
   import {
@@ -209,6 +209,24 @@
   let missionModal: 1 | 2 | 3 | null = null;
   let missionPicking = false;
 
+  // Mission 1 (Mission1.svelte) is always open; completing it unlocks
+  // Mission 2. Mission 3 and 4 stay locked regardless — no unlock
+  // mechanism exists for them yet. Just a single persisted boolean, no
+  // store, no IDB.
+  const MISSIONS_UNLOCK_KEY = 'cloud-atlas-missions-unlocked';
+  let missionsUnlocked = false;
+
+  function isMissionLocked(id) {
+    if (id === 'm1') return false;
+    if (id === 'm2') return !missionsUnlocked;
+    return true; // m3, m4 — unlock mechanism coming soon
+  }
+
+  function handleMission1Complete() {
+    missionsUnlocked = true;
+    try { localStorage.setItem(MISSIONS_UNLOCK_KEY, 'true'); } catch {}
+  }
+
   const DOMAIN_IDS = new Set(DOMAINS.map(d => d.id));
 
   // Which placeholder id opens which mission component. Same pattern as
@@ -370,6 +388,7 @@
       }
 
     if (id in MISSION_MODALS) {
+      if (isMissionLocked(id)) return; // locked hex — stays locked, no modal opens
       missionModal = toggle(missionModal, MISSION_MODALS[id]);
       return;
     }
@@ -424,9 +443,17 @@
   // A mode with no genericFlow and no shortcut binding just renders its
   // own placeholderNodes as-is (today: 'next') — no literal mode id
   // checked here either.
-  $: placeholderNodes = activeMode?.placeholderNodes ? activeMode.placeholderNodes.map((m, i) => ({
-    id: m.id, label: m.label, col: i, lrow: 1,
-  })) : [];
+  // Mission hexes (m1/m2/m3/m4) additionally carry a `locked` flag and,
+  // while locked, a lock symbol prepended to their label — m3/m4 also
+  // get a "Coming Soon" line underneath, since no unlock mechanism
+  // exists for them yet. Every other placeholder hex is unaffected
+  // (m.id === 'm1' ? false : ... only ever matches m1–m4's own ids).
+  $: placeholderNodes = activeMode?.placeholderNodes ? activeMode.placeholderNodes.map((m, i) => {
+    const locked = m.id === 'm1' ? false : m.id === 'm2' ? !missionsUnlocked : true;
+    const comingSoon = locked && (m.id === 'm3' || m.id === 'm4');
+    const label = locked ? `🔒\n${m.label}${comingSoon ? 'Coming Soon' : ''}` : m.label;
+    return { id: m.id, label, col: i, lrow: 1, locked };
+  }) : [];
 
   // Hex-grid wrap width for the domain row — a generic layout choice
   // (how many hexes fit per row before wrapping), not fachliche data,
@@ -598,6 +625,12 @@
   }
 
   onMount(() => {
+    try {
+      missionsUnlocked = localStorage.getItem(MISSIONS_UNLOCK_KEY) === 'true';
+    } catch {
+      missionsUnlocked = false;
+    }
+
     resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
@@ -659,9 +692,9 @@
       <g
         data-node-id={node.id}
         style="
-          pointer-events:{node.noop ? 'none' : 'all'};
-          cursor:{node.noop ? 'default' : didDrag ? 'grabbing' : 'pointer'};
-          opacity:{node.noop ? 0.35 : (node.dimmed && !node.selected) ? 0.22 : 1};
+          pointer-events:{(node.noop || node.locked) ? 'none' : 'all'};
+          cursor:{(node.noop || node.locked) ? 'default' : didDrag ? 'grabbing' : 'pointer'};
+          opacity:{(node.noop || node.locked) ? 0.35 : (node.dimmed && !node.selected) ? 0.22 : 1};
           transition: opacity 0.25s;
         "
         on:click={() => !didDrag && go(node.id)}
@@ -740,7 +773,7 @@
       <CloseButton onClose={() => missionModal = null} />
 
       {#if missionModal === 1}
-        <MissionTV />
+        <Mission1 on:complete={handleMission1Complete} />
       {:else if missionModal === 2}
         <SwarmGovernance
           on:submit={handleMissionSubmit}

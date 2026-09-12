@@ -640,8 +640,8 @@ export const MODES: ModeConfig[] = [
     placeholderNodes: [
       { id: 'm1', label: 'MISSION 1\nTV' },
       { id: 'm2', label: 'MISSION 2\nGOV' },
-      { id: 'm3', label: 'MISSION 3\nOMNI' },
-      { id: 'm4', label: 'MISSION 4\nCONSERV' },
+      { id: 'm3', label: 'MISSION 3\n' },
+      { id: 'm4', label: 'MISSION 4\n' },
     ],
   },
   { id: 'bbq', label: 'BBQ', noop: true },
