@@ -36,7 +36,7 @@
   // rendered (see the template below), so a click on the globe to pick a
   // new Point/Area reaches Cesium instead of just closing this panel.
   // -----------------------------------------------------------------------
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import type { LiveRecord, ListingRecord, MissionRecord, MissionLocation } from '../orchestrator/appStore';
   import { pick } from './api';
   import type { Coordinates, BoundingBox } from './api';
@@ -56,6 +56,25 @@
     record.author === ownPubkey;
 
   let showMarketing = false;
+
+  // On touch devices, the tap that picks a Cesium entity (opening this
+  // panel) can be followed a moment later by the browser's own
+  // synthesized "click" event for that same tap — landing on the
+  // backdrop, which now sits exactly where the tap happened, and
+  // immediately closing the panel again (visible as a brief flash).
+  // Desktop doesn't have this: there Cesium's pick is driven directly by
+  // the actual mouse click, so there's no second, delayed click to land
+  // on the backdrop. EntityLayer.svelte remounts this component fresh
+  // for each newly selected record (`{#if selectedRecord}`), so onMount
+  // firing per-selection — not just once for the whole app — is exactly
+  // what's needed here.
+  let canCloseOnBackdrop = false;
+  onMount(() => {
+    const id = setTimeout(() => {
+      canCloseOnBackdrop = true;
+    }, 50);
+    return () => clearTimeout(id);
+  });
 
   // ─── Mission edit form — the only record kind with an edit capability ───
 
@@ -272,7 +291,7 @@
 
 {#if record}
   {#if !(record.kind === 'mission' && editing)}
-    <div class="backdrop" on:click={close} />
+    <div class="backdrop" on:click={() => canCloseOnBackdrop && close()} />
   {/if}
 
   <div class="panel" role="dialog" aria-modal="true">
