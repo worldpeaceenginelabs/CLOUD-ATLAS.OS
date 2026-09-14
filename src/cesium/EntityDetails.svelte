@@ -866,7 +866,7 @@
   @media (max-width: 700px) {
     .panel {
         top: 0;
-        left: 0;
+        left: 5px;
         transform: none;
 
         width: 100%;

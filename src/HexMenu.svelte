@@ -874,7 +874,7 @@
      @media (max-width: 700px) {
        .mission-modal-content {
          top: 0;
-         left: 0;
+         left: 5px;
          transform: none;
 
          width: 100%;
