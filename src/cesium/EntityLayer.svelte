@@ -41,9 +41,9 @@
 
   import * as Cesium from 'cesium';
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import { camera, entity, pick, location } from './api';
-  import type { EntityOptions, PickedEntity } from './api';
-  import { appStore, type AppState, type EntityRecord } from '../orchestrator/appStore';
+  import { camera, entity, pick, location, route } from './api';
+  import type { EntityOptions, PickedEntity, RoutePreview } from './api';
+  import { appStore, type AppState, type EntityRecord, type LiveRecord } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
   import { waitForGlobeLoaded } from './viewer';
 
@@ -200,6 +200,68 @@
 
   $: if (globeReady) syncMarkers($appStore);
 
+  // ── Driver-side route preview ─────────────────────────────────────
+  // record.offer (see appStore.ts's LiveRecord) is the one thing this
+  // component treats as LIVE-specific rather than generic — it's never
+  // populated on a rider's own record (toLiveRecord() only ever sets it
+  // for a provider session), so this branch never fires for a rider.
+  // Deliberately independent of syncMarkers/activeMarkerIds above:
+  // route.preview() manages its own three entities (start marker, end
+  // marker, connecting line) behind one RouteHandle, not the generic
+  // entity.add(id)/entity.remove(id) scheme the rest of this file uses.
+  let driverRoutePreview: RoutePreview | null = null;
+  /** The offer's requestId currently drawn, or null — lets syncDriverRoutePreview tell "still the same offer" from "a different (or no) offer" without redrawing on every unrelated store tick. */
+  let driverRouteKey: string | null = null;
+
+  function isCoordinate(
+    value: unknown
+  ): value is { latitude: number; longitude: number } {
+    return (
+      !!value &&
+      typeof (value as any).latitude === 'number' &&
+      typeof (value as any).longitude === 'number'
+    );
+  }
+
+  /** The offered/matched ride's pickup+drop-off, straight from record.offer.content.location — never reconstructed from the geohash (that's a discovery bucket, not a coordinate). Null whenever there's nothing to draw: no offer, a non-route location, or an incomplete one. */
+  function extractOfferRoute(
+    live: LiveRecord | null
+  ): { from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number } } | null {
+    if (!live || live.role !== 'provider' || !live.offer) return null;
+
+    const loc = (live.offer.content as Record<string, unknown> | undefined)
+      ?.location as { geometry?: string; from?: unknown; to?: unknown } | undefined;
+
+    if (loc?.geometry !== 'route' || !isCoordinate(loc.from) || !isCoordinate(loc.to)) {
+      return null;
+    }
+
+    return { from: loc.from, to: loc.to };
+  }
+
+  function syncDriverRoutePreview(live: LiveRecord | null) {
+    const requestId =
+      live?.role === 'provider' ? live.offer?.requestId ?? null : null;
+
+    if (requestId === driverRouteKey) return;
+
+    driverRoutePreview?.remove();
+    driverRoutePreview = null;
+    driverRouteKey = null;
+
+    const found = extractOfferRoute(live);
+    if (!found || !requestId) return;
+
+    try {
+      driverRoutePreview = route.preview(found.from, found.to);
+      driverRouteKey = requestId;
+    } catch {
+      // Cesium viewer not mounted yet — retried on the next store change.
+    }
+  }
+
+  $: if (globeReady) syncDriverRoutePreview($appStore.live);
+
   function enableEntityPicking() {
     try {
       pick.entity.enable((picked: PickedEntity) => {
@@ -308,6 +370,9 @@
     }
 
     activeMarkerIds.clear();
+
+    driverRoutePreview?.remove();
+    driverRoutePreview = null;
   });
 </script>
 

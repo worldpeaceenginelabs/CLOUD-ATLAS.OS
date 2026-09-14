@@ -27,6 +27,17 @@ export interface LiveRecord {
   peerPubkey?: string;
   location: { latitude: number; longitude: number } | null;
   content: Record<string, unknown>;
+  /**
+   * Driver (provider) side only — the one rider currently offered for an
+   * explicit Accept/Reject decision, or null when there's none pending.
+   * Always null on a rider's (requester's) own record: Orchestrator's
+   * toLiveRecord() only ever populates this for a provider session, so a
+   * rider's UI structurally never sees another rider's candidate/offer
+   * data, no matter what it reads off this record.
+   */
+  offer: { requestId: string; content: Record<string, unknown> } | null;
+  /** Driver side only — true right after Accept was clicked, while waiting to learn whether this driver won the race against any other driver who also accepted the same rider. Always false on a rider's own record. */
+  awaitingConfirmation: boolean;
 }
 
 /** A single LISTING record, as far as the rest of the app needs to see it. */

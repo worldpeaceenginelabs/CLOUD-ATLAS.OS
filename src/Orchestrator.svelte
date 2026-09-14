@@ -86,6 +86,7 @@
     loadAllMissions,
   } from './orchestrator/missionPersistence';
   import type { LocationValue } from './hexmenu/domains';
+  import LiveOverlay from './live/LiveOverlay.svelte';
 
   // ─── Tuning constants (orchestrator's own policy, not infrastructure) ──
 
@@ -262,8 +263,23 @@
     dmSub?: SubscriptionHandle;
     /** Logical dedup of discovered counterpart claims, keyed by author pubkey. */
     seenCounterpartAuthors: Set<string>;
-    /** Provider only: requester pubkeys we've already sent an "accept" DM to. */
-    repliedTo: Set<string>;
+    /**
+     * Driver (provider) side only — Rider (requester) sessions never
+     * populate these, so a requester's own toLiveRecord() always exposes
+     * offer: null and can never leak driver-only candidate/offer state
+     * into the rider's UI.
+     *
+     * Discovered riders are presented one at a time for an explicit
+     * Accept/Reject decision (see acceptLiveOffer/rejectLiveOffer) —
+     * never auto-accepted. `candidateQueue` holds riders discovered while
+     * another one is already being decided on or already accepted-and-
+     * awaiting-confirmation; `currentOffer` is the one currently up for
+     * decision.
+     */
+    candidateQueue: { pubkey: string; requestId: string; content: any }[];
+    currentOffer: { pubkey: string; requestId: string; content: any } | null;
+    /** True right after Accept is clicked, until we learn whether we won the race against any other driver who also accepted the same rider. */
+    awaitingConfirmation: boolean;
     heartbeatTimer?: ReturnType<typeof setTimeout>;
     expandEmptyTimer?: ReturnType<typeof setInterval>;
     expandNoMatchTimer?: ReturnType<typeof setInterval>;
@@ -459,6 +475,16 @@
     return null;
   }
 
+  function isCoordinate(
+    value: unknown,
+  ): value is { latitude: number; longitude: number } {
+    return (
+      !!value &&
+      typeof (value as any).latitude === 'number' &&
+      typeof (value as any).longitude === 'number'
+    );
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // LIVE mode (§2)
   // ═══════════════════════════════════════════════════════════════════
@@ -470,9 +496,25 @@
   ) {
     if (!client) return;
 
-    const location = extractStartCoordinate(
-      content.location as LocationValue | undefined,
-    );
+    const rawLocation = content.location as LocationValue | undefined;
+
+    // A route (pickup + drop-off) is a single unit — the geohash below
+    // is derived from `from` alone (discovery only needs a starting
+    // point to bucket by), but that must never stand in for `to`: the
+    // full route is what gets published (publishLiveClaim spreads
+    // `session.content`, `location` included, into the event body
+    // verbatim) and what the driver's UI/globe rendering needs later.
+    // Fail here rather than silently publishing (or letting a driver
+    // accept) a ride with a missing drop-off.
+    if (
+      rawLocation?.geometry === 'route' &&
+      (!isCoordinate(rawLocation.from) || !isCoordinate(rawLocation.to))
+    ) {
+      setError('LIVE ride requests require a complete pickup and drop-off.');
+      return;
+    }
+
+    const location = extractStartCoordinate(rawLocation);
 
     if (!location) {
       setError('LIVE requires a location.');
@@ -498,7 +540,9 @@
       expiresAt: 0,
       status: 'searching',
       seenCounterpartAuthors: new Set(),
-      repliedTo: new Set(),
+      candidateQueue: [],
+      currentOffer: null,
+      awaitingConfirmation: false,
     };
 
     liveSession = session;
@@ -646,32 +690,100 @@
 
     session.seenCounterpartAuthors.add(event.pubkey);
 
+    // Rider side: only ever tracks that *some* driver claims exist
+    // nearby (seenCounterpartAuthors, above — used by the expansion
+    // timers). It never inspects individual driver claims, never learns
+    // who they are, and is not the branch that discovers riders below —
+    // this function is never even subscribed to driver-side events for a
+    // rider's own session (see startLiveDiscovery's counterTag). A rider
+    // only ever finds out about a match via startLiveDmListener's
+    // "accept" DM, handled separately.
     if (session.role === 'requester') {
       return;
     }
 
-    if (body?.status === 'taken') {
+    // ── Driver (provider) side ──────────────────────────────────────
+    if (body?.status === 'matched') {
+      // A rider we'd discovered (queued, currently offered, or already
+      // accepted-and-awaiting-confirmation) has republished as matched.
       if (body?.winnerPubkey === client?.pubkey) {
+        // We won the race for this rider.
         session.peerPubkey = event.pubkey;
         endLiveSession(session, 'matched');
+      } else {
+        // Some other driver won it first — an internal matching outcome,
+        // never surfaced to the rider. Drop it from our queue/offer (if
+        // present) and move on to the next candidate, if any.
+        dropLiveCandidate(session, event.pubkey);
       }
       return;
     }
 
     if (body?.status && body.status !== 'open') return;
 
-    if (session.repliedTo.has(event.pubkey)) return;
-
-    session.repliedTo.add(event.pubkey);
+    // Ignore duplicate re-announcements of a rider we already know about
+    // (e.g. their own heartbeat republish) — not a new candidate.
+    if (session.currentOffer?.pubkey === event.pubkey) return;
+    if (session.candidateQueue.some((c) => c.pubkey === event.pubkey)) return;
 
     const requestId = dTagOf(event);
     if (!requestId) return;
 
+    const candidateLocation = body?.location as LocationValue | undefined;
+    if (
+      candidateLocation?.geometry === 'route' &&
+      (!isCoordinate(candidateLocation.from) || !isCoordinate(candidateLocation.to))
+    ) {
+      // Malformed/incomplete route — never present this as an offer.
+      return;
+    }
+
+    const candidate = { pubkey: event.pubkey, requestId, content: body };
+
+    if (session.currentOffer || session.awaitingConfirmation) {
+      // Already deciding on (or awaiting confirmation for) another
+      // rider — this one waits its turn, FCFS.
+      session.candidateQueue.push(candidate);
+      return;
+    }
+
+    session.currentOffer = candidate;
+    syncLiveStore(session);
+  }
+
+  /** Removes a rider from the driver's queue/current offer once it's known to be no longer viable (either because another driver won it, or — future-proofing — any other reason a candidate stops being valid). If it was the one currently up for decision, the next queued candidate (if any) takes its place. Purely local bookkeeping — never sends anything to the rider. */
+  function dropLiveCandidate(session: LiveSessionInternal, pubkey: string) {
+    session.candidateQueue = session.candidateQueue.filter((c) => c.pubkey !== pubkey);
+
+    if (session.currentOffer?.pubkey === pubkey) {
+      session.currentOffer = null;
+      session.awaitingConfirmation = false;
+      advanceLiveQueue(session);
+    }
+  }
+
+  /** Driver clicks Accept on the currently offered rider — sends the same "accept" DM the old auto-accept path used to send to everyone, but now only for the one candidate a human actually chose. */
+  function acceptLiveOffer() {
+    const session = liveSession;
+
+    if (
+      !session ||
+      session.role !== 'provider' ||
+      !session.currentOffer ||
+      session.awaitingConfirmation
+    ) {
+      return;
+    }
+
+    const offer = session.currentOffer;
+    session.awaitingConfirmation = true;
+    syncLiveStore(session);
+
     client?.sendEncrypted(
-      event.pubkey,
+      offer.pubkey,
       JSON.stringify({
         type: 'accept',
-        requestId,
+        requestId: offer.requestId,
       }),
       [
         [
@@ -682,6 +794,38 @@
         ],
       ],
     );
+  }
+
+  /** Driver clicks Decline on the currently offered rider — a purely local matching step (§ spec: never an event shown to the rider). Immediately presents the next queued rider, if any. */
+  function rejectLiveOffer() {
+    const session = liveSession;
+
+    if (
+      !session ||
+      session.role !== 'provider' ||
+      !session.currentOffer ||
+      session.awaitingConfirmation
+    ) {
+      return;
+    }
+
+    session.currentOffer = null;
+    advanceLiveQueue(session);
+  }
+
+  function advanceLiveQueue(session: LiveSessionInternal) {
+    session.currentOffer = session.candidateQueue.shift() ?? null;
+    syncLiveStore(session);
+  }
+
+  /** Pushes the current session state into the Store — the one place toLiveRecord() is actually applied, so every driver/rider-facing update (new offer, queue advance, confirmation flag) goes through the same projection. */
+  function syncLiveStore(session: LiveSessionInternal) {
+    if (liveSession !== session) return;
+
+    appStore.update((s) => ({
+      ...s,
+      live: toLiveRecord(session),
+    }));
   }
 
   function startLiveDmListener(session: LiveSessionInternal) {
@@ -849,6 +993,18 @@
 
     session.status = finalStatus;
 
+    // The queue and the "awaiting a decision" flag stop mattering once
+    // the session is over either way. currentOffer is different: on a
+    // won match, it *is* the matched ride (pickup/drop, category,
+    // description) — the driver's matched UI reads it from there, so it
+    // must survive past this point. Only expired/cancelled sessions
+    // clear it too (there's no ride to show).
+    session.candidateQueue = [];
+    session.awaitingConfirmation = false;
+    if (finalStatus !== 'matched') {
+      session.currentOffer = null;
+    }
+
     clearLiveTimers(session);
     session.discoverySub?.close();
     session.dmSub?.close();
@@ -875,6 +1031,27 @@
     }));
   }
 
+  /**
+   * Dismisses a session that has already reached a terminal status
+   * (matched or expired) — the "Done" button on the matched/expired UI.
+   * Different from cancelActiveLiveSession: that one stops a session
+   * that's still running (searching); this one just clears one that's
+   * already finished, since endLiveSession() itself never nulls out
+   * `liveSession`/`live` — a finished session stays visible until the
+   * person dismisses it. No-op while a session is still 'searching', so
+   * it can never be used to cut a running one short.
+   */
+  function clearLiveSession() {
+    if (!liveSession || liveSession.status === 'searching') return;
+
+    liveSession = null;
+
+    appStore.update((s) => ({
+      ...s,
+      live: null,
+    }));
+  }
+
   function toLiveRecord(
     session: LiveSessionInternal,
   ): LiveRecord {
@@ -887,6 +1064,19 @@
       peerPubkey: session.peerPubkey,
       location: session.location,
       content: session.content,
+      // Driver-only, and only ever non-null on a provider session (a
+      // requester's session never touches currentOffer) — this can never
+      // surface as rider-facing UI state, by construction rather than by
+      // convention at the call site.
+      offer:
+        session.role === 'provider' && session.currentOffer
+          ? {
+              requestId: session.currentOffer.requestId,
+              content: session.currentOffer.content,
+            }
+          : null,
+      awaitingConfirmation:
+        session.role === 'provider' ? session.awaitingConfirmation : false,
     };
   }
 
@@ -1912,7 +2102,6 @@
     connectedRelays === 0 ||
     $appStore.inFlight ||
     !!$appStore.lastError ||
-    !!$appStore.live ||
     !!$appStore.listingSearch?.canLoadMore;
 </script>
 
@@ -1949,12 +2138,6 @@
       </span>
     {/if}
 
-    {#if $appStore.live}
-      <span class="row live">
-        LIVE · {$appStore.live.status}{$appStore.live.peerPubkey ? ' · matched' : ''}
-      </span>
-    {/if}
-
     {#if $appStore.listingSearch?.canLoadMore && !$appStore.inFlight}
       <button
         class="load-more"
@@ -1964,6 +2147,22 @@
       </button>
     {/if}
   </div>
+{/if}
+
+<!--
+  Independent of the pill above (visible purely by $appStore.live's own
+  presence, not tied to inFlight/statusVisible — a matched/expired LIVE
+  session has already ended its workflow, inFlight is back to false, but
+  the session itself stays on screen until the person dismisses it).
+-->
+{#if $appStore.live}
+  <LiveOverlay
+    record={$appStore.live}
+    on:accept={acceptLiveOffer}
+    on:reject={rejectLiveOffer}
+    on:cancel={abortActiveWorkflow}
+    on:done={clearLiveSession}
+  />
 {/if}
 
 <style>
@@ -1999,10 +2198,6 @@
 
   .row.error {
     color: #ff6b6b;
-  }
-
-  .row.live {
-    color: #8fb0ff;
   }
 
   .load-more {
