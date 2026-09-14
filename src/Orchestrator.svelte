@@ -23,14 +23,18 @@
   // through — plain prop-down + a reactive statement, no event bus, no
   // wrapper/controller layer.
   //
-  // Exactly one workflow (a LIVE search/offer, a LISTING search/offer, or
-  // a "Load More") may run at a time. A new `submit` value while one is
-  // already active is ignored — the only way to stop a running workflow
-  // is the Abort control this component renders itself, right below the
-  // rest of its workflow-status UI (relay connection, in-flight/sync
-  // state, errors, the current LIVE match, "Load More" for LISTING
-  // search). `$appStore.inFlight` reflects exactly this "a workflow is
-  // active" state for any other consumer that needs it.
+  // Exactly one workflow (a LIVE search/offer, a LISTING search/offer, a
+  // Mission publish, or a "Load More") may run at a time. A new `submit`
+  // or `missionSubmit` value while one is already active is ignored — the
+  // only way to stop a running workflow is the Abort control this
+  // component renders itself, right below the rest of its workflow-status
+  // UI (relay connection, in-flight/sync state, errors, the current LIVE
+  // match, "Load More" for LISTING search). `$appStore.inFlight` reflects
+  // exactly this "a workflow is active" state for any other consumer that
+  // needs it. `missionSubmit` drives its workflow through the same
+  // beginWorkflow/endWorkflow/activeWorkflowToken mechanism as `submit` —
+  // it is not a bounded operation of its own, just another workflow kind
+  // funneled through the existing infrastructure.
   //
   // Two more props follow the exact same prop-down + reactive-statement
   // pattern as `submit`, each its own small isolated operation rather than
@@ -137,10 +141,14 @@
 
   /**
    * A newly created or edited mission (see missions/SwarmGovernance.svelte's
-   * Submit/Save). Same prop-down pattern as `submit`. Fed from two places —
-   * HexMenu's own "new mission" modal, and cesium/EntityLayer.svelte's
-   * "existing mission" card — both funnel into this one prop, same as any
-   * other Svelte event forwarding in this app.
+   * Submit/Save). Same prop-down pattern as `submit` — and, unlike
+   * `deleteRequest`/`openEventId` below, a full workflow in the same sense
+   * as a LIVE or LISTING submit: publishMission() runs through
+   * beginWorkflow/endWorkflow/activeWorkflowToken and is refused while
+   * another workflow is active, same as handleSubmit(). Fed from two
+   * places — HexMenu's own "new mission" modal, and
+   * cesium/EntityLayer.svelte's "existing mission" card — both funnel into
+   * this one prop, same as any other Svelte event forwarding in this app.
    */
   export let missionSubmit: {
     dTag?: string;
@@ -173,14 +181,14 @@
   // ─── Single active workflow (§1/§2 of the second review) ────────────
   //
   // Exactly one user-initiated workflow (a LIVE search/offer, a LISTING
-  // search/offer, or a "Load More") may run at a time. `activeWorkflowToken`
-  // identifies whichever one is currently running — every async workflow
-  // step captures it locally and checks it's still current after each
-  // `await`, before touching the Store, so a stale result from an already
-  // -aborted workflow can never land late. Not a generation counter: since
-  // only one workflow can ever be active, a single mutable reference is
-  // enough — the same identity-check pattern LIVE's own `liveSession`
-  // guards already used.
+  // search/offer, a Mission publish, or a "Load More") may run at a time.
+  // `activeWorkflowToken` identifies whichever one is currently running —
+  // every async workflow step captures it locally and checks it's still
+  // current after each `await`, before touching the Store, so a stale
+  // result from an already-aborted workflow can never land late. Not a
+  // generation counter: since only one workflow can ever be active, a
+  // single mutable reference is enough — the same identity-check pattern
+  // LIVE's own `liveSession` guards already used.
   //
   // `$appStore.inFlight` doubles as "a workflow is active" for the UI
   // (nothing else ever sets it) — see the workflow-status template below,
@@ -1495,7 +1503,17 @@
     location: MissionLocation;
     lanes: MissionLanes;
   }) {
-    if (!client) return;
+    if (!client) {
+      setError('Not connected yet — try again in a moment.');
+      return;
+    }
+
+    if (activeWorkflowToken) {
+      console.warn('[Orchestrator] Ignoring missionSubmit — a workflow is already active. Use Abort first.');
+      return;
+    }
+
+    const token = beginWorkflow();
 
     const dTag =
       payload.dTag ??
@@ -1542,6 +1560,8 @@
         },
       });
 
+    if (activeWorkflowToken !== token) return;
+
     if (result.status === 'failed') {
       setError(
         'Failed to publish mission — no relay confirmed it.',
@@ -1561,9 +1581,13 @@
       },
     );
 
+    if (activeWorkflowToken !== token) return;
+
     for (const event of own.events) {
       processMissionEvent(event);
     }
+
+    endWorkflow();
   }
 
   function processMissionEvent(
