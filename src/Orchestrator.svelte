@@ -165,10 +165,11 @@
    * isn't already known — the network-side half of opening a deep link
    * (cesium/EntityLayer.svelte does the Store-side half: selecting it
    * once present, across both listings and missions). Reuses the exact
-   * same fetch-by-id + processListingEvent/processMissionEvent pipeline
-   * already used for our own publish-echoes and for delete confirmations
-   * — not a second discovery mechanism. The event's own `kind` (not the
-   * deep link's URL domain) decides which of the two it is.
+   * same fetch-by-id + processEvent() pipeline already used for our own
+   * publish-echoes and for delete confirmations — not a second discovery
+   * mechanism. The event's own `kind` (not the deep link's URL domain)
+   * decides which domain processor handles it, inside processEvent()
+   * itself.
    */
   export let openEventId: string | null = null;
 
@@ -291,6 +292,45 @@
 
   let missionDiscoveryTimer: ReturnType<typeof setInterval> | undefined;
 
+  // ─── Generic event processing — kind-agnostic dispatch (persist → store) ──
+  //
+  // Every place in this file that receives a raw Nostr event — discovery
+  // queries, live subscriptions, our own publish-echoes, deletion/tombstone
+  // confirmations, deep-link fetches — hands it to processEvent() instead
+  // of deciding for itself whether it's a LISTING or a MISSION. The switch
+  // on `event.kind` lives in exactly one place, right below; nowhere else
+  // in the orchestrator branches on kind or calls processListingEvent()/
+  // processMissionEvent() directly.
+  //
+  // Both domain processors share one non-negotiable contract, regardless
+  // of entity type: **event fully processed → persistence awaited to
+  // completion → only then is the store updated.** There is no path where
+  // a store write happens before its persistence has resolved — see
+  // processListingEvent() and processMissionEvent() below for the two
+  // (entity-specific) implementations of that same contract.
+
+  interface ProcessEventOptions {
+    persist: boolean;
+    /** LISTING-only: batches store writes across a whole discovery page instead of writing per-event — see flushListingBuffer(). Ignored by processMissionEvent(), which has no batched caller. */
+    buffer?: Map<string, ListingRecord | null>;
+  }
+
+  async function processEvent(
+    event: NostrEvent,
+    opts: ProcessEventOptions = { persist: true },
+  ) {
+    switch (event.kind) {
+      case LISTING_KIND:
+        return processListingEvent(event, opts);
+
+      case MISSION_KIND:
+        return processMissionEvent(event, opts);
+
+      default:
+        return;
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // Payload contract (§1)
   // ═══════════════════════════════════════════════════════════════════
@@ -308,7 +348,7 @@
     );
 
     for (const event of own.events) {
-      await processListingEvent(event, { persist: true });
+      await processEvent(event, { persist: true });
     }
   }
 
@@ -325,14 +365,15 @@
     );
 
     for (const event of own.events) {
-      processMissionEvent(event);
+      await processEvent(event, { persist: true });
     }
   }
 
   /**
    * Fetches one specific event by its actual Nostr event id — a listing
    * or a mission, whichever it turns out to be — and feeds it through the
-   * matching normal receive pipeline.
+   * matching normal receive pipeline. Which pipeline that is is decided
+   * once, inside processEvent() itself, from the event's own `kind`.
    */
   async function fetchEntityByEventId(eventId: string) {
     if (!client) return;
@@ -343,11 +384,7 @@
     );
 
     for (const event of result.events) {
-      if (event.kind === MISSION_KIND) {
-        processMissionEvent(event);
-      } else {
-        await processListingEvent(event, { persist: true });
-      }
+      await processEvent(event, { persist: true });
     }
   }
 
@@ -1003,7 +1040,7 @@
       new Map<string, ListingRecord | null>();
 
     for (const event of own.events) {
-      await processListingEvent(event, {
+      await processEvent(event, {
         persist: true,
         buffer,
       });
@@ -1082,7 +1119,7 @@
         continue;
       }
 
-      await processListingEvent(event, {
+      await processEvent(event, {
         persist: true,
         buffer,
       });
@@ -1180,7 +1217,7 @@
       `listing-live-${geohash5}`,
       filter,
       (event) => {
-        processListingEvent(event, {
+        processEvent(event, {
           persist: true,
         });
       },
@@ -1254,7 +1291,7 @@
       `listing-live-${scope.geohash4}`,
       filter,
       (event) => {
-        processListingEvent(event, {
+        processEvent(event, {
           persist: true,
         });
       },
@@ -1276,14 +1313,15 @@
   /**
    * The single receive-path pipeline for every listing-kind event,
    * regardless of source (discovery query, live subscription, our own
-   * just-published listing fetched back, or the tombstone watcher).
+   * just-published listing fetched back, or the tombstone watcher). Only
+   * ever called from processEvent() — the `LISTING_KIND` case of its
+   * switch — never directly. Persistence is always awaited to completion
+   * before the store (or buffer) is touched; see the persist → store
+   * contract above processEvent().
    */
   async function processListingEvent(
     event: NostrEvent,
-    opts: {
-      persist: boolean;
-      buffer?: Map<string, ListingRecord | null>;
-    },
+    opts: ProcessEventOptions,
   ) {
     if (isDeletionEvent(event)) {
       const target = getDeletionTarget(event);
@@ -1481,13 +1519,9 @@
           event.created_at,
         );
 
-        if (event.kind === MISSION_KIND) {
-          processMissionEvent(event);
-        } else {
-          processListingEvent(event, {
-            persist: true,
-          });
-        }
+        processEvent(event, {
+          persist: true,
+        });
       },
     );
   }
@@ -1584,14 +1618,26 @@
     if (activeWorkflowToken !== token) return;
 
     for (const event of own.events) {
-      processMissionEvent(event);
+      await processEvent(event, { persist: true });
     }
 
     endWorkflow();
   }
 
-  function processMissionEvent(
+  /**
+   * The single receive-path pipeline for every mission-kind event,
+   * regardless of source (discovery poll, our own just-published mission
+   * fetched back, or the tombstone watcher). Only ever called from
+   * processEvent() — the `MISSION_KIND` case of its switch — never
+   * directly. Same persist → store contract as processListingEvent():
+   * persistence is always awaited to completion before the store is
+   * touched. `opts.buffer` doesn't apply here — nothing calls
+   * processMissionEvent() with a batch to flush — so it's accepted for
+   * signature parity with processListingEvent() but otherwise ignored.
+   */
+  async function processMissionEvent(
     event: NostrEvent,
+    opts: ProcessEventOptions,
   ) {
     if (isDeletionEvent(event)) {
       const target =
@@ -1602,10 +1648,11 @@
       const id =
         `${target.author}:${target.dTag}`;
 
+      if (opts.persist) {
+        await deleteMissionPersisted(id);
+      }
+
       removeMissionFromStore(id);
-      deleteMissionPersisted(id).catch(
-        () => {},
-      );
 
       return;
     }
@@ -1664,8 +1711,11 @@
       },
     };
 
+    if (opts.persist) {
+      await saveMission(record);
+    }
+
     upsertMissionInStore(record);
-    saveMission(record);
   }
 
   function upsertMissionInStore(
@@ -1713,7 +1763,7 @@
     );
 
     for (const event of result.events) {
-      processMissionEvent(event);
+      await processEvent(event, { persist: true });
     }
   }
 
