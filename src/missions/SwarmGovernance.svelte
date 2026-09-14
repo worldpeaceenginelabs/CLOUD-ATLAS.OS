@@ -1,36 +1,28 @@
 <script lang="ts">
   // missions/SwarmGovernance.svelte
   // -----------------------------------------------------------------------
-  // The Mission card. One component, three states, exactly as specified:
+  // Mission 2 in the HexMenu creation flow — new-mission form only.
   //
-  //   record === null              -> new mission, fully editable
-  //   record !== null, !isOwner    -> read-only details card
-  //   record !== null, isOwner     -> read-only details card + Edit/
-  //                                     Marketing/Delete; Edit switches
-  //                                     the same fields back to editable
+  // Viewing/editing an *existing* mission is EntityDetails.svelte's job
+  // now (see cesium/EntityDetails.svelte's Mission Edit section) — this
+  // component no longer has a `record` prop, no read-only/owner mode, no
+  // Marketing/Delete. It never renders its own chrome (no `.panel`, no
+  // backdrop, no CloseButton): HexMenu.svelte owns the surrounding modal
+  // (.mission-modal-content) and the shared CloseButton, exactly like
+  // Mission1.svelte and Omnipedia.svelte.
   //
-  // For a new mission, HexMenu owns the surrounding modal chrome.
-  // For an existing mission selected from Cesium, this component owns its
-  // own detail backdrop/panel, exactly like EntityDetails.svelte.
-  //
-  // Still primarily UI: it renders fields, lets the user pick a Point or
-  // Area location through cesium/api.ts's public picker capability (never
-  // getActiveViewer() or any other Cesium-internal API), builds the mission
-  // payload, and dispatches `submit`/`delete`/`close` — no direct Nostr
-  // communication here. The actual publish/tombstone stays entirely
-  // in Orchestrator's existing flow.
+  // Still primarily UI: it renders the form, lets the user pick a Point
+  // or Area location through cesium/api.ts's public picker capability
+  // (never getActiveViewer() or any other Cesium-internal API), builds
+  // the mission payload, and dispatches `submit`/`picking` — no direct
+  // Nostr communication here. The actual publish stays entirely in
+  // Orchestrator's existing flow (App.svelte -> missionSubmit prop).
   // -----------------------------------------------------------------------
 
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { pick } from '../cesium/api';
   import type { Coordinates, BoundingBox } from '../cesium/api';
-  import type { MissionRecord, MissionLocation } from '../orchestrator/appStore';
-  import Marketing from '../shared/Marketing.svelte';
-  import CloseButton from '../shared/CloseButton.svelte';
-
-  export let record: MissionRecord | null = null;
-  /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a mission's `author` to decide whether to show owner-only actions, same convention as cesium/EntityDetails.svelte. */
-  export let ownPubkey: string | null = null;
+  import type { MissionLocation } from '../orchestrator/appStore';
 
   const dispatch = createEventDispatcher();
 
@@ -43,13 +35,6 @@
     { id: 'crowdfunding', label: 'Fund', placeholder: 'https://…' },
   ];
 
-  $: isExisting = record !== null;
-  $: isOwner = !!record && !!ownPubkey && record.author === ownPubkey;
-
-  let editing = false;
-  /** A new mission is always editable; an existing one only once its owner clicks Edit. */
-  $: editable = !isExisting || editing;
-
   let title = '';
   let description = '';
   let links: Record<LaneId, string> = {
@@ -59,32 +44,6 @@
     crowdfunding: '',
   };
   let pickedLocation: MissionLocation | null = null;
-
-  // Re-hydrate the form only when the selected mission actually changes
-  // (a different one, or new <-> existing) — not on every reference
-  // change of the same one, so an in-progress edit never gets clobbered
-  // by e.g. a background store refresh of the same underlying mission.
-  let hydratedId: string | null = null;
-  $: if (record && record.id !== hydratedId) {
-    title = record.content.title;
-    description = record.content.description;
-    links = { ...record.content.lanes };
-    pickedLocation = record.location;
-    editing = false;
-    hydratedId = record.id;
-  } else if (!record && hydratedId !== null) {
-    title = '';
-    description = '';
-    links = {
-      brainstorming: '',
-      meetanddo: '',
-      petition: '',
-      crowdfunding: '',
-    };
-    pickedLocation = null;
-    editing = false;
-    hydratedId = null;
-  }
 
   $: formValid =
     title.trim().length > 0 &&
@@ -105,7 +64,6 @@
     clearPickerPreview();
 
     dispatch('submit', {
-      dTag: record?.dTag,
       title: title.trim(),
       description: description.trim(),
       location: pickedLocation,
@@ -116,36 +74,6 @@
         crowdfunding: links.crowdfunding.trim(),
       },
     });
-
-    if (isExisting) editing = false;
-  }
-
-  function cancelEdit() {
-    if (!record) return;
-    clearPickerPreview();
-    title = record.content.title;
-    description = record.content.description;
-    links = { ...record.content.lanes };
-    pickedLocation = record.location;
-    editing = false;
-    stopPicking();
-  }
-
-  function requestDelete() {
-    if (!record) return;
-    dispatch('delete', record);
-  }
-
-  function close() {
-    clearPickerPreview();
-    stopPicking();
-    dispatch('close');
-  }
-
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && isExisting) {
-      close();
-    }
   }
 
   // ─── Location picking (Point or Area — never Route, per the mission spec) ──
@@ -215,318 +143,101 @@
     clearPickerPreview();
     stopPicking();
   });
-
-  // ─── Marketing ──────────────────────────────────────────────────────────
-
-  let showMarketing = false;
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<div class="mission-card">
+  <form class="mf" on:submit|preventDefault={handleSubmit}>
+    <h2 class="mf-heading">Swarm Governance</h2>
 
-{#if isExisting}
+    <label class="mf-label" for="mf-title">Title</label>
+    <input
+      id="mf-title"
+      class="mf-input"
+      type="text"
+      bind:value={title}
+      placeholder="Mission title"
+    />
 
-    <div
-      class="panel"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Mission details"
+    <label class="mf-label" for="mf-description">Description</label>
+    <textarea
+      id="mf-description"
+      class="mf-textarea"
+      rows="3"
+      bind:value={description}
+      placeholder="What is this mission about?"
+    />
 
-    >
-      <CloseButton onClose={close} />
-
-      <div class="mission-card">
-        {#if editable}
-          <form class="mf" on:submit|preventDefault={handleSubmit}>
-            <h2 class="mf-heading">Swarm Governance</h2>
-
-            <label class="mf-label" for="mf-title">Title</label>
-            <input
-              id="mf-title"
-              class="mf-input"
-              type="text"
-              bind:value={title}
-              placeholder="Mission title"
-            />
-
-            <label class="mf-label" for="mf-description">Description</label>
-            <textarea
-              id="mf-description"
-              class="mf-textarea"
-              rows="3"
-              bind:value={description}
-              placeholder="What is this mission about?"
-            />
-
-            <div class="mf-lanes">
-              {#each LANES as lane}
-                <div class="mf-lane">
-                  <label class="mf-label" for="mf-lane-{lane.id}">
-                    {lane.label}{lane.required ? ' *' : ''}
-                  </label>
-                  <input
-                    id="mf-lane-{lane.id}"
-                    class="mf-input"
-                    type="text"
-                    bind:value={links[lane.id]}
-                    placeholder={lane.placeholder}
-                  />
-                </div>
-              {/each}
-            </div>
-
-            <span class="mf-label">Location *</span>
-
-            {#if pickedLocation}
-              <div class="mf-location-preview">
-                {#if pickedLocation.kind === 'point'}
-                  <span>
-                    Point · {pickedLocation.latitude.toFixed(4)}, {pickedLocation.longitude.toFixed(4)}
-                  </span>
-                {:else}
-                  <span>
-                    Area · {pickedLocation.west.toFixed(2)}, {pickedLocation.south.toFixed(2)} →
-                    {pickedLocation.east.toFixed(2)}, {pickedLocation.north.toFixed(2)}
-                  </span>
-                {/if}
-
-                <button
-                  type="button"
-                  class="mf-location-change"
-                  on:click={clearLocation}
-                >
-                  Change
-                </button>
-              </div>
-            {:else}
-              <div class="mf-location-buttons">
-                <button
-                  type="button"
-                  class="mf-location-btn"
-                  class:picking={pickingMode === 'point'}
-                  on:click={() => startPicking('point')}
-                >
-                  {pickingMode === 'point' ? 'Click the globe…' : 'Pick Point'}
-                </button>
-
-                <button
-                  type="button"
-                  class="mf-location-btn"
-                  class:picking={pickingMode === 'area'}
-                  on:click={() => startPicking('area')}
-                >
-                  {pickingMode === 'area' ? 'Drag on the globe…' : 'Pick Area'}
-                </button>
-              </div>
-            {/if}
-
-            <div class="mf-actions">
-              {#if isExisting}
-                <button type="button" class="mf-cancel" on:click={cancelEdit}>
-                  Cancel
-                </button>
-              {/if}
-
-              <button type="submit" class="mf-submit" disabled={!formValid}>
-                {isExisting ? 'Save' : 'Submit'}
-              </button>
-            </div>
-          </form>
-        {:else}
-          <div class="mf">
-            <h2 class="mf-heading">Swarm Governance</h2>
-
-            <h3 class="mf-title-display">{title}</h3>
-            <p class="mf-description-display">{description}</p>
-
-            {#if pickedLocation}
-              <div class="mf-field">
-                <span class="mf-label">Location</span>
-
-                {#if pickedLocation.kind === 'point'}
-                  <div class="mf-value">
-                    Point · {pickedLocation.latitude.toFixed(4)}, {pickedLocation.longitude.toFixed(4)}
-                  </div>
-                {:else}
-                  <div class="mf-value">
-                    Area · {pickedLocation.west.toFixed(2)}, {pickedLocation.south.toFixed(2)} →
-                    {pickedLocation.east.toFixed(2)}, {pickedLocation.north.toFixed(2)}
-                  </div>
-                {/if}
-              </div>
-            {/if}
-
-            <div class="mf-lanes mf-lanes-display">
-              {#each LANES as lane}
-                {#if links[lane.id]}
-                  <a
-                    class="mf-lane-link"
-                    href={links[lane.id]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {lane.label}
-                  </a>
-                {/if}
-              {/each}
-            </div>
-
-            {#if isOwner}
-              <div class="mf-owner-actions">
-                <button
-                  type="button"
-                  class="mf-owner-btn"
-                  on:click={() => (editing = true)}
-                >
-                  Edit
-                </button>
-
-                <button
-                  type="button"
-                  class="mf-owner-btn marketing"
-                  on:click={() => (showMarketing = true)}
-                >
-                  Marketing
-                </button>
-
-                <button
-                  type="button"
-                  class="mf-owner-btn delete"
-                  on:click={requestDelete}
-                >
-                  Delete
-                </button>
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
+    <div class="mf-lanes">
+      {#each LANES as lane}
+        <div class="mf-lane">
+          <label class="mf-label" for="mf-lane-{lane.id}">
+            {lane.label}{lane.required ? ' *' : ''}
+          </label>
+          <input
+            id="mf-lane-{lane.id}"
+            class="mf-input"
+            type="text"
+            bind:value={links[lane.id]}
+            placeholder={lane.placeholder}
+          />
+        </div>
+      {/each}
     </div>
 
-{:else}
-  <div class="mission-card">
-    <form class="mf" on:submit|preventDefault={handleSubmit}>
-      <h2 class="mf-heading">Swarm Governance</h2>
+    <span class="mf-label">Location *</span>
 
-      <label class="mf-label" for="mf-title">Title</label>
-      <input
-        id="mf-title"
-        class="mf-input"
-        type="text"
-        bind:value={title}
-        placeholder="Mission title"
-      />
+    {#if pickedLocation}
+      <div class="mf-location-preview">
+        {#if pickedLocation.kind === 'point'}
+          <span>
+            Point · {pickedLocation.latitude.toFixed(4)}, {pickedLocation.longitude.toFixed(4)}
+          </span>
+        {:else}
+          <span>
+            Area · {pickedLocation.west.toFixed(2)}, {pickedLocation.south.toFixed(2)} →
+            {pickedLocation.east.toFixed(2)}, {pickedLocation.north.toFixed(2)}
+          </span>
+        {/if}
 
-      <label class="mf-label" for="mf-description">Description</label>
-      <textarea
-        id="mf-description"
-        class="mf-textarea"
-        rows="3"
-        bind:value={description}
-        placeholder="What is this mission about?"
-      />
-
-      <div class="mf-lanes">
-        {#each LANES as lane}
-          <div class="mf-lane">
-            <label class="mf-label" for="mf-lane-{lane.id}">
-              {lane.label}{lane.required ? ' *' : ''}
-            </label>
-            <input
-              id="mf-lane-{lane.id}"
-              class="mf-input"
-              type="text"
-              bind:value={links[lane.id]}
-              placeholder={lane.placeholder}
-            />
-          </div>
-        {/each}
-      </div>
-
-      <span class="mf-label">Location *</span>
-
-      {#if pickedLocation}
-        <div class="mf-location-preview">
-          {#if pickedLocation.kind === 'point'}
-            <span>
-              Point · {pickedLocation.latitude.toFixed(4)}, {pickedLocation.longitude.toFixed(4)}
-            </span>
-          {:else}
-            <span>
-              Area · {pickedLocation.west.toFixed(2)}, {pickedLocation.south.toFixed(2)} →
-              {pickedLocation.east.toFixed(2)}, {pickedLocation.north.toFixed(2)}
-            </span>
-          {/if}
-
-          <button
-            type="button"
-            class="mf-location-change"
-            on:click={clearLocation}
-          >
-            Change
-          </button>
-        </div>
-      {:else}
-        <div class="mf-location-buttons">
-          <button
-            type="button"
-            class="mf-location-btn"
-            class:picking={pickingMode === 'point'}
-            on:click={() => startPicking('point')}
-          >
-            {pickingMode === 'point' ? 'Click the globe…' : 'Pick Point'}
-          </button>
-
-          <button
-            type="button"
-            class="mf-location-btn"
-            class:picking={pickingMode === 'area'}
-            on:click={() => startPicking('area')}
-          >
-            {pickingMode === 'area' ? 'Drag on the globe…' : 'Pick Area'}
-          </button>
-        </div>
-      {/if}
-
-      <div class="mf-actions">
-        <button type="submit" class="mf-submit" disabled={!formValid}>
-          Submit
+        <button
+          type="button"
+          class="mf-location-change"
+          on:click={clearLocation}
+        >
+          Change
         </button>
       </div>
-    </form>
-  </div>
-{/if}
+    {:else}
+      <div class="mf-location-buttons">
+        <button
+          type="button"
+          class="mf-location-btn"
+          class:picking={pickingMode === 'point'}
+          on:click={() => startPicking('point')}
+        >
+          {pickingMode === 'point' ? 'Click the globe…' : 'Pick Point'}
+        </button>
 
-{#if showMarketing && record}
-  <Marketing
-    domain="mission"
-    eventId={record.eventId}
-    on:close={() => (showMarketing = false)}
-  />
-{/if}
+        <button
+          type="button"
+          class="mf-location-btn"
+          class:picking={pickingMode === 'area'}
+          on:click={() => startPicking('area')}
+        >
+          {pickingMode === 'area' ? 'Drag on the globe…' : 'Pick Area'}
+        </button>
+      </div>
+    {/if}
+
+    <div class="mf-actions">
+      <button type="submit" class="mf-submit" disabled={!formValid}>
+        Submit
+      </button>
+    </div>
+  </form>
+</div>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    z-index: 9999;
-  }
-
-  .panel {
-    position: relative;
-    width: min(640px, 92vw);
-    max-height: 88vh;
-    overflow-y: auto;
-    box-sizing: border-box;
-    background: #1b1b1b;
-    border: 1px solid rgba(126, 87, 194, 0.5);
-    border-radius: 14px;
-    padding: 2.5rem 1.5rem 1.5rem;
-  }
-
   .mission-card {
     color: #eee;
   }
@@ -588,54 +299,6 @@
   .mf-lane {
     display: flex;
     flex-direction: column;
-  }
-
-  .mf-lanes-display {
-    margin-top: 0.75rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .mf-lane-link {
-    background: rgba(126, 87, 194, 0.18);
-    border: 1px solid rgba(126, 87, 194, 0.5);
-    color: #cbb6f0;
-    padding: 0.3rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .mf-lane-link:hover,
-  .mf-lane-link:focus-visible {
-    background: rgba(126, 87, 194, 0.3);
-  }
-
-  .mf-title-display {
-    margin: 0.25rem 0 0;
-    font-size: 1.2rem;
-    color: #fff;
-  }
-
-  .mf-description-display {
-    margin: 0.4rem 0 0;
-    font-size: 0.88rem;
-    line-height: 1.5;
-    color: #dcdcdc;
-    white-space: pre-wrap;
-  }
-
-  .mf-field {
-    margin-top: 0.6rem;
-  }
-
-  .mf-value {
-    margin-top: 0.2rem;
-    font-size: 0.85rem;
-    color: #eee;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 
   .mf-location-preview {
@@ -702,21 +365,6 @@
     gap: 0.6rem;
   }
 
-  .mf-cancel {
-    padding: 0.65rem 1rem;
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 8px;
-    color: #eee;
-    font-size: 0.9rem;
-    cursor: pointer;
-  }
-
-  .mf-cancel:hover,
-  .mf-cancel:focus-visible {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
   .mf-submit {
     flex: 1;
     padding: 0.65rem 1rem;
@@ -733,52 +381,6 @@
     background: rgba(255, 255, 255, 0.12);
     color: rgba(255, 255, 255, 0.4);
     cursor: not-allowed;
-  }
-
-  .mf-owner-actions {
-    display: flex;
-    gap: 0.6rem;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .mf-owner-btn {
-    flex: 1;
-    padding: 0.45rem 0;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    cursor: pointer;
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    color: #eee;
-  }
-
-  .mf-owner-btn:hover,
-  .mf-owner-btn:focus-visible {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .mf-owner-btn.marketing {
-    background: #7e57c2;
-    border: none;
-    color: #fff;
-  }
-
-  .mf-owner-btn.marketing:hover,
-  .mf-owner-btn.marketing:focus-visible {
-    filter: brightness(1.08);
-  }
-
-  .mf-owner-btn.delete {
-    border-color: #ff6b6b;
-    color: #ff6b6b;
-  }
-
-  .mf-owner-btn.delete:hover,
-  .mf-owner-btn.delete:focus-visible {
-    background: rgba(255, 107, 107, 0.12);
   }
 
   @media (max-width: 480px) {

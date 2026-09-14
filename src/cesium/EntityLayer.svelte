@@ -8,18 +8,23 @@
   // click on one of them into a Store lookup + details popup.
   //
   //   Cesium entity click → cesium/api.ts (pick.entity) → entity id
-  //     → Store lookup → EntityDetails.svelte (listing/live) or
-  //       missions/SwarmGovernance.svelte (mission)
+  //     → Store lookup → EntityDetails.svelte
+  //
+  // EntityDetails.svelte is the single, universal viewer for every record
+  // kind (Live/Listing/Mission) — including Mission's owner-only Edit,
+  // which happens inline inside that same panel now. Creating a *new*
+  // Mission is a different flow entirely (missions/SwarmGovernance.svelte,
+  // Mission 2 in the HexMenu flow) and never runs through this component.
   //
   // It knows only Cesium concepts (entities, picking, coordinates) plus
   // the shape of a Store record — never LIVE/LISTING/Mission business
   // logic, and it never calls into Orchestrator.svelte directly. The two
   // exceptions are strictly one-directional pass-throughs: EntityDetails'
-  // and SwarmGovernance's owner-only Delete buttons dispatch a `delete`
-  // event, and SwarmGovernance's Submit/Save dispatches `submit` — both
-  // simply re-dispatched upward for this component's own parent to turn
-  // into Orchestrator's `deleteRequest`/`missionSubmit` props. This
-  // component never calls Orchestrator or Nostr itself.
+  // owner-only Delete button dispatches a `delete` event, and its Mission
+  // Edit/Save dispatches `submit` — both simply re-dispatched upward for
+  // this component's own parent to turn into Orchestrator's
+  // `deleteRequest`/`missionSubmit` props. This component never calls
+  // Orchestrator or Nostr itself.
   //
   // `deepLink` (set by App.svelte from the current URL) reuses this exact
   // same "look the record up in the Store and select it" mechanism — see
@@ -41,7 +46,6 @@
   import { appStore, type AppState, type EntityRecord } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
   import { waitForGlobeLoaded } from './viewer';
-  import SwarmGovernance from '../missions/SwarmGovernance.svelte';
 
   /** Set by App.svelte from the current URL (see its own header comment) — the event this deep link should open, once it's known locally. */
   export let deepLink: { domain: string; eventId: string } | null = null;
@@ -54,10 +58,6 @@
 
   /** Set once showUserLocation() resolves the device position — reused so a click on the "Your Location!" entity can fly back there without re-fetching position. */
   let userLocationCoords: { longitude: number; latitude: number } | null = null;
-
-  /** Same value as selectedRecord, narrowed to exclude Mission — EntityDetails.svelte's prop type never included Mission and shouldn't have to; computed once here instead of relying on template-level narrowing propagating through to a child component's prop. */
-  $: nonMissionRecord =
-    selectedRecord && selectedRecord.kind !== 'mission' ? selectedRecord : null;
 
   /** The one place a record gets selected, regardless of why — an entity click or a resolved deep link both funnel through this, across every record kind. */
   function selectRecordById(recordId: string): boolean {
@@ -311,8 +311,8 @@
   });
 </script>
 
-{#if selectedRecord?.kind === 'mission'}
-<SwarmGovernance
+{#if selectedRecord}
+<EntityDetails
 record={selectedRecord}
 ownPubkey={$appStore.ownPubkey}
 on:close={() => (selectedRecord = null)}
@@ -321,13 +321,6 @@ dispatch('delete', e.detail);
 selectedRecord = null;
 }}
 on:submit={(e) => dispatch('missionSubmit', e.detail)}
-/>
-{:else if nonMissionRecord}
-<EntityDetails
-record={nonMissionRecord}
-ownPubkey={$appStore.ownPubkey}
-on:close={() => (selectedRecord = null)}
-on:delete
 />
 {/if}
 

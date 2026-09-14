@@ -1,43 +1,202 @@
 <script lang="ts">
   // EntityDetails.svelte
   // -----------------------------------------------------------------------
-  // A deliberately "dumb" display component (see orchestrator-prompt.md's
-  // UI boundary: "All UI components are intentionally dumb"). It takes a
+  // The single, universal "show what I clicked on" panel for every entity
+  // type (Live, Listing, Mission) selected from the Cesium globe. Owns its
+  // own chrome (backdrop, panel, position, CloseButton) entirely — it is
+  // the only place a globe-selected entity gets shown, so there's no
+  // sibling component competing for the same job (see
+  // missions/SwarmGovernance.svelte's header comment: that component is
+  // creation-only now, Mission 2 in the HexMenu flow, and never renders
+  // an existing record).
+  //
+  // Still a "dumb" display component (see orchestrator-prompt.md's UI
+  // boundary: "All UI components are intentionally dumb"). It takes a
   // record — whatever Orchestrator.svelte looked up in the Store for the
   // entity the person just clicked on the Cesium globe — and renders it.
-  // No Nostr, no discovery, no store access, no business logic: it doesn't
-  // know or care whether `record` came from a LIVE match or a LISTING, or
-  // what a geohash, a dTag, or "expiration" mean at the protocol level.
-  // It only knows how to format the plain fields it's handed.
+  // No Nostr, no discovery, no store access, no business logic beyond
+  // picking apart which plain fields a given record kind has.
   //
-  // Named "EntityDetails" rather than "Details" to avoid colliding with
-  // the existing hexmenu/Details.svelte (the listing-creation form modal)
-  // — this is an unrelated, read-only "show what I clicked on" panel.
+  // Owner-only actions (Edit, Marketing, Delete): still no direct Nostr
+  // communication here. Edit toggles this same panel into an editable
+  // form (Mission only, for now — Listing/Live never had an edit
+  // capability to begin with, so there's nothing to move over for them);
+  // Save dispatches `submit` upward, Delete dispatches `delete` upward.
+  // The actual publish/tombstone stays entirely in Orchestrator's
+  // existing flow (see EntityLayer.svelte, which forwards both events,
+  // and App.svelte, which turns them into Orchestrator's
+  // `missionSubmit`/`deleteRequest` props). Marketing is pure UI
+  // composition (a link built from two plain fields already on the
+  // record), so it opens locally with no event needed.
   //
-  // Owner-only actions (Delete, Marketing): still no direct Nostr
-  // communication here. Delete just dispatches an event upward — the
-  // actual tombstone publish stays entirely in Orchestrator's existing
-  // flow (see EntityLayer.svelte, which forwards this event, and
-  // App.svelte, which turns it into Orchestrator's `deleteRequest` prop).
-  // Marketing is pure UI composition (a link built from two plain fields
-  // already on the record), so it opens locally with no event needed.
+  // Location picking during Mission edit reuses cesium/api.ts's public
+  // picker capability (never getActiveViewer() or any other
+  // Cesium-internal API) — same mechanism SwarmGovernance's create form
+  // uses. While editing a Mission, the backdrop is deliberately not
+  // rendered (see the template below), so a click on the globe to pick a
+  // new Point/Area reaches Cesium instead of just closing this panel.
   // -----------------------------------------------------------------------
   import { createEventDispatcher } from 'svelte';
-  import type { LiveRecord, ListingRecord } from '../orchestrator/appStore';
+  import type { LiveRecord, ListingRecord, MissionRecord, MissionLocation } from '../orchestrator/appStore';
+  import { pick } from './api';
+  import type { Coordinates, BoundingBox } from './api';
   import Marketing from '../shared/Marketing.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
 
-  export let record: LiveRecord | ListingRecord | null = null;
-  /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's `author` to decide whether to show the owner-only actions below. */
+  export let record: LiveRecord | ListingRecord | MissionRecord | null = null;
+  /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's/mission's `author` to decide whether to show the owner-only actions below. Live records have no `author` field (no ownership concept), so they never show owner actions. */
   export let ownPubkey: string | null = null;
 
   const dispatch = createEventDispatcher();
 
-  $: isOwner = !!record && !!ownPubkey && record.kind === 'listing' && record.author === ownPubkey;
+  $: isOwner =
+    !!record &&
+    !!ownPubkey &&
+    (record.kind === 'listing' || record.kind === 'mission') &&
+    record.author === ownPubkey;
 
   let showMarketing = false;
 
+  // ─── Mission edit form — the only record kind with an edit capability ───
+
+  type LaneId = 'brainstorming' | 'meetanddo' | 'petition' | 'crowdfunding';
+
+  const LANES: { id: LaneId; label: string; placeholder: string; required?: true }[] = [
+    { id: 'brainstorming', label: 'Brainstorm', placeholder: 'https://… (required)', required: true },
+    { id: 'meetanddo', label: 'Meet & do', placeholder: 'https://…' },
+    { id: 'petition', label: 'Petition', placeholder: 'https://…' },
+    { id: 'crowdfunding', label: 'Fund', placeholder: 'https://…' },
+  ];
+
+  let editing = false;
+  let title = '';
+  let description = '';
+  let links: Record<LaneId, string> = {
+    brainstorming: '',
+    meetanddo: '',
+    petition: '',
+    crowdfunding: '',
+  };
+  let pickedLocation: MissionLocation | null = null;
+
+  // Re-hydrate the edit form only when the selected mission actually
+  // changes (a different one, or Mission <-> non-Mission) — not on every
+  // reference change of the same one, so an in-progress edit never gets
+  // clobbered by e.g. a background store refresh of the same mission.
+  let hydratedId: string | null = null;
+  $: if (record?.kind === 'mission' && record.id !== hydratedId) {
+    title = record.content.title;
+    description = record.content.description;
+    links = { ...record.content.lanes };
+    pickedLocation = record.location;
+    editing = false;
+    hydratedId = record.id;
+  } else if (record?.kind !== 'mission' && hydratedId !== null) {
+    editing = false;
+    hydratedId = null;
+  }
+
+  $: formValid =
+    title.trim().length > 0 &&
+    description.trim().length > 0 &&
+    links.brainstorming.trim().length > 0 &&
+    pickedLocation !== null;
+
+  // The picker owns its Cesium preview. Submit/Cancel are the explicit
+  // points at which the preview is cleared.
+  function clearPickerPreview(): void {
+    pick.clear();
+    pick.area.clear();
+  }
+
+  let pickingMode: 'point' | 'area' | null = null;
+
+  function startPicking(mode: 'point' | 'area') {
+    stopPicking();
+
+    pickingMode = mode;
+
+    if (mode === 'point') {
+      pick.enable((coords: Coordinates | null) => {
+        if (coords) {
+          pickedLocation = {
+            kind: 'point',
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          };
+        }
+
+        // disable() only stops picking. The selected point remains visible.
+        stopPicking();
+      });
+
+      return;
+    }
+
+    pick.area.enable((box: BoundingBox) => {
+      pickedLocation = {
+        kind: 'area',
+        ...box,
+      };
+
+      // disable() only stops picking. The selected rectangle remains visible.
+      stopPicking();
+    });
+  }
+
+  function stopPicking() {
+    if (pickingMode === 'point') pick.disable();
+    if (pickingMode === 'area') pick.area.disable();
+    pickingMode = null;
+  }
+
+  function clearLocation() {
+    clearPickerPreview();
+    pickedLocation = null;
+  }
+
+  function startEdit() {
+    if (!record || record.kind !== 'mission') return;
+    editing = true;
+  }
+
+  function cancelEdit() {
+    if (!record || record.kind !== 'mission') return;
+    clearPickerPreview();
+    stopPicking();
+    title = record.content.title;
+    description = record.content.description;
+    links = { ...record.content.lanes };
+    pickedLocation = record.location;
+    editing = false;
+  }
+
+  function handleMissionSubmit() {
+    if (!record || record.kind !== 'mission' || !formValid || !pickedLocation) return;
+
+    clearPickerPreview();
+
+    dispatch('submit', {
+      dTag: record.dTag,
+      title: title.trim(),
+      description: description.trim(),
+      location: pickedLocation,
+      lanes: {
+        brainstorming: links.brainstorming.trim(),
+        meetanddo: links.meetanddo.trim(),
+        petition: links.petition.trim(),
+        crowdfunding: links.crowdfunding.trim(),
+      },
+    });
+
+    editing = false;
+  }
+
+  // ─── Shared actions ─────────────────────────────────────────────────────
+
   function close() {
+    clearPickerPreview();
+    stopPicking();
     dispatch('close');
   }
 
@@ -58,13 +217,15 @@
     return s.replace(/[_-]/g, ' ');
   }
 
-  function titleOf(r: LiveRecord | ListingRecord): string {
+  function titleOf(r: LiveRecord | ListingRecord | MissionRecord): string {
+    if (r.kind === 'mission') return r.content.title || 'Mission';
     const content = r.content as Record<string, unknown>;
     if (typeof content?.title === 'string' && content.title) return content.title;
     return humanize(r.model);
   }
 
-  function categoryOf(r: LiveRecord | ListingRecord): string | null {
+  function categoryOf(r: LiveRecord | ListingRecord | MissionRecord): string | null {
+    if (r.kind === 'mission') return null;
     const content = r.content as Record<string, unknown>;
     if (typeof content?.categoryId === 'string') return humanize(content.categoryId);
     if (Array.isArray(content?.categoryIds) && content.categoryIds.length) {
@@ -73,7 +234,7 @@
     return null;
   }
 
-  function fieldOf(r: LiveRecord | ListingRecord, key: string): string | null {
+  function fieldOf(r: LiveRecord | ListingRecord | MissionRecord, key: string): string | null {
     const content = r.content as Record<string, unknown>;
     const value = content?.[key];
     return typeof value === 'string' && value ? value : null;
@@ -82,6 +243,13 @@
   function formatCoords(loc: { latitude: number; longitude: number } | null): string | null {
     if (!loc) return null;
     return `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`;
+  }
+
+  function formatMissionLocation(loc: MissionLocation): string {
+    if (loc.kind === 'point') {
+      return `Point · ${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`;
+    }
+    return `Area · ${loc.west.toFixed(2)}, ${loc.south.toFixed(2)} → ${loc.east.toFixed(2)}, ${loc.north.toFixed(2)}`;
   }
 
   function formatTimestamp(unixSecs: number): string {
@@ -103,80 +271,204 @@
 <svelte:window on:keydown={onKeydown} />
 
 {#if record}
-  <div class="backdrop" on:click={close} />
+  {#if !(record.kind === 'mission' && editing)}
+    <div class="backdrop" on:click={close} />
+  {/if}
+
   <div class="panel" role="dialog" aria-modal="true">
     <div class="panel-header">
-      <span class="kind-badge" class:live={record.kind === 'live'}>
-        {record.kind === 'live' ? 'LIVE' : 'LISTING'}
+      <span
+        class="kind-badge"
+        class:live={record.kind === 'live'}
+        class:mission={record.kind === 'mission'}
+      >
+        {record.kind === 'live' ? 'LIVE' : record.kind === 'mission' ? 'MISSION' : 'LISTING'}
       </span>
       <CloseButton onClose={close} position="relative" top="0" right="0" />
     </div>
 
-    <h2 class="title">{titleOf(record)}</h2>
-    <div class="model">{record.model.replace(/_/g, ' ')}</div>
+    {#if record.kind === 'mission' && editing}
+      <!-- ─── Mission edit form ─────────────────────────────────────── -->
+      <form class="mf" on:submit|preventDefault={handleMissionSubmit}>
+        <label class="mf-label" for="mf-title">Title</label>
+        <input
+          id="mf-title"
+          class="mf-input"
+          type="text"
+          bind:value={title}
+          placeholder="Mission title"
+        />
 
-    {#if record.kind === 'live'}
-      <div class="status-row">
-        <span class="status-dot" class:matched={record.status === 'matched'} class:expired={record.status === 'expired' || record.status === 'cancelled'} />
-        <span>{STATUS_LABEL[record.status] ?? record.status}</span>
-        <span class="role">({record.role})</span>
-      </div>
-      {#if record.peerPubkey}
+        <label class="mf-label" for="mf-description">Description</label>
+        <textarea
+          id="mf-description"
+          class="mf-textarea"
+          rows="3"
+          bind:value={description}
+          placeholder="What is this mission about?"
+        />
+
+        <div class="mf-lanes">
+          {#each LANES as lane}
+            <div class="mf-lane">
+              <label class="mf-label" for="mf-lane-{lane.id}">
+                {lane.label}{lane.required ? ' *' : ''}
+              </label>
+              <input
+                id="mf-lane-{lane.id}"
+                class="mf-input"
+                type="text"
+                bind:value={links[lane.id]}
+                placeholder={lane.placeholder}
+              />
+            </div>
+          {/each}
+        </div>
+
+        <span class="mf-label">Location *</span>
+
+        {#if pickedLocation}
+          <div class="mf-location-preview">
+            <span>{formatMissionLocation(pickedLocation)}</span>
+            <button type="button" class="mf-location-change" on:click={clearLocation}>
+              Change
+            </button>
+          </div>
+        {:else}
+          <div class="mf-location-buttons">
+            <button
+              type="button"
+              class="mf-location-btn"
+              class:picking={pickingMode === 'point'}
+              on:click={() => startPicking('point')}
+            >
+              {pickingMode === 'point' ? 'Click the globe…' : 'Pick Point'}
+            </button>
+
+            <button
+              type="button"
+              class="mf-location-btn"
+              class:picking={pickingMode === 'area'}
+              on:click={() => startPicking('area')}
+            >
+              {pickingMode === 'area' ? 'Drag on the globe…' : 'Pick Area'}
+            </button>
+          </div>
+        {/if}
+
+        <div class="mf-actions">
+          <button type="button" class="mf-cancel" on:click={cancelEdit}>
+            Cancel
+          </button>
+          <button type="submit" class="mf-submit" disabled={!formValid}>
+            Save
+          </button>
+        </div>
+      </form>
+    {:else}
+      <!-- ─── Read-only record view ─────────────────────────────────── -->
+      <h2 class="title">{titleOf(record)}</h2>
+
+      {#if record.kind !== 'mission'}
+        <div class="model">{record.model.replace(/_/g, ' ')}</div>
+      {/if}
+
+      {#if record.kind === 'live'}
+        <div class="status-row">
+          <span
+            class="status-dot"
+            class:matched={record.status === 'matched'}
+            class:expired={record.status === 'expired' || record.status === 'cancelled'}
+          />
+          <span>{STATUS_LABEL[record.status] ?? record.status}</span>
+          <span class="role">({record.role})</span>
+        </div>
+        {#if record.peerPubkey}
+          <div class="field">
+            <span class="label">Peer</span>
+            <span class="value mono">{shortPubkey(record.peerPubkey)}</span>
+          </div>
+        {/if}
+      {:else if record.kind === 'listing'}
         <div class="field">
-          <span class="label">Peer</span>
-          <span class="value mono">{shortPubkey(record.peerPubkey)}</span>
+          <span class="label">Expires</span>
+          <span class="value">{formatTimestamp(record.expiresAt)}</span>
         </div>
       {/if}
-    {:else}
-      <div class="field">
-        <span class="label">Expires</span>
-        <span class="value">{formatTimestamp(record.expiresAt)}</span>
-      </div>
-    {/if}
 
-    {#if categoryOf(record)}
-      <div class="field">
-        <span class="label">Category</span>
-        <span class="value">{categoryOf(record)}</span>
-      </div>
-    {/if}
+      {#if categoryOf(record)}
+        <div class="field">
+          <span class="label">Category</span>
+          <span class="value">{categoryOf(record)}</span>
+        </div>
+      {/if}
 
-    {#if fieldOf(record, 'description')}
-      <p class="description">{fieldOf(record, 'description')}</p>
-    {/if}
+      {#if fieldOf(record, 'description')}
+        <p class="description">{fieldOf(record, 'description')}</p>
+      {/if}
 
-    {#if fieldOf(record, 'contact')}
-      <div class="field">
-        <span class="label">Contact</span>
-        <span class="value">{fieldOf(record, 'contact')}</span>
-      </div>
-    {/if}
+      {#if record.kind !== 'mission'}
+        {#if fieldOf(record, 'contact')}
+          <div class="field">
+            <span class="label">Contact</span>
+            <span class="value">{fieldOf(record, 'contact')}</span>
+          </div>
+        {/if}
 
-    {#if fieldOf(record, 'interactionMode')}
-      <div class="field">
-        <span class="label">Format</span>
-        <span class="value">{humanize(fieldOf(record, 'interactionMode') ?? '')}</span>
-      </div>
-    {/if}
+        {#if fieldOf(record, 'interactionMode')}
+          <div class="field">
+            <span class="label">Format</span>
+            <span class="value">{humanize(fieldOf(record, 'interactionMode') ?? '')}</span>
+          </div>
+        {/if}
 
-    {#if formatCoords(record.location)}
-      <div class="field">
-        <span class="label">Location</span>
-        <span class="value mono">{formatCoords(record.location)}</span>
-      </div>
-    {/if}
+        {#if formatCoords(record.location)}
+          <div class="field">
+            <span class="label">Location</span>
+            <span class="value mono">{formatCoords(record.location)}</span>
+          </div>
+        {/if}
+      {:else}
+        <div class="field">
+          <span class="label">Location</span>
+          <span class="value mono">{formatMissionLocation(record.location)}</span>
+        </div>
 
-    {#if isOwner}
-      <div class="owner-actions">
-        <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Marketing</button>
-        <button class="owner-btn delete" on:click={requestDelete}>Delete</button>
-      </div>
+        <div class="mf-lanes-display">
+          {#each LANES as lane}
+            {#if record.content.lanes[lane.id]}
+              <a
+                class="mf-lane-link"
+                href={record.content.lanes[lane.id]}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {lane.label}
+              </a>
+            {/if}
+          {/each}
+        </div>
+      {/if}
+
+      {#if isOwner}
+        <div class="owner-actions">
+          {#if record.kind === 'mission'}
+            <button class="owner-btn edit" on:click={startEdit}>Edit</button>
+          {/if}
+          <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Marketing</button>
+          <button class="owner-btn delete" on:click={requestDelete}>Delete</button>
+        </div>
+      {/if}
     {/if}
   </div>
 {/if}
 
-{#if showMarketing && record?.kind === 'listing'}
-  <Marketing domain={record.domain} eventId={record.eventId} on:close={() => (showMarketing = false)} />
+{#if showMarketing && record && record.kind !== 'live'}
+  <Marketing
+    domain={record.kind === 'mission' ? 'mission' : record.domain}
+    eventId={record.eventId}
+    on:close={() => (showMarketing = false)}
+  />
 {/if}
 
 <style>
@@ -224,6 +516,9 @@
   }
   .kind-badge.live {
     color: #2ae9c9;
+  }
+  .kind-badge.mission {
+    color: #cbb6f0;
   }
 
   .title {
@@ -317,6 +612,16 @@
     cursor: pointer;
   }
 
+  .owner-btn.edit {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #eee;
+  }
+  .owner-btn.edit:hover,
+  .owner-btn.edit:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
   .owner-btn.marketing {
     background: linear-gradient(90deg, #335bf4, #2ae9c9);
     border: none;
@@ -335,6 +640,179 @@
   .owner-btn.delete:hover,
   .owner-btn.delete:focus-visible {
     background: rgba(255, 107, 107, 0.12);
+  }
+
+  /* ─── Mission fields (edit form + lane pills) — kept visually distinct
+     with the same mission-purple accent SwarmGovernance's create form
+     uses, so a Mission still "reads" as a Mission even though EntityDetails
+     now owns its display. ─────────────────────────────────────────────── */
+
+  .mf {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: #eee;
+    font-family: inherit;
+  }
+
+  .mf-label {
+    margin-top: 0.75rem;
+    font-size: 0.7em;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .mf-input,
+  .mf-textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    margin-top: 0.25rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.85rem;
+    font-family: inherit;
+  }
+
+  .mf-textarea {
+    resize: vertical;
+  }
+
+  .mf-input:focus,
+  .mf-textarea:focus {
+    outline: none;
+    border-color: #7e57c2;
+  }
+
+  /* Single column — this panel is narrower than the old .mission-modal-content,
+     so the two-column lane grid SwarmGovernance's create form uses would be
+     cramped here. */
+  .mf-lanes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .mf-lane {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mf-lanes-display {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .mf-lane-link {
+    background: rgba(126, 87, 194, 0.18);
+    border: 1px solid rgba(126, 87, 194, 0.5);
+    color: #cbb6f0;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .mf-lane-link:hover,
+  .mf-lane-link:focus-visible {
+    background: rgba(126, 87, 194, 0.3);
+  }
+
+  .mf-location-preview {
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.65rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .mf-location-change {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #eee;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .mf-location-change:hover,
+  .mf-location-change:focus-visible {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .mf-location-buttons {
+    margin-top: 0.25rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .mf-location-btn {
+    flex: 1;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #eee;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mf-location-btn:hover,
+  .mf-location-btn:focus-visible {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .mf-location-btn.picking {
+    border-color: #7e57c2;
+    color: #cbb6f0;
+  }
+
+  .mf-actions {
+    margin-top: 1.25rem;
+    display: flex;
+    gap: 0.6rem;
+  }
+
+  .mf-cancel {
+    padding: 0.55rem 0.9rem;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    color: #eee;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .mf-cancel:hover,
+  .mf-cancel:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .mf-submit {
+    flex: 1;
+    padding: 0.55rem 0.9rem;
+    background: #7e57c2;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mf-submit:disabled {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: not-allowed;
   }
 
   @media (prefers-reduced-motion: no-preference) {
