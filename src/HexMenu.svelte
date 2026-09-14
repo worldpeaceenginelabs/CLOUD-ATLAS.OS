@@ -856,9 +856,17 @@
        box-sizing: border-box;
 
        background: #1b1b1b;
-       border: 1px solid rgba(255, 255, 255, 0.12);
-       border-radius: 14px;
+
        padding: 2.5rem 1.5rem 1.5rem;
+
+       border-radius: 14px;
+
+       border-left: 3px solid;
+       border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
+       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+       color: #fff;
+       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
        z-index: 9999;
      }

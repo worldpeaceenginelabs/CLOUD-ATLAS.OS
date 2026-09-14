@@ -499,22 +499,30 @@
   }
 
   .panel {
-    position: fixed;
-    top: 50%;
-    right: 2em;
-    transform: translateY(-50%);
-    z-index: 41;
-    width: min(360px, calc(100vw - 4em));
-    max-height: min(600px, calc(100vh - 4em));
-    overflow-y: auto;
-    padding: 1.5em;
+      position: fixed;
+      top: 50%;
+      left: 4vw;
+      transform: translateY(-50%);
+
+      width: min(640px, 44vw);
+      max-height: 88vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+
+      background: #1b1b1b;
+
+    padding: 2.5rem 1.5rem 1.5rem;
+
     border-radius: 14px;
-    background: #16171a;
+
     border-left: 3px solid;
     border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
     color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    z-index: 41;
   }
 
   .panel-header {
@@ -857,11 +865,14 @@
      horizontal centering) and would jump on first appearance. */
   @media (max-width: 700px) {
     .panel {
-      left: 50%;
-      right: auto;
-      transform: translate(-50%, -50%);
-      width: min(360px, calc(100vw - 2em));
-      max-height: calc(100vh - 2em);
+        top: 0;
+        left: 0;
+        transform: none;
+
+        width: 100%;
+        max-height: 50vh;
+
+        box-sizing: border-box;
     }
   }
   @media (max-width: 700px) and (prefers-reduced-motion: no-preference) {
