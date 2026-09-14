@@ -1430,11 +1430,13 @@
       listingExpiryTracker.set(
         id,
         expiresAt,
-        () => {
-          removeListingFromStore(id);
-          deleteListingPersisted(id).catch(
-            () => {},
-          );
+        async () => {
+          try {
+            await deleteListingPersisted(id);
+            removeListingFromStore(id);
+          } catch {
+            // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
+          }
         },
       );
     }
@@ -1825,14 +1827,17 @@
       listingExpiryTracker.set(
         record.id,
         record.expiresAt,
-        () => {
-          removeListingFromStore(
-            record.id,
-          );
-
-          deleteListingPersisted(
-            record.id,
-          ).catch(() => {});
+        async () => {
+          try {
+            await deleteListingPersisted(
+              record.id,
+            );
+            removeListingFromStore(
+              record.id,
+            );
+          } catch {
+            // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
+          }
         },
       );
     }
