@@ -310,6 +310,17 @@
 
     dispatch('interaction');
 
+    // Hide the model tooltip as soon as the user interacts with any hex
+    // in the form row (Location / Details / AnyPay / Submit).
+    if (
+        id === 'location' ||
+        id === 'details' ||
+        id === 'anypay' ||
+        ACTIONS.some(a => a.submitNodeId === id)
+      ) {
+        dispatch('tooltip', null);
+      }
+
     // A new HexMenu interaction closes an already-open Location modal —
     // re-clicking "location" itself is exempt (that's how it (re)opens).
     // This only ever fires from HexMenu's own dispatch here; the globe/
