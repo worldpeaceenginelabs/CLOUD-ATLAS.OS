@@ -255,6 +255,15 @@
     try {
       driverRoutePreview = route.preview(found.from, found.to);
       driverRouteKey = requestId;
+
+      // Same trigger as the route preview itself — fires exactly once
+      // per new offer (new requestId), not on every store tick, since
+      // both sit behind the same requestId dedup check above.
+      camera.flyTo({
+        latitude: (found.from.latitude + found.to.latitude) / 2,
+        longitude: (found.from.longitude + found.to.longitude) / 2,
+        height: 3500,
+      });
     } catch {
       // Cesium viewer not mounted yet — retried on the next store change.
     }
