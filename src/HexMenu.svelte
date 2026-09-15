@@ -8,7 +8,7 @@
   import SwarmGovernance from './missions/SwarmGovernance.svelte';
   import Omnipedia from './missions/Omnipedia.svelte';
   import {
-    DOMAINS, ANYPAY_OPTIONS, detailsFor, isDetailsComplete, isLocationComplete,
+    DOMAINS, ANYPAY_OPTIONS, detailsFor, locationFor, isDetailsComplete, isLocationComplete,
     MODES, SHORTCUT_MODES, ACTIONS, FORM_STEP_LABELS,
     type LocationValue,
   } from './hexmenu/domains';
@@ -513,7 +513,14 @@
   // a model's Details schema varies by action; HexMenu doesn't need to.
   $: detailsSchema = effectiveModel ? detailsFor(effectiveModel, selAction) : null;
 
-  $: locationSchema = effectiveModel ? effectiveModel.location : null;
+  // locationSchema now resolves per-action the same way detailsSchema
+  // always has — via locationFor(), mirroring detailsFor() exactly.
+  // Reading effectiveModel.location directly here was the actual bug
+  // behind the Driver being asked for a destination: ridehailing's
+  // location was a single model-wide schema, so 'offer' (Driver) got
+  // the exact same route requirement as 'search' (Rider) — there was no
+  // way to tell them apart.
+  $: locationSchema = effectiveModel ? locationFor(effectiveModel, selAction) : null;
 
   // Every field group in the schema is optional and independent —
   // isDetailsComplete() only checks the groups the current schema

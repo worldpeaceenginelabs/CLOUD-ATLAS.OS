@@ -87,7 +87,14 @@ export interface ModelConfig {
   description: string;
   examples: string;
   anypay: string[]; // ANYPAY_OPTIONS[].id this model allows
-  location: LocationConfig;
+  // Location schema. Either one LocationConfig shared by both actions
+  // (the normal case — every model except ridehailing), or one
+  // LocationConfig per action, for the rare case where the Location
+  // schema genuinely differs between 'offer' and 'search' (today only
+  // ridehailing: the Rider's request is a route — pickup + drop-off —
+  // the Driver only ever offers their own current position). Resolve
+  // with locationFor() below, mirroring details/detailsFor() exactly.
+  location: LocationConfig | { offer: LocationConfig; search: LocationConfig };
   // Details field spec. Either one DetailsConfig shared by both actions
   // (the normal case — every model except ridehailing), or one
   // DetailsConfig per action, for the rare case where the Details
@@ -104,6 +111,27 @@ export interface ModelConfig {
   // HexMenu filters these out when building the Listings model row, so
   // they never appear as a selectable hexagon there.
   internalOnly?: true;
+}
+
+// Resolves a model's Location schema for the action currently in effect.
+// Mirrors detailsFor() exactly, for the same reason: a model can need a
+// different location shape per action (ridehailing: the Rider's request
+// is a route — pickup + drop-off — but the Driver only ever offers their
+// own single current position, never a destination) — HexMenu.svelte
+// asks for "the schema for this model + this action" without needing to
+// know that ridehailing (or any future model) is the one where they
+// differ.
+export function locationFor(
+  model: ModelConfig,
+  action: 'offer' | 'search' | null
+): LocationConfig {
+  const spec = model.location;
+
+  if ('offer' in spec && 'search' in spec) {
+    return action === 'offer' ? spec.offer : spec.search;
+  }
+
+  return spec;
 }
 
 // Resolves a model's Details schema for the action currently in effect.
@@ -150,16 +178,23 @@ export function isDetailsComplete(schema: DetailsConfig | null, values: Record<s
   );
 }
 
-// Whether a Location value satisfies its schema's geometry. Narrows on
-// value.geometry (not schema.geometry) — LocationValue is discriminated
-// by its own `geometry` field, and TS can only narrow a union based on
-// a check against that same value, not a same-named field on a
-// different variable. Behaviorally identical: a confirmed value's
-// geometry always matches the schema it was confirmed against (see
-// Location.svelte), so this picks the same branch either way.
+// Whether a Location value satisfies its schema's geometry. Used to
+// assume a confirmed value's geometry always matches the schema it was
+// confirmed against — true as long as a model's location schema never
+// changed after the fact. That stopped holding the moment location
+// started varying by action (see locationFor()): switching action
+// (Rider ↔ Driver) doesn't clear selLocation — by design, an action
+// switch survives everything downstream that isn't its actual parent
+// (see HexMenu.svelte's SELECTIONS comment) — so a route confirmed
+// under 'search' can still be sitting there once the schema becomes
+// 'offer''s 'point'. Checking value.geometry === schema.geometry here,
+// not just narrowing on it, is what makes that stale value correctly
+// read as incomplete rather than accidentally satisfying the new
+// schema (or worse, submitting under it).
 export function isLocationComplete(schema: LocationConfig | null, value: LocationValue | null): boolean {
   if (!schema) return true;
   if (!value) return false;
+  if (value.geometry !== schema.geometry) return false;
   return value.geometry === 'point' ? !!value.point : !!(value.from && value.to);
 }
 
@@ -383,20 +418,21 @@ export const DOMAINS: DomainConfig[] = [
       // OFFER A RIDE") steht in SHORTCUT_MODES weiter unten — auch das
       // ist fachliche Konfiguration, nicht HexMenu-Wissen.
       //
-      // `details` ist hier die einzige Stelle im ganzen Table, wo sich
-      // das Schema tatsächlich fachlich zwischen den Actions
-      // unterscheidet — daher die Pro-Action-Form statt eines einzelnen
-      // DetailsConfig; siehe detailsFor(). Open question carried over
-      // from formSchema.ts: 'search' conceptually needs *two* points
-      // (pickup + drop-off), but LOCATION as designed only carries
-      // one — worth a second look once that becomes relevant.
+      // `details` is not the only place this table's schema varies by
+      // action anymore — `location` does too, for the same reason:
+      // the Rider's request is a route (pickup + drop-off, resolved via
+      // locationFor()), the Driver only ever offers their own current
+      // position, never a destination.
       {
         id: 'ridehailing', label: 'Ridehailing',
         anypay: ANYPAY_OPTIONS.map(o => o.id), // live path leaves all 5 open
         description: 'Real-time matching between someone who needs a ride and someone driving right now.',
         examples: 'Person or package pickup, on-demand — no listing, no browsing.',
         internalOnly: true,
-        location: { geometry: 'route' },
+        location: {
+          search: { geometry: 'route' },
+          offer: { geometry: 'point' },
+        },
         details: {
           search: {
             category: { options: RIDE_CARGO_CATEGORIES, multi: false },
