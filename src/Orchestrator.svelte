@@ -281,8 +281,7 @@
     /** True right after Accept is clicked, until we learn whether we won the race against any other driver who also accepted the same rider. */
     awaitingConfirmation: boolean;
     heartbeatTimer?: ReturnType<typeof setTimeout>;
-    expandEmptyTimer?: ReturnType<typeof setInterval>;
-    expandNoMatchTimer?: ReturnType<typeof setInterval>;
+    expandTimer?: ReturnType<typeof setInterval>;
     finalGraceTimer?: ReturnType<typeof setTimeout>;
   }
 
@@ -563,7 +562,7 @@
 
     scheduleLiveHeartbeat(session);
     startLiveDiscovery(session);
-    startLiveExpansionTimers(session);
+    startLiveExpansionTimer(session);
 
     if (role === 'requester') {
       startLiveDmListener(session);
@@ -688,7 +687,17 @@
       return;
     }
 
+    // The one moment this matters: the very first counterpart either
+    // side ever sees. From here on seenCounterpartAuthors only grows, so
+    // this can only be true once per session — restarting the timer here
+    // (not just branching inside a timer that's been running since
+    // session start) is what makes "wait the full no-match cadence"
+    // actually count from the moment there's something to wait on.
+    const isFirstSighting = session.seenCounterpartAuthors.size === 0;
     session.seenCounterpartAuthors.add(event.pubkey);
+    if (isFirstSighting) {
+      restartLiveExpansionTimer(session, LIVE_EXPAND_NOMATCH_INTERVAL_MS);
+    }
 
     // Rider side: this function DOES get called for driver claims too —
     // the rider's own discoverySub is subscribed to offer-<model> events
@@ -894,32 +903,32 @@
     }
   }
 
-  function startLiveExpansionTimers(session: LiveSessionInternal) {
-    session.expandEmptyTimer = setInterval(() => {
-      if (
-        liveSession !== session ||
-        session.status !== 'searching'
-      ) {
-        return;
-      }
+  /**
+   * Starts (or restarts) the expansion timer at the given cadence,
+   * replacing whatever was ticking before. This — not just branching on
+   * seenCounterpartAuthors.size inside a fixed-period timer — is what
+   * makes the "how long to wait before widening" period actually start
+   * counting from the moment that matters, rather than from session
+   * start. Called once at session start (empty cadence) and exactly once
+   * more, from handleLiveCandidate, the instant the first counterpart is
+   * seen (no-match cadence) — see the isFirstSighting check there.
+   */
+  function restartLiveExpansionTimer(
+    session: LiveSessionInternal,
+    intervalMs: number,
+  ) {
+    if (session.expandTimer) {
+      clearInterval(session.expandTimer);
+    }
 
-      if (session.seenCounterpartAuthors.size === 0) {
-        tickExpansion(session);
-      }
-    }, LIVE_EXPAND_EMPTY_INTERVAL_MS);
+    session.expandTimer = setInterval(() => {
+      if (liveSession !== session || session.status !== 'searching') return;
+      tickExpansion(session);
+    }, intervalMs);
+  }
 
-    session.expandNoMatchTimer = setInterval(() => {
-      if (
-        liveSession !== session ||
-        session.status !== 'searching'
-      ) {
-        return;
-      }
-
-      if (session.seenCounterpartAuthors.size > 0) {
-        tickExpansion(session);
-      }
-    }, LIVE_EXPAND_NOMATCH_INTERVAL_MS);
+  function startLiveExpansionTimer(session: LiveSessionInternal) {
+    restartLiveExpansionTimer(session, LIVE_EXPAND_EMPTY_INTERVAL_MS);
   }
 
   function tickExpansion(session: LiveSessionInternal) {
@@ -952,16 +961,11 @@
     );
 
     if (session.expandLevel >= LIVE_MAX_EXPAND_LEVEL) {
-      if (session.expandEmptyTimer) {
-        clearInterval(session.expandEmptyTimer);
+      if (session.expandTimer) {
+        clearInterval(session.expandTimer);
       }
 
-      if (session.expandNoMatchTimer) {
-        clearInterval(session.expandNoMatchTimer);
-      }
-
-      session.expandEmptyTimer = undefined;
-      session.expandNoMatchTimer = undefined;
+      session.expandTimer = undefined;
 
       session.finalGraceTimer = setTimeout(() => {
         if (
@@ -979,12 +983,8 @@
       clearTimeout(session.heartbeatTimer);
     }
 
-    if (session.expandEmptyTimer) {
-      clearInterval(session.expandEmptyTimer);
-    }
-
-    if (session.expandNoMatchTimer) {
-      clearInterval(session.expandNoMatchTimer);
+    if (session.expandTimer) {
+      clearInterval(session.expandTimer);
     }
 
     if (session.finalGraceTimer) {
