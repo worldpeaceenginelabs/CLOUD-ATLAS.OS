@@ -53,6 +53,14 @@ export type GeometryType = 'point' | 'route';
 
 export interface LocationConfig {
   geometry: GeometryType;
+  // 'manual' (the default — every model except ridehailing's Driver
+  // side): the person picks a location via Location.svelte's globe
+  // picker. 'device': there is nothing to pick — the person's own
+  // current device position IS the location (a Driver offering rides
+  // isn't choosing a point, they're saying "here I am right now").
+  // HexMenu.svelte reads this to skip the picker modal entirely and
+  // fetch the device's live position instead.
+  source?: 'manual' | 'device';
 }
 
 // The confirmed value HexMenu stores in selLocation and passes to
@@ -431,7 +439,7 @@ export const DOMAINS: DomainConfig[] = [
         internalOnly: true,
         location: {
           search: { geometry: 'route' },
-          offer: { geometry: 'point' },
+          offer: { geometry: 'point', source: 'device' },
         },
         details: {
           search: {

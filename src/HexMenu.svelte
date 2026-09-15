@@ -17,7 +17,7 @@
     BASE_COL, BASE_ROW, BASE_R, MIN_COLS_VISIBLE, MIN_ROWS_VISIBLE,
     hexCenter, hexPath, computeNeededBox, computeBgHexes, wrapLabel,
   } from './hexmenu/geometry';
-  import { pick } from './cesium/api';
+  import { pick, location as deviceLocation } from './cesium/api';
   import CloseButton from './shared/CloseButton.svelte';
 
   const dispatch = createEventDispatcher();
@@ -368,6 +368,10 @@
     if (id === 'anypay') { anypayModalOpen = true; return; }
     if (id === 'details') { detailsModalOpen = true; return; }
     if (id === 'location') {
+    if (locationSchema?.source === 'device') {
+      fetchDeviceLocation();
+      return;
+    }
     locationModalOpen = true;
     return;
     }
@@ -511,6 +515,45 @@
   // real model via its fixed binding (see activeShortcut), same as any
   // 'listings' model. detailsFor() is the one place that knows whether
   // a model's Details schema varies by action; HexMenu doesn't need to.
+  let deviceLocationStatus: 'idle' | 'loading' | 'error' = 'idle';
+
+  // For a 'device'-sourced schema (today: ridehailing's Driver side)
+  // there is no picker step at all — the person's own live position IS
+  // the location. Called both automatically (see the reactive block
+  // below) and as a manual retry when the person taps the location hex
+  // again after a failure.
+  async function fetchDeviceLocation() {
+    if (!deviceLocation.isSupported()) {
+      deviceLocationStatus = 'error';
+      return;
+    }
+
+    deviceLocationStatus = 'loading';
+
+    try {
+      const point = await deviceLocation.getCurrentPosition();
+      selLocation = { geometry: 'point', point };
+      deviceLocationStatus = 'idle';
+    } catch {
+      deviceLocationStatus = 'error';
+    }
+  }
+
+  // Auto-fetch the instant a device-sourced schema is in effect and
+  // nothing's been fetched yet — the Driver never has to interact with
+  // the location step at all in the common case. Re-fires on its own if
+  // selLocation gets cleared elsewhere (e.g. an action switch away from
+  // and back to a device-sourced schema — see isLocationComplete()'s
+  // comment in domains.ts for why selLocation isn't itself reset on an
+  // action switch).
+  $: if (
+    locationSchema?.source === 'device' &&
+    !locationDone &&
+    deviceLocationStatus === 'idle'
+  ) {
+    fetchDeviceLocation();
+  }
+
   $: detailsSchema = effectiveModel ? detailsFor(effectiveModel, selAction) : null;
 
   // locationSchema now resolves per-action the same way detailsSchema
@@ -550,7 +593,18 @@
   // hexagon uses — `done` is the only thing that varies per node here.
   $: formNodes = showForm ? (() => {
     const base = [
-      { id: 'location', label: FORM_STEP_LABELS.location, col: 0, lrow: formLrow, formRow: true, done: locationDone },
+      {
+        id: 'location',
+        label:
+          locationSchema?.source === 'device'
+            ? deviceLocationStatus === 'loading'
+              ? 'Locating…'
+              : deviceLocationStatus === 'error'
+                ? 'Location — retry'
+                : FORM_STEP_LABELS.location
+            : FORM_STEP_LABELS.location,
+        col: 0, lrow: formLrow, formRow: true, done: locationDone,
+      },
       { id: 'details',  label: FORM_STEP_LABELS.details,  col: 1, lrow: formLrow, formRow: true, done: detailsDone },
     ];
     if (showAnypayHex) {
