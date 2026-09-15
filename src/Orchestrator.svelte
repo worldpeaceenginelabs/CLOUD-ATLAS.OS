@@ -719,7 +719,12 @@
       return;
     }
 
-    if (body?.status && body.status !== 'open') return;
+    // A rider's active request always carries status:'searching' (see
+    // publishLiveClaim — it publishes session.status verbatim, and
+    // 'searching' is the only non-terminal value LiveSessionInternal.status
+    // has). Anything else here is a terminal republish we don't otherwise
+    // recognize — ignore it rather than treat it as a fresh candidate.
+    if (body?.status && body.status !== 'searching') return;
 
     // Ignore duplicate re-announcements of a rider we already know about
     // (e.g. their own heartbeat republish) — not a new candidate.
