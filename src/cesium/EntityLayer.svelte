@@ -258,11 +258,16 @@
 
       // Same trigger as the route preview itself — fires exactly once
       // per new offer (new requestId), not on every store tick, since
-      // both sit behind the same requestId dedup check above.
-      camera.flyTo({
-        latitude: (found.from.latitude + found.to.latitude) / 2,
-        longitude: (found.from.longitude + found.to.longitude) / 2,
-        height: 3500,
+      // both sit behind the same requestId dedup check above. Uses the
+      // route's own bounding box rather than a fixed or distance-derived
+      // height, so short and long routes both frame correctly — Cesium
+      // computes the fitting camera height itself.
+      camera.refresh();
+      camera.flyToRectangle({
+        west: Math.min(found.from.longitude, found.to.longitude),
+        south: Math.min(found.from.latitude, found.to.latitude),
+        east: Math.max(found.from.longitude, found.to.longitude),
+        north: Math.max(found.from.latitude, found.to.latitude),
       });
     } catch {
       // Cesium viewer not mounted yet — retried on the next store change.
