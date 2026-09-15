@@ -59,7 +59,7 @@
     type NostrFilter,
     type SubscriptionHandle,
   } from './nostr';
-  import { encode, cells3x3, cells4x4, cellsInParent } from './orchestrator/geohash';
+  import { encode, cells3x3, cells5x5, cellsInParent } from './orchestrator/geohash';
   import {
     getModelPolicy,
     ABSOLUTE_MAX_VALIDITY_DAYS,
@@ -690,13 +690,15 @@
 
     session.seenCounterpartAuthors.add(event.pubkey);
 
-    // Rider side: only ever tracks that *some* driver claims exist
-    // nearby (seenCounterpartAuthors, above — used by the expansion
-    // timers). It never inspects individual driver claims, never learns
-    // who they are, and is not the branch that discovers riders below —
-    // this function is never even subscribed to driver-side events for a
-    // rider's own session (see startLiveDiscovery's counterTag). A rider
-    // only ever finds out about a match via startLiveDmListener's
+    // Rider side: this function DOES get called for driver claims too —
+    // the rider's own discoverySub is subscribed to offer-<model> events
+    // (see startLiveDiscovery's counterTag), that's exactly how
+    // seenCounterpartAuthors (above) gets populated for a rider: raw
+    // "how many drivers are out there" presence, used only by the
+    // expansion timers. It never goes further than that — never inspects
+    // an individual driver claim's identity/content, never learns who
+    // specifically has (or hasn't) looked at its request. A rider only
+    // ever finds out about an actual match via startLiveDmListener's
     // "accept" DM, handled separately.
     if (session.role === 'requester') {
       return;
@@ -933,7 +935,7 @@
       session.expandLevel === 1
         ? cells3x3(session.geohash)
         : session.expandLevel === 2
-          ? cells4x4(session.geohash)
+          ? cells5x5(session.geohash)
           : cellsInParent(session.geohash);
 
     const counterTag =

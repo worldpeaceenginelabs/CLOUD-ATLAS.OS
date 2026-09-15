@@ -123,13 +123,19 @@ export function cells3x3(geohash: string): string[] {
   return [...new Set(list)].filter((h) => h.length === prec);
 }
 
-/** A 4×4 block of cells (16 cells) around the given cell, same precision as the input. */
-export function cells4x4(geohash: string): string[] {
+/**
+ * A radius-2 block of cells (5×5 = 25 cells) around the given cell, same
+ * precision as the input — the natural next step out from cells3x3()'s
+ * radius-1 block. Centered, so — unlike a literal 4×4 grid, which has no
+ * center cell to be symmetric around — this expands uniformly in every
+ * direction rather than biasing toward one corner.
+ */
+export function cells5x5(geohash: string): string[] {
   const prec = geohash.length;
   const { lat, lon, latDelta, lonDelta } = decode(geohash);
   const set = new Set<string>();
-  for (let dLat = -2; dLat <= 1; dLat++) {
-    for (let dLon = -2; dLon <= 1; dLon++) {
+  for (let dLat = -2; dLat <= 2; dLat++) {
+    for (let dLon = -2; dLon <= 2; dLon++) {
       const latN = Math.max(-90, Math.min(90, lat + dLat * latDelta));
       const lonN = wrapLon(lon + dLon * lonDelta);
       set.add(encode(latN, lonN, prec));
