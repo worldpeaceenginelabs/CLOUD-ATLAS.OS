@@ -188,6 +188,19 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
+  @media (max-width: 700px) {
+    .live-overlay {
+      top: 5px;
+      bottom: auto;
+      left: 5px;
+      transform: none;
+
+      width: calc(100vw - 10px);
+      max-width: none;
+      box-sizing: border-box;
+    }
+  }
+
   .title {
     margin: 0 0 0.6em;
     font-size: 1.1em;
