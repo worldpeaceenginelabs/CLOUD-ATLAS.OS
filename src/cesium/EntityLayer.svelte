@@ -262,12 +262,21 @@
       // route's own bounding box rather than a fixed or distance-derived
       // height, so short and long routes both frame correctly — Cesium
       // computes the fitting camera height itself.
-      camera.refresh();
+      const west = Math.min(found.from.longitude, found.to.longitude);
+      const south = Math.min(found.from.latitude, found.to.latitude);
+      const east = Math.max(found.from.longitude, found.to.longitude);
+      const north = Math.max(found.from.latitude, found.to.latitude);
+
+      // Add a fixed 1000 m padding on all sides
+      const latPadding = 1000 / 111_320;
+      const centerLat = (south + north) / 2;
+      const lonPadding = 1000 / (111_320 * Math.cos((centerLat * Math.PI) / 180));
+
       camera.flyToRectangle({
-        west: Math.min(found.from.longitude, found.to.longitude),
-        south: Math.min(found.from.latitude, found.to.latitude),
-        east: Math.max(found.from.longitude, found.to.longitude),
-        north: Math.max(found.from.latitude, found.to.latitude),
+        west: west - lonPadding,
+        south: south - latPadding,
+        east: east + lonPadding,
+        north: north + latPadding,
       });
     } catch {
       // Cesium viewer not mounted yet — retried on the next store change.
