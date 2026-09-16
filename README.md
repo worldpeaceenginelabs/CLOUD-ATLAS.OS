@@ -1,4 +1,4 @@
-### Project begin was 2017 for the first M.I.T. Disobedience Award
+### Project begin was 2017 for the first M.I.T. "Intelligent Disobedience" Award
 
 #### Cloud Atlas OS = Protocol + Matching-Client over Nostr Relays.<br><br>
 
