@@ -22,6 +22,15 @@
   let status: 'locating' | 'picking' | 'previewing' | 'error' = 'locating';
   let errorMessage = '';
 
+  let zoomRequired = false;
+  let zoomRequiredTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function requireZoom(): void {
+    zoomRequired = true;
+    if (zoomRequiredTimer) clearTimeout(zoomRequiredTimer);
+    zoomRequiredTimer = setTimeout(() => (zoomRequired = false), 3000);
+  }
+
   let fromCoords: Coordinates | null = null;
   let toCoords: Coordinates | null = null;
   let preview: RoutePreview | null = null;
@@ -107,7 +116,7 @@
       }
 
       status = 'picking';
-      globe.pick.enable(handlePick);
+      globe.pick.enable(handlePick, requireZoom);
     } catch (err) {
       status = 'error';
       errorMessage =
@@ -123,6 +132,7 @@
     // when that workflow state is reset.
     clearPreview();
     globe.pick.disable();
+    if (zoomRequiredTimer) clearTimeout(zoomRequiredTimer);
   });
 </script>
 
@@ -183,6 +193,11 @@
 
 </div>
 
+{#if zoomRequired}
+  <div class="zoom-required">
+    Zoom in closer to pick a precise location.
+  </div>
+{/if}
 <style>
   .modal {
     position: fixed;
@@ -263,5 +278,25 @@
   .error {
     color: #e05252;
     text-align: center;
+  }
+
+  .zoom-required {
+    position: fixed;
+    left: 50%;
+    bottom: 80px;
+    transform: translateX(-50%);
+    z-index: 9999;
+
+    padding: 10px 16px;
+    border-radius: 12px;
+
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    white-space: nowrap;
   }
 </style>

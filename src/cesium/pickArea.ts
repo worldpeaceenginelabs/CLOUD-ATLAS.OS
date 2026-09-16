@@ -1,5 +1,4 @@
 import * as Cesium from 'cesium';
-import { pickLocationAt } from './pickLocation';
 
 /**
  * Rectangle / bounding-box selection.
@@ -7,6 +6,40 @@ import { pickLocationAt } from './pickLocation';
  * Click-drag-release on the globe to draw a rectangle.
  * The selected rectangle remains visible until clear() is called.
  */
+
+/**
+ * Above this camera height (meters above the ellipsoid), a click is too
+ * imprecise to trust as a real pick — a single pixel can cover a large
+ * ground area from far out, so the same tap that's precise up close
+ * becomes essentially random guesswork zoomed out. Rather than silently
+ * accept an imprecise drag, it's rejected before it starts and the
+ * caller is told via onZoomRequired.
+ */
+const MAX_PICK_HEIGHT_METERS = 5000;
+
+/**
+ * Pick the globe position under the given screen-space coordinate, as a
+ * Cartographic (radians) — this file only ever needs longitude/latitude
+ * for rectangle math, never height, so there's no reason to round-trip
+ * through degrees the way pickLocation.ts's version does for its own
+ * (different) callers.
+ */
+function pickCartographic(
+  viewer: Cesium.Viewer,
+  windowPosition: Cesium.Cartesian2
+): Cesium.Cartographic | null {
+  const scene = viewer.scene;
+
+  const cartesian = scene.pickPositionSupported
+    ? scene.pickPosition(windowPosition)
+    : scene.camera.pickEllipsoid(windowPosition, scene.globe.ellipsoid);
+
+  if (!Cesium.defined(cartesian)) {
+    return null;
+  }
+
+  return Cesium.Cartographic.fromCartesian(cartesian);
+}
 
 export interface BoundingBox {
   west: number;
@@ -43,7 +76,8 @@ function rectangleFromCartos(
 export function createAreaPicker(
   viewer: Cesium.Viewer,
   onSelect: (box: BoundingBox) => void,
-  onChange?: (box: BoundingBox) => void
+  onChange?: (box: BoundingBox) => void,
+  onZoomRequired?: () => void
 ): AreaPicker {
   let handler: Cesium.ScreenSpaceEventHandler | undefined;
   let startCarto: Cesium.Cartographic | null = null;
@@ -69,13 +103,15 @@ export function createAreaPicker(
 
       handler.setInputAction(
         (event: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
-          const location = pickLocationAt(viewer, event.position);
-          if (!location) return;
+          if (viewer.camera.positionCartographic.height > MAX_PICK_HEIGHT_METERS) {
+            onZoomRequired?.();
+            return;
+          }
 
-          startCarto = Cesium.Cartographic.fromDegrees(
-            location.longitude,
-            location.latitude
-          );
+          const carto = pickCartographic(viewer, event.position);
+          if (!carto) return;
+
+          startCarto = carto;
 
           currentRectangle = rectangleFromCartos(startCarto, startCarto);
 
@@ -101,13 +137,8 @@ export function createAreaPicker(
         (event: Cesium.ScreenSpaceEventHandler.MotionEvent) => {
           if (!startCarto) return;
 
-          const location = pickLocationAt(viewer, event.endPosition);
-          if (!location) return;
-
-          const currentCarto = Cesium.Cartographic.fromDegrees(
-            location.longitude,
-            location.latitude
-          );
+          const currentCarto = pickCartographic(viewer, event.endPosition);
+          if (!currentCarto) return;
 
           currentRectangle = rectangleFromCartos(startCarto, currentCarto);
 
@@ -121,16 +152,11 @@ export function createAreaPicker(
         (event: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
           if (!startCarto) return;
 
-          const location = pickLocationAt(viewer, event.position);
+          const endCarto = pickCartographic(viewer, event.position);
 
           viewer.scene.screenSpaceCameraController.enableInputs = true;
 
-          if (location) {
-            const endCarto = Cesium.Cartographic.fromDegrees(
-              location.longitude,
-              location.latitude
-            );
-
+          if (endCarto) {
             currentRectangle = rectangleFromCartos(startCarto, endCarto);
 
             onSelect(toBoundingBox(startCarto, endCarto));

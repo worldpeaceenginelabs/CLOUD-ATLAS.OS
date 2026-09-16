@@ -112,13 +112,15 @@ let activeEntityPicker: EntityPicker | undefined;
 let activeAreaPicker: AreaPicker | undefined;
 
 export const pick = {
-  /** Start listening for clicks on the globe. Fires onPick with the picked coordinates, or null on a miss. */
-  enable(onPick: (coords: Coordinates | null) => void): void {
+  /** Start listening for clicks on the globe. Fires onPick with the picked coordinates, or null on a miss. onZoomRequired fires instead of onPick when the camera is too high above the ellipsoid for a click to be trusted as precise. */
+  enable(onPick: (coords: Coordinates | null) => void, onZoomRequired?: () => void): void {
     activeLocationPicker?.disable();
     activeLocationPicker?.clear();
 
-    activeLocationPicker = createLocationPicker(requireViewer(), (picked) =>
-      onPick(picked ? toCoordinates(picked) : null)
+    activeLocationPicker = createLocationPicker(
+      requireViewer(),
+      (picked) => onPick(picked ? toCoordinates(picked) : null),
+      onZoomRequired
     );
 
     activeLocationPicker.enable();
@@ -150,15 +152,16 @@ export const pick = {
   },
 
   area: {
-    /** Start listening for click-drag-release rectangle selection. onSelect fires once per completed drag; onChange fires continuously while dragging. */
+    /** Start listening for click-drag-release rectangle selection. onSelect fires once per completed drag; onChange fires continuously while dragging. onZoomRequired fires instead of starting a drag when the camera is too high above the ellipsoid for a pick to be trusted as precise. */
     enable(
       onSelect: (box: BoundingBox) => void,
-      onChange?: (box: BoundingBox) => void
+      onChange?: (box: BoundingBox) => void,
+      onZoomRequired?: () => void
     ): void {
       activeAreaPicker?.disable();
       activeAreaPicker?.clear();
 
-      activeAreaPicker = createAreaPicker(requireViewer(), onSelect, onChange);
+      activeAreaPicker = createAreaPicker(requireViewer(), onSelect, onChange, onZoomRequired);
       activeAreaPicker.enable();
     },
 

@@ -8,6 +8,18 @@ import * as Cesium from 'cesium';
  * The selected point remains visible until clear() is called.
  */
 
+/**
+ * Above this camera height (meters above the ellipsoid), a click is too
+ * imprecise to trust as a real pick — a single pixel can cover a large
+ * ground area from far out, so the same tap that's precise up close
+ * becomes essentially random guesswork zoomed out. Rather than silently
+ * accept an imprecise pick, the click is rejected and the caller is told
+ * via onZoomRequired instead of onPick — this is a distinct case from an
+ * actual miss (clicking off the globe entirely), which still reports
+ * onPick(null) as before.
+ */
+const MAX_PICK_HEIGHT_METERS = 5000;
+
 export interface PickedLocation {
   longitude: number;
   latitude: number;
@@ -61,7 +73,8 @@ export interface LocationPicker {
  */
 export function createLocationPicker(
   viewer: Cesium.Viewer,
-  onPick: (location: PickedLocation | null) => void
+  onPick: (location: PickedLocation | null) => void,
+  onZoomRequired?: () => void
 ): LocationPicker {
   let handler: Cesium.ScreenSpaceEventHandler | undefined;
   let markerEntity: Cesium.Entity | null = null;
@@ -80,6 +93,11 @@ export function createLocationPicker(
       handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
       handler.setInputAction((click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
+        if (viewer.camera.positionCartographic.height > MAX_PICK_HEIGHT_METERS) {
+          onZoomRequired?.();
+          return;
+        }
+
         const location = pickLocationAt(viewer, click.position);
 
         if (!location) {
