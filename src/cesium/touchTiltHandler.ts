@@ -7,6 +7,7 @@ const TILT_SENSITIVITY = 0.003;
 const PARALLEL_DRAG_THRESHOLD = 1.5; // parallel drag must exceed pinch delta by this factor
 
 let viewer: Viewer | null = null;
+let container: Element | null = null;
 let prevFingerDist = 0;
 let prevAvgY = 0;
 let isTracking = false;
@@ -64,8 +65,7 @@ function onTouchEnd(e: TouchEvent) {
 
 export function setupTouchTiltHandler(cesiumViewer: Viewer): void {
   viewer = cesiumViewer;
-  const container = document.getElementById('cesiumContainer');
-  if (!container) return;
+  container = cesiumViewer.container;
 
   container.addEventListener('touchstart', onTouchStart, { passive: true });
   container.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -73,12 +73,12 @@ export function setupTouchTiltHandler(cesiumViewer: Viewer): void {
 }
 
 export function destroyTouchTiltHandler(): void {
-  const container = document.getElementById('cesiumContainer');
   if (container) {
     container.removeEventListener('touchstart', onTouchStart);
     container.removeEventListener('touchmove', onTouchMove);
     container.removeEventListener('touchend', onTouchEnd);
   }
   viewer = null;
+  container = null;
   isTracking = false;
 }
