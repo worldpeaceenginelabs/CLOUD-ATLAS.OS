@@ -5,8 +5,10 @@
 
   /** Local to this component — not shared with or imported from cesium/api.ts. */
   type LocalCoords = { longitude: number; latitude: number };
+  /** Local to this component — not shared with or imported from cesium/api.ts. */
+  type LocalBox = { west: number; south: number; east: number; north: number };
 
-  export let geometry: 'point' | 'route' = 'point';
+  export let geometry: 'point' | 'route' | 'area' = 'point';
 
   const dispatch = createEventDispatcher<{
     confirm:
@@ -18,6 +20,10 @@
           geometry: 'route';
           from: { latitude: number; longitude: number };
           to: { latitude: number; longitude: number };
+        }
+      | {
+          geometry: 'area';
+          area: LocalBox;
         };
     cancel: void;
   }>();
@@ -37,10 +43,22 @@
   let fromCoords: LocalCoords | null = null;
   let toCoords: LocalCoords | null = null;
   let preview: RoutePreview | null = null;
+  let areaBox: LocalBox | null = null;
 
   function clearPreview(): void {
     preview?.remove();
     preview = null;
+
+    // No-op if no area picker was ever enabled (point/route geometry) —
+    // globe.pick.area.clear() is safe to call regardless, same as
+    // globe.pick.clear() below already is for point/route.
+    globe.pick.area.clear();
+    areaBox = null;
+  }
+
+  function handleAreaSelect(box: LocalBox): void {
+    areaBox = box;
+    status = 'previewing';
   }
 
   function handlePick(coords: LocalCoords | null): void {
@@ -69,6 +87,22 @@
   }
 
   function confirm(): void {
+    if (geometry === 'area') {
+      if (!areaBox) return;
+
+      // Keep the drawn rectangle. Same treatment as point/route below:
+      // the Location hex is now green, HexMenu (or whichever parent
+      // mounted this) owns clearing it when the workflow is reset.
+      globe.pick.area.disable();
+
+      dispatch('confirm', {
+        geometry: 'area',
+        area: { ...areaBox }
+      });
+
+      return;
+    }
+
     if (geometry === 'point') {
       if (!fromCoords) return;
 
@@ -109,6 +143,9 @@
     clearPreview();
     globe.pick.clear();
     globe.pick.disable();
+    // No-op for point/route, same reasoning as clearPreview()'s
+    // globe.pick.area.clear() above.
+    globe.pick.area.disable();
     dispatch('cancel');
   }
 
@@ -119,7 +156,12 @@
       }
 
       status = 'picking';
-      globe.pick.enable(handlePick, requireZoom);
+
+      if (geometry === 'area') {
+        globe.pick.area.enable(handleAreaSelect, undefined, requireZoom);
+      } else {
+        globe.pick.enable(handlePick, requireZoom);
+      }
     } catch (err) {
       status = 'error';
       errorMessage =
@@ -135,6 +177,7 @@
     // when that workflow state is reset.
     clearPreview();
     globe.pick.disable();
+    globe.pick.area.disable();
     if (zoomRequiredTimer) clearTimeout(zoomRequiredTimer);
   });
 </script>
@@ -155,14 +198,18 @@
     <p class="hint">
       {geometry === 'point'
         ? 'Select a location on the globe.'
-        : 'Select the destination point on the globe.'}
+        : geometry === 'area'
+          ? 'Drag to select an area on the globe.'
+          : 'Select the destination point on the globe.'}
     </p>
 
   {:else if status === 'previewing'}
     <p class="hint">
       {geometry === 'point'
         ? 'Location selected.'
-        : 'Route selected.'}
+        : geometry === 'area'
+          ? 'Area selected.'
+          : 'Route selected.'}
     </p>
   {/if}
 
@@ -172,7 +219,9 @@
       <button class="primary" on:click={confirm}>
         {geometry === 'point'
           ? 'Use this location'
-          : 'Use this route'}
+          : geometry === 'area'
+            ? 'Use this area'
+            : 'Use this route'}
       </button>
 
       {#if geometry === 'route'}

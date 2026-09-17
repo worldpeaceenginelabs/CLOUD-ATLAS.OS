@@ -29,16 +29,23 @@
   // composition (a link built from two plain fields already on the
   // record), so it opens locally with no event needed.
   //
-  // Location picking during Mission edit reuses cesium/api.ts's public
-  // picker capability (never getActiveViewer() or any other
-  // Cesium-internal API) — same mechanism SwarmGovernance's create form
-  // uses. While editing a Mission, the backdrop is deliberately not
-  // rendered (see the template below), so a click on the globe to pick a
-  // new Point/Area reaches Cesium instead of just closing this panel.
+  // Location picking during Mission edit is delegated entirely to
+  // hexmenu/Location.svelte (never getActiveViewer(), pickLocation.ts,
+  // pickArea.ts, or route.ts directly, and never its own enable/disable
+  // state machine) — same component SwarmGovernance's create form and
+  // the HexMenu location flow all use. This panel still calls
+  // cesium/api.ts directly for one thing Location.svelte deliberately
+  // leaves to its caller: clearing a *confirmed* marker/rectangle at
+  // this panel's own workflow-transition points (Change, Cancel,
+  // Submit, Close) — see clearPickerPreview() below. While editing a
+  // Mission, the backdrop is deliberately not rendered (see the
+  // template below), so a click on the globe to pick a new Point/Area
+  // reaches Cesium instead of just closing this panel.
   // -----------------------------------------------------------------------
   import { createEventDispatcher, onMount } from 'svelte';
   import type { LiveRecord, ListingRecord, MissionRecord, MissionLocation } from '../orchestrator/appStore';
   import { pick } from './api';
+  import Location from '../hexmenu/Location.svelte';
   import Marketing from '../shared/Marketing.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
 
@@ -96,6 +103,8 @@
     crowdfunding: '',
   };
   let pickedLocation: MissionLocation | null = null;
+  let locationPickerOpen = false;
+  let pickerGeometry: 'point' | 'area' = 'point';
 
   // Re-hydrate the edit form only when the selected mission actually
   // changes (a different one, or Mission <-> non-Mission) — not on every
@@ -108,9 +117,11 @@
     links = { ...record.content.lanes };
     pickedLocation = record.location;
     editing = false;
+    locationPickerOpen = false;
     hydratedId = record.id;
   } else if (record?.kind !== 'mission' && hydratedId !== null) {
     editing = false;
+    locationPickerOpen = false;
     hydratedId = null;
   }
 
@@ -120,57 +131,48 @@
     links.brainstorming.trim().length > 0 &&
     pickedLocation !== null;
 
-  // The picker owns its Cesium preview. Submit/Cancel are the explicit
-  // points at which the preview is cleared.
+  // Not part of the picking session (that's entirely Location.svelte's
+  // job now, delegated the same way SwarmGovernance.svelte does) — this
+  // only wipes a *confirmed* marker/rectangle left on the globe once one
+  // of this panel's own workflow transitions happens (Change, Cancel,
+  // Submit, or the whole panel closing). Safe to call even if nothing
+  // was ever picked or confirmed (pick.clear()/pick.area.clear() are
+  // no-ops in that case).
   function clearPickerPreview(): void {
     pick.clear();
     pick.area.clear();
   }
 
-  let pickingMode: 'point' | 'area' | null = null;
+  function openPicker(mode: 'point' | 'area') {
+    pickerGeometry = mode;
+    locationPickerOpen = true;
+  }
 
-  function startPicking(mode: 'point' | 'area') {
-    stopPicking();
-
-    pickingMode = mode;
-
-    if (mode === 'point') {
-      pick.enable((coords) => {
-        if (coords) {
-          pickedLocation = {
-            kind: 'point',
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-          };
-        }
-
-        // disable() only stops picking. The selected point remains visible.
-        stopPicking();
-      });
-
-      return;
+  function onLocationConfirm(e) {
+    const d = e.detail;
+    if (d.geometry === 'point') {
+      pickedLocation = { kind: 'point', latitude: d.point.latitude, longitude: d.point.longitude };
+    } else if (d.geometry === 'area') {
+      pickedLocation = { kind: 'area', ...d.area };
     }
-
-    pick.area.enable((box) => {
-      pickedLocation = {
-        kind: 'area',
-        ...box,
-      };
-
-      // disable() only stops picking. The selected rectangle remains visible.
-      stopPicking();
-    });
+    locationPickerOpen = false;
   }
 
-  function stopPicking() {
-    if (pickingMode === 'point') pick.disable();
-    if (pickingMode === 'area') pick.area.disable();
-    pickingMode = null;
+  function onLocationCancel() {
+    locationPickerOpen = false;
   }
 
-  function clearLocation() {
-    clearPickerPreview();
+  // Re-opens the picker for the same geometry instead of just clearing
+  // to null: cesium/api.ts's pick.enable()/pick.area.enable() already
+  // disable+clear whichever picker was previously active before
+  // starting a new one, so the stale marker/rectangle from the
+  // confirmed pick is removed the instant Location.svelte re-mounts and
+  // calls enable() again — no separate cleanup call needed here.
+  function changeLocation() {
+    if (!pickedLocation) return;
+    pickerGeometry = pickedLocation.kind;
     pickedLocation = null;
+    locationPickerOpen = true;
   }
 
   function startEdit() {
@@ -181,7 +183,7 @@
   function cancelEdit() {
     if (!record || record.kind !== 'mission') return;
     clearPickerPreview();
-    stopPicking();
+    locationPickerOpen = false;
     title = record.content.title;
     description = record.content.description;
     links = { ...record.content.lanes };
@@ -214,7 +216,7 @@
 
   function close() {
     clearPickerPreview();
-    stopPicking();
+    locationPickerOpen = false;
     dispatch('close');
   }
 
@@ -348,28 +350,26 @@
         {#if pickedLocation}
           <div class="mf-location-preview">
             <span>{formatMissionLocation(pickedLocation)}</span>
-            <button type="button" class="mf-location-change" on:click={clearLocation}>
+            <button type="button" class="mf-location-change" on:click={changeLocation}>
               Change
             </button>
           </div>
-        {:else}
+        {:else if !locationPickerOpen}
           <div class="mf-location-buttons">
             <button
               type="button"
               class="mf-location-btn"
-              class:picking={pickingMode === 'point'}
-              on:click={() => startPicking('point')}
+              on:click={() => openPicker('point')}
             >
-              {pickingMode === 'point' ? 'Click the globe…' : 'Pick Point'}
+              Pick Point
             </button>
 
             <button
               type="button"
               class="mf-location-btn"
-              class:picking={pickingMode === 'area'}
-              on:click={() => startPicking('area')}
+              on:click={() => openPicker('area')}
             >
-              {pickingMode === 'area' ? 'Drag on the globe…' : 'Pick Area'}
+              Pick Area
             </button>
           </div>
         {/if}
@@ -383,6 +383,14 @@
           </button>
         </div>
       </form>
+
+      {#if locationPickerOpen}
+        <Location
+          geometry={pickerGeometry}
+          on:confirm={onLocationConfirm}
+          on:cancel={onLocationCancel}
+        />
+      {/if}
     {:else}
       <!-- ─── Read-only record view ─────────────────────────────────── -->
       <h2 class="title">{titleOf(record)}</h2>
@@ -798,10 +806,6 @@
   .mf-location-btn:hover,
   .mf-location-btn:focus-visible {
     background: rgba(255, 255, 255, 0.1);
-  }
-  .mf-location-btn.picking {
-    border-color: #7e57c2;
-    color: #cbb6f0;
   }
 
   .mf-actions {

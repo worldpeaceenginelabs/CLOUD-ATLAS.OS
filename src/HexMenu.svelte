@@ -207,7 +207,6 @@
   // part of the genericFlow/shortcut/domain state above, so it's its
   // own independent flag rather than reusing selMode/selModel for it.
   let missionModal: 1 | 2 | 3 | null = null;
-  let missionPicking = false;
 
   // Mission 1 (Mission1.svelte) is always open; completing it unlocks
   // Mission 2. Mission 3 and 4 stay locked regardless — no unlock
@@ -849,7 +848,6 @@
       {:else if missionModal === 2}
         <SwarmGovernance
           on:submit={handleMissionSubmit}
-          on:picking={(e) => (missionPicking = e.detail)}
         />
       {:else if missionModal === 3}
         <Omnipedia />
