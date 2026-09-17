@@ -42,7 +42,7 @@
   import * as Cesium from 'cesium';
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { camera, entity, pick, location, route } from './api';
-  import type { EntityOptions, PickedEntity, RoutePreview } from './api';
+  import type { EntityOptions, RoutePreview } from './api';
   import { appStore, type AppState, type EntityRecord, type LiveRecord } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
   import { waitForGlobeLoaded } from './viewer';
@@ -287,7 +287,7 @@
 
   function enableEntityPicking() {
     try {
-      pick.entity.enable((picked: PickedEntity) => {
+      pick.entity.enable((picked) => {
         // entity.add(id, ...) sets Cesium's own Entity.id to our record id
         // directly, so a PickedEntity wrapping that entity exposes the
         // same id — no separate lookup table needed.

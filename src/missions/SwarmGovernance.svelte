@@ -21,7 +21,6 @@
 
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { pick } from '../cesium/api';
-  import type { Coordinates, BoundingBox } from '../cesium/api';
   import type { MissionLocation } from '../orchestrator/appStore';
 
   const dispatch = createEventDispatcher();
@@ -87,7 +86,7 @@
     dispatch('picking', true);
 
     if (mode === 'point') {
-      pick.enable((coords: Coordinates | null) => {
+      pick.enable((coords) => {
         if (coords) {
           pickedLocation = {
             kind: 'point',
@@ -103,7 +102,7 @@
       return;
     }
 
-    pick.area.enable((box: BoundingBox) => {
+    pick.area.enable((box) => {
       pickedLocation = {
         kind: 'area',
         ...box,

@@ -8,8 +8,6 @@ import { createEntityPicker } from './pickEntity';
 import type { EntityPicker, PickedEntity } from './pickEntity';
 import { createAreaPicker } from './pickArea';
 import type { AreaPicker, BoundingBox } from './pickArea';
-import { placeMarker } from './marker';
-import type { Coordinates, MarkerKind, MarkerHandle, MarkerOptions } from './marker';
 import { previewRoute } from './route';
 import type { RouteHandle } from './route';
 import { addEntity, removeEntity } from './entity';
@@ -19,15 +17,15 @@ import type { EntityOptions } from './entity';
  * cesium/api.ts
  * -----------------------------------------------------------------------
  * The ONLY public interface between Svelte components and the Cesium
- * engine. Structured by capability (camera / location / pick / marker /
- * route / entity), no UI logic, no knowledge of any component, and — as of
- * this revision — no direct Cesium implementation knowledge either: every
- * function below is a thin pass-through to one of the internal modules.
+ * engine. Structured by capability (camera / location / pick / route /
+ * entity), no UI logic, no knowledge of any component, and no direct
+ * Cesium implementation knowledge either: every function below is a thin
+ * pass-through to one of the internal modules.
  *
  * Internal modules (viewer.ts, camera.ts, location.ts, pickLocation.ts,
- * pickEntity.ts, pickArea.ts, marker.ts, route.ts, entity.ts) own all
- * Cesium-specific logic and stay implementation details — components
- * import only from here:
+ * pickEntity.ts, pickArea.ts, route.ts, entity.ts) own all Cesium-specific
+ * logic and stay implementation details — components import only from
+ * here:
  *
  *   Location.svelte -> cesium/api.ts -> internal Cesium modules
  *
@@ -37,11 +35,16 @@ import type { EntityOptions } from './entity';
  * viewer's lifecycle (createViewer()/destroyViewer()); tracking which
  * viewer is currently active is that same responsibility, not new
  * infrastructure. Cesium.svelte and App.svelte are untouched by this.
+ *
+ * Coordinate/box/entity shapes below (the object literals in the
+ * function signatures) are written out inline rather than as named,
+ * exported types. Nothing here forces components to share a nominal
+ * type: a callback parameter's shape is inferred from context, and a
+ * component that needs to hold one of these shapes in local state
+ * declares its own local type for it. See Location.svelte's local
+ * `LocalCoords` for that pattern.
  * -----------------------------------------------------------------------
  */
-
-/** Plain lat/lon pair. The only coordinate shape components ever see. */
-export type { Coordinates };
 
 function requireViewer(): NonNullable<ReturnType<typeof getActiveViewer>> {
   const viewer = getActiveViewer();
@@ -88,8 +91,8 @@ export const camera = {
 export const location = {
   /** Whether the browser supports geolocation at all. Doesn't need a viewer. */
   isSupported: isGeolocationSupported,
-  /** One-shot request for the device's current position, as plain Coordinates. */
-  async getCurrentPosition(): Promise<Coordinates> {
+  /** One-shot request for the device's current position, as a plain { longitude, latitude } pair. */
+  async getCurrentPosition(): Promise<{ longitude: number; latitude: number }> {
     const position = await getCurrentLocation();
     return { longitude: position.longitude, latitude: position.latitude };
   }
@@ -99,7 +102,7 @@ export const location = {
 /* Picking (globe position / entity / area)                                   */
 /* -------------------------------------------------------------------------- */
 
-function toCoordinates(picked: PickedLocation): Coordinates {
+function toCoordinates(picked: PickedLocation): { longitude: number; latitude: number } {
   return { longitude: picked.longitude, latitude: picked.latitude };
 }
 
@@ -113,7 +116,10 @@ let activeAreaPicker: AreaPicker | undefined;
 
 export const pick = {
   /** Start listening for clicks on the globe. Fires onPick with the picked coordinates, or null on a miss. onZoomRequired fires instead of onPick when the camera is too high above the ellipsoid for a click to be trusted as precise. */
-  enable(onPick: (coords: Coordinates | null) => void, onZoomRequired?: () => void): void {
+  enable(
+    onPick: (coords: { longitude: number; latitude: number } | null) => void,
+    onZoomRequired?: () => void
+  ): void {
     activeLocationPicker?.disable();
     activeLocationPicker?.clear();
 
@@ -177,40 +183,19 @@ export const pick = {
   }
 };
 
-export type { PickedEntity, BoundingBox };
-
-/* -------------------------------------------------------------------------- */
-/* Marker                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/** @deprecated kept as an alias for the existing public name; same shape as MarkerHandle. */
-export type MarkerPreview = MarkerHandle;
-export type { MarkerKind, MarkerOptions };
-
-export const marker = {
-  /**
-   * Place a single pin at the given coordinates. Caller owns the returned
-   * handle and must call remove() themselves.
-   *
-   * `options` lets the caller override individual appearance properties
-   * (color, pixelSize, outlineColor, outlineWidth) for this one marker;
-   * anything left unset falls back to `kind`'s default look.
-   */
-  place(coords: Coordinates, kind: MarkerKind = 'point', options?: MarkerOptions): MarkerPreview {
-    return placeMarker(requireViewer(), coords, kind, options);
-  }
-};
-
 /* -------------------------------------------------------------------------- */
 /* Route preview                                                              */
 /* -------------------------------------------------------------------------- */
 
-/** @deprecated kept as an alias for the existing public name; same shape as RouteHandle. */
+/** Public name for the handle returned by route.preview(); same shape as route.ts's own RouteHandle. */
 export type RoutePreview = RouteHandle;
 
 export const route = {
   /** Draw a temporary start marker, end marker, and connecting line between two coordinates. */
-  preview(from: Coordinates, to: Coordinates): RoutePreview {
+  preview(
+    from: { longitude: number; latitude: number },
+    to: { longitude: number; latitude: number }
+  ): RoutePreview {
     return previewRoute(requireViewer(), from, to);
   }
 };
@@ -223,10 +208,10 @@ export type { EntityOptions };
 
 export const entity = {
   /**
-   * Add an arbitrary Cesium entity under `id`. Unlike marker.place(), this
-   * has no opinion on appearance — pass whatever Cesium entity options
-   * (point, billboard, polyline, polygon, label, ...) the component needs.
-   * `id` must be unique; reusing an id that's still on the globe throws.
+   * Add an arbitrary Cesium entity under `id`. Has no opinion on
+   * appearance — pass whatever Cesium entity options (point, billboard,
+   * polyline, polygon, label, ...) the component needs. `id` must be
+   * unique; reusing an id that's still on the globe throws.
    */
   add(id: string, options: EntityOptions): void {
     addEntity(requireViewer(), id, options);
@@ -243,4 +228,4 @@ export const entity = {
 /* -------------------------------------------------------------------------- */
 
 /** Same capabilities, grouped for call sites that prefer `globe.camera...`, `globe.pick...` etc. */
-export const globe = { camera, location, pick, route, marker, entity };
+export const globe = { camera, location, pick, route, entity };

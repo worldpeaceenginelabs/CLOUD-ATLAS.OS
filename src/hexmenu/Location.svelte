@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import { globe, type Coordinates, type RoutePreview } from '../cesium/api';
+  import { globe, type RoutePreview } from '../cesium/api';
   import CloseButton from '../shared/CloseButton.svelte';
+
+  /** Local to this component — not shared with or imported from cesium/api.ts. */
+  type LocalCoords = { longitude: number; latitude: number };
 
   export let geometry: 'point' | 'route' = 'point';
 
@@ -31,8 +34,8 @@
     zoomRequiredTimer = setTimeout(() => (zoomRequired = false), 3000);
   }
 
-  let fromCoords: Coordinates | null = null;
-  let toCoords: Coordinates | null = null;
+  let fromCoords: LocalCoords | null = null;
+  let toCoords: LocalCoords | null = null;
   let preview: RoutePreview | null = null;
 
   function clearPreview(): void {
@@ -40,7 +43,7 @@
     preview = null;
   }
 
-  function handlePick(coords: Coordinates | null): void {
+  function handlePick(coords: LocalCoords | null): void {
     if (!coords) return;
 
     if (geometry === 'point') {

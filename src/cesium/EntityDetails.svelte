@@ -39,7 +39,6 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import type { LiveRecord, ListingRecord, MissionRecord, MissionLocation } from '../orchestrator/appStore';
   import { pick } from './api';
-  import type { Coordinates, BoundingBox } from './api';
   import Marketing from '../shared/Marketing.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
 
@@ -136,7 +135,7 @@
     pickingMode = mode;
 
     if (mode === 'point') {
-      pick.enable((coords: Coordinates | null) => {
+      pick.enable((coords) => {
         if (coords) {
           pickedLocation = {
             kind: 'point',
@@ -152,7 +151,7 @@
       return;
     }
 
-    pick.area.enable((box: BoundingBox) => {
+    pick.area.enable((box) => {
       pickedLocation = {
         kind: 'area',
         ...box,

@@ -1,15 +1,26 @@
 import * as Cesium from 'cesium';
-import { MARKER_COLORS } from './marker';
-import type { Coordinates } from './marker';
 
 /**
  * Route preview.
  *
  * Draws a temporary start marker, end marker, and connecting dashed line
- * between two coordinates. Reuses MARKER_COLORS from marker.ts (pickup for
- * the start point, dropoff for the end point) so a route preview always
- * matches the colors of a standalone pickup/dropoff marker pair.
+ * between two coordinates. Fully independent: owns its own Coordinates
+ * shape and its own color palette, imports nothing from any other module
+ * in this folder.
  */
+
+/** Plain lat/lon pair, local to route.ts. */
+export interface Coordinates {
+  longitude: number;
+  latitude: number;
+}
+
+/** Colors for the route preview's start marker, end marker, and connecting line. */
+const ROUTE_COLORS = {
+  pickup: Cesium.Color.CYAN,
+  dropoff: Cesium.Color.ORANGE,
+  line: Cesium.Color.CYAN
+};
 
 export interface RouteHandle {
   /** Remove the preview (start marker, end marker, connecting line) from the globe. */
@@ -25,7 +36,7 @@ export function previewRoute(viewer: Cesium.Viewer, from: Coordinates, to: Coord
     position: startPosition,
     point: {
       pixelSize: 10,
-      color: MARKER_COLORS.pickup,
+      color: ROUTE_COLORS.pickup,
       outlineColor: Cesium.Color.BLACK,
       outlineWidth: 1,
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
@@ -36,7 +47,7 @@ export function previewRoute(viewer: Cesium.Viewer, from: Coordinates, to: Coord
     position: endPosition,
     point: {
       pixelSize: 10,
-      color: MARKER_COLORS.dropoff,
+      color: ROUTE_COLORS.dropoff,
       outlineColor: Cesium.Color.BLACK,
       outlineWidth: 1,
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
@@ -47,7 +58,7 @@ export function previewRoute(viewer: Cesium.Viewer, from: Coordinates, to: Coord
     polyline: {
       positions: [startPosition, endPosition],
       width: 3,
-      material: new Cesium.PolylineDashMaterialProperty({ color: MARKER_COLORS.point }),
+      material: new Cesium.PolylineDashMaterialProperty({ color: ROUTE_COLORS.line }),
       clampToGround: true
     }
   });
