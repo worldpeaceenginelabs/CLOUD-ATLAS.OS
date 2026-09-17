@@ -142,7 +142,7 @@
   onDestroy(clearPickerPreview);
 </script>
 
-<div class="mission-card">
+<div class="mission-card" class:picker-open={locationPickerOpen}>
   <form class="mf" on:submit|preventDefault={handleSubmit}>
     <h2 class="mf-heading">Swarm Governance</h2>
 
@@ -243,6 +243,18 @@
 <style>
   .mission-card {
     color: #eee;
+  }
+
+  /*
+   * Hidden (not unmounted) while Location.svelte is open — visibility,
+   * not display:none, so it still takes no part in hit-testing/tab
+   * order but the form's own state (title/description/links/
+   * pickedLocation, all plain component state, not DOM state) survives
+   * untouched regardless either way. Location.svelte's own DOM lives in
+   * document.body via its portal action, so this never hides it too.
+   */
+  .mission-card.picker-open {
+    visibility: hidden;
   }
 
   .mf {

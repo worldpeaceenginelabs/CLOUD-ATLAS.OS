@@ -295,7 +295,7 @@
     <div class="backdrop" on:click={() => canCloseOnBackdrop && close()} />
   {/if}
 
-  <div class="panel" role="dialog" aria-modal="true">
+  <div class="panel" class:picker-open={locationPickerOpen} role="dialog" aria-modal="true">
     <div class="panel-header">
       <span
         class="kind-badge"
@@ -530,6 +530,17 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
     z-index: 41;
+  }
+
+  /*
+   * Hidden (not unmounted) while Location.svelte is open — same
+   * reasoning as SwarmGovernance.svelte's .mission-card.picker-open:
+   * visibility, not display:none, form state is plain component state
+   * either way, and Location.svelte's own DOM lives in document.body
+   * via its portal action so this never hides it too.
+   */
+  .panel.picker-open {
+    visibility: hidden;
   }
 
   .panel-header {

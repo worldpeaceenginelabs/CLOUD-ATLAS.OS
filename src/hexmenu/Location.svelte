@@ -8,6 +8,24 @@
   /** Local to this component — not shared with or imported from cesium/api.ts. */
   type LocalBox = { west: number; south: number; east: number; north: number };
 
+  /**
+   * A `transform` on ANY ancestor (e.g. a modal wrapper's own
+   * centering transform) creates a new CSS containing block for
+   * `position: fixed` descendants — this component's `left`/`top`
+   * percentages would then resolve against that ancestor's box instead
+   * of the viewport, wherever it happens to be mounted. Moving this
+   * component's actual DOM node to document.body sidesteps that
+   * entirely, regardless of which parent renders <Location>.
+   */
+  function portal(node: HTMLElement): { destroy(): void } {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  }
+
   export let geometry: 'point' | 'route' | 'area' = 'point';
 
   const dispatch = createEventDispatcher<{
@@ -182,7 +200,7 @@
   });
 </script>
 
-<div class="modal" role="dialog" aria-modal="true" aria-label="Location">
+<div class="modal" use:portal role="dialog" aria-modal="true" aria-label="Location">
 
   <CloseButton onClose={cancel} />
 
@@ -246,7 +264,7 @@
 </div>
 
 {#if zoomRequired}
-  <div class="zoom-required">
+  <div class="zoom-required" use:portal>
     Zoom in closer to pick a precise location.
   </div>
 {/if}
@@ -258,12 +276,14 @@
     transform: translate(-50%, -50%);
     z-index: 999;
     background: #161616;
-    border: 1px solid #333;
+
     border-radius: 14px;
     padding: 28px 24px 24px;
     width: min(360px, 44vw);
     box-sizing: border-box;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border-left: 3px solid;
+    border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
