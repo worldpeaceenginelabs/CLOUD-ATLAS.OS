@@ -61,6 +61,7 @@
     width: min(640px, 44vw);
     max-height: 88vh;
     overflow-y: auto;
+    overflow-x: hidden;
     box-sizing: border-box;
 
     background: #1b1b1b;
@@ -107,7 +108,6 @@
     align-items: center;
     min-height: 400px;
     padding: 40px 20px;
-    position: relative;
     overflow: hidden;
   }
 
