@@ -401,7 +401,10 @@
       }
 
     if (id in MISSION_MODALS) {
-      if (isMissionLocked(id)) return; // locked hex — stays locked, no modal opens
+      // m3 is the one deliberate exception: stays visually locked (see
+      // placeholderNodes below) but still opens — it's Omnipedia's own
+      // teaser content, not an actual unlocked mission.
+      if (isMissionLocked(id) && id !== 'm3') return; // locked hex — stays locked, no modal opens
       missionModal = toggle(missionModal, MISSION_MODALS[id]);
       return;
     }
@@ -465,7 +468,16 @@
     const locked = m.id === 'm1' ? false : m.id === 'm2' ? !missionsUnlocked : true;
     const comingSoon = locked && (m.id === 'm3' || m.id === 'm4');
     const label = locked ? `🔒\n${m.label}${comingSoon ? 'Coming Soon' : ''}` : m.label;
-    return { id: m.id, label, col: i, lrow: 1, locked };
+    // `locked` alone still drives the lock icon/label/dimmed opacity
+    // below, unchanged. `blockClicks` is the separate, click-specific
+    // signal the <g> pointer-events binding actually uses (falls back
+    // to `locked` for every other node type, which never sets this) —
+    // m3 is the one case where the two diverge: stays visually locked,
+    // but clickable, since it opens Omnipedia's own teaser rather than
+    // an actual unlocked mission. m4 has no teaser, so it stays fully
+    // inert like before.
+    const blockClicks = locked && m.id !== 'm3';
+    return { id: m.id, label, col: i, lrow: 1, locked, blockClicks };
   }) : [];
 
   // Hex-grid wrap width for the domain row — a generic layout choice
@@ -762,8 +774,8 @@
       <g
         data-node-id={node.id}
         style="
-          pointer-events:{(node.noop || node.locked) ? 'none' : 'all'};
-          cursor:{(node.noop || node.locked) ? 'default' : didDrag ? 'grabbing' : 'pointer'};
+          pointer-events:{(node.noop || (node.blockClicks ?? node.locked)) ? 'none' : 'all'};
+          cursor:{(node.noop || (node.blockClicks ?? node.locked)) ? 'default' : didDrag ? 'grabbing' : 'pointer'};
           opacity:{(node.noop || node.locked) ? 0.35 : (node.dimmed && !node.selected) ? 0.22 : 1};
           transition: opacity 0.25s;
         "
