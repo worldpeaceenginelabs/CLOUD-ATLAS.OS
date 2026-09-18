@@ -18,7 +18,6 @@
     hexCenter, hexPath, computeNeededBox, computeBgHexes, wrapLabel,
   } from './hexmenu/geometry';
   import { pick, location as deviceLocation } from './cesium/api';
-  import CloseButton from './shared/CloseButton.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -207,13 +206,6 @@
   // part of the genericFlow/shortcut/domain state above, so it's its
   // own independent flag rather than reusing selMode/selModel for it.
   let missionModal: 1 | 2 | 3 | null = null;
-  // SwarmGovernance's own .mission-card has no background of its own —
-  // .mission-modal-content below owns the actual visible box, so it's
-  // this component's job to hide it while SwarmGovernance's Location
-  // picker is open (SwarmGovernance only signals open/closed, it
-  // doesn't own or reach into this element itself).
-  let missionPickerOpen = false;
-  $: if (!missionModal) missionPickerOpen = false;
 
   // Mission 1 (Mission1.svelte) is always open; completing it unlocks
   // Mission 2. Mission 3 and 4 stay locked regardless — no unlock
@@ -846,21 +838,12 @@
 />
   {/if}
 
-  {#if missionModal}
-    <div class="mission-modal-content" class:picker-open={missionPickerOpen}>
-      <CloseButton onClose={() => missionModal = null} />
-
-      {#if missionModal === 1}
-        <Mission1 on:complete={handleMission1Complete} />
-      {:else if missionModal === 2}
-        <SwarmGovernance
-          on:submit={handleMissionSubmit}
-          on:pickerOpen={(e) => (missionPickerOpen = e.detail)}
-        />
-      {:else if missionModal === 3}
-        <Omnipedia />
-      {/if}
-    </div>
+  {#if missionModal === 1}
+    <Mission1 on:complete={handleMission1Complete} on:close={() => (missionModal = null)} />
+  {:else if missionModal === 2}
+    <SwarmGovernance on:submit={handleMissionSubmit} on:close={() => (missionModal = null)} />
+  {:else if missionModal === 3}
+    <Omnipedia on:close={() => (missionModal = null)} />
   {/if}
 
 </div>
@@ -915,65 +898,5 @@
     user-select: none;
     -webkit-user-select: none;
   }
-
-  /* Mission modal — the new-mission flow is hosted here, so HexMenu
-     owns the surrounding modal chrome for SwarmGovernance when it is
-     opened without a record. Existing missions selected from Cesium
-     are different: SwarmGovernance renders their own detail backdrop,
-     panel, and close button, just like EntityDetails.svelte. */
-
-     .mission-modal-content {
-       position: fixed;
-       top: 50%;
-       left: 4vw;
-       transform: translateY(-50%);
-
-       width: min(640px, 44vw);
-       max-height: 88vh;
-       overflow-y: auto;
-       box-sizing: border-box;
-
-       background: #1b1b1b;
-
-       padding: 2.5rem 1.5rem 1.5rem;
-
-       border-radius: 14px;
-
-       border-left: 3px solid;
-       border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
-       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-
-       color: #fff;
-       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-
-       z-index: 9999;
-     }
-
-     /*
-      * Hidden (not unmounted) while SwarmGovernance's Location picker is
-      * open — SwarmGovernance's own .mission-card has no background of
-      * its own, so hiding it alone would leave this box empty but
-      * visible; this is the actual chrome owner. Location.svelte's own
-      * DOM lives in document.body via its portal action, so this never
-      * hides it too. Form state (title/description/links/
-      * pickedLocation) is plain component state in SwarmGovernance, not
-      * DOM state, so it survives this regardless.
-      */
-     .mission-modal-content.picker-open {
-       visibility: hidden;
-     }
-
-     @media (max-width: 700px) {
-       .mission-modal-content {
-         top: 0;
-         left: 5px;
-         transform: none;
-
-         width: 100%;
-         max-height: 50vh;
-
-         box-sizing: border-box;
-       }
-     }
 
 </style>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -144,77 +145,129 @@
       copied = false;
     }
   }
+
+  // Own chrome now (see .panel below and the template) — previously
+  // HexMenu mounted this inside its own shared .mission-modal-content
+  // with its own CloseButton. Same pattern as SwarmGovernance.svelte and
+  // Omnipedia.svelte now use independently.
+  function close() {
+    dispatch('close');
+  }
 </script>
 
-<div class="mission-frame">
-  <div class="mission-content">
+<div class="panel">
+  <CloseButton onClose={close} />
 
-    <h2>{missionTitleMain}</h2>
-    <h3>{missionTitleSub}</h3>
+  <div class="mission-frame">
+    <div class="mission-content">
 
-    <p class="mission-share-label">SHARE THIS ON 3 DIFFERENT DAYS</p>
+      <h2>{missionTitleMain}</h2>
+      <h3>{missionTitleSub}</h3>
 
-    <div class="mission-card">
-      <div class="mission-stars">
-        {#each [1, 2, 3] as level}
-          <span class="mission-star" class:filled={stars >= level}>★</span>
-        {/each}
-      </div>
+      <p class="mission-share-label">SHARE THIS ON 3 DIFFERENT DAYS</p>
 
-      <p class="mission-stats">{missionStatsText}</p>
+      <div class="mission-card">
+        <div class="mission-stars">
+          {#each [1, 2, 3] as level}
+            <span class="mission-star" class:filled={stars >= level}>★</span>
+          {/each}
+        </div>
 
-      <p class="mission-card-quote animated-gradient">
-        {shareText}
-      </p>
+        <p class="mission-stats">{missionStatsText}</p>
 
-      <div class="mission-card-actions">
-        {#each shareLinks as { name, href }}
-          <a
+        <p class="mission-card-quote animated-gradient">
+          {shareText}
+        </p>
+
+        <div class="mission-card-actions">
+          {#each shareLinks as { name, href }}
+            <a
+              class="share-btn"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={stars >= 3}
+              on:click={handleShareClick}
+            >
+              {name}
+            </a>
+          {/each}
+
+          <button
+            type="button"
             class="share-btn"
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-disabled={stars >= 3}
-            on:click={handleShareClick}
+            on:click={copyToClipboard}
+            disabled={stars >= 3}
           >
-            {name}
-          </a>
-        {/each}
-
-        <button
-          type="button"
-          class="share-btn"
-          on:click={copyToClipboard}
-          disabled={stars >= 3}
-        >
-          {copied ? 'Copied!' : 'Copy Text'}
-        </button>
+            {copied ? 'Copied!' : 'Copy Text'}
+          </button>
+        </div>
       </div>
+
+      <div class="mission-bottom">
+        <p class="animated-gradient">
+          <span class="mission-bottom-heading">What to do?</span>
+          Share Cloud Atlas OS on your social networks right now. We've cloned every major gig platform — rides, delivery, freelance, social — with zero commission
+          and zero fees.<br>
+          <span class="mission-bottom-heading">Free Forever</span>
+        </p>
+
+        <p class="animated-gradient">
+          <span class="mission-bottom-heading">What is the goal?</span>
+          Every person who joins is a potential customer, passenger, or client, and none of them owe a cut to anyone but you.
+        </p>
+
+        <p class="animated-gradient">
+          <span class="mission-bottom-heading">How do we see we won?</span>
+          The Revolution Will Not Be Televised <span class="mission-emoji">😂✊</span> We're having a global live user count coming soon. Watch the number grow as a direct signal of your impact.
+        </p>
+      </div>
+
     </div>
-
-    <div class="mission-bottom">
-      <p class="animated-gradient">
-        <span class="mission-bottom-heading">What to do?</span>
-        Share Cloud Atlas OS on your social networks right now. We've cloned every major gig platform — rides, delivery, freelance, social — with zero commission
-        and zero fees.<br>
-        <span class="mission-bottom-heading">Free Forever</span>
-      </p>
-
-      <p class="animated-gradient">
-        <span class="mission-bottom-heading">What is the goal?</span>
-        Every person who joins is a potential customer, passenger, or client, and none of them owe a cut to anyone but you.
-      </p>
-
-      <p class="animated-gradient">
-        <span class="mission-bottom-heading">How do we see we won?</span>
-        The Revolution Will Not Be Televised <span class="mission-emoji">😂✊</span> We're having a global live user count coming soon. Watch the number grow as a direct signal of your impact.
-      </p>
-    </div>
-
   </div>
 </div>
 
 <style>
+  .panel {
+    position: fixed;
+    top: 50%;
+    left: 4vw;
+    transform: translateY(-50%);
+
+    width: min(640px, 44vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+
+    background: #1b1b1b;
+
+    padding: 2.5rem 1.5rem 1.5rem;
+
+    border-radius: 14px;
+
+    border-left: 3px solid;
+    border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    z-index: 9999;
+  }
+
+  @media (max-width: 700px) {
+    .panel {
+      top: 0;
+      left: 5px;
+      transform: none;
+
+      width: 100%;
+      max-height: 50vh;
+
+      box-sizing: border-box;
+    }
+  }
+
   .mission-frame {
     width: 100%;
     height: 100%;

@@ -6,10 +6,12 @@
   // Viewing/editing an *existing* mission is EntityDetails.svelte's job
   // now (see cesium/EntityDetails.svelte's Mission Edit section) — this
   // component no longer has a `record` prop, no read-only/owner mode, no
-  // Marketing/Delete. It never renders its own chrome (no `.panel`, no
-  // backdrop, no CloseButton): HexMenu.svelte owns the surrounding modal
-  // (.mission-modal-content) and the shared CloseButton, exactly like
-  // Mission1.svelte and Omnipedia.svelte.
+  // Marketing/Delete. It renders its own chrome (`.panel`, own
+  // CloseButton) — same pattern EntityDetails.svelte uses for itself,
+  // and Mission1.svelte/Omnipedia.svelte each do independently too.
+  // HexMenu just decides *whether* to mount it (missionModal===2) and
+  // reacts to its `submit`/`close` events; it owns none of this
+  // component's chrome or CSS.
   //
   // Still primarily UI: it renders the form and delegates the actual
   // Point/Area picking *session* entirely to hexmenu/Location.svelte
@@ -31,6 +33,7 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { pick } from '../cesium/api';
   import Location from '../hexmenu/Location.svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
   import type { MissionLocation } from '../orchestrator/appStore';
 
   const dispatch = createEventDispatcher();
@@ -99,12 +102,6 @@
   let locationPickerOpen = false;
   let pickerGeometry: 'point' | 'area' = 'point';
 
-  // HexMenu owns .mission-modal-content's own background/border/shadow
-  // (this component's .mission-card has none of its own) — visibility
-  // hidden here alone would leave that ancestor's box visible but
-  // empty. This just signals open/closed; HexMenu decides how to react.
-  $: dispatch('pickerOpen', locationPickerOpen);
-
   function openPicker(mode: 'point' | 'area') {
     pickerGeometry = mode;
     locationPickerOpen = true;
@@ -137,18 +134,28 @@
     locationPickerOpen = true;
   }
 
-  // Covers the form being closed/destroyed *without* submitting (e.g.
-  // HexMenu's CloseButton on .mission-modal-content) while a location
-  // was already confirmed — handleSubmit's clearPickerPreview() only
-  // runs on the submit path, so this is the other place a confirmed
-  // marker/rectangle needs to be wiped. If Location.svelte itself is
-  // still mounted (locationPickerOpen) when this fires, Svelte destroys
-  // it first, which already disables/clears its own in-progress preview
-  // — this call only concerns the separate, already-confirmed marker.
+  // Own CloseButton now (previously HexMenu's, on .mission-modal-content)
+  // — just needs to signal the parent to unmount this component.
+  // onDestroy below already handles the actual cleanup that follows.
+  function close() {
+    dispatch('close');
+  }
+
+  // Covers this component being closed/destroyed *without* submitting
+  // (via the CloseButton above, or however the parent ends up unmounting
+  // it) while a location was already confirmed — handleSubmit's
+  // clearPickerPreview() only runs on the submit path, so this is the
+  // other place a confirmed marker/rectangle needs to be wiped. If
+  // Location.svelte itself is still mounted (locationPickerOpen) when
+  // this fires, Svelte destroys it first, which already disables/clears
+  // its own in-progress preview — this call only concerns the separate,
+  // already-confirmed marker.
   onDestroy(clearPickerPreview);
 </script>
 
-<div class="mission-card">
+<div class="panel" class:picker-open={locationPickerOpen}>
+  <CloseButton onClose={close} />
+
   <form class="mf" on:submit|preventDefault={handleSubmit}>
     <h2 class="mf-heading">Swarm Governance</h2>
 
@@ -247,8 +254,55 @@
 </div>
 
 <style>
-  .mission-card {
+  .panel {
+    position: fixed;
+    top: 50%;
+    left: 4vw;
+    transform: translateY(-50%);
+
+    width: min(640px, 44vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+
+    background: #1b1b1b;
+
+    padding: 2.5rem 1.5rem 1.5rem;
+
+    border-radius: 14px;
+
+    border-left: 3px solid;
+    border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
     color: #eee;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    z-index: 9999;
+  }
+
+  /*
+   * Hidden (not unmounted) while Location.svelte is open — visibility,
+   * not display:none, so form state (title/description/links/
+   * pickedLocation, all plain component state, not DOM state) survives
+   * regardless either way. Location.svelte's own DOM lives in
+   * document.body via its portal action, so this never hides it too.
+   */
+  .panel.picker-open {
+    visibility: hidden;
+  }
+
+  @media (max-width: 700px) {
+    .panel {
+      top: 0;
+      left: 5px;
+      transform: none;
+
+      width: 100%;
+      max-height: 50vh;
+
+      box-sizing: border-box;
+    }
   }
 
   .mf {

@@ -1,33 +1,94 @@
-<main>
-  <div class="omnipedia-container">
-    <video class="bg-video" autoplay loop muted playsinline>
-      <source src="Omnipedia.mp4" type="video/mp4" />
-    </video>
-    <div class="coming-soon">
-      <div class="icon">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M2 12h20" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="2"/>
-        </svg>
+<script lang="ts">
+  // missions/Omnipedia.svelte
+  // -----------------------------------------------------------------------
+  // Mission 3 — a static "coming soon" teaser, no interaction beyond
+  // closing it. Owns its own chrome (.panel + CloseButton) now, same
+  // pattern SwarmGovernance.svelte and Mission1.svelte each use
+  // independently — HexMenu just decides whether to mount it
+  // (missionModal===3) and reacts to its `close` event.
+  // -----------------------------------------------------------------------
+
+  import { createEventDispatcher } from 'svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
+
+  const dispatch = createEventDispatcher();
+
+  function close() {
+    dispatch('close');
+  }
+</script>
+
+<div class="panel">
+  <CloseButton onClose={close} />
+
+  <main>
+    <div class="omnipedia-container">
+      <video class="bg-video" autoplay loop muted playsinline>
+        <source src="Omnipedia.mp4" type="video/mp4" />
+      </video>
+      <div class="coming-soon">
+        <div class="icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M2 12h20" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </div>
+        <h1>OMNIPEDIA</h1>
+        <p class="subtitle">The Virtual Encyclopedia</p>
+        <p class="coming-soon-text">Coming Soon</p>
+        <p class="description">
+          Over 6 Million Wikipedia articles sourced into immersive, animated 3D objects and scenes — geolocated on a global map and powered by Nostr and BitTorrent. The more people explore, the smarter and faster it gets.
+        </p>
+        <p class="description">
+          Truth-checking happens by exploration: users naturally flag anomalies while navigating the world. Imagine spotting a green giraffe sipping coffee at Starbucks—an anomaly that hints at a factual error or absurdity in the source Wikipedia article, and automatically flags a correction request from the Cloud Atlas OS community to the Wikipedia community.
+        </p>
+        <p class="description">
+          This feature transforms information into a living, visual experience—blending learning, truth detection, and storytelling in a gamified, immersive world.
+        </p>
       </div>
-      <h1>OMNIPEDIA</h1>
-      <p class="subtitle">The Virtual Encyclopedia</p>
-      <p class="coming-soon-text">Coming Soon</p>
-      <p class="description">
-        Over 6 Million Wikipedia articles sourced into immersive, animated 3D objects and scenes — geolocated on a global map and powered by Nostr and BitTorrent. The more people explore, the smarter and faster it gets.
-      </p>
-      <p class="description">
-        Truth-checking happens by exploration: users naturally flag anomalies while navigating the world. Imagine spotting a green giraffe sipping coffee at Starbucks—an anomaly that hints at a factual error or absurdity in the source Wikipedia article, and automatically flags a correction request from the Cloud Atlas OS community to the Wikipedia community.
-      </p>
-      <p class="description">
-        This feature transforms information into a living, visual experience—blending learning, truth detection, and storytelling in a gamified, immersive world.
-      </p>
     </div>
-  </div>
-</main>
+  </main>
+</div>
 
 <style>
+  .panel {
+    position: fixed;
+    top: 50%;
+    left: 4vw;
+    transform: translateY(-50%);
+
+    width: min(640px, 44vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+
+    background: #1b1b1b;
+
+    padding: 2.5rem 1.5rem 1.5rem;
+
+    border-radius: 14px;
+
+    border-left: 3px solid;
+    border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+    z-index: 9999;
+  }
+
+  @media (max-width: 700px) {
+    .panel {
+      top: 0;
+      left: 5px;
+      transform: none;
+
+      width: 100%;
+      max-height: 50vh;
+
+      box-sizing: border-box;
+    }
+  }
+
   main {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
