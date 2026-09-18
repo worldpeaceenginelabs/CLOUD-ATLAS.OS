@@ -99,6 +99,12 @@
   let locationPickerOpen = false;
   let pickerGeometry: 'point' | 'area' = 'point';
 
+  // HexMenu owns .mission-modal-content's own background/border/shadow
+  // (this component's .mission-card has none of its own) — visibility
+  // hidden here alone would leave that ancestor's box visible but
+  // empty. This just signals open/closed; HexMenu decides how to react.
+  $: dispatch('pickerOpen', locationPickerOpen);
+
   function openPicker(mode: 'point' | 'area') {
     pickerGeometry = mode;
     locationPickerOpen = true;
@@ -142,7 +148,7 @@
   onDestroy(clearPickerPreview);
 </script>
 
-<div class="mission-card" class:picker-open={locationPickerOpen}>
+<div class="mission-card">
   <form class="mf" on:submit|preventDefault={handleSubmit}>
     <h2 class="mf-heading">Swarm Governance</h2>
 
@@ -243,18 +249,6 @@
 <style>
   .mission-card {
     color: #eee;
-  }
-
-  /*
-   * Hidden (not unmounted) while Location.svelte is open — visibility,
-   * not display:none, so it still takes no part in hit-testing/tab
-   * order but the form's own state (title/description/links/
-   * pickedLocation, all plain component state, not DOM state) survives
-   * untouched regardless either way. Location.svelte's own DOM lives in
-   * document.body via its portal action, so this never hides it too.
-   */
-  .mission-card.picker-open {
-    visibility: hidden;
   }
 
   .mf {
