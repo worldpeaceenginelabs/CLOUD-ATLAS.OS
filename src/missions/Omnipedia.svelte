@@ -26,6 +26,7 @@
       <video class="bg-video" autoplay loop muted playsinline>
         <source src="Omnipedia.mp4" type="video/mp4" />
       </video>
+
       <div class="coming-soon">
         <div class="icon">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -34,17 +35,33 @@
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="2"/>
           </svg>
         </div>
+
         <h1>OMNIPEDIA</h1>
         <p class="subtitle">The Virtual Encyclopedia</p>
         <p class="coming-soon-text">Coming Soon</p>
+
         <p class="description">
-          Over 6 Million Wikipedia articles sourced into immersive, animated 3D objects and scenes — geolocated on a global map and powered by Nostr and BitTorrent. The more people explore, the smarter and faster it gets.
+          OMNIPEDIA transforms Wikipedia into a living, spatial encyclopedia. More than 6 million articles become 3D objects, environments, and scenes, all connected on a shared global map and powered by Nostr and BitTorrent. The more people explore and contribute, the richer the world becomes.
         </p>
+
         <p class="description">
-          Truth-checking happens by exploration: users naturally flag anomalies while navigating the world. Imagine spotting a green giraffe sipping coffee at Starbucks—an anomaly that hints at a factual error or absurdity in the source Wikipedia article, and automatically flags a correction request from the Cloud Atlas OS community to the Wikipedia community.
+          Connect 3D models into scenes. Build apps, games, and experiences from those scenes. Run simulations on a live global map. Visualize what does not fit into words.
         </p>
+
         <p class="description">
-          This feature transforms information into a living, visual experience—blending learning, truth detection, and storytelling in a gamified, immersive world.
+          Because every object follows the same underlying logic, scenes and experiences can be recombined instantly. Instead of building everything from scratch, you draw from the full structure of human knowledge — no coding required.
+        </p>
+
+        <p class="description">
+          Exploration also becomes a way to discover and verify information. When something appears out of place — a green giraffe sipping coffee at Starbucks, for example — it becomes a visible anomaly that can prompt investigation and a correction request from the Cloud Atlas OS community to the Wikipedia community.
+        </p>
+
+        <p class="description">
+          In this way, OMNIPEDIA turns information into a living, visual experience: a shared world for learning, creating, exploring, simulating, and continuously improving the knowledge it represents.
+        </p>
+
+        <p class="description">
+          And as the community shapes OMNIPEDIA and, in turn, the HOLODECK, a Genie 3 class spatial AGI emerges from the structure itself.
         </p>
       </div>
     </div>
