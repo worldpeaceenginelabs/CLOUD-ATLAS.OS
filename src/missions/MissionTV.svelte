@@ -69,14 +69,20 @@
 
   @media (max-width: 700px) {
     .panel {
-      top: 0;
-      left: 5px;
-      transform: none;
+        position: fixed;
+        inset: 0;
 
-      width: 100%;
-      max-height: 50vh;
+        width: 100%;
+        height: 100dvh;
+        max-height: none;
 
-      box-sizing: border-box;
+        transform: none;
+
+        border-radius: var(--glass-radius);
+
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
     }
   }
 
@@ -170,8 +176,10 @@
 
   @media (max-width: 768px) {
     .missiontv-container {
-      min-height: 300px;
-      padding: 20px 15px;
+    min-height: 100%;
+    padding: 40px 20px;
+    box-sizing: border-box;
+    align-items: flex-start;
     }
 
     h1 {
