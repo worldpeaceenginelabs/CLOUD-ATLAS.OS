@@ -66,6 +66,10 @@ export function createViewer(
     ...viewerOptions,
   });
 
+  viewer.screenSpaceEventHandler.removeInputAction(
+      Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+  );
+
   setupTouchTiltHandler(viewer);
   viewer.scene.screenSpaceCameraController.zoomFactor = 10.0;
 
