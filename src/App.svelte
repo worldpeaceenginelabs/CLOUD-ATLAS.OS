@@ -233,7 +233,7 @@
       <About on:close={() => (aboutOpen = false)} />
     {/if}
 
-    <button class="workspace-toggle" on:click={toggleWorkspace}>
+    <button class="corner-btn workspace-toggle" on:click={toggleWorkspace}>
       {fullGlobe ? 'Split View' : 'Fullscreen'}
     </button>
 
@@ -316,15 +316,8 @@
     height: 100%;
   }
 
-  .workspace-toggle {
-    position: fixed;
-    right: var(--edge-gap);
-    bottom: calc(var(--edge-gap) + env(safe-area-inset-bottom, 0px));
-    z-index: 30;
-  }
-
-  /* Round-cornered glass icon buttons (MissionTV, About) — look only,
-     position comes from the per-button rules below */
+  /* Round-cornered glass buttons (MissionTV, About, Fullscreen/Split View)
+     — look only, position comes from the per-button rules below */
   .corner-btn {
     position: absolute;
     z-index: 1000;
@@ -361,6 +354,18 @@
   .about-btn {
     bottom: calc(var(--edge-gap) + env(safe-area-inset-bottom, 0px));
     left: var(--edge-gap);
+  }
+
+  /* Fullscreen / Split View button (bottom right) — the only one with a
+     text label, so it keeps the 40px height but sizes its width to the text */
+  .workspace-toggle {
+    bottom: calc(var(--edge-gap) + env(safe-area-inset-bottom, 0px));
+    right: var(--edge-gap);
+    width: auto;
+    padding: 0 14px;
+    font: inherit;
+    font-size: 14px;
+    white-space: nowrap;
   }
 
   /* ---------------------------------------------------------------------- */
