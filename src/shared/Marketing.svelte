@@ -11,6 +11,7 @@
   // deliberately (no model, action, title, or payload data).
   // -----------------------------------------------------------------------
   import { createEventDispatcher } from 'svelte';
+  import CloseButton from './CloseButton.svelte';
 
   export let domain: string;
   export let eventId: string;
@@ -35,6 +36,12 @@
     { name: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
     { name: 'WhatsApp', href: `https://wa.me/?text=${encodedText}%20${encodedUrl}` },
     { name: 'Telegram', href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}` },
+    { name: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
+    { name: 'Reddit', href: `https://reddit.com/submit?title=${encodedText}&url=${encodedUrl}` },
+    { name: 'Weibo', href: `https://service.weibo.com/share/share.php?url=${encodedUrl}&title=${encodedText}` },
+    { name: 'QQ', href: `https://connect.qq.com/widget/shareqq/index.html?url=${encodedUrl}&title=${encodedText}&summary=${encodedText}` },
+    { name: 'Line', href: `https://social-plugins.line.me/lineit/share?url=${encodedUrl}` },
+    { name: 'VK', href: `https://vk.com/share.php?url=${encodedUrl}&title=${encodedText}&comment=${encodedText}` },
   ];
 
   let copied = false;
@@ -54,9 +61,10 @@
 
 <div class="backdrop" on:click={close} />
 <div class="panel" role="dialog" aria-modal="true">
+  <CloseButton onClose={close} />
+
   <div class="panel-header">
     <span class="kind-badge">Share</span>
-    <button class="close-btn" on:click={close} aria-label="Close">✕</button>
   </div>
 
   <p class="lead">Share this listing with a direct link:</p>
@@ -113,25 +121,6 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.08);
     color: #8fb0ff;
-  }
-
-  .close-btn {
-    background: none;
-    border: none;
-    color: #aaa;
-    font-size: 1.1em;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0.25em;
-  }
-  .close-btn:hover,
-  .close-btn:focus-visible {
-    color: #fff;
-  }
-  .close-btn:focus-visible {
-    outline: 2px solid #2ae9c9;
-    outline-offset: 2px;
-    border-radius: 4px;
   }
 
   .lead {
