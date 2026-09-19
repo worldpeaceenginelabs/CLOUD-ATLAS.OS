@@ -732,18 +732,20 @@
     border-color: #7e57c2;
   }
 
-  /* Single column — this panel is narrower than the old .mission-modal-content,
-     so the two-column lane grid SwarmGovernance's create form uses would be
-     cramped here. */
+  /* Two columns, same lane grid SwarmGovernance's create form uses.
+     minmax(0, 1fr) lets the inputs shrink instead of overflowing the
+     panel; min-width: 0 on .mf-lane does the same for the flex child. */
   .mf-lanes {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.75rem;
+    row-gap: 0.35rem;
   }
 
   .mf-lane {
     display: flex;
     flex-direction: column;
+    min-width: 0;
   }
 
   .mf-lanes-display {
