@@ -52,9 +52,11 @@
 
   .modal {
     position: relative;
-    background: #161616;
-    border: 1px solid #333;
-    border-radius: 14px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
     padding: 28px 24px 24px;
     width: min(340px, calc(100vw - 40px));
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);

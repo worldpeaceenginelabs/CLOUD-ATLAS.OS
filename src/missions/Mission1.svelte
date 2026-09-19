@@ -239,14 +239,15 @@
     overflow-y: auto;
     box-sizing: border-box;
 
-    background: #1b1b1b;
+    background: var(--accent-stripe), var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
 
     padding: 2.5rem 1.5rem 1.5rem;
 
-    border-radius: 14px;
 
-    border-left: 3px solid;
-    border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
     color: #fff;
@@ -286,9 +287,9 @@
   }
 
   .mission-card {
-    background: rgba(10, 15, 25, 0.85);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
+    background: var(--glass-bg-inset);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     border-radius: 12px;
     border: 1px solid #ffd700;
     padding: 28px 24px;

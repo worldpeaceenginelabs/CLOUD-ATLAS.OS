@@ -1,0 +1,19 @@
+/*
+ * Zentrale Glas-Definition ("frosted glass").
+ * Einmal global importieren (z. B. `import './glass.css'` in main.js),
+ * alle Komponenten lesen die Werte über var(--glass-*).
+ */
+:root {
+  /* Basis-Fläche: Panels, Modals, Overlays, Tooltips, Status-Pille */
+  --glass-bg: rgba(255, 255, 255, 0.2);
+  --glass-blur: blur(10px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.3);
+  --glass-radius: 16px;
+
+  /* Inset-Fläche: hellere Ebene AUF einem Glas-Panel
+     (Mission-Card mit Sternen/Share-Buttons, Suchfeld und Ort-Karte in Location) */
+  --glass-bg-inset: rgba(255, 255, 255, 0.2);
+
+  /* Farbiger Streifen am linken Rand der großen Panels */
+  --accent-stripe: linear-gradient(180deg, #335bf4, #2ae9c9) left center / 3px 100% no-repeat;
+}

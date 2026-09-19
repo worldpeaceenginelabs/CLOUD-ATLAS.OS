@@ -62,11 +62,12 @@
     transform: translate(-50%, -50%);
 
     z-index: 100;
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
     padding: 15px;
-    border-radius: 8px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .progress-item {

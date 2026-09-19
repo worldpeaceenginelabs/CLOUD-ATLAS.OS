@@ -2183,9 +2183,11 @@
     align-items: center;
     gap: 0.75em;
     padding: 0.5em 1em;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
     border-radius: 999px;
-    background: rgba(22, 23, 26, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.08);
     color: #fff;
     font: 0.8em -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);

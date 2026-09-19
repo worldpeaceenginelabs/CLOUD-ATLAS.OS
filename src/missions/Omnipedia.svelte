@@ -81,14 +81,15 @@
     overflow-x: hidden;
     box-sizing: border-box;
 
-    background: #1b1b1b;
+    background: var(--accent-stripe), var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
 
     padding: 2.5rem 1.5rem 1.5rem;
 
-    border-radius: 14px;
 
-    border-left: 3px solid;
-    border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
     z-index: 9999;

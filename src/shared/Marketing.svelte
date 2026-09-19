@@ -97,10 +97,11 @@
     z-index: 51;
     width: min(380px, calc(100vw - 4em));
     padding: 1.5em;
-    border-radius: 14px;
-    background: #16171a;
-    border-left: 3px solid;
-    border-image: linear-gradient(180deg, #335bf4, #2ae9c9) 1;
+    background: var(--accent-stripe), var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
     color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

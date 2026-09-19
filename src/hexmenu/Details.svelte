@@ -148,9 +148,11 @@
 
   .modal {
     position: relative;
-    background: #161616;
-    border: 1px solid #333;
-    border-radius: 14px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
     padding: 28px 24px 24px;
     width: min(360px, calc(100vw - 40px));
     max-height: calc(100vh - 48px);
