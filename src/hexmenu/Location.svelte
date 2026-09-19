@@ -733,9 +733,9 @@
 
   .zoom-required {
     position: fixed;
-    left: 50%;
-    bottom: 80px;
-    transform: translateX(-50%);
+    top: 50%;
+    right: 25%;
+    transform: translate(50%, -50%);
     z-index: 9999;
 
     padding: 10px 16px;
