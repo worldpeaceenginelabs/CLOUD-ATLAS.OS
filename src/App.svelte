@@ -7,6 +7,7 @@
   import EntityLayer from "./cesium/EntityLayer.svelte";
   import Orchestrator from "./Orchestrator.svelte";
   import MissionTV from "./missions/MissionTV.svelte";
+  import About from "./shared/About.svelte";
   import ProgressBar from "./shared/ProgressBar.svelte";
 
   import {
@@ -118,6 +119,10 @@
   // contract as the mission components HexMenu mounts (Omnipedia etc.).
   let missionTVOpen = false;
 
+  // About: same contract as MissionTV — App.svelte only knows whether it's
+  // open; the component owns its chrome and dispatches `close`.
+  let aboutOpen = false;
+
   function updateLayout() {
     if (!workspaceEl) return;
     const ws = workspaceEl.getBoundingClientRect();
@@ -205,7 +210,7 @@
       openEventId={deepLink?.eventId ?? null}
     />
 
-    <button class="mission-tv-btn" on:click={() => (missionTVOpen = true)} title="MissionTV">
+    <button class="corner-btn mission-tv-btn" on:click={() => (missionTVOpen = true)} title="MissionTV">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
         <polyline points="17 2 12 7 7 2"/>
@@ -214,6 +219,18 @@
 
     {#if missionTVOpen}
       <MissionTV on:close={() => (missionTVOpen = false)} />
+    {/if}
+
+    <button class="corner-btn about-btn" on:click={() => (aboutOpen = true)} title="About">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+    </button>
+
+    {#if aboutOpen}
+      <About on:close={() => (aboutOpen = false)} />
     {/if}
 
     <button class="workspace-toggle" on:click={toggleWorkspace}>
@@ -243,6 +260,11 @@
   .workspace {
     position: fixed;
     inset: 0;
+
+    /* Distance of every corner button (MissionTV top right, About bottom
+       left, Fullscreen/Split View bottom right) from the screen edge. The
+       top/bottom edges add their safe-area inset on top of it. */
+    --edge-gap: 10px;
   }
 
   .background-layer {
@@ -296,16 +318,15 @@
 
   .workspace-toggle {
     position: fixed;
-    right: 16px;
-    bottom: 16px;
+    right: var(--edge-gap);
+    bottom: calc(var(--edge-gap) + env(safe-area-inset-bottom, 0px));
     z-index: 30;
   }
 
-  /* MissionTV button (top left) */
-  .mission-tv-btn {
+  /* Round-cornered glass icon buttons (MissionTV, About) — look only,
+     position comes from the per-button rules below */
+  .corner-btn {
     position: absolute;
-    top: calc(10px + env(safe-area-inset-top, 0px));
-    right: 10px;
     z-index: 1000;
     width: 40px;
     height: 40px;
@@ -324,10 +345,22 @@
     transition: all 0.2s;
   }
 
-  .mission-tv-btn:hover {
+  .corner-btn:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  /* MissionTV button (top right) */
+  .mission-tv-btn {
+    top: calc(var(--edge-gap) + env(safe-area-inset-top, 0px));
+    right: var(--edge-gap);
+  }
+
+  /* About button (bottom left) */
+  .about-btn {
+    bottom: calc(var(--edge-gap) + env(safe-area-inset-bottom, 0px));
+    left: var(--edge-gap);
   }
 
   /* ---------------------------------------------------------------------- */
