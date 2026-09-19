@@ -2,7 +2,7 @@
   // EntityDetails.svelte
   // -----------------------------------------------------------------------
   // The single, universal "show what I clicked on" panel for every entity
-  // type (Live, Listing, Mission) selected from the Cesium globe. Owns its
+  // type (Listing, Mission) selected from the Cesium globe. Owns its
   // own chrome (backdrop, panel, position, CloseButton) entirely — it is
   // the only place a globe-selected entity gets shown, so there's no
   // sibling component competing for the same job (see
@@ -17,17 +17,21 @@
   // No Nostr, no discovery, no store access, no business logic beyond
   // picking apart which plain fields a given record kind has.
   //
-  // Owner-only actions (Edit, Marketing, Delete): still no direct Nostr
+  // Owner-only actions (Edit, Delete): still no direct Nostr
   // communication here. Edit toggles this same panel into an editable
-  // form (Mission only, for now — Listing/Live never had an edit
+  // form (Mission only, for now — Listing never had an edit
   // capability to begin with, so there's nothing to move over for them);
   // Save dispatches `submit` upward, Delete dispatches `delete` upward.
   // The actual publish/tombstone stays entirely in Orchestrator's
   // existing flow (see EntityLayer.svelte, which forwards both events,
   // and App.svelte, which turns them into Orchestrator's
-  // `missionSubmit`/`deleteRequest` props). Marketing is pure UI
-  // composition (a link built from two plain fields already on the
-  // record), so it opens locally with no event needed.
+  // `missionSubmit`/`deleteRequest` props).
+  //
+  // Marketing is shown to everyone on Listing/Mission records: the owner
+  // sees it as "Marketing" next to Edit/Delete, everyone else sees the
+  // same button labelled "Share". It is pure UI composition (a link
+  // built from two plain fields already on the record), so it opens
+  // locally with no event needed.
   //
   // Location picking during Mission edit is delegated entirely to
   // hexmenu/Location.svelte (never getActiveViewer(), pickLocation.ts,
@@ -43,23 +47,19 @@
   // reaches Cesium instead of just closing this panel.
   // -----------------------------------------------------------------------
   import { createEventDispatcher, onMount } from 'svelte';
-  import type { LiveRecord, ListingRecord, MissionRecord, MissionLocation } from '../orchestrator/appStore';
+  import type { ListingRecord, MissionRecord, MissionLocation } from '../orchestrator/appStore';
   import { pick } from './api';
   import Location from '../hexmenu/Location.svelte';
   import Marketing from '../shared/Marketing.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
 
-  export let record: LiveRecord | ListingRecord | MissionRecord | null = null;
-  /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's/mission's `author` to decide whether to show the owner-only actions below. Live records have no `author` field (no ownership concept), so they never show owner actions. */
+  export let record: ListingRecord | MissionRecord | null = null;
+  /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's/mission's `author` to decide whether to show the owner-only actions below. */
   export let ownPubkey: string | null = null;
 
   const dispatch = createEventDispatcher();
 
-  $: isOwner =
-    !!record &&
-    !!ownPubkey &&
-    (record.kind === 'listing' || record.kind === 'mission') &&
-    record.author === ownPubkey;
+  $: isOwner = !!record && !!ownPubkey && record.author === ownPubkey;
 
   let showMarketing = false;
 
@@ -237,14 +237,14 @@
     return s.replace(/[_-]/g, ' ');
   }
 
-  function titleOf(r: LiveRecord | ListingRecord | MissionRecord): string {
+  function titleOf(r: ListingRecord | MissionRecord): string {
     if (r.kind === 'mission') return r.content.title || 'Mission';
     const content = r.content as Record<string, unknown>;
     if (typeof content?.title === 'string' && content.title) return content.title;
     return humanize(r.model);
   }
 
-  function categoryOf(r: LiveRecord | ListingRecord | MissionRecord): string | null {
+  function categoryOf(r: ListingRecord | MissionRecord): string | null {
     if (r.kind === 'mission') return null;
     const content = r.content as Record<string, unknown>;
     if (typeof content?.categoryId === 'string') return humanize(content.categoryId);
@@ -254,7 +254,7 @@
     return null;
   }
 
-  function fieldOf(r: LiveRecord | ListingRecord | MissionRecord, key: string): string | null {
+  function fieldOf(r: ListingRecord | MissionRecord, key: string): string | null {
     const content = r.content as Record<string, unknown>;
     const value = content?.[key];
     return typeof value === 'string' && value ? value : null;
@@ -276,16 +276,6 @@
     return new Date(unixSecs * 1000).toLocaleString();
   }
 
-  function shortPubkey(pk: string): string {
-    return `${pk.slice(0, 8)}…${pk.slice(-8)}`;
-  }
-
-  const STATUS_LABEL: Record<string, string> = {
-    searching: 'Searching',
-    matched: 'Matched',
-    expired: 'Expired',
-    cancelled: 'Cancelled',
-  };
 </script>
 
 <svelte:window on:keydown={onKeydown} />
@@ -297,12 +287,8 @@
 
   <div class="panel" class:picker-open={locationPickerOpen} role="dialog" aria-modal="true">
     <div class="panel-header">
-      <span
-        class="kind-badge"
-        class:live={record.kind === 'live'}
-        class:mission={record.kind === 'mission'}
-      >
-        {record.kind === 'live' ? 'LIVE' : record.kind === 'mission' ? 'MISSION' : 'LISTING'}
+      <span class="kind-badge" class:mission={record.kind === 'mission'}>
+        {record.kind === 'mission' ? 'MISSION' : 'LISTING'}
       </span>
       <CloseButton onClose={close} position="relative" top="0" right="0" />
     </div>
@@ -399,23 +385,7 @@
         <div class="model">{record.model.replace(/_/g, ' ')}</div>
       {/if}
 
-      {#if record.kind === 'live'}
-        <div class="status-row">
-          <span
-            class="status-dot"
-            class:matched={record.status === 'matched'}
-            class:expired={record.status === 'expired' || record.status === 'cancelled'}
-          />
-          <span>{STATUS_LABEL[record.status] ?? record.status}</span>
-          <span class="role">({record.role})</span>
-        </div>
-        {#if record.peerPubkey}
-          <div class="field">
-            <span class="label">Peer</span>
-            <span class="value mono">{shortPubkey(record.peerPubkey)}</span>
-          </div>
-        {/if}
-      {:else if record.kind === 'listing'}
+      {#if record.kind === 'listing'}
         <div class="field">
           <span class="label">Expires</span>
           <span class="value">{formatTimestamp(record.expiresAt)}</span>
@@ -484,12 +454,17 @@
           <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Marketing</button>
           <button class="owner-btn delete" on:click={requestDelete}>Delete</button>
         </div>
+      {:else}
+        <!-- Non-owner: same Marketing panel, just labelled "Share". -->
+        <div class="owner-actions">
+          <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Share</button>
+        </div>
       {/if}
     {/if}
   </div>
 {/if}
 
-{#if showMarketing && record && record.kind !== 'live'}
+{#if showMarketing && record}
   <Marketing
     domain={record.kind === 'mission' ? 'mission' : record.domain}
     eventId={record.eventId}
@@ -560,9 +535,6 @@
     background: rgba(255, 255, 255, 0.08);
     color: #8fb0ff;
   }
-  .kind-badge.live {
-    color: #2ae9c9;
-  }
   .kind-badge.mission {
     color: #cbb6f0;
   }
@@ -577,33 +549,6 @@
   .model {
     margin: 0 0 1em;
     font-size: 0.8em;
-    color: #8a8f98;
-    text-transform: capitalize;
-  }
-
-  .status-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    margin-bottom: 0.9em;
-    font-size: 0.9em;
-  }
-
-  .status-dot {
-    width: 0.6em;
-    height: 0.6em;
-    border-radius: 50%;
-    background: #ff6b6b;
-    flex-shrink: 0;
-  }
-  .status-dot.matched {
-    background: #57e389;
-  }
-  .status-dot.expired {
-    background: #555;
-  }
-
-  .role {
     color: #8a8f98;
     text-transform: capitalize;
   }
