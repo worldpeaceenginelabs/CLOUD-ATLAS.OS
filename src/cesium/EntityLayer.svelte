@@ -295,15 +295,22 @@
 
         if (!recordId) return;
 
-        if (recordId === 'Your Location!' && userLocationCoords) {
+        if (
+          (recordId === 'Your Location!' ||
+           recordId === 'Your Location!_outer' ||
+           recordId === 'Your Location!_inner') &&
+          userLocationCoords
+        ) {
           camera.flyTo(
             {
               longitude: userLocationCoords.longitude,
               latitude: userLocationCoords.latitude,
-              height: 7500,
+              height: 5000,
             },
             { duration: 1.5 }
           );
+
+          return;
         }
 
         selectRecordById(recordId);
