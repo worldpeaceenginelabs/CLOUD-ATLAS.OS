@@ -1,22 +1,85 @@
-<main>
-  <div class="missiontv-container">
-    <div class="coming-soon">
-      <div class="icon">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="2" y="7" width="20" height="15" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="17 2 12 7 7 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+<script lang="ts">
+  // missions/MissionTV.svelte
+  // -----------------------------------------------------------------------
+  // A static "coming soon" teaser, no interaction beyond closing it. Owns
+  // its own chrome (.panel + CloseButton), same pattern Omnipedia.svelte,
+  // SwarmGovernance.svelte and Mission1.svelte each use independently —
+  // App.svelte just decides whether to mount it (TV button, top left) and
+  // reacts to its `close` event.
+  // -----------------------------------------------------------------------
+
+  import { createEventDispatcher } from 'svelte';
+  import CloseButton from '../shared/CloseButton.svelte';
+
+  const dispatch = createEventDispatcher();
+
+  function close() {
+    dispatch('close');
+  }
+</script>
+
+<div class="panel">
+  <CloseButton onClose={close} />
+
+  <main>
+    <div class="missiontv-container">
+      <div class="coming-soon">
+        <div class="icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="7" width="20" height="15" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="17 2 12 7 7 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1>MissionTV</h1>
+        <p class="coming-soon-text">Coming Soon</p>
+        <p class="description">
+          Stream your mission progress, earn tips, and inspire action. Transform social change into engaging entertainment where audiences don't just watch—they fund projects and contribute expertise through live video chat while you're in the field. Making impact visible, collaborative, and rewarding.<br><br>With Mission TV, we're creating a new kind of influencer — the Human 4.0 — a being evolving beyond ego and competition, striving to become the best version of themselves. We celebrate those who gain recognition not for attention, but for ascension — by doing good, inspiring others to do the same, and rising together toward their highest potential.
+        </p>
       </div>
-      <h1>MissionTV</h1>
-      <p class="coming-soon-text">Coming Soon</p>
-      <p class="description">
-        Stream your mission progress, earn tips, and inspire action. Transform social change into engaging entertainment where audiences don't just watch—they fund projects and contribute expertise through live video chat while you're in the field. Making impact visible, collaborative, and rewarding.<br><br>With Mission TV, we're creating a new kind of influencer — the Human 4.0 — a being evolving beyond ego and competition, striving to become the best version of themselves. We celebrate those who gain recognition not for attention, but for ascension — by doing good, inspiring others to do the same, and rising together toward their highest potential.
-      </p>
     </div>
-  </div>
-</main>
+  </main>
+</div>
 
 <style>
+  .panel {
+    position: fixed;
+    top: 50%;
+    left: 4vw;
+    transform: translateY(-50%);
+
+    width: min(640px, 44vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+
+    background: var(--accent-stripe), var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
+
+    padding: 2.5rem 1.5rem 1.5rem;
+
+
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+    z-index: 9999;
+  }
+
+  @media (max-width: 700px) {
+    .panel {
+      top: 0;
+      left: 5px;
+      transform: none;
+
+      width: 100%;
+      max-height: 50vh;
+
+      box-sizing: border-box;
+    }
+  }
+
   main {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -29,13 +92,15 @@
     text-decoration: none;
   }
 
+  /* No `position: relative` here on purpose: like Omnipedia's video, the
+     ::before background is positioned against .panel (fixed), so it fills
+     the whole panel rather than only the inner container. */
   .missiontv-container {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 400px;
     padding: 40px 20px;
-    position: relative;
     overflow: hidden;
   }
 

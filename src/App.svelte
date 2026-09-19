@@ -6,6 +6,7 @@
   import OverlayLayer from "./OverlayLayer.svelte";
   import EntityLayer from "./cesium/EntityLayer.svelte";
   import Orchestrator from "./Orchestrator.svelte";
+  import MissionTV from "./missions/MissionTV.svelte";
   import ProgressBar from "./shared/ProgressBar.svelte";
 
   import {
@@ -112,6 +113,11 @@
     fullGlobe = !fullGlobe;
   }
 
+  // MissionTV: App.svelte only knows whether it's open. The component owns
+  // its own chrome (.panel + CloseButton) and dispatches `close` — same
+  // contract as the mission components HexMenu mounts (Omnipedia etc.).
+  let missionTVOpen = false;
+
   function updateLayout() {
     if (!workspaceEl) return;
     const ws = workspaceEl.getBoundingClientRect();
@@ -199,6 +205,17 @@
       openEventId={deepLink?.eventId ?? null}
     />
 
+    <button class="mission-tv-btn" on:click={() => (missionTVOpen = true)} title="MissionTV">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
+        <polyline points="17 2 12 7 7 2"/>
+      </svg>
+    </button>
+
+    {#if missionTVOpen}
+      <MissionTV on:close={() => (missionTVOpen = false)} />
+    {/if}
+
     <button class="workspace-toggle" on:click={toggleWorkspace}>
       {fullGlobe ? 'Split View' : 'Fullscreen'}
     </button>
@@ -282,6 +299,35 @@
     right: 16px;
     bottom: 16px;
     z-index: 30;
+  }
+
+  /* MissionTV button (top left) */
+  .mission-tv-btn {
+    position: absolute;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: 10px;
+    z-index: 1000;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: white;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .mission-tv-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
   }
 
   /* ---------------------------------------------------------------------- */
