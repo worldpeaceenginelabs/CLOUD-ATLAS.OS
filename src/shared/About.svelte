@@ -15,6 +15,13 @@
   function close() {
     dispatch('close');
   }
+
+  // TEMPORARY: plain new-tab open. Replace with the project's own
+  // openExternal helper (import it here and delete this function) — that one
+  // presumably knows how to open the system browser in the native build.
+  function openExternal(url: string) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 </script>
 
 <div class="panel">
@@ -182,6 +189,31 @@
         Community-owned. Open-source. Yours.<br />
         Redefine the way we live together.
       </div>
+
+      <div class="utility-links">
+        <a href="https://worldpeaceenginelabs.org/" rel="noopener" on:click|preventDefault={() => openExternal('https://worldpeaceenginelabs.org/')}>
+          <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
+        </a>
+        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS')}>
+          <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
+        </a>
+        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions')}>
+          <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on GitHub" height="30" width="30">
+        </a>
+        <a href="https://twitter.com/cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://twitter.com/cloudatlasos')}>
+          <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
+        </a>
+        <a href="https://www.youtube.com/@cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://www.youtube.com/@cloudatlasos')}>
+          <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
+        </a>
+        <a
+          href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp"
+          rel="noopener"
+          on:click|preventDefault={() => openExternal('https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp')}
+        >
+          <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
+        </a>
+      </div>
     </div>
 </div>
 
@@ -291,6 +323,32 @@
     padding-top: 16px;
     border-top: 1px solid rgba(255, 215, 0, 0.15);
     line-height: 1.5;
+  }
+
+  /* Closing icon bar below the .cta (the .cta already draws the divider) */
+  .utility-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    margin-top: 16px;
+  }
+
+  .utility-links a {
+    display: inline-flex;
+    line-height: 0;
+  }
+
+  .utility-links .bottomicon {
+    display: block;
+    opacity: 0.85;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+
+  .utility-links a:hover .bottomicon {
+    opacity: 1;
+    transform: translateY(-2px);
   }
 
   .ps {
