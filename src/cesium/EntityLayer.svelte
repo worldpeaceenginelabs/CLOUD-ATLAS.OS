@@ -11,7 +11,7 @@
   //     → Store lookup → EntityDetails.svelte
   //
   // EntityDetails.svelte is the single, universal viewer for every record
-  // kind (Live/Listing/Mission) — including Mission's owner-only Edit,
+  // kind (Listing/Mission) — including Mission's owner-only Edit,
   // which happens inline inside that same panel now. Creating a *new*
   // Mission is a different flow entirely (missions/SwarmGovernance.svelte,
   // Mission 2 in the HexMenu flow) and never runs through this component.
@@ -43,7 +43,7 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { camera, entity, pick, location, route } from './api';
   import type { EntityOptions, RoutePreview } from './api';
-  import { appStore, type AppState, type EntityRecord, type LiveRecord } from '../orchestrator/appStore';
+  import { appStore, type AppState, type EntityRecord, type LiveRecord, type ListingRecord, type MissionRecord } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
   import { waitForGlobeLoaded } from './viewer';
 
@@ -53,7 +53,8 @@
   const dispatch = createEventDispatcher();
 
   const activeMarkerIds = new Set<string>(); // record ids currently rendered as Cesium entities
-  let selectedRecord: EntityRecord | null = null;
+  /** Only what EntityDetails can show: a listing or a mission. */
+  let selectedRecord: ListingRecord | MissionRecord | null = null;
   let globeReady = false;
 
   /** Set once showUserLocation() resolves the device position — reused so a click on the "Your Location!" entity can fly back there without re-fetching position. */
@@ -62,10 +63,7 @@
   /** The one place a record gets selected, regardless of why — an entity click or a resolved deep link both funnel through this, across every record kind. */
   function selectRecordById(recordId: string): boolean {
     const state = appStore.get();
-    const match =
-      state.live?.id === recordId
-        ? state.live
-        : state.listings[recordId] ?? state.missions[recordId] ?? null;
+    const match = state.listings[recordId] ?? state.missions[recordId] ?? null;
 
     selectedRecord = match;
     return !!match;
