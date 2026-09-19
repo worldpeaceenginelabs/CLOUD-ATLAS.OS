@@ -515,7 +515,7 @@
   // (m.id === 'm1' ? false : ... only ever matches m1–m4's own ids).
   $: placeholderNodes = activeMode?.placeholderNodes ? activeMode.placeholderNodes.map((m, i) => {
     const locked = m.id === 'm1' ? false : m.id === 'm2' ? !missionsUnlocked : true;
-    const comingSoon = locked && (m.id === 'm3' || m.id === 'm4');
+    const comingSoon = locked && (m.id === 'm4');
     const label = locked ? `🔒\n${m.label}${comingSoon ? 'Coming Soon' : ''}` : m.label;
     // `locked` alone still drives the lock icon/label/dimmed opacity
     // below, unchanged. `blockClicks` is the separate, click-specific
@@ -831,7 +831,9 @@
         style="
           pointer-events:{(node.noop || (node.blockClicks ?? node.locked)) ? 'none' : 'all'};
           cursor:{(node.noop || (node.blockClicks ?? node.locked)) ? 'default' : didDrag ? 'grabbing' : 'pointer'};
-          opacity:{(node.noop || node.locked) ? 0.35 : (node.dimmed && !node.selected) ? 0.22 : 1};
+          opacity:{(node.noop || node.locked) ? 0.35 : (node.dimmed && !node.selected) ? 0.22 : 1};opacity:{(node.noop || (node.locked && node.id !== 'm3'))
+            ? 0.35
+            : (node.dimmed && !node.selected) ? 0.22 : 1};
           transition: opacity 0.25s;
         "
         on:click={() => !didDrag && go(node.id)}
@@ -909,9 +911,12 @@
     <Mission1 on:complete={handleMission1Complete} on:close={() => (missionModal = null)} />
   {:else if missionModal === 2}
     <SwarmGovernance on:submit={handleMissionSubmit} on:close={() => (missionModal = null)} />
-  {:else if missionModal === 3}
-    <Omnipedia on:close={() => (missionModal = null)} />
-  {/if}
+    {:else if missionModal === 3}
+      <Omnipedia
+        domainName={currentDomain?.label ?? ''}
+        on:close={() => (missionModal = null)}
+      />
+    {/if}
 
   {#if operatorAgreementOpen}
     <OperatorAgreement on:accept={handleOperatorAccept} on:close={closeOperatorAgreement} />
