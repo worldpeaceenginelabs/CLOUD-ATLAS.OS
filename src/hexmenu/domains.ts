@@ -666,6 +666,9 @@ export interface ModeConfig {
   // HexMenu checks this flag rather than any mode's id, so renaming or
   // replacing 'listings' in a different app needs no HexMenu.svelte edit.
   genericFlow?: true;
+  // Clicking this mode for the first time ever opens OperatorAgreement
+  // instead (today: LIVE) — see HexMenu's requiresOperatorAgreement().
+  requiresOperatorAgreement?: true;
   // For a mode that's neither genericFlow nor a SHORTCUT_MODES entry —
   // a reserved placeholder with no flow wired up yet (today: 'next').
   // Its hexagons render at row 1 and go nowhere.
@@ -677,7 +680,7 @@ export interface ModeConfig {
 // mode is either a SHORTCUT_MODES entry (bound to one fixed
 // domain/model) or, like 'next', just shows its own placeholderNodes.
 export const MODES: ModeConfig[] = [
-  { id: 'live', label: 'LIVE' },
+  { id: 'live', label: 'LIVE', requiresOperatorAgreement: true },
   { id: 'listings', label: 'LISTINGS', genericFlow: true },
   {
     id: 'next', label: 'NEXT',
@@ -728,6 +731,10 @@ export interface ActionConfig {
   submitNodeId: string;   // hex id for the final form-row button
   submitLabel: string;    // its label
   submitEvent: string;    // event name HexMenu dispatches on submit
+  // Clicking this action's row-1 hex for the first time ever opens
+  // OperatorAgreement instead (today: OFFER) — only under 'listings';
+  // a shortcut mode's own buttons are gated via their MODES entry.
+  requiresOperatorAgreement?: true;
 }
 
 // The two actions shared by every mode — 'listings' shows them
@@ -735,7 +742,7 @@ export interface ActionConfig {
 // same `action` values from their own buttons instead of showing this
 // row (see shortcutNodes/actionNodes in HexMenu.svelte).
 export const ACTIONS: ActionConfig[] = [
-  { id: 'offer', label: 'OFFER', submitNodeId: 'submit', submitLabel: 'SUBMIT', submitEvent: 'offerSubmit' },
+  { id: 'offer', label: 'OFFER', submitNodeId: 'submit', submitLabel: 'SUBMIT', submitEvent: 'offerSubmit', requiresOperatorAgreement: true },
   { id: 'search', label: 'SEARCH', submitNodeId: 'gosearch', submitLabel: 'SEARCH', submitEvent: 'searchSubmit' },
 ];
 

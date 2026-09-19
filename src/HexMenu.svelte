@@ -4,6 +4,7 @@
   import Details from './hexmenu/Details.svelte';
   import Location from './hexmenu/Location.svelte';
   import HexGrid from './hexmenu/HexGrid.svelte';
+  import OperatorAgreement from './hexmenu/OperatorAgreement.svelte';
   import Mission1 from './missions/Mission1.svelte';
   import SwarmGovernance from './missions/SwarmGovernance.svelte';
   import Omnipedia from './missions/Omnipedia.svelte';
@@ -245,6 +246,42 @@
     missionModal = null;
   }
 
+  // ─── OPERATOR AGREEMENT ───
+  // The first-ever click on a gated hex (LIVE, OFFER) opens
+  // OperatorAgreement instead of doing what the click would normally do.
+  // Which hexes are gated is data, not a literal here: a MODES or ACTIONS
+  // entry in domains.ts carries `requiresOperatorAgreement: true`, same
+  // "domains.ts owns the ids, HexMenu only asks a flag" split as
+  // noop/genericFlow. Accepting persists one boolean (same pattern as
+  // MISSIONS_UNLOCK_KEY — no store) and replays the click that triggered
+  // it; closing without accepting leaves everything untouched, so the
+  // next click on a gated hex asks again. Every other hex (SEARCH,
+  // missions, ...) never reaches this check.
+  const OPERATOR_ACCEPT_KEY = 'cloud-atlas-operator-accepted';
+  let operatorAccepted = false;
+  let operatorAgreementOpen = false;
+  let pendingGatedId: string | null = null;
+
+  function requiresOperatorAgreement(id) {
+    if (MODES.some(m => m.id === id && m.requiresOperatorAgreement)) return true;
+    // Action ids only mean "action" while the generic flow is active —
+    // mirrors go()'s own isGenericFlow branch.
+    return isGenericFlow && ACTIONS.some(a => a.id === id && a.requiresOperatorAgreement);
+  }
+
+  function closeOperatorAgreement() {
+    operatorAgreementOpen = false;
+    pendingGatedId = null;
+  }
+
+  function handleOperatorAccept() {
+    operatorAccepted = true;
+    try { localStorage.setItem(OPERATOR_ACCEPT_KEY, 'true'); } catch {}
+    const id = pendingGatedId;
+    closeOperatorAgreement();
+    if (id) go(id); // replay the click that was held back
+  }
+
   function toggle(currentVal, id) {
     return currentVal === id ? null : id;
   }
@@ -329,6 +366,18 @@
     // this one dispatch point.
     if (locationModalOpen && id !== 'location') {
       locationModalOpen = false;
+    }
+
+    // Same scoping for an open OperatorAgreement: any new HexMenu
+    // interaction dismisses it (and drops the held-back click). A gated
+    // click below simply reopens it, so re-clicking LIVE/OFFER is exactly
+    // how a person who closed it without accepting gets asked again.
+    if (operatorAgreementOpen) closeOperatorAgreement();
+
+    if (!operatorAccepted && requiresOperatorAgreement(id)) {
+      pendingGatedId = id;
+      operatorAgreementOpen = true;
+      return;
     }
 
     if (MODES.some(m => m.id === id && !m.noop)) {
@@ -713,6 +762,12 @@
       missionsUnlocked = false;
     }
 
+    try {
+      operatorAccepted = localStorage.getItem(OPERATOR_ACCEPT_KEY) === 'true';
+    } catch {
+      operatorAccepted = false;
+    }
+
     resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
@@ -856,6 +911,10 @@
     <SwarmGovernance on:submit={handleMissionSubmit} on:close={() => (missionModal = null)} />
   {:else if missionModal === 3}
     <Omnipedia on:close={() => (missionModal = null)} />
+  {/if}
+
+  {#if operatorAgreementOpen}
+    <OperatorAgreement on:accept={handleOperatorAccept} on:close={closeOperatorAgreement} />
   {/if}
 
 </div>
