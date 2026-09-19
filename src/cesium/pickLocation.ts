@@ -64,6 +64,14 @@ export interface LocationPicker {
 
   /** Remove the selected point from the globe. */
   clear(): void;
+
+  /**
+   * Select a location that didn't come from a click on the globe (e.g. an
+   * address search result). Draws the exact same marker a click would have
+   * drawn and reports it via onPick, same as a real click — callers can't
+   * tell the two apart.
+   */
+  select(location: PickedLocation): void;
 }
 
 /**
@@ -86,6 +94,26 @@ export function createLocationPicker(
     }
   }
 
+  function select(location: PickedLocation): void {
+    clear();
+
+    markerEntity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(
+        location.longitude,
+        location.latitude,
+        location.height
+      ),
+      point: {
+        pixelSize: 12,
+        color: Cesium.Color.CYAN,
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2
+      }
+    });
+
+    onPick(location);
+  }
+
   return {
     enable(): void {
       if (handler) return;
@@ -105,23 +133,7 @@ export function createLocationPicker(
           return;
         }
 
-        clear();
-
-        markerEntity = viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(
-            location.longitude,
-            location.latitude,
-            location.height
-          ),
-          point: {
-            pixelSize: 12,
-            color: Cesium.Color.CYAN,
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 2
-          }
-        });
-
-        onPick(location);
+        select(location);
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     },
 
@@ -130,6 +142,8 @@ export function createLocationPicker(
       handler = undefined;
     },
 
-    clear
+    clear,
+
+    select
   };
 }

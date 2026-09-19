@@ -142,6 +142,22 @@ export const pick = {
     activeLocationPicker?.clear();
   },
 
+  /**
+   * Select a location that didn't come from a globe click — e.g. an
+   * address search result. Draws the same marker a click would have
+   * drawn and fires the same onPick callback passed to enable(), so
+   * callers (Location.svelte's handlePick) don't need a second code
+   * path for "picked by search" vs. "picked by click". No-op if
+   * enable() hasn't been called yet, same as disable()/clear() above.
+   */
+  select(coords: { longitude: number; latitude: number }): void {
+    activeLocationPicker?.select({
+      longitude: coords.longitude,
+      latitude: coords.latitude,
+      height: 0
+    });
+  },
+
   entity: {
     /** Start listening for clicks on the globe. Fires onPick with the picked entity, or null on a miss. */
     enable(onPick: (entity: PickedEntity) => void): void {
