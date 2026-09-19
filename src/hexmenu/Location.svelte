@@ -93,6 +93,11 @@
 
     if (geometry === 'point') {
       fromCoords = coords;
+      // Clear the previous pick's label so the reactive block below
+      // re-fetches for the new coords instead of leaving it stale —
+      // selectAddress() re-applies its own label right after this runs.
+      fromAddress = '';
+      fromAddressLoading = false;
       status = 'previewing';
       return;
     }
@@ -100,6 +105,8 @@
     if (!fromCoords) return;
 
     toCoords = coords;
+    toAddress = '';
+    toAddressLoading = false;
 
     clearPreview();
     preview = globe.route.preview(fromCoords, toCoords);
@@ -115,21 +122,33 @@
     status = 'picking';
   }
 
+  let fromAddressRequestId = 0;
+  let toAddressRequestId = 0;
+
   async function loadAddress(coords: LocalCoords, target: 'from' | 'to'): Promise<void> {
+    const requestId = target === 'from' ? ++fromAddressRequestId : ++toAddressRequestId;
+
     if (target === 'from') fromAddressLoading = true;
     else toAddressLoading = true;
 
     try {
       const result = await reverse(coords.latitude, coords.longitude);
       const label = result ? formatShortAddress(result) : '';
+
+      // A newer pick may have started (and possibly already resolved)
+      // while this request was in flight — don't overwrite it with a
+      // stale result.
+      if (target === 'from' && requestId !== fromAddressRequestId) return;
+      if (target === 'to' && requestId !== toAddressRequestId) return;
+
       if (target === 'from') fromAddress = label;
       else toAddress = label;
     } catch {
-      if (target === 'from') fromAddress = '';
-      else toAddress = '';
+      if (target === 'from' && requestId === fromAddressRequestId) fromAddress = '';
+      if (target === 'to' && requestId === toAddressRequestId) toAddress = '';
     } finally {
-      if (target === 'from') fromAddressLoading = false;
-      else toAddressLoading = false;
+      if (target === 'from' && requestId === fromAddressRequestId) fromAddressLoading = false;
+      if (target === 'to' && requestId === toAddressRequestId) toAddressLoading = false;
     }
   }
 
@@ -184,12 +203,10 @@
 
     // fromCoords is only already set here if this is a route's "to" pick
     // (its "from" comes from GPS before picking even starts) — same
-    // branch handlePick() itself uses to tell the two apart.
-    if (fromCoords) {
-      toAddress = formatShortAddress(result);
-    } else {
-      fromAddress = formatShortAddress(result);
-    }
+    // branch handlePick() itself uses to tell the two apart. Captured
+    // before pick.select() below, which is what actually assigns
+    // fromCoords/toCoords via handlePick().
+    const isFromPick = !fromCoords;
 
     searchQuery = '';
     suggestions = [];
@@ -200,8 +217,16 @@
     globe.camera.flyTo({ longitude: coords.longitude, latitude: coords.latitude });
     // Draws the same marker a click would and runs it through handlePick
     // via the onPick callback passed to globe.pick.enable() in onMount —
-    // no separate point/route branching needed here.
+    // no separate point/route branching needed here. handlePick() clears
+    // fromAddress/toAddress as part of that, so the label below is set
+    // afterward, overwriting the clear rather than being overwritten by it.
     globe.pick.select(coords);
+
+    if (isFromPick) {
+      fromAddress = formatShortAddress(result);
+    } else {
+      toAddress = formatShortAddress(result);
+    }
   }
 
   function handleSearchKeydown(e: KeyboardEvent): void {
