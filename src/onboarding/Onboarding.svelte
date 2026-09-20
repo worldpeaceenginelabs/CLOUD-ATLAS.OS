@@ -40,6 +40,14 @@
   /** Which tour to play. */
   export let steps: OnboardingStep[] = ONBOARDING_STEPS;
 
+  /**
+   * Text alignment inside the card. Set explicitly on purpose: the overlay
+   * lives in <body> (see `portal`), so it inherits nothing from whatever
+   * container the parent sits in. The first-run tour is centered (default);
+   * EntityDetails passes "left" to match its left-aligned panel.
+   */
+  export let align: 'center' | 'left' = 'center';
+
   const dispatch = createEventDispatcher();
 
   const SPOT_PADDING = 5;    // px the highlight sits outside a hex
@@ -337,7 +345,7 @@
       class:welcome={isWelcome}
       bind:this={cardEl}
       bind:clientHeight={cardH}
-      style="left:{cardLeft}px; top:{cardTop}px; width:{cardW}px;"
+      style="left:{cardLeft}px; top:{cardTop}px; width:{cardW}px; text-align:{align};"
     >
       <div class="scroll">
       {#key index}

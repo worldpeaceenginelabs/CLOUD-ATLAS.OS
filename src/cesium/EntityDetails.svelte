@@ -584,7 +584,7 @@
   </div>
 
   {#if tourSteps}
-    <Onboarding steps={tourSteps} on:close={onTourClose} />
+    <Onboarding steps={tourSteps} align="left" on:close={onTourClose} />
   {/if}
 {/if}
 
