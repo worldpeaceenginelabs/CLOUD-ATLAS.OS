@@ -685,10 +685,14 @@ export const MODES: ModeConfig[] = [
   {
     id: 'next', label: 'NEXT',
     placeholderNodes: [
-      { id: 'm1', label: 'MISSION 1\nEXPANSION' },
-      { id: 'm2', label: 'MISSION 2\nGOVERNANCE' },
-      { id: 'm3', label: 'MISSION 3\nOMNIPEDIA' },
-      { id: 'm4', label: 'MISSION 4\n' },
+      // Exactly two lines each: a locked hex prepends a 🔒 line in
+      // HexMenu, and three lines is the most a hex holds. The mission
+      // numbers are implicit (hex order + locks); m1..m4 are the ids
+      // HexMenu's MISSION_MODALS keys on, not something shown.
+      { id: 'm1', label: 'FREE YOUR\nWORK' },
+      { id: 'm2', label: 'FREE YOUR\nCITY' },
+      { id: 'm3', label: 'UNDERSTAND\nYOUR WORLD' },
+      { id: 'm4', label: 'INHABIT IT\nDIFFERENTLY' },
     ],
   },
   { id: 'bbq', label: 'BBQ', noop: true },

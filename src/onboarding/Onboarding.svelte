@@ -5,10 +5,12 @@
   import { fly } from 'svelte/transition';
   import { ONBOARDING_STEPS, ONBOARDING_LABELS } from './steps';
 
-  // First-run spotlight tour. Same contract as About / MissionTV: App.svelte
-  // only knows whether it's open, this component owns its whole chrome and
-  // dispatches `close` (both for "Los geht's" and for "Überspringen" — App
-  // treats both as "seen").
+  // First-run tour: welcome cards (no spotlight), then one spotlight step per
+  // header hex. Same contract as About / MissionTV: App.svelte only knows
+  // whether it's open, this component owns its whole chrome and dispatches
+  // `close` (both for "Let's go" and for "Skip" — App treats both as "seen").
+  // What each step says, and whether it is a welcome card or a spotlight
+  // step, lives in steps.ts — nothing here is content.
   //
   // How the spotlight works, in one paragraph: a full-screen dark + blur
   // layer is clipped with an even-odd path (screen rectangle minus a hexagon),
@@ -25,6 +27,7 @@
 
   const SPOT_PADDING = 5;   // px the highlight sits outside the hex
   const CARD_MAX_W = 380;
+  const CARD_MAX_W_WELCOME = 460; // welcome cards are read, not glanced at
   const CARD_GAP = 18;      // hex → card
   const EDGE = 16;          // card → screen edge
 
@@ -41,6 +44,7 @@
   let ready = false;
 
   $: step = steps[index];
+  $: isWelcome = !!step && !step.target;
   $: isFirst = index === 0;
   $: isLast = index === steps.length - 1;
 
@@ -65,13 +69,23 @@
 
   function measure(instant = false) {
     if (!rootEl || !step) return;
-    const el = findNode(step.target);
-    if (!el) return;
 
     const root = rootEl.getBoundingClientRect();
-    const b = el.getBoundingClientRect();
     W = root.width;
     H = root.height;
+
+    // Welcome card: no hex. The spotlight collapses to a zero-size point in
+    // the screen center (the hole closes, the ring disappears), and the next
+    // spotlight step opens it again from there — one tween handles both.
+    if (!step.target) {
+      target = { cx: W / 2, cy: H / 2, r: 0 };
+      spot.set(target, instant || !ready ? { duration: 0 } : undefined);
+      return;
+    }
+
+    const el = findNode(step.target);
+    if (!el) return;
+    const b = el.getBoundingClientRect();
 
     // Regular hexagon: pointy-top is taller than wide (h = 2R), flat-top
     // wider than tall (w = 2R). Reading it from the box means this doesn't
@@ -108,18 +122,20 @@
   $: clip = W && H ? `path(evenodd, "M0 0 H${W} V${H} H0 Z ${holePath}")` : 'none';
 
   // ─── CARD PLACEMENT ───
-  // Below the hex if it fits, else above, else pinned inside the screen.
+  // Welcome card: centered. Spotlight step: below the hex if it fits, else
+  // above, else pinned inside the screen.
   // Decided from `target` (not the tween) so it never flips mid-animation;
   // the card itself animates via a CSS transition on left/top.
   let cardH = 0;
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
-  $: cardW = Math.min(CARD_MAX_W, Math.max(0, W - 2 * EDGE));
+  $: cardW = Math.min(isWelcome ? CARD_MAX_W_WELCOME : CARD_MAX_W, Math.max(0, W - 2 * EDGE));
   $: cardLeft = clamp(target.cx - cardW / 2, EDGE, Math.max(EDGE, W - cardW - EDGE));
   $: belowTop = target.cy + target.r + CARD_GAP;
   $: aboveTop = target.cy - target.r - CARD_GAP - cardH;
   $: cardTop =
-    belowTop + cardH <= H - EDGE ? belowTop
+    isWelcome ? clamp((H - cardH) / 2, EDGE, Math.max(EDGE, H - cardH - EDGE))
+    : belowTop + cardH <= H - EDGE ? belowTop
     : aboveTop >= EDGE ? aboveTop
     : clamp(belowTop, EDGE, Math.max(EDGE, H - cardH - EDGE));
 
@@ -174,8 +190,10 @@
     await tick();
     await new Promise<void>((res) => requestAnimationFrame(() => res()));
 
-    // Skip steps whose hex doesn't exist rather than spotlighting nothing.
+    // Skip spotlight steps whose hex doesn't exist rather than spotlighting
+    // nothing. Welcome cards have no target and always stay.
     steps = ONBOARDING_STEPS.filter((s) => {
+      if (!s.target) return true;
       const ok = !!findNode(s.target);
       if (!ok) console.warn(`[onboarding] no hex with data-node-id="${s.target}" — step skipped`);
       return ok;
@@ -228,21 +246,24 @@
         </feMerge>
       </filter>
     </defs>
-    <polygon
-      points={ringPoints}
-      fill="none"
-      stroke="url(#{gradId})"
-      stroke-width="3"
-      stroke-linejoin="round"
-      filter="url(#{glowId})"
-    >
-      <animate attributeName="stroke-opacity" values="0.65;1;0.65" dur="2.2s" repeatCount="indefinite" />
-    </polygon>
+    {#if $spot.r > 2}
+      <polygon
+        points={ringPoints}
+        fill="none"
+        stroke="url(#{gradId})"
+        stroke-width="3"
+        stroke-linejoin="round"
+        filter="url(#{glowId})"
+      >
+        <animate attributeName="stroke-opacity" values="0.65;1;0.65" dur="2.2s" repeatCount="indefinite" />
+      </polygon>
+    {/if}
   </svg>
 
   {#if ready && step}
     <div
       class="card"
+      class:welcome={isWelcome}
       bind:this={cardEl}
       bind:clientHeight={cardH}
       style="left:{cardLeft}px; top:{cardTop}px; width:{cardW}px;"
@@ -277,7 +298,7 @@
             <button class="ghost" on:click={back}>{ONBOARDING_LABELS.back}</button>
           {/if}
           <button class="primary" bind:this={nextBtn} on:click={next}>
-            {isLast ? ONBOARDING_LABELS.done : ONBOARDING_LABELS.next}
+            {isLast ? ONBOARDING_LABELS.done : (step.cta ?? ONBOARDING_LABELS.next)}
           </button>
         </div>
       </div>
@@ -408,6 +429,21 @@
     font-size: 15px;
     line-height: 1.5;
     color: rgba(255, 255, 255, 0.88);
+    white-space: pre-line; /* steps.ts text keeps its line/paragraph breaks */
+  }
+
+  /* Welcome cards: bigger type, more air */
+  .card.welcome {
+    padding: 26px 28px 22px;
+  }
+
+  .card.welcome h2 {
+    font-size: 26px;
+  }
+
+  .card.welcome p {
+    font-size: 16px;
+    line-height: 1.55;
   }
 
   .footer {

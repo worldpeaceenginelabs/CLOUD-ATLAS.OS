@@ -509,14 +509,14 @@
   // own placeholderNodes as-is (today: 'next') — no literal mode id
   // checked here either.
   // Mission hexes (m1/m2/m3/m4) additionally carry a `locked` flag and,
-  // while locked, a lock symbol prepended to their label — m3/m4 also
-  // get a "Coming Soon" line underneath, since no unlock mechanism
-  // exists for them yet. Every other placeholder hex is unaffected
+  // while locked, a lock symbol prepended to their label. Their labels
+  // are two lines (see domains.ts), so a locked hex is three lines —
+  // that's why there is no extra "Coming Soon" line anymore; the lock
+  // already says it. Every other placeholder hex is unaffected
   // (m.id === 'm1' ? false : ... only ever matches m1–m4's own ids).
   $: placeholderNodes = activeMode?.placeholderNodes ? activeMode.placeholderNodes.map((m, i) => {
     const locked = m.id === 'm1' ? false : m.id === 'm2' ? !missionsUnlocked : true;
-    const comingSoon = locked && (m.id === 'm4');
-    const label = locked ? `🔒\n${m.label}${comingSoon ? 'Coming Soon' : ''}` : m.label;
+    const label = locked ? `🔒\n${m.label}` : m.label;
     // `locked` alone still drives the lock icon/label/dimmed opacity
     // below, unchanged. `blockClicks` is the separate, click-specific
     // signal the <g> pointer-events binding actually uses (falls back
