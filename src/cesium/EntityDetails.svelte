@@ -293,174 +293,176 @@
       <CloseButton onClose={close} position="relative" top="0" right="0" />
     </div>
 
-    {#if record.kind === 'mission' && editing}
-      <!-- ─── Mission edit form ─────────────────────────────────────── -->
-      <form class="mf" on:submit|preventDefault={handleMissionSubmit}>
-        <label class="mf-label" for="mf-title">Title</label>
-        <input
-          id="mf-title"
-          class="mf-input"
-          type="text"
-          bind:value={title}
-          placeholder="Mission title"
-        />
+    <div class="scroll">
+      {#if record.kind === 'mission' && editing}
+        <!-- ─── Mission edit form ─────────────────────────────────────── -->
+        <form class="mf" on:submit|preventDefault={handleMissionSubmit}>
+          <label class="mf-label" for="mf-title">Title</label>
+          <input
+            id="mf-title"
+            class="mf-input"
+            type="text"
+            bind:value={title}
+            placeholder="Mission title"
+          />
 
-        <label class="mf-label" for="mf-description">Description</label>
-        <textarea
-          id="mf-description"
-          class="mf-textarea"
-          rows="3"
-          bind:value={description}
-          placeholder="What is this mission about?"
-        />
+          <label class="mf-label" for="mf-description">Description</label>
+          <textarea
+            id="mf-description"
+            class="mf-textarea"
+            rows="3"
+            bind:value={description}
+            placeholder="What is this mission about?"
+          />
 
-        <div class="mf-lanes">
-          {#each LANES as lane}
-            <div class="mf-lane">
-              <label class="mf-label" for="mf-lane-{lane.id}">
-                {lane.label}{lane.required ? ' *' : ''}
-              </label>
-              <input
-                id="mf-lane-{lane.id}"
-                class="mf-input"
-                type="text"
-                bind:value={links[lane.id]}
-                placeholder={lane.placeholder}
-              />
+          <div class="mf-lanes">
+            {#each LANES as lane}
+              <div class="mf-lane">
+                <label class="mf-label" for="mf-lane-{lane.id}">
+                  {lane.label}{lane.required ? ' *' : ''}
+                </label>
+                <input
+                  id="mf-lane-{lane.id}"
+                  class="mf-input"
+                  type="text"
+                  bind:value={links[lane.id]}
+                  placeholder={lane.placeholder}
+                />
+              </div>
+            {/each}
+          </div>
+
+          <span class="mf-label">Location *</span>
+
+          {#if pickedLocation}
+            <div class="mf-location-preview">
+              <span>{formatMissionLocation(pickedLocation)}</span>
+              <button type="button" class="mf-location-change" on:click={changeLocation}>
+                Change
+              </button>
             </div>
-          {/each}
-        </div>
+          {:else if !locationPickerOpen}
+            <div class="mf-location-buttons">
+              <button
+                type="button"
+                class="mf-location-btn"
+                on:click={() => openPicker('point')}
+              >
+                Pick Point
+              </button>
 
-        <span class="mf-label">Location *</span>
+              <button
+                type="button"
+                class="mf-location-btn"
+                on:click={() => openPicker('area')}
+              >
+                Pick Area
+              </button>
+            </div>
+          {/if}
 
-        {#if pickedLocation}
-          <div class="mf-location-preview">
-            <span>{formatMissionLocation(pickedLocation)}</span>
-            <button type="button" class="mf-location-change" on:click={changeLocation}>
-              Change
+          <div class="mf-actions">
+            <button type="button" class="mf-cancel" on:click={cancelEdit}>
+              Cancel
+            </button>
+            <button type="submit" class="mf-submit" disabled={!formValid}>
+              Save
             </button>
           </div>
-        {:else if !locationPickerOpen}
-          <div class="mf-location-buttons">
-            <button
-              type="button"
-              class="mf-location-btn"
-              on:click={() => openPicker('point')}
-            >
-              Pick Point
-            </button>
+        </form>
 
-            <button
-              type="button"
-              class="mf-location-btn"
-              on:click={() => openPicker('area')}
-            >
-              Pick Area
-            </button>
-          </div>
+        {#if locationPickerOpen}
+          <Location
+            geometry={pickerGeometry}
+            on:confirm={onLocationConfirm}
+            on:cancel={onLocationCancel}
+          />
+        {/if}
+      {:else}
+        <!-- ─── Read-only record view ─────────────────────────────────── -->
+        <h2 class="title">{titleOf(record)}</h2>
+
+        {#if record.kind !== 'mission'}
+          <div class="model">{record.model.replace(/_/g, ' ')}</div>
         {/if}
 
-        <div class="mf-actions">
-          <button type="button" class="mf-cancel" on:click={cancelEdit}>
-            Cancel
-          </button>
-          <button type="submit" class="mf-submit" disabled={!formValid}>
-            Save
-          </button>
-        </div>
-      </form>
-
-      {#if locationPickerOpen}
-        <Location
-          geometry={pickerGeometry}
-          on:confirm={onLocationConfirm}
-          on:cancel={onLocationCancel}
-        />
-      {/if}
-    {:else}
-      <!-- ─── Read-only record view ─────────────────────────────────── -->
-      <h2 class="title">{titleOf(record)}</h2>
-
-      {#if record.kind !== 'mission'}
-        <div class="model">{record.model.replace(/_/g, ' ')}</div>
-      {/if}
-
-      {#if record.kind === 'listing'}
-        <div class="field">
-          <span class="label">Expires</span>
-          <span class="value">{formatTimestamp(record.expiresAt)}</span>
-        </div>
-      {/if}
-
-      {#if categoryOf(record)}
-        <div class="field">
-          <span class="label">Category</span>
-          <span class="value">{categoryOf(record)}</span>
-        </div>
-      {/if}
-
-      {#if fieldOf(record, 'description')}
-        <p class="description">{fieldOf(record, 'description')}</p>
-      {/if}
-
-      {#if record.kind !== 'mission'}
-        {#if fieldOf(record, 'contact')}
+        {#if record.kind === 'listing'}
           <div class="field">
-            <span class="label">Contact</span>
-            <span class="value">{fieldOf(record, 'contact')}</span>
+            <span class="label">Expires</span>
+            <span class="value">{formatTimestamp(record.expiresAt)}</span>
           </div>
         {/if}
 
-        {#if fieldOf(record, 'interactionMode')}
+        {#if categoryOf(record)}
           <div class="field">
-            <span class="label">Format</span>
-            <span class="value">{humanize(fieldOf(record, 'interactionMode') ?? '')}</span>
+            <span class="label">Category</span>
+            <span class="value">{categoryOf(record)}</span>
           </div>
         {/if}
 
-        {#if formatCoords(record.location)}
+        {#if fieldOf(record, 'description')}
+          <p class="description">{fieldOf(record, 'description')}</p>
+        {/if}
+
+        {#if record.kind !== 'mission'}
+          {#if fieldOf(record, 'contact')}
+            <div class="field">
+              <span class="label">Contact</span>
+              <span class="value">{fieldOf(record, 'contact')}</span>
+            </div>
+          {/if}
+
+          {#if fieldOf(record, 'interactionMode')}
+            <div class="field">
+              <span class="label">Format</span>
+              <span class="value">{humanize(fieldOf(record, 'interactionMode') ?? '')}</span>
+            </div>
+          {/if}
+
+          {#if formatCoords(record.location)}
+            <div class="field">
+              <span class="label">Location</span>
+              <span class="value mono">{formatCoords(record.location)}</span>
+            </div>
+          {/if}
+        {:else}
           <div class="field">
             <span class="label">Location</span>
-            <span class="value mono">{formatCoords(record.location)}</span>
+            <span class="value mono">{formatMissionLocation(record.location)}</span>
+          </div>
+
+          <div class="mf-lanes-display">
+            {#each LANES as lane}
+              {#if record.content.lanes[lane.id]}
+                <a
+                  class="mf-lane-link"
+                  href={record.content.lanes[lane.id]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {lane.label}
+                </a>
+              {/if}
+            {/each}
           </div>
         {/if}
-      {:else}
-        <div class="field">
-          <span class="label">Location</span>
-          <span class="value mono">{formatMissionLocation(record.location)}</span>
-        </div>
 
-        <div class="mf-lanes-display">
-          {#each LANES as lane}
-            {#if record.content.lanes[lane.id]}
-              <a
-                class="mf-lane-link"
-                href={record.content.lanes[lane.id]}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {lane.label}
-              </a>
+        {#if isOwner}
+          <div class="owner-actions">
+            {#if record.kind === 'mission'}
+              <button class="owner-btn edit" on:click={startEdit}>Edit</button>
             {/if}
-          {/each}
-        </div>
+            <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Marketing</button>
+            <button class="owner-btn delete" on:click={requestDelete}>Delete</button>
+          </div>
+        {:else}
+          <!-- Non-owner: same Marketing panel, just labelled "Share". -->
+          <div class="owner-actions">
+            <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Share</button>
+          </div>
+        {/if}
       {/if}
-
-      {#if isOwner}
-        <div class="owner-actions">
-          {#if record.kind === 'mission'}
-            <button class="owner-btn edit" on:click={startEdit}>Edit</button>
-          {/if}
-          <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Marketing</button>
-          <button class="owner-btn delete" on:click={requestDelete}>Delete</button>
-        </div>
-      {:else}
-        <!-- Non-owner: same Marketing panel, just labelled "Share". -->
-        <div class="owner-actions">
-          <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Share</button>
-        </div>
-      {/if}
-    {/if}
+    </div>
   </div>
 {/if}
 
@@ -488,17 +490,18 @@
 
       width: min(640px, 44vw);
       max-height: 88vh;
-      overflow-y: auto;
       box-sizing: border-box;
+
+      /* Column: header stays put, only .scroll scrolls. */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
 
       background: var(--accent-stripe), var(--glass-bg);
       backdrop-filter: var(--glass-blur);
       -webkit-backdrop-filter: var(--glass-blur);
       border: var(--glass-border);
       border-radius: var(--glass-radius);
-
-    padding: 2.5rem 1.5rem 1.5rem;
-
 
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
@@ -519,11 +522,34 @@
     visibility: hidden;
   }
 
+  /* Pinned: kind badge + CloseButton never scroll away. */
   .panel-header {
+    flex: 0 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.75em;
+    padding: 2.5rem 1.5rem 0.75em;
+  }
+
+  /* Only this area scrolls — the CloseButton (child of .panel) stays put. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* required, otherwise a flex child cannot scroll */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 0 1.5rem 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+
+  .scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 3px;
   }
 
   .kind-badge {

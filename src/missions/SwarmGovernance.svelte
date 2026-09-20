@@ -156,93 +156,95 @@
 <div class="panel" class:picker-open={locationPickerOpen}>
   <CloseButton onClose={close} />
 
-  <form class="mf" on:submit|preventDefault={handleSubmit}>
-    <h2 class="mf-heading">Swarm Governance</h2>
+  <div class="scroll">
+    <form class="mf" on:submit|preventDefault={handleSubmit}>
+      <h2 class="mf-heading">Swarm Governance</h2>
 
-    <label class="mf-label" for="mf-title">Title</label>
-    <input
-      id="mf-title"
-      class="mf-input"
-      type="text"
-      bind:value={title}
-      placeholder="Mission title"
-    />
+      <label class="mf-label" for="mf-title">Title</label>
+      <input
+        id="mf-title"
+        class="mf-input"
+        type="text"
+        bind:value={title}
+        placeholder="Mission title"
+      />
 
-    <label class="mf-label" for="mf-description">Description</label>
-    <textarea
-      id="mf-description"
-      class="mf-textarea"
-      rows="3"
-      bind:value={description}
-      placeholder="What is this mission about?"
-    />
+      <label class="mf-label" for="mf-description">Description</label>
+      <textarea
+        id="mf-description"
+        class="mf-textarea"
+        rows="3"
+        bind:value={description}
+        placeholder="What is this mission about?"
+      />
 
-    <div class="mf-lanes">
-      {#each LANES as lane}
-        <div class="mf-lane">
-          <label class="mf-label" for="mf-lane-{lane.id}">
-            {lane.label}{lane.required ? ' *' : ''}
-          </label>
-          <input
-            id="mf-lane-{lane.id}"
-            class="mf-input"
-            type="text"
-            bind:value={links[lane.id]}
-            placeholder={lane.placeholder}
-          />
+      <div class="mf-lanes">
+        {#each LANES as lane}
+          <div class="mf-lane">
+            <label class="mf-label" for="mf-lane-{lane.id}">
+              {lane.label}{lane.required ? ' *' : ''}
+            </label>
+            <input
+              id="mf-lane-{lane.id}"
+              class="mf-input"
+              type="text"
+              bind:value={links[lane.id]}
+              placeholder={lane.placeholder}
+            />
+          </div>
+        {/each}
+      </div>
+
+      <span class="mf-label">Location *</span>
+
+      {#if pickedLocation}
+        <div class="mf-location-preview">
+          {#if pickedLocation.kind === 'point'}
+            <span>
+              Point · {pickedLocation.latitude.toFixed(4)}, {pickedLocation.longitude.toFixed(4)}
+            </span>
+          {:else}
+            <span>
+              Area · {pickedLocation.west.toFixed(2)}, {pickedLocation.south.toFixed(2)} →
+              {pickedLocation.east.toFixed(2)}, {pickedLocation.north.toFixed(2)}
+            </span>
+          {/if}
+
+          <button
+            type="button"
+            class="mf-location-change"
+            on:click={changeLocation}
+          >
+            Change
+          </button>
         </div>
-      {/each}
-    </div>
+      {:else if !locationPickerOpen}
+        <div class="mf-location-buttons">
+          <button
+            type="button"
+            class="mf-location-btn"
+            on:click={() => openPicker('point')}
+          >
+            Pick Point
+          </button>
 
-    <span class="mf-label">Location *</span>
+          <button
+            type="button"
+            class="mf-location-btn"
+            on:click={() => openPicker('area')}
+          >
+            Pick Area
+          </button>
+        </div>
+      {/if}
 
-    {#if pickedLocation}
-      <div class="mf-location-preview">
-        {#if pickedLocation.kind === 'point'}
-          <span>
-            Point · {pickedLocation.latitude.toFixed(4)}, {pickedLocation.longitude.toFixed(4)}
-          </span>
-        {:else}
-          <span>
-            Area · {pickedLocation.west.toFixed(2)}, {pickedLocation.south.toFixed(2)} →
-            {pickedLocation.east.toFixed(2)}, {pickedLocation.north.toFixed(2)}
-          </span>
-        {/if}
-
-        <button
-          type="button"
-          class="mf-location-change"
-          on:click={changeLocation}
-        >
-          Change
+      <div class="mf-actions">
+        <button type="submit" class="mf-submit" disabled={!formValid}>
+          Submit
         </button>
       </div>
-    {:else if !locationPickerOpen}
-      <div class="mf-location-buttons">
-        <button
-          type="button"
-          class="mf-location-btn"
-          on:click={() => openPicker('point')}
-        >
-          Pick Point
-        </button>
-
-        <button
-          type="button"
-          class="mf-location-btn"
-          on:click={() => openPicker('area')}
-        >
-          Pick Area
-        </button>
-      </div>
-    {/if}
-
-    <div class="mf-actions">
-      <button type="submit" class="mf-submit" disabled={!formValid}>
-        Submit
-      </button>
-    </div>
-  </form>
+    </form>
+  </div>
 
   {#if locationPickerOpen}
     <Location
@@ -262,17 +264,18 @@
 
     width: min(640px, 44vw);
     max-height: 88vh;
-    overflow-y: auto;
     box-sizing: border-box;
+
+    /* Column: only .scroll scrolls, the CloseButton stays put. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     background: var(--accent-stripe), var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     border-radius: var(--glass-radius);
-
-    padding: 2.5rem 1.5rem 1.5rem;
-
 
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
@@ -306,10 +309,30 @@
 
         border-radius: var(--glass-radius);
 
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
         box-sizing: border-box;
     }
+  }
+
+  /* Only this area scrolls — the CloseButton (child of .panel) stays put. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* required, otherwise a flex child cannot scroll */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 2.5rem 1.5rem 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+
+  .scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 3px;
   }
 
   .mf {

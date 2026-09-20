@@ -44,93 +44,95 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="Details">
     <CloseButton onClose={() => dispatch('close')} />
 
-    {#if !schema}
-      <h2>DETAILS</h2>
-      <p class="hint">No fields defined for this model yet.</p>
-    {:else}
-      <h2>DETAILS</h2>
-      <p class="hint">Fill in what applies, then close with ✕.</p>
+    <div class="scroll">
+      {#if !schema}
+        <h2>DETAILS</h2>
+        <p class="hint">No fields defined for this model yet.</p>
+      {:else}
+        <h2>DETAILS</h2>
+        <p class="hint">Fill in what applies, then close with ✕.</p>
 
-      {#if schema.interactionMode}
-        <div class="mode-row">
-          {#each INTERACTION_MODE_OPTIONS as m}
-            <button
-              class="mode-opt"
-              class:selected={(values.interactionMode || 'in_person') === m.id}
-              on:click={() => set('interactionMode', m.id)}
-            >{m.label}</button>
-          {/each}
-        </div>
-      {/if}
+        {#if schema.interactionMode}
+          <div class="mode-row">
+            {#each INTERACTION_MODE_OPTIONS as m}
+              <button
+                class="mode-opt"
+                class:selected={(values.interactionMode || 'in_person') === m.id}
+                on:click={() => set('interactionMode', m.id)}
+              >{m.label}</button>
+            {/each}
+          </div>
+        {/if}
 
-      {#if schema.title}
-        <label class="field-label" for="details-title">{schema.title.label} *</label>
-        <input
-          id="details-title"
-          class="text-input"
-          placeholder={schema.title.placeholder}
-          value={values.title || ''}
-          on:input={(e) => set('title', e.currentTarget.value)}
-        />
-      {/if}
+        {#if schema.title}
+          <label class="field-label" for="details-title">{schema.title.label} *</label>
+          <input
+            id="details-title"
+            class="text-input"
+            placeholder={schema.title.placeholder}
+            value={values.title || ''}
+            on:input={(e) => set('title', e.currentTarget.value)}
+          />
+        {/if}
 
-      {#if schema.category}
-        <span class="field-label">Category *</span>
-        <div class="options">
-          {#each schema.category.options as opt}
-            <button
-              class="option"
-              class:selected={schema.category.multi
-                ? (values.categoryIds || []).includes(opt.id)
-                : values.categoryId === opt.id}
-              on:click={() => pickCategory(opt.id)}
-            >
-              <span class="opt-name">{opt.name}</span>
-              {#if opt.description}<span class="opt-desc">{opt.description}</span>{/if}
-            </button>
-          {/each}
-        </div>
-      {/if}
+        {#if schema.category}
+          <span class="field-label">Category *</span>
+          <div class="options">
+            {#each schema.category.options as opt}
+              <button
+                class="option"
+                class:selected={schema.category.multi
+                  ? (values.categoryIds || []).includes(opt.id)
+                  : values.categoryId === opt.id}
+                on:click={() => pickCategory(opt.id)}
+              >
+                <span class="opt-name">{opt.name}</span>
+                {#if opt.description}<span class="opt-desc">{opt.description}</span>{/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
 
-      {#if schema.date}
-        <label class="field-label" for="details-date">
-          {schema.date.label || 'Date & Time'}{schema.date.required ? ' *' : ''}
-        </label>
-        <input
-          id="details-date"
-          class="text-input"
-          type="datetime-local"
-          value={values.date || ''}
-          on:input={(e) => set('date', e.currentTarget.value)}
-        />
-        {#if !schema.date.required}
-          <p class="subtle">Optional — leave empty for recurring or open-ended.</p>
+        {#if schema.date}
+          <label class="field-label" for="details-date">
+            {schema.date.label || 'Date & Time'}{schema.date.required ? ' *' : ''}
+          </label>
+          <input
+            id="details-date"
+            class="text-input"
+            type="datetime-local"
+            value={values.date || ''}
+            on:input={(e) => set('date', e.currentTarget.value)}
+          />
+          {#if !schema.date.required}
+            <p class="subtle">Optional — leave empty for recurring or open-ended.</p>
+          {/if}
+        {/if}
+
+        {#if schema.description}
+          <label class="field-label" for="details-description">Description *</label>
+          <textarea
+            id="details-description"
+            class="textarea"
+            placeholder={schema.description.placeholder}
+            value={values.description || ''}
+            on:input={(e) => set('description', e.currentTarget.value)}
+          ></textarea>
+        {/if}
+
+        {#if schema.contact}
+          <label class="field-label" for="details-contact">Contact Link *</label>
+          <input
+            id="details-contact"
+            class="text-input"
+            placeholder="https://t.me/you or https://wa.me/123..."
+            value={values.contact || ''}
+            on:input={(e) => set('contact', e.currentTarget.value)}
+          />
+          <p class="subtle">{schema.contact.hint}</p>
         {/if}
       {/if}
-
-      {#if schema.description}
-        <label class="field-label" for="details-description">Description *</label>
-        <textarea
-          id="details-description"
-          class="textarea"
-          placeholder={schema.description.placeholder}
-          value={values.description || ''}
-          on:input={(e) => set('description', e.currentTarget.value)}
-        ></textarea>
-      {/if}
-
-      {#if schema.contact}
-        <label class="field-label" for="details-contact">Contact Link *</label>
-        <input
-          id="details-contact"
-          class="text-input"
-          placeholder="https://t.me/you or https://wa.me/123..."
-          value={values.contact || ''}
-          on:input={(e) => set('contact', e.currentTarget.value)}
-        />
-        <p class="subtle">{schema.contact.hint}</p>
-      {/if}
-    {/if}
+    </div>
   </div>
 </div>
 
@@ -153,12 +155,36 @@
     -webkit-backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     border-radius: var(--glass-radius);
-    padding: 28px 24px 24px;
     width: min(360px, calc(100vw - 40px));
     max-height: calc(100vh - 48px);
-    overflow-y: auto;
+
+    /* Column: only .scroll scrolls, the CloseButton stays put. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* Only this area scrolls — the CloseButton (child of .panel) stays put. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* required, otherwise a flex child cannot scroll */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 28px 24px 24px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+
+  .scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 3px;
   }
 
   h2 {

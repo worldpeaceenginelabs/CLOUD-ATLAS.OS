@@ -30,40 +30,42 @@
 <div class="panel">
   <CloseButton onClose={close} />
 
-  <main>
-    <div class="textbox">
-      <p class="top-line">By checking this box, you confirm that you have read and agree to the following:</p>
+  <div class="scroll">
+    <main>
+      <div class="textbox">
+        <p class="top-line">By checking this box, you confirm that you have read and agree to the following:</p>
 
-      <div class="content">
-        <p>You are stepping into full ownership of your digital presence. Cloud Atlas OS has no central operator — you are the operator. That means real freedom, and real responsibility.</p>
-        <p>You agree to:</p>
-        <ul>
-          <li>Operate your instance in compliance with the laws of every country in which you use Cloud Atlas OS — including its tools, missions, matching, and listings.</li>
-          <li>Accept full personal liability for your actions and any content you publish.</li>
-          <li>Act with the awareness that freedom without accountability is not freedom — it's chaos.</li>
-        </ul>
-        <p>You understand that:</p>
-        <ul>
-          <li>Cloud Atlas OS is provided "as is," without warranties of any kind. It exercises no centralized control over your activity or content.</li>
-          <li>Cloud Atlas OS does not track, monitor, or analyze what you do. Your privacy is structurally protected by design.</li>
-          <li><strong>You are not invisible. Internet infrastructure — including your own ISP — remains subject to lawful authority. Unlawful activity can and will be traceable.</strong></li>
-        </ul>
-        <p class="accent">In short: Same rules as any device you own. Decentralized does not mean lawless.<br>With great power, comes great responsibility.</p>
-      </div>
+        <div class="content">
+          <p>You are stepping into full ownership of your digital presence. Cloud Atlas OS has no central operator — you are the operator. That means real freedom, and real responsibility.</p>
+          <p>You agree to:</p>
+          <ul>
+            <li>Operate your instance in compliance with the laws of every country in which you use Cloud Atlas OS — including its tools, missions, matching, and listings.</li>
+            <li>Accept full personal liability for your actions and any content you publish.</li>
+            <li>Act with the awareness that freedom without accountability is not freedom — it's chaos.</li>
+          </ul>
+          <p>You understand that:</p>
+          <ul>
+            <li>Cloud Atlas OS is provided "as is," without warranties of any kind. It exercises no centralized control over your activity or content.</li>
+            <li>Cloud Atlas OS does not track, monitor, or analyze what you do. Your privacy is structurally protected by design.</li>
+            <li><strong>You are not invisible. Internet infrastructure — including your own ISP — remains subject to lawful authority. Unlawful activity can and will be traceable.</strong></li>
+          </ul>
+          <p class="accent">In short: Same rules as any device you own. Decentralized does not mean lawless.<br>With great power, comes great responsibility.</p>
+        </div>
 
-      <div class="bottom">
-        <label class="checkbox-label">
-          <input type="checkbox" bind:checked />
-          <span>I have read and agree to the above.</span>
-        </label>
-        <button
-          class="accept-btn"
-          disabled={!checked}
-          on:click={handleAccept}
-        >Enter as Operator – I accept full responsibility</button>
+        <div class="bottom">
+          <label class="checkbox-label">
+            <input type="checkbox" bind:checked />
+            <span>I have read and agree to the above.</span>
+          </label>
+          <button
+            class="accept-btn"
+            disabled={!checked}
+            on:click={handleAccept}
+          >Enter as Operator – I accept full responsibility</button>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
 <style>
@@ -75,18 +77,18 @@
 
     width: min(640px, 44vw);
     max-height: 88vh;
-    overflow-y: auto;
-    overflow-x: hidden;
     box-sizing: border-box;
+
+    /* Column: only .scroll scrolls, the CloseButton stays put. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     background: var(--accent-stripe), var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     border-radius: var(--glass-radius);
-
-    padding: 2.5rem 1.5rem 1.5rem;
-
 
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
@@ -106,10 +108,30 @@
 
     border-radius: var(--glass-radius);
 
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     box-sizing: border-box;
     }
+  }
+
+  /* Only this area scrolls — the CloseButton (child of .panel) stays put. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* required, otherwise a flex child cannot scroll */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 2.5rem 1.5rem 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+
+  .scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 3px;
   }
 
   main {

@@ -21,23 +21,25 @@
 <div class="panel">
   <CloseButton onClose={close} />
 
-  <main>
-    <div class="missiontv-container">
-      <div class="coming-soon">
-        <div class="icon">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="7" width="20" height="15" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="17 2 12 7 7 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+  <div class="scroll">
+    <main>
+      <div class="missiontv-container">
+        <div class="coming-soon">
+          <div class="icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="7" width="20" height="15" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="17 2 12 7 7 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h1>MissionTV</h1>
+          <p class="coming-soon-text">Coming Soon</p>
+          <p class="description">
+            Stream your mission progress, earn tips, and inspire action. Transform social change into engaging entertainment where audiences don't just watch—they fund projects and contribute expertise through live video chat while you're in the field. Making impact visible, collaborative, and rewarding.<br><br>With Mission TV, we're creating a new kind of influencer — the Human 4.0 — a being evolving beyond ego and competition, striving to become the best version of themselves. We celebrate those who gain recognition not for attention, but for ascension — by doing good, inspiring others to do the same, and rising together toward their highest potential.
+          </p>
         </div>
-        <h1>MissionTV</h1>
-        <p class="coming-soon-text">Coming Soon</p>
-        <p class="description">
-          Stream your mission progress, earn tips, and inspire action. Transform social change into engaging entertainment where audiences don't just watch—they fund projects and contribute expertise through live video chat while you're in the field. Making impact visible, collaborative, and rewarding.<br><br>With Mission TV, we're creating a new kind of influencer — the Human 4.0 — a being evolving beyond ego and competition, striving to become the best version of themselves. We celebrate those who gain recognition not for attention, but for ascension — by doing good, inspiring others to do the same, and rising together toward their highest potential.
-        </p>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
 <style>
@@ -49,18 +51,18 @@
 
     width: min(640px, 44vw);
     max-height: 88vh;
-    overflow-y: auto;
-    overflow-x: hidden;
     box-sizing: border-box;
+
+    /* Column: only .scroll scrolls, the CloseButton stays put. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     background: var(--accent-stripe), var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     border-radius: var(--glass-radius);
-
-    padding: 2.5rem 1.5rem 1.5rem;
-
 
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
@@ -80,10 +82,30 @@
 
         border-radius: var(--glass-radius);
 
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
         box-sizing: border-box;
     }
+  }
+
+  /* Only this area scrolls — the CloseButton (child of .panel) stays put. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* required, otherwise a flex child cannot scroll */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 2.5rem 1.5rem 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+
+  .scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 3px;
   }
 
   main {

@@ -21,51 +21,53 @@
 <div class="panel">
   <CloseButton onClose={close} />
 
-  <main>
-    <div class="omnipedia-container">
-      <video class="bg-video" autoplay loop muted playsinline>
-        <source src="Omnipedia.mp4" type="video/mp4" />
-      </video>
+  <div class="scroll">
+    <main>
+      <div class="omnipedia-container">
+        <video class="bg-video" autoplay loop muted playsinline>
+          <source src="Omnipedia.mp4" type="video/mp4" />
+        </video>
 
-      <div class="coming-soon">
-        <div class="icon">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-            <path d="M2 12h20" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="2"/>
-          </svg>
+        <div class="coming-soon">
+          <div class="icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M2 12h20" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+
+          <h1>OMNIPEDIA</h1>
+          <p class="subtitle">The Virtual Encyclopedia</p>
+          <p class="coming-soon-text">Coming Soon</p>
+
+          <p class="description">
+            OMNIPEDIA transforms Wikipedia into a living, spatial encyclopedia. More than 6 million articles become 3D objects, environments, and scenes, all connected on a shared global map and powered by Nostr and BitTorrent. The more people explore and contribute, the richer the world becomes.
+          </p>
+
+          <p class="description">
+            Connect 3D models into scenes. Build apps, games, and experiences from those scenes. Run simulations on a live global map. Visualize what does not fit into words.
+          </p>
+
+          <p class="description">
+            Because every object follows the same underlying logic, scenes and experiences can be recombined instantly. Instead of building everything from scratch, you draw from the full structure of human knowledge — no coding required.
+          </p>
+
+          <p class="description">
+            Exploration also becomes a way to discover and verify information. When something appears out of place — a green giraffe sipping coffee at Starbucks, for example — it becomes a visible anomaly that can prompt investigation and a correction request from the Cloud Atlas OS community to the Wikipedia community.
+          </p>
+
+          <p class="description">
+            In this way, OMNIPEDIA turns information into a living, visual experience: a shared world for learning, creating, exploring, simulating, and continuously improving the knowledge it represents.
+          </p>
+
+          <p class="description">
+            And as the community shapes OMNIPEDIA and, in turn, the HOLODECK, a Genie 3 class spatial AGI emerges from the structure itself.
+          </p>
         </div>
-
-        <h1>OMNIPEDIA</h1>
-        <p class="subtitle">The Virtual Encyclopedia</p>
-        <p class="coming-soon-text">Coming Soon</p>
-
-        <p class="description">
-          OMNIPEDIA transforms Wikipedia into a living, spatial encyclopedia. More than 6 million articles become 3D objects, environments, and scenes, all connected on a shared global map and powered by Nostr and BitTorrent. The more people explore and contribute, the richer the world becomes.
-        </p>
-
-        <p class="description">
-          Connect 3D models into scenes. Build apps, games, and experiences from those scenes. Run simulations on a live global map. Visualize what does not fit into words.
-        </p>
-
-        <p class="description">
-          Because every object follows the same underlying logic, scenes and experiences can be recombined instantly. Instead of building everything from scratch, you draw from the full structure of human knowledge — no coding required.
-        </p>
-
-        <p class="description">
-          Exploration also becomes a way to discover and verify information. When something appears out of place — a green giraffe sipping coffee at Starbucks, for example — it becomes a visible anomaly that can prompt investigation and a correction request from the Cloud Atlas OS community to the Wikipedia community.
-        </p>
-
-        <p class="description">
-          In this way, OMNIPEDIA turns information into a living, visual experience: a shared world for learning, creating, exploring, simulating, and continuously improving the knowledge it represents.
-        </p>
-
-        <p class="description">
-          And as the community shapes OMNIPEDIA and, in turn, the HOLODECK, a Genie 3 class spatial AGI emerges from the structure itself.
-        </p>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
 <style>
@@ -77,18 +79,18 @@
 
     width: min(640px, 44vw);
     max-height: 88vh;
-    overflow-y: auto;
-    overflow-x: hidden;
     box-sizing: border-box;
+
+    /* Column: only .scroll scrolls, the CloseButton stays put. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     background: var(--accent-stripe), var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     border-radius: var(--glass-radius);
-
-    padding: 2.5rem 1.5rem 1.5rem;
-
 
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
@@ -108,10 +110,30 @@
 
     border-radius: var(--glass-radius);
 
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     box-sizing: border-box;
     }
+  }
+
+  /* Only this area scrolls — the CloseButton (child of .panel) stays put. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* required, otherwise a flex child cannot scroll */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 2.5rem 1.5rem 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+
+  .scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 3px;
   }
 
   main {

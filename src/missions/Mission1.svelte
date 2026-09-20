@@ -236,17 +236,18 @@
 
     width: min(640px, 44vw);
     max-height: 88vh;
-    overflow-y: auto;
     box-sizing: border-box;
+
+    /* Column: only .scroll scrolls, the CloseButton stays put. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     background: var(--accent-stripe), var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     border-radius: var(--glass-radius);
-
-    padding: 2.5rem 1.5rem 1.5rem;
-
 
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
@@ -269,17 +270,32 @@
 
     border-radius: var(--glass-radius);
 
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     box-sizing: border-box;
     }
   }
 
+  /* .mission-frame is the scroll area. Only this scrolls — the CloseButton (child of .panel) stays put. */
   .mission-frame {
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
     box-sizing: border-box;
+    min-height: 0; /* required, otherwise a flex child cannot scroll */
     overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 2.5rem 1.5rem 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  }
+
+  .mission-frame::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .mission-frame::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 3px;
   }
 
   .mission-content {
