@@ -27,7 +27,9 @@
 <div class="panel">
   <CloseButton onClose={close} />
 
-  <div class="textbox">
+  <!-- Nur dieser Bereich scrollt; die Linkleiste unten bleibt stehen. -->
+  <div class="scroll">
+    <div class="textbox">
       <p class="headline">What if the world was run by You and Me?</p>
       <p class="tagline">Science fiction meets the real world.</p>
 
@@ -190,31 +192,33 @@
         Redefine the way we live together.
       </div>
 
-      <div class="utility-links">
-        <a href="https://worldpeaceenginelabs.org/" rel="noopener" on:click|preventDefault={() => openExternal('https://worldpeaceenginelabs.org/')}>
-          <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
-        </a>
-        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS')}>
-          <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
-        </a>
-        <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions')}>
-          <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on GitHub" height="30" width="30">
-        </a>
-        <a href="https://twitter.com/cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://twitter.com/cloudatlasos')}>
-          <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
-        </a>
-        <a href="https://www.youtube.com/@cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://www.youtube.com/@cloudatlasos')}>
-          <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
-        </a>
-        <a
-          href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp"
-          rel="noopener"
-          on:click|preventDefault={() => openExternal('https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp')}
-        >
-          <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
-        </a>
-      </div>
     </div>
+  </div>
+
+  <div class="utility-links">
+    <a href="https://worldpeaceenginelabs.org/" rel="noopener" on:click|preventDefault={() => openExternal('https://worldpeaceenginelabs.org/')}>
+      <img class="bottomicon" style="background-color: white;" src="./icons/tree-icon.gif" alt="" title="World Peace Engine Labs" height="30" width="30">
+    </a>
+    <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS-OS')}>
+      <img class="bottomicon" src="github-icon.svg" alt="" title="GitHub" height="30" width="30">
+    </a>
+    <a href="https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions" rel="noopener" on:click|preventDefault={() => openExternal('https://github.com/worldpeaceenginelabs/CLOUD-ATLAS.OS/discussions')}>
+      <img class="bottomicon" src="chat-icon.svg" alt="" title="Developer Chat on GitHub" height="30" width="30">
+    </a>
+    <a href="https://twitter.com/cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://twitter.com/cloudatlasos')}>
+      <img class="bottomicon" src="x-icon.svg" alt="" title="X" height="30" width="30">
+    </a>
+    <a href="https://www.youtube.com/@cloudatlasos" rel="noopener" on:click|preventDefault={() => openExternal('https://www.youtube.com/@cloudatlasos')}>
+      <img class="bottomicon" src="youtube-icon.svg" alt="" title="Youtube" height="30" width="30">
+    </a>
+    <a
+      href="https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp"
+      rel="noopener"
+      on:click|preventDefault={() => openExternal('https://bitcoinblockexplorers.com/address/bc1qwwdmn33g90y3vwutpj6r6q6kwrdqp00x2mfrzp')}
+    >
+      <img class="bottomicon" src="./icons/bitcoin.png" alt="" title="Donate Bitcoin" height="30" width="30">
+    </a>
+  </div>
 </div>
 
 <style>
@@ -226,17 +230,18 @@
 
     width: min(640px, 44vw);
     max-height: 88vh;
-    overflow-y: auto;
     box-sizing: border-box;
+
+    /* Karte = Spalte: scrollender Inhalt + feste Linkleiste unten */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     background: var(--accent-stripe), var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     border-radius: var(--glass-radius);
-
-    padding: 2.5rem 1.5rem 1.5rem;
-
 
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 
@@ -259,10 +264,30 @@
 
     border-radius: var(--glass-radius);
 
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     box-sizing: border-box;
     }
+  }
+
+  /* Scrollbereich: nimmt den Platz über der Linkleiste ein */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0; /* nötig, damit ein Flex-Kind überhaupt scrollen kann */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 2.5rem 1.5rem 1rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 215, 0, 0.35) transparent;
+  }
+
+  .scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.35);
+    border-radius: 3px;
   }
 
   /* No padding of its own — .panel provides the frame. */
@@ -325,14 +350,17 @@
     line-height: 1.5;
   }
 
-  /* Closing icon bar below the .cta (the .cta already draws the divider) */
+  /* Feste Icon-Leiste am unteren Rand der Karte – scrollt nicht mit */
   .utility-links {
+    flex: 0 0 auto;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     gap: 18px;
-    margin-top: 16px;
+    padding: 12px 1.5rem calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(255, 215, 0, 0.18);
+    background: rgba(0, 0, 0, 0.22);
   }
 
   .utility-links a {
@@ -342,6 +370,7 @@
 
   .utility-links .bottomicon {
     display: block;
+    border-radius: 8px; /* vorher via .textbox img – Leiste liegt jetzt außerhalb */
     opacity: 0.85;
     transition: opacity 0.15s, transform 0.15s;
   }
