@@ -33,6 +33,12 @@
   // built from two plain fields already on the record), so it opens
   // locally with no event needed.
   //
+  // Locking: while a workflow runs (`busy`) or this panel's own Save is
+  // still waiting for its outcome (`saving`), every owner action — Edit,
+  // Marketing, Delete and the whole edit form — is disabled. Close stays
+  // available: it changes nothing and must never trap the person during a
+  // long relay round trip.
+  //
   // Location picking during Mission edit is delegated entirely to
   // hexmenu/Location.svelte (never getActiveViewer(), pickLocation.ts,
   // pickArea.ts, or route.ts directly, and never its own enable/disable
@@ -46,7 +52,7 @@
   // template below), so a click on the globe to pick a new Point/Area
   // reaches Cesium instead of just closing this panel.
   // -----------------------------------------------------------------------
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import type { ListingRecord, MissionRecord, MissionLocation } from '../orchestrator/appStore';
   import { pick } from './api';
   import Location from '../hexmenu/Location.svelte';
@@ -56,6 +62,14 @@
   export let record: ListingRecord | MissionRecord | null = null;
   /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's/mission's `author` to decide whether to show the owner-only actions below. */
   export let ownPubkey: string | null = null;
+  /**
+   * A workflow is currently running (`$appStore.inFlight`, passed down by
+   * EntityLayer exactly like `ownPubkey` — this component still never
+   * touches the store itself). Orchestrator refuses a second workflow anyway,
+   * but refuses it *silently*; this is what keeps the person from getting
+   * that far: every owner action below is disabled while it's true.
+   */
+  export let busy = false;
 
   const dispatch = createEventDispatcher();
 
@@ -106,16 +120,22 @@
   let locationPickerOpen = false;
   let pickerGeometry: 'point' | 'area' = 'point';
 
+  function loadFormFrom(r: MissionRecord) {
+    title = r.content.title;
+    description = r.content.description;
+    links = { ...r.content.lanes };
+    pickedLocation = r.location;
+  }
+
   // Re-hydrate the edit form only when the selected mission actually
   // changes (a different one, or Mission <-> non-Mission) — not on every
   // reference change of the same one, so an in-progress edit never gets
   // clobbered by e.g. a background store refresh of the same mission.
+  // (startEdit() reloads it from the then-current record, so the form can
+  // never start from an older copy either.)
   let hydratedId: string | null = null;
   $: if (record?.kind === 'mission' && record.id !== hydratedId) {
-    title = record.content.title;
-    description = record.content.description;
-    links = { ...record.content.lanes };
-    pickedLocation = record.location;
+    loadFormFrom(record);
     editing = false;
     locationPickerOpen = false;
     hydratedId = record.id;
@@ -124,6 +144,46 @@
     locationPickerOpen = false;
     hydratedId = null;
   }
+
+  // ─── Save / lock state ──────────────────────────────────────────────────
+  //
+  // Save no longer leaves edit mode on the spot (that showed the *old*
+  // record until the publish had round-tripped through the relays, and lost
+  // the input if it failed). It stays in the — now locked — form until the
+  // outcome is known:
+  //   • the record's eventId changed → the new version came back through the
+  //     Store, `record` already carries it → leave edit mode;
+  //   • the workflow ended without a new version (failed / aborted) → unlock
+  //     and stay in the form with the input intact (the reason shows in
+  //     Orchestrator's own status pill).
+  let saving = false;
+  let saveBaseEventId: string | null = null;
+  let sawBusy = false;
+  let saveGraceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** If no workflow ever starts (e.g. Orchestrator refused up front), don't stay locked forever. */
+  const SAVE_START_GRACE_MS = 2000;
+
+  $: locked = busy || saving;
+
+  $: if (saving) {
+    if (busy) sawBusy = true;
+
+    if (record && record.eventId !== saveBaseEventId) {
+      finishSave(true);
+    } else if (sawBusy && !busy) {
+      finishSave(false);
+    }
+  }
+
+  function finishSave(success: boolean) {
+    clearTimeout(saveGraceTimer);
+    saving = false;
+    sawBusy = false;
+    if (success) editing = false;
+  }
+
+  onDestroy(() => clearTimeout(saveGraceTimer));
 
   $: formValid =
     title.trim().length > 0 &&
@@ -176,25 +236,32 @@
   }
 
   function startEdit() {
-    if (!record || record.kind !== 'mission') return;
+    if (locked || !record || record.kind !== 'mission') return;
+    loadFormFrom(record);
     editing = true;
   }
 
   function cancelEdit() {
-    if (!record || record.kind !== 'mission') return;
+    if (locked || !record || record.kind !== 'mission') return;
     clearPickerPreview();
     locationPickerOpen = false;
-    title = record.content.title;
-    description = record.content.description;
-    links = { ...record.content.lanes };
-    pickedLocation = record.location;
+    loadFormFrom(record);
     editing = false;
   }
 
   function handleMissionSubmit() {
-    if (!record || record.kind !== 'mission' || !formValid || !pickedLocation) return;
+    if (locked || !record || record.kind !== 'mission' || !formValid || !pickedLocation) return;
 
     clearPickerPreview();
+
+    saveBaseEventId = record.eventId;
+    sawBusy = false;
+    saving = true;
+
+    clearTimeout(saveGraceTimer);
+    saveGraceTimer = setTimeout(() => {
+      if (saving && !sawBusy) finishSave(false);
+    }, SAVE_START_GRACE_MS);
 
     dispatch('submit', {
       dTag: record.dTag,
@@ -208,8 +275,7 @@
         crowdfunding: links.crowdfunding.trim(),
       },
     });
-
-    editing = false;
+    // Deliberately no `editing = false` here — see "Save / lock state" above.
   }
 
   // ─── Shared actions ─────────────────────────────────────────────────────
@@ -221,7 +287,7 @@
   }
 
   function requestDelete() {
-    if (!record) return;
+    if (locked || !record) return;
     dispatch('delete', record);
     close(); // optimistic — the record disappears from the map once the tombstone round-trips; no reason to keep showing it now
   }
@@ -296,79 +362,84 @@
     <div class="scroll">
       {#if record.kind === 'mission' && editing}
         <!-- ─── Mission edit form ─────────────────────────────────────── -->
-        <form class="mf" on:submit|preventDefault={handleMissionSubmit}>
-          <label class="mf-label" for="mf-title">Title</label>
-          <input
-            id="mf-title"
-            class="mf-input"
-            type="text"
-            bind:value={title}
-            placeholder="Mission title"
-          />
+        <form on:submit|preventDefault={handleMissionSubmit}>
+          <!-- A disabled fieldset disables every input/button inside it at once. -->
+          <fieldset class="mf-lock" disabled={locked}>
+            <div class="mf">
+              <label class="mf-label" for="mf-title">Title</label>
+              <input
+                id="mf-title"
+                class="mf-input"
+                type="text"
+                bind:value={title}
+                placeholder="Mission title"
+              />
 
-          <label class="mf-label" for="mf-description">Description</label>
-          <textarea
-            id="mf-description"
-            class="mf-textarea"
-            rows="3"
-            bind:value={description}
-            placeholder="What is this mission about?"
-          />
+              <label class="mf-label" for="mf-description">Description</label>
+              <textarea
+                id="mf-description"
+                class="mf-textarea"
+                rows="3"
+                bind:value={description}
+                placeholder="What is this mission about?"
+              />
 
-          <div class="mf-lanes">
-            {#each LANES as lane}
-              <div class="mf-lane">
-                <label class="mf-label" for="mf-lane-{lane.id}">
-                  {lane.label}{lane.required ? ' *' : ''}
-                </label>
-                <input
-                  id="mf-lane-{lane.id}"
-                  class="mf-input"
-                  type="text"
-                  bind:value={links[lane.id]}
-                  placeholder={lane.placeholder}
-                />
+              <div class="mf-lanes">
+                {#each LANES as lane}
+                  <div class="mf-lane">
+                    <label class="mf-label" for="mf-lane-{lane.id}">
+                      {lane.label}{lane.required ? ' *' : ''}
+                    </label>
+                    <input
+                      id="mf-lane-{lane.id}"
+                      class="mf-input"
+                      type="text"
+                      bind:value={links[lane.id]}
+                      placeholder={lane.placeholder}
+                    />
+                  </div>
+                {/each}
               </div>
-            {/each}
-          </div>
 
-          <span class="mf-label">Location *</span>
+              <span class="mf-label">Location *</span>
 
-          {#if pickedLocation}
-            <div class="mf-location-preview">
-              <span>{formatMissionLocation(pickedLocation)}</span>
-              <button type="button" class="mf-location-change" on:click={changeLocation}>
-                Change
-              </button>
+              {#if pickedLocation}
+                <div class="mf-location-preview">
+                  <span>{formatMissionLocation(pickedLocation)}</span>
+                  <button type="button" class="mf-location-change" on:click={changeLocation}>
+                    Change
+                  </button>
+                </div>
+              {:else if !locationPickerOpen}
+                <div class="mf-location-buttons">
+                  <button
+                    type="button"
+                    class="mf-location-btn"
+                    on:click={() => openPicker('point')}
+                  >
+                    Pick Point
+                  </button>
+
+                  <button
+                    type="button"
+                    class="mf-location-btn"
+                    on:click={() => openPicker('area')}
+                  >
+                    Pick Area
+                  </button>
+                </div>
+              {/if}
+
+              <div class="mf-actions">
+                <button type="button" class="mf-cancel" on:click={cancelEdit}>
+                  Cancel
+                </button>
+                <button type="submit" class="mf-submit" disabled={!formValid}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
             </div>
-          {:else if !locationPickerOpen}
-            <div class="mf-location-buttons">
-              <button
-                type="button"
-                class="mf-location-btn"
-                on:click={() => openPicker('point')}
-              >
-                Pick Point
-              </button>
-
-              <button
-                type="button"
-                class="mf-location-btn"
-                on:click={() => openPicker('area')}
-              >
-                Pick Area
-              </button>
-            </div>
-          {/if}
-
-          <div class="mf-actions">
-            <button type="button" class="mf-cancel" on:click={cancelEdit}>
-              Cancel
-            </button>
-            <button type="submit" class="mf-submit" disabled={!formValid}>
-              Save
-            </button>
-          </div>
+          </fieldset>
         </form>
 
         {#if locationPickerOpen}
@@ -450,10 +521,10 @@
         {#if isOwner}
           <div class="owner-actions">
             {#if record.kind === 'mission'}
-              <button class="owner-btn edit" on:click={startEdit}>Edit</button>
+              <button class="owner-btn edit" disabled={locked} on:click={startEdit}>Edit</button>
             {/if}
-            <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Marketing</button>
-            <button class="owner-btn delete" on:click={requestDelete}>Delete</button>
+            <button class="owner-btn marketing" disabled={locked} on:click={() => (showMarketing = true)}>Marketing</button>
+            <button class="owner-btn delete" disabled={locked} on:click={requestDelete}>Delete</button>
           </div>
         {:else}
           <!-- Non-owner: same Marketing panel, just labelled "Share". -->
@@ -629,6 +700,11 @@
     cursor: pointer;
   }
 
+  .owner-btn:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
   .owner-btn.edit {
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.25);
@@ -670,6 +746,20 @@
     gap: 0.35rem;
     color: #eee;
     font-family: inherit;
+  }
+
+  /* Wrapper only: the fieldset exists to disable its whole subtree at once. */
+  .mf-lock {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+  }
+
+  /* pointer-events: none also suppresses the hover highlights of the buttons inside. */
+  .mf-lock:disabled {
+    opacity: 0.55;
+    pointer-events: none;
   }
 
   .mf-label {

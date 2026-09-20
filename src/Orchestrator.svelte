@@ -38,14 +38,18 @@
   //
   // Two more props follow the exact same prop-down + reactive-statement
   // pattern as `submit`, each its own small isolated operation rather than
-  // a bounded workflow (neither is gated by the single-workflow lock):
+  // a bounded workflow (neither runs *through* beginWorkflow/endWorkflow):
   // `deleteRequest` (owner deletion, bubbled up from cesium/EntityDetails.svelte
   // via its parent) and `openEventId` (deep-link resolution: fetches one
   // specific event by id if it isn't already known — App.svelte sets this
-  // from the current URL).
+  // from the current URL). `deleteRequest` is however *refused* while a
+  // workflow is active (a delete racing an in-flight publish of the same
+  // entity could leave the store showing something already deleted);
+  // `openEventId` is a pure read and stays ungated.
   // -----------------------------------------------------------------------
 
   import { onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import {
     NostrClient,
     getExpiration,
@@ -208,7 +212,26 @@
   /** The one and only place inFlight goes back to false — clears the workflow token first, so any already-in-flight await's guard check fails from this point on. */
   function endWorkflow(patch: Partial<AppState> = {}) {
     activeWorkflowToken = null;
-    appStore.update((s) => ({ ...s, inFlight: false, ...patch }));
+    // lastError is reset here too (a patch can still set a fresh one): otherwise
+    // a "still busy" notice from rejectWhileBusy() would outlive the workflow
+    // that caused it.
+    appStore.update((s) => ({ ...s, inFlight: false, lastError: null, ...patch }));
+  }
+
+  /**
+   * A user action (submit, mission publish, delete) arrived while another
+   * workflow is active. It is still refused — exactly one workflow at a time —
+   * but visibly now: a bare console.warn left the UI believing the action had
+   * gone through (EntityDetails closes/leaves edit mode optimistically).
+   * Deliberately NOT setError(): that calls endWorkflow() and would end the
+   * workflow that is legitimately running.
+   */
+  function rejectWhileBusy(what: string) {
+    console.warn(`[Orchestrator] Ignoring ${what} — a workflow is already active. Use Abort first.`);
+    appStore.update((s) => ({
+      ...s,
+      lastError: 'Still syncing — try again when it has finished (or abort it).',
+    }));
   }
 
   /**
@@ -236,6 +259,7 @@
     appStore.update((s) => ({
       ...s,
       inFlight: false,
+      lastError: null,
       listingSearch: null,
     }));
   }
@@ -354,6 +378,11 @@
   async function deleteOwnListing(id: string) {
     if (!client) return;
 
+    if (activeWorkflowToken) {
+      rejectWhileBusy('delete request');
+      return;
+    }
+
     const dTag = id.slice(id.indexOf(':') + 1);
     const marker = client.publishDeletionMarker(dTag, [], LISTING_KIND);
 
@@ -370,6 +399,11 @@
   /** Same as deleteOwnListing, for a Mission's replaceable identity/kind instead of a listing's. */
   async function deleteOwnMission(id: string) {
     if (!client) return;
+
+    if (activeWorkflowToken) {
+      rejectWhileBusy('delete request');
+      return;
+    }
 
     const dTag = id.slice(id.indexOf(':') + 1);
     const marker = client.publishDeletionMarker(dTag, [], MISSION_KIND);
@@ -410,7 +444,7 @@
     }
 
     if (activeWorkflowToken) {
-      console.warn('[Orchestrator] Ignoring submit — a workflow is already active. Use Abort first.');
+      rejectWhileBusy('submit');
       return;
     }
 
@@ -1110,6 +1144,78 @@
     return null;
   }
 
+  /**
+   * Stable string form of a JSON value: object keys sorted recursively and
+   * strings trimmed, so two payloads with the same attributes compare equal
+   * regardless of key order or stray whitespace.
+   */
+  function canonicalize(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
+
+    if (typeof value === 'string') return JSON.stringify(value.trim());
+
+    if (value && typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+
+      return `{${Object.keys(obj)
+        .filter((k) => obj[k] !== undefined)
+        .sort()
+        .map((k) => `${JSON.stringify(k)}:${canonicalize(obj[k])}`)
+        .join(',')}}`;
+    }
+
+    return JSON.stringify(value) ?? 'null';
+  }
+
+  /**
+   * Is there already a live listing of ours with these exact attributes?
+   *
+   * HexMenu deliberately keeps its selections after submit, so the same
+   * offer can be sent again and again — every send would otherwise become
+   * its own listing (fresh dTag each time). Only *completed* publishes can
+   * match here: a second submit while the first is still running never gets
+   * this far (single-workflow lock), and a finished one has been persisted
+   * before endWorkflow() (persist → store contract).
+   *
+   * Looks at IndexedDB as well as the store: searchListings() wipes
+   * `$appStore.listings`, but persistence keeps our own records. Deleted
+   * (tombstoned) and expired listings don't count, so re-offering after a
+   * delete works. The anypay options are not on ListingRecord and therefore
+   * not part of the comparison.
+   */
+  async function findOwnDuplicateListing(
+    domain: string,
+    model: string,
+    content: Record<string, any>,
+  ): Promise<ListingRecord | null> {
+    if (!client) return null;
+
+    const own = client.pubkey;
+    const now = Math.floor(Date.now() / 1000);
+    const fingerprint = canonicalize(content);
+
+    let persisted: ListingRecord[] = [];
+
+    try {
+      persisted = await loadAllListings();
+    } catch {
+      // Persistence unreadable — fall back to what's in the store rather than blocking the offer.
+    }
+
+    const candidates = [...Object.values(get(appStore).listings), ...persisted];
+
+    return (
+      candidates.find(
+        (r) =>
+          r.author === own &&
+          r.expiresAt > now &&
+          r.domain === domain &&
+          r.model === model &&
+          canonicalize(r.content) === fingerprint,
+      ) ?? null
+    );
+  }
+
   async function publishListing(
     domain: string,
     model: string,
@@ -1158,6 +1264,16 @@
       expiresAt,
       now + ABSOLUTE_MAX_VALIDITY_DAYS * 86400,
     );
+
+    // Same offer already published and synced? Then don't publish it again.
+    const duplicate = await findOwnDuplicateListing(domain, model, content);
+
+    if (activeWorkflowToken !== token) return;
+
+    if (duplicate) {
+      setError('You already published this offer.');
+      return;
+    }
 
     const location = extractStartCoordinate(
       content.location as LocationValue | undefined,
@@ -1742,7 +1858,7 @@
     }
 
     if (activeWorkflowToken) {
-      console.warn('[Orchestrator] Ignoring missionSubmit — a workflow is already active. Use Abort first.');
+      rejectWhileBusy('missionSubmit');
       return;
     }
 
@@ -1824,6 +1940,26 @@
   }
 
   /**
+   * Newest `created_at` seen per mission id. Relays can hand back an older
+   * version of a replaceable event after a newer one (a lagging relay in a
+   * query result, the 30-minute discovery re-fetch) — without this check
+   * the older version would overwrite the freshly edited one in the store
+   * *and* in IndexedDB. Also covers a tombstone arriving before a stale copy
+   * of the mission it deleted. In-memory only: after a reload the first
+   * event seen per mission seeds it again.
+   */
+  const latestMissionEventAt = new Map<string, number>();
+
+  function isStaleMissionEvent(id: string, event: NostrEvent): boolean {
+    const seen = latestMissionEventAt.get(id);
+
+    if (seen !== undefined && event.created_at < seen) return true;
+
+    latestMissionEventAt.set(id, event.created_at);
+    return false;
+  }
+
+  /**
    * The single receive-path pipeline for every mission-kind event,
    * regardless of source (discovery poll, our own just-published mission
    * fetched back, or the tombstone watcher). Only ever called from
@@ -1847,6 +1983,8 @@
       const id =
         `${target.author}:${target.dTag}`;
 
+      if (isStaleMissionEvent(id, event)) return;
+
       if (opts.persist) {
         await deleteMissionPersisted(id);
       }
@@ -1861,6 +1999,8 @@
 
     const id =
       `${event.pubkey}:${dTag}`;
+
+    if (isStaleMissionEvent(id, event)) return;
 
     let parsed: any;
 

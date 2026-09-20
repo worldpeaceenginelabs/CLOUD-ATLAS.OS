@@ -53,8 +53,19 @@
   const dispatch = createEventDispatcher();
 
   const activeMarkerIds = new Set<string>(); // record ids currently rendered as Cesium entities
-  /** Only what EntityDetails can show: a listing or a mission. */
+  /**
+   * Only the *id* is kept — the record itself is looked up in the Store on
+   * every change (see selectedRecord below). Holding the record object would
+   * freeze it at click time: an edited mission's new version arrives as a
+   * new object in the Store, and the open panel would keep showing the old one.
+   */
+  let selectedId: string | null = null;
+
+  /** Only what EntityDetails can show: a listing or a mission — always the Store's current version of the selected id (null once it's gone, e.g. deleted or expired). */
   let selectedRecord: ListingRecord | MissionRecord | null = null;
+  $: selectedRecord = selectedId
+    ? ($appStore.listings[selectedId] ?? $appStore.missions[selectedId] ?? null)
+    : null;
   let globeReady = false;
 
   /** Set once showUserLocation() resolves the device position — reused so a click on the "Your Location!" entity can fly back there without re-fetching position. */
@@ -65,7 +76,7 @@
     const state = appStore.get();
     const match = state.listings[recordId] ?? state.missions[recordId] ?? null;
 
-    selectedRecord = match;
+    selectedId = match ? recordId : null;
     return !!match;
   }
 
@@ -408,10 +419,11 @@
 <EntityDetails
 record={selectedRecord}
 ownPubkey={$appStore.ownPubkey}
-on:close={() => (selectedRecord = null)}
+busy={$appStore.inFlight}
+on:close={() => (selectedId = null)}
 on:delete={(e) => {
 dispatch('delete', e.detail);
-selectedRecord = null;
+selectedId = null;
 }}
 on:submit={(e) => dispatch('missionSubmit', e.detail)}
 />
