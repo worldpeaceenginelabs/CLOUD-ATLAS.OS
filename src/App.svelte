@@ -9,6 +9,7 @@
   import MissionTV from "./missions/MissionTV.svelte";
   import About from "./shared/About.svelte";
   import ProgressBar from "./shared/ProgressBar.svelte";
+  import Onboarding from "./onboarding/Onboarding.svelte";
 
   import {
     appStore,
@@ -26,9 +27,35 @@
   function enterApp() {
     showPicture = false;
 
+    startOnboardingIfFirstRun();
+
     requestAnimationFrame(() => {
       setupWorkspaceObserver();
     });
+  }
+
+  // First-run spotlight tour (onboarding/Onboarding.svelte). Same contract as
+  // About / MissionTV — App.svelte only knows whether it's open; the
+  // component owns its chrome and dispatches `close`. "Los geht's" and
+  // "Überspringen" both close it, and both count as "seen": one persisted
+  // boolean, same pattern as HexMenu's OPERATOR_ACCEPT_KEY (no store).
+  //
+  // Not shown on a deep link (/move/abc123): that person came for one
+  // specific listing, and the tour would sit right on top of it. They get
+  // the tour on their next regular visit.
+  const ONBOARDING_KEY = 'cloud-atlas-onboarding-done';
+  let onboardingOpen = false;
+
+  function startOnboardingIfFirstRun() {
+    if (deepLink) return;
+    let seen = false;
+    try { seen = localStorage.getItem(ONBOARDING_KEY) === 'true'; } catch {}
+    if (!seen) onboardingOpen = true;
+  }
+
+  function closeOnboarding() {
+    onboardingOpen = false;
+    try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch {}
   }
 
   // Web deep link (§4-§8 of the marketing/delete instruction): parsed
@@ -236,6 +263,10 @@
     <button class="corner-btn workspace-toggle" on:click={toggleWorkspace}>
       {fullGlobe ? 'Split View' : 'Fullscreen'}
     </button>
+
+    {#if onboardingOpen}
+      <Onboarding on:close={closeOnboarding} />
+    {/if}
 
   </div>
 {/if}
