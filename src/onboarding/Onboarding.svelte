@@ -395,7 +395,7 @@
   .onb {
     position: fixed; /* lives in document.body (see `portal` in the script) */
     inset: 0;
-    z-index: 2000; /* above the corner buttons (1000) and the globe-window (20) */
+    z-index: 20000; /* above the corner buttons (1000), the globe-window (20) and the mission panels (9999) */
     overflow: hidden;
     opacity: 0;
     transition: opacity 0.35s ease;

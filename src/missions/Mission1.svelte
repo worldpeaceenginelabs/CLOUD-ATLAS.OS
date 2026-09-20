@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import CloseButton from '../shared/CloseButton.svelte';
+  import Onboarding from '../onboarding/Onboarding.svelte';
+  import { MISSION1_STEPS } from '../onboarding/missionSteps';
 
   const dispatch = createEventDispatcher();
 
@@ -73,9 +75,38 @@
     updateCountdown();
 
     const interval = setInterval(updateCountdown, 1000);
+    const tourId = setTimeout(startTourIfFirstTime, TOUR_DELAY_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(tourId);
+    };
   });
+
+  // First-time spotlight tour (onboarding/missionSteps.ts): shown the first
+  // time this panel is opened on this device, remembered in localStorage —
+  // same pattern as HexMenu's OPERATOR_ACCEPT_KEY. The short delay lets the
+  // person see the panel before the screen dims.
+  const TOUR_KEY = 'cloud-atlas-onboarding-mission1';
+  const TOUR_DELAY_MS = 350;
+  let tourOpen = false;
+
+  function startTourIfFirstTime() {
+    // Already finished Mission 1 (e.g. earned the stars before this tour
+    // existed) — nothing left to explain.
+    if (stars >= 3) return;
+    let seen = false;
+    try { seen = localStorage.getItem(TOUR_KEY) === 'true'; } catch {}
+    if (!seen) tourOpen = true;
+  }
+
+  function onTourClose(e: CustomEvent<{ completed: boolean }>) {
+    // completed=false: no target was found, nothing was shown — try again next time.
+    if (e.detail.completed) {
+      try { localStorage.setItem(TOUR_KEY, 'true'); } catch {}
+    }
+    tourOpen = false;
+  }
 
   function saveState() {
     localStorage.setItem(
@@ -167,7 +198,7 @@
       <p class="mission-share-label">SHARE THIS ON 3 DIFFERENT DAYS</p>
 
       <div class="mission-card">
-        <div class="mission-stars">
+        <div class="mission-stars" data-onboarding="m1-stars">
           {#each [1, 2, 3] as level}
             <span class="mission-star" class:filled={stars >= level}>★</span>
           {/each}
@@ -175,11 +206,11 @@
 
         <p class="mission-stats">{missionStatsText}</p>
 
-        <p class="mission-card-quote animated-gradient">
+        <p class="mission-card-quote animated-gradient" data-onboarding="m1-message">
           {shareText}
         </p>
 
-        <div class="mission-card-actions">
+        <div class="mission-card-actions" data-onboarding="m1-share">
           {#each shareLinks as { name, href }}
             <a
               class="share-btn"
@@ -226,6 +257,10 @@
     </div>
   </div>
 </div>
+
+{#if tourOpen}
+  <Onboarding steps={MISSION1_STEPS} on:close={onTourClose} />
+{/if}
 
 <style>
   .panel {

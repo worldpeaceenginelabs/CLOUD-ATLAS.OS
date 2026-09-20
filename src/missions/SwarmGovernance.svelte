@@ -30,10 +30,12 @@
   // flow (App.svelte -> missionSubmit prop).
   // -----------------------------------------------------------------------
 
-  import { createEventDispatcher, onDestroy } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte';
   import { pick } from '../cesium/api';
   import Location from '../hexmenu/Location.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
+  import Onboarding from '../onboarding/Onboarding.svelte';
+  import { MISSION2_STEPS } from '../onboarding/missionSteps';
   import type { MissionLocation } from '../orchestrator/appStore';
 
   const dispatch = createEventDispatcher();
@@ -151,6 +153,33 @@
   // its own in-progress preview — this call only concerns the separate,
   // already-confirmed marker.
   onDestroy(clearPickerPreview);
+
+  // ─── First-time spotlight tour ───
+  // Shown the first time this form is opened on this device, remembered in
+  // localStorage — same pattern as HexMenu's OPERATOR_ACCEPT_KEY. Copy in
+  // onboarding/missionSteps.ts; the targets are the `data-onboarding`
+  // attributes below. The short delay lets the person see the form before
+  // the screen dims.
+  const TOUR_KEY = 'cloud-atlas-onboarding-mission2';
+  const TOUR_DELAY_MS = 350;
+  let tourOpen = false;
+
+  onMount(() => {
+    const id = setTimeout(() => {
+      let seen = false;
+      try { seen = localStorage.getItem(TOUR_KEY) === 'true'; } catch {}
+      if (!seen) tourOpen = true;
+    }, TOUR_DELAY_MS);
+    return () => clearTimeout(id);
+  });
+
+  function onTourClose(e: CustomEvent<{ completed: boolean }>) {
+    // completed=false: no target was found, nothing was shown — try again next time.
+    if (e.detail.completed) {
+      try { localStorage.setItem(TOUR_KEY, 'true'); } catch {}
+    }
+    tourOpen = false;
+  }
 </script>
 
 <div class="panel" class:picker-open={locationPickerOpen}>
@@ -163,6 +192,7 @@
       <label class="mf-label" for="mf-title">Title</label>
       <input
         id="mf-title"
+        data-onboarding="m2-title"
         class="mf-input"
         type="text"
         bind:value={title}
@@ -178,7 +208,7 @@
         placeholder="What is this mission about?"
       />
 
-      <div class="mf-lanes">
+      <div class="mf-lanes" data-onboarding="m2-lanes">
         {#each LANES as lane}
           <div class="mf-lane">
             <label class="mf-label" for="mf-lane-{lane.id}">
@@ -219,7 +249,7 @@
           </button>
         </div>
       {:else if !locationPickerOpen}
-        <div class="mf-location-buttons">
+        <div class="mf-location-buttons" data-onboarding="m2-location">
           <button
             type="button"
             class="mf-location-btn"
@@ -239,7 +269,7 @@
       {/if}
 
       <div class="mf-actions">
-        <button type="submit" class="mf-submit" disabled={!formValid}>
+        <button type="submit" class="mf-submit" data-onboarding="m2-submit" disabled={!formValid}>
           Submit
         </button>
       </div>
@@ -254,6 +284,10 @@
     />
   {/if}
 </div>
+
+{#if tourOpen}
+  <Onboarding steps={MISSION2_STEPS} align="left" on:close={onTourClose} />
+{/if}
 
 <style>
   .panel {
