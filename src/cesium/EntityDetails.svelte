@@ -33,6 +33,12 @@
   // built from two plain fields already on the record), so it opens
   // locally with no event needed.
   //
+  // First-time hints: the first time this device opens a post of its own,
+  // a one-step spotlight tour explains the Marketing button; the first
+  // time it opens someone else's post, one explains Share (see
+  // onboarding/entitySteps.ts for the copy). Each is remembered in
+  // localStorage — same pattern as HexMenu's OPERATOR_ACCEPT_KEY.
+  //
   // Locking: while a workflow runs (`busy`) or this panel's own Save is
   // still waiting for its outcome (`saving`), every owner action — Edit,
   // Marketing, Delete and the whole edit form — is disabled. Close stays
@@ -58,6 +64,9 @@
   import Location from '../hexmenu/Location.svelte';
   import Marketing from '../shared/Marketing.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
+  import Onboarding from '../onboarding/Onboarding.svelte';
+  import { ENTITY_OWNER_STEPS, ENTITY_VISITOR_STEPS } from '../onboarding/entitySteps';
+  import type { OnboardingStep } from '../onboarding/steps';
 
   export let record: ListingRecord | MissionRecord | null = null;
   /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's/mission's `author` to decide whether to show the owner-only actions below. */
@@ -93,8 +102,46 @@
     const id = setTimeout(() => {
       canCloseOnBackdrop = true;
     }, 50);
-    return () => clearTimeout(id);
+    // Wait for the panel's 0.18s slide-in to finish before dimming the
+    // screen: the spotlight is measured once, and mid-animation the button
+    // is still 12px off. It also lets the person see the panel first.
+    const tourId = setTimeout(startOnboardingIfFirstTime, ONBOARDING_DELAY_MS);
+    return () => {
+      clearTimeout(id);
+      clearTimeout(tourId);
+    };
   });
+
+  // ─── First-time spotlight tour (Marketing / Share) ──────────────────────
+  const ONBOARDING_DELAY_MS = 350;
+  const OWNER_TOUR_KEY = 'cloud-atlas-onboarding-entity-owner';
+  const VISITOR_TOUR_KEY = 'cloud-atlas-onboarding-entity-visitor';
+
+  let tourSteps: OnboardingStep[] | null = null;
+  let tourKey = '';
+
+  function startOnboardingIfFirstTime() {
+    // `ownPubkey` still null = we can't tell whose post this is yet; showing
+    // the wrong button's tour (and marking it seen) would be worse than
+    // waiting for the next open. `locked` = the Marketing button is
+    // disabled right now, don't spotlight a greyed-out button.
+    if (!record || !ownPubkey || locked || editing || showMarketing) return;
+    const key = isOwner ? OWNER_TOUR_KEY : VISITOR_TOUR_KEY;
+    let seen = false;
+    try { seen = localStorage.getItem(key) === 'true'; } catch {}
+    if (seen) return;
+    tourKey = key;
+    tourSteps = isOwner ? ENTITY_OWNER_STEPS : ENTITY_VISITOR_STEPS;
+  }
+
+  function onTourClose(e: CustomEvent<{ completed: boolean }>) {
+    // completed=false: the button wasn't found (nothing was shown) — try
+    // again on the next open instead of burning the hint.
+    if (e.detail.completed) {
+      try { localStorage.setItem(tourKey, 'true'); } catch {}
+    }
+    tourSteps = null;
+  }
 
   // ─── Mission edit form — the only record kind with an edit capability ───
 
@@ -523,18 +570,22 @@
             {#if record.kind === 'mission'}
               <button class="owner-btn edit" disabled={locked} on:click={startEdit}>Edit</button>
             {/if}
-            <button class="owner-btn marketing" disabled={locked} on:click={() => (showMarketing = true)}>Marketing</button>
+            <button class="owner-btn marketing" data-onboarding="entity-marketing" disabled={locked} on:click={() => (showMarketing = true)}>Marketing</button>
             <button class="owner-btn delete" disabled={locked} on:click={requestDelete}>Delete</button>
           </div>
         {:else}
           <!-- Non-owner: same Marketing panel, just labelled "Share". -->
           <div class="owner-actions">
-            <button class="owner-btn marketing" on:click={() => (showMarketing = true)}>Share</button>
+            <button class="owner-btn marketing" data-onboarding="entity-share" on:click={() => (showMarketing = true)}>Share</button>
           </div>
         {/if}
       {/if}
     </div>
   </div>
+
+  {#if tourSteps}
+    <Onboarding steps={tourSteps} on:close={onTourClose} />
+  {/if}
 {/if}
 
 {#if showMarketing && record}

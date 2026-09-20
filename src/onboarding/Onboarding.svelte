@@ -4,32 +4,51 @@
   import { cubicOut } from 'svelte/easing';
   import { fly } from 'svelte/transition';
   import { ONBOARDING_STEPS, ONBOARDING_LABELS } from './steps';
+  import type { OnboardingStep } from './steps';
 
-  // First-run tour: welcome cards (no spotlight), then one spotlight step per
-  // header hex. Same contract as About / MissionTV: App.svelte only knows
-  // whether it's open, this component owns its whole chrome and dispatches
-  // `close` (both for "Let's go" and for "Skip" — App treats both as "seen").
-  // What each step says, and whether it is a welcome card or a spotlight
-  // step, lives in steps.ts — nothing here is content.
+  // Spotlight tour. Used twice, with different steps:
+  //   - App.svelte: the first-run tour (default `steps` = steps.ts)
+  //   - EntityDetails.svelte: one-step tours for Marketing / Share
+  //     (entitySteps.ts)
+  // Same contract as About / MissionTV: the parent only knows whether it's
+  // open, this component owns its whole chrome and dispatches `close`
+  // (detail.completed is true when the person clicked through or skipped,
+  // false when there was nothing to show — the parent must not count that
+  // as "seen"). What each step says lives in the steps files — nothing
+  // here is content.
   //
   // How the spotlight works, in one paragraph: a full-screen dark + blur
-  // layer is clipped with an even-odd path (screen rectangle minus a hexagon),
-  // so the hex underneath shows through *sharp* while everything else is
-  // blurred. clip-path also removes the hole from hit-testing, so a separate
-  // transparent shield sits on top and swallows every click — the person can't
-  // accidentally trigger LIVE/OFFER (operator agreement!) mid-tour.
+  // layer is clipped with an even-odd path (screen rectangle minus the
+  // target's outline), so the target underneath shows through *sharp*
+  // while everything else is blurred. clip-path also removes the hole from
+  // hit-testing, so a separate transparent shield sits on top and swallows
+  // every click — the person can't accidentally trigger LIVE/OFFER
+  // (operator agreement!) or Delete mid-tour.
   //
-  // Where the hex is: HexMenu already tags every node `<g data-node-id=…>`
-  // (its own drag logic relies on that), so we just measure that element —
-  // HexMenu needs no changes and doesn't know this component exists.
+  // Where the target is: we just measure a DOM element, so the target
+  // components need no changes beyond a tag and don't know this exists.
+  //   - HexMenu tags every node `<g data-node-id=…>` (its own drag logic
+  //     relies on that) → spotlighted as a hexagon.
+  //   - anything else opts in with `data-onboarding="<id>"` → spotlighted
+  //     as a rounded rectangle.
+  //
+  // The overlay is moved to document.body (`portal`), like Location.svelte
+  // does: EntityDetails renders inside .globe-window (z-index 20), whose
+  // stacking context would otherwise keep the overlay underneath the corner
+  // buttons and the hex menu.
+
+  /** Which tour to play. */
+  export let steps: OnboardingStep[] = ONBOARDING_STEPS;
 
   const dispatch = createEventDispatcher();
 
-  const SPOT_PADDING = 5;   // px the highlight sits outside the hex
+  const SPOT_PADDING = 5;    // px the highlight sits outside a hex
+  const RECT_PADDING = 6;    // ... and outside a rectangular target
+  const RECT_RADIUS = 14;    // corner radius of that highlight (button radius + padding)
   const CARD_MAX_W = 380;
   const CARD_MAX_W_WELCOME = 460; // welcome cards are read, not glanced at
-  const CARD_GAP = 18;      // hex → card
-  const EDGE = 16;          // card → screen edge
+  const CARD_GAP = 18;       // target → card
+  const EDGE = 16;           // card → screen edge
 
   const reduceMotion =
     typeof window !== 'undefined' &&
@@ -39,32 +58,44 @@
   let cardEl: HTMLDivElement;
   let nextBtn: HTMLButtonElement;
 
-  let steps = ONBOARDING_STEPS;
+  /** Move the node to <body> so no ancestor's stacking context can cover it. */
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return { destroy() { node.remove(); } };
+  }
+
+  // The steps that can actually be shown (targets present) — filled in onMount.
+  let list: OnboardingStep[] = steps;
   let index = 0;
   let ready = false;
 
-  $: step = steps[index];
+  $: step = list[index];
   $: isWelcome = !!step && !step.target;
   $: isFirst = index === 0;
-  $: isLast = index === steps.length - 1;
+  $: isLast = index === list.length - 1;
 
   // ─── MEASURING ───
   // All coordinates are relative to this component's own root (not the
   // viewport), so safe-area offsets etc. never matter.
   let W = 0;
   let H = 0;
+  let shape: 'hex' | 'rect' = 'hex';
   let pointy = true; // hex orientation, read from the measured box
-  let target = { cx: 0, cy: 0, r: 0 }; // where the spotlight is going (drives card placement)
 
-  // Live spotlight. Tweened so hole, ring and card glide from hex to hex in
-  // sync — a CSS transition can't do that for a clip-path on every browser.
-  const spot = tweened(
-    { cx: 0, cy: 0, r: 0 },
+  type Spot = { cx: number; cy: number; w: number; h: number; rad: number };
+  let target: Spot = { cx: 0, cy: 0, w: 0, h: 0, rad: 0 }; // where the spotlight is going (drives card placement)
+
+  // Live spotlight. Tweened so hole, ring and card glide from target to
+  // target in sync — a CSS transition can't do that for a clip-path on
+  // every browser.
+  const spot = tweened<Spot>(
+    { cx: 0, cy: 0, w: 0, h: 0, rad: 0 },
     { duration: reduceMotion ? 0 : 380, easing: cubicOut }
   );
 
   function findNode(id: string): Element | null {
-    return document.querySelector(`[data-node-id="${CSS.escape(id)}"]`);
+    const v = CSS.escape(id);
+    return document.querySelector(`[data-node-id="${v}"], [data-onboarding="${v}"]`);
   }
 
   function measure(instant = false) {
@@ -74,30 +105,41 @@
     W = root.width;
     H = root.height;
 
-    // Welcome card: no hex. The spotlight collapses to a zero-size point in
-    // the screen center (the hole closes, the ring disappears), and the next
-    // spotlight step opens it again from there — one tween handles both.
+    // Welcome card: no target. The spotlight collapses to a zero-size point
+    // in the screen center (the hole closes, the ring disappears), and the
+    // next spotlight step opens it again from there — one tween handles both.
     if (!step.target) {
-      target = { cx: W / 2, cy: H / 2, r: 0 };
+      target = { cx: W / 2, cy: H / 2, w: 0, h: 0, rad: 0 };
       spot.set(target, instant || !ready ? { duration: 0 } : undefined);
       return;
     }
 
     const el = findNode(step.target);
     if (!el) return;
+
+    const isHex = el.hasAttribute('data-node-id');
+    // A target inside a scrolling panel (EntityDetails' .scroll) may sit
+    // below the fold. The shield keeps the person from scrolling during
+    // the tour, so bring it into view once here. No-op when already visible.
+    if (!isHex) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
     const b = el.getBoundingClientRect();
+    const cx = b.left - root.left + b.width / 2;
+    const cy = b.top - root.top + b.height / 2;
 
-    // Regular hexagon: pointy-top is taller than wide (h = 2R), flat-top
-    // wider than tall (w = 2R). Reading it from the box means this doesn't
-    // depend on how geometry.ts's hexPath() happens to be oriented.
-    pointy = b.width < b.height;
-    const r = (pointy ? b.height : b.width) / 2 + SPOT_PADDING;
-
-    target = {
-      cx: b.left - root.left + b.width / 2,
-      cy: b.top - root.top + b.height / 2,
-      r,
-    };
+    if (isHex) {
+      // Regular hexagon: pointy-top is taller than wide (h = 2R), flat-top
+      // wider than tall (w = 2R). Reading it from the box means this doesn't
+      // depend on how geometry.ts's hexPath() happens to be oriented.
+      shape = 'hex';
+      pointy = b.width < b.height;
+      const R = (pointy ? b.height : b.width) / 2 + SPOT_PADDING;
+      const S = Math.sqrt(3) * R;
+      target = { cx, cy, w: pointy ? S : 2 * R, h: pointy ? 2 * R : S, rad: 0 };
+    } else {
+      shape = 'rect';
+      target = { cx, cy, w: b.width + 2 * RECT_PADDING, h: b.height + 2 * RECT_PADDING, rad: RECT_RADIUS };
+    }
     spot.set(target, instant || !ready ? { duration: 0 } : undefined);
   }
 
@@ -105,25 +147,40 @@
   $: if (rootEl && step) measure();
 
   // ─── SHAPES (all derived from the tweened spot) ───
-  function hexPoints(cx: number, cy: number, r: number, isPointy: boolean): number[][] {
-    const out: number[][] = [];
-    for (let k = 0; k < 6; k++) {
-      const a = (Math.PI / 180) * (60 * k + (isPointy ? -90 : 0));
-      out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
-    }
-    return out;
+  const fmt = (n: number) => n.toFixed(1);
+
+  // Regular hexagon inscribed in a w×h box (pointy-top or flat-top).
+  function hexPath(cx: number, cy: number, w: number, h: number, isPointy: boolean): string {
+    const pts = isPointy
+      ? [[cx, cy - h / 2], [cx + w / 2, cy - h / 4], [cx + w / 2, cy + h / 4],
+         [cx, cy + h / 2], [cx - w / 2, cy + h / 4], [cx - w / 2, cy - h / 4]]
+      : [[cx + w / 2, cy], [cx + w / 4, cy + h / 2], [cx - w / 4, cy + h / 2],
+         [cx - w / 2, cy], [cx - w / 4, cy - h / 2], [cx + w / 4, cy - h / 2]];
+    return pts.map(([x, y], i) => `${i ? 'L' : 'M'}${fmt(x)} ${fmt(y)}`).join(' ') + ' Z';
   }
 
-  $: pts = hexPoints($spot.cx, $spot.cy, $spot.r, pointy);
-  $: ringPoints = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  $: holePath =
-    pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ') + ' Z';
-  // Screen rectangle + hexagon, even-odd → the hexagon is a hole.
-  $: clip = W && H ? `path(evenodd, "M0 0 H${W} V${H} H0 Z ${holePath}")` : 'none';
+  function roundedRectPath(cx: number, cy: number, w: number, h: number, rad: number): string {
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+    const r = Math.max(0, Math.min(rad, w / 2, h / 2));
+    return (
+      `M${fmt(x + r)} ${fmt(y)} H${fmt(x + w - r)} A${fmt(r)} ${fmt(r)} 0 0 1 ${fmt(x + w)} ${fmt(y + r)} ` +
+      `V${fmt(y + h - r)} A${fmt(r)} ${fmt(r)} 0 0 1 ${fmt(x + w - r)} ${fmt(y + h)} ` +
+      `H${fmt(x + r)} A${fmt(r)} ${fmt(r)} 0 0 1 ${fmt(x)} ${fmt(y + h - r)} ` +
+      `V${fmt(y + r)} A${fmt(r)} ${fmt(r)} 0 0 1 ${fmt(x + r)} ${fmt(y)} Z`
+    );
+  }
+
+  $: outline =
+    shape === 'rect'
+      ? roundedRectPath($spot.cx, $spot.cy, $spot.w, $spot.h, $spot.rad)
+      : hexPath($spot.cx, $spot.cy, $spot.w, $spot.h, pointy);
+  // Screen rectangle + outline, even-odd → the outline is a hole.
+  $: clip = W && H ? `path(evenodd, "M0 0 H${W} V${H} H0 Z ${outline}")` : 'none';
 
   // ─── CARD PLACEMENT ───
-  // Welcome card: centered. Spotlight step: below the hex if it fits, else
-  // above, else pinned inside the screen.
+  // Welcome card: centered. Spotlight step: below the target if it fits,
+  // else above, else pinned inside the screen.
   // Decided from `target` (not the tween) so it never flips mid-animation;
   // the card itself animates via a CSS transition on left/top.
   let cardH = 0;
@@ -131,8 +188,8 @@
 
   $: cardW = Math.min(isWelcome ? CARD_MAX_W_WELCOME : CARD_MAX_W, Math.max(0, W - 2 * EDGE));
   $: cardLeft = clamp(target.cx - cardW / 2, EDGE, Math.max(EDGE, W - cardW - EDGE));
-  $: belowTop = target.cy + target.r + CARD_GAP;
-  $: aboveTop = target.cy - target.r - CARD_GAP - cardH;
+  $: belowTop = target.cy + target.h / 2 + CARD_GAP;
+  $: aboveTop = target.cy - target.h / 2 - CARD_GAP - cardH;
   $: cardTop =
     isWelcome ? clamp((H - cardH) / 2, EDGE, Math.max(EDGE, H - cardH - EDGE))
     : belowTop + cardH <= H - EDGE ? belowTop
@@ -156,14 +213,23 @@
     focusPrimary();
   }
 
+  /** The person went through (or skipped) the tour. */
   function finish() {
-    dispatch('close');
+    dispatch('close', { completed: true });
   }
 
+  /** Nothing to show (no target found) — close without counting it as seen. */
+  function bail() {
+    dispatch('close', { completed: false });
+  }
+
+  // Capture phase + stopImmediatePropagation: while the tour is up, Escape
+  // must dismiss *only* the tour — EntityDetails' own window-level Escape
+  // handler would otherwise close the whole panel behind it.
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') { e.preventDefault(); finish(); return; }
-    if (e.key === 'ArrowRight') { e.preventDefault(); next(); return; }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); back(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); finish(); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); e.stopImmediatePropagation(); next(); return; }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopImmediatePropagation(); back(); return; }
 
     // Minimal focus trap: the corner buttons behind the overlay are still
     // tabbable, and Enter on one of them would act through the dim layer.
@@ -185,20 +251,24 @@
   const glowId = 'onb_glow_' + Math.random().toString(36).slice(2);
 
   onMount(async () => {
-    // Let HexMenu finish its first layout pass (it settles its scale in its
-    // own onMount / ResizeObserver) before measuring anything.
+    // Let the target finish its first layout pass (HexMenu settles its
+    // scale in its own onMount / ResizeObserver) before measuring anything.
     await tick();
     await new Promise<void>((res) => requestAnimationFrame(() => res()));
 
-    // Skip spotlight steps whose hex doesn't exist rather than spotlighting
-    // nothing. Welcome cards have no target and always stay.
-    steps = ONBOARDING_STEPS.filter((s) => {
+    // Skip spotlight steps whose target doesn't exist rather than
+    // spotlighting nothing. Welcome cards have no target and always stay.
+    list = steps.filter((s) => {
       if (!s.target) return true;
       const ok = !!findNode(s.target);
-      if (!ok) console.warn(`[onboarding] no hex with data-node-id="${s.target}" — step skipped`);
+      if (!ok) {
+        console.warn(
+          `[onboarding] no element with data-node-id / data-onboarding="${s.target}" — step skipped`
+        );
+      }
       return ok;
     });
-    if (!steps.length) { finish(); return; }
+    if (!list.length) { bail(); return; }
 
     await tick();
     measure(true);
@@ -206,8 +276,8 @@
     focusPrimary();
 
     // Window resize, orientation change, landscape↔portrait switch: the
-    // hexes move, so the spotlight has to follow. One frame of delay lets
-    // HexMenu's own ResizeObserver (registered earlier) re-layout first.
+    // targets move, so the spotlight has to follow. One frame of delay lets
+    // the target's own ResizeObserver (registered earlier) re-layout first.
     resizeObserver = new ResizeObserver(() => requestAnimationFrame(() => measure(true)));
     resizeObserver.observe(rootEl);
   });
@@ -217,11 +287,12 @@
   });
 </script>
 
-<svelte:window on:keydown={onKeydown} />
+<svelte:window on:keydown|capture={onKeydown} />
 
 <div
   class="onb"
   class:ready
+  use:portal
   bind:this={rootEl}
   role="dialog"
   aria-modal="true"
@@ -246,9 +317,9 @@
         </feMerge>
       </filter>
     </defs>
-    {#if $spot.r > 2}
-      <polygon
-        points={ringPoints}
+    {#if $spot.w > 4}
+      <path
+        d={outline}
         fill="none"
         stroke="url(#{gradId})"
         stroke-width="3"
@@ -256,7 +327,7 @@
         filter="url(#{glowId})"
       >
         <animate attributeName="stroke-opacity" values="0.65;1;0.65" dur="2.2s" repeatCount="indefinite" />
-      </polygon>
+      </path>
     {/if}
   </svg>
 
@@ -268,24 +339,30 @@
       bind:clientHeight={cardH}
       style="left:{cardLeft}px; top:{cardTop}px; width:{cardW}px;"
     >
+      <div class="scroll">
       {#key index}
         <div class="body" in:fly={{ y: 8, duration: reduceMotion ? 0 : 240 }}>
-          <div class="meta">
-            <span class="progress">{ONBOARDING_LABELS.progress(index + 1, steps.length)}</span>
-            <span class="dots" aria-hidden="true">
-              {#each steps as _, i}
-                <i class:active={i === index}></i>
-              {/each}
-            </span>
-          </div>
+          {#if list.length > 1}
+            <div class="meta">
+              <span class="progress">{ONBOARDING_LABELS.progress(index + 1, list.length)}</span>
+              <span class="dots" aria-hidden="true">
+                {#each list as _, i}
+                  <i class:active={i === index}></i>
+                {/each}
+              </span>
+            </div>
+          {/if}
 
           <h2 id="onb-title">{step.title}</h2>
           {#if step.comingSoon}
             <span class="chip">{ONBOARDING_LABELS.comingSoon}</span>
           {/if}
-          <p>{step.text}</p>
+          {#each step.text.split('\n\n') as para}
+            <p>{para}</p>
+          {/each}
         </div>
       {/key}
+      </div>
 
       <div class="footer">
         {#if !isLast}
@@ -298,7 +375,7 @@
             <button class="ghost" on:click={back}>{ONBOARDING_LABELS.back}</button>
           {/if}
           <button class="primary" bind:this={nextBtn} on:click={next}>
-            {isLast ? ONBOARDING_LABELS.done : (step.cta ?? ONBOARDING_LABELS.next)}
+            {step.cta ?? (isLast ? ONBOARDING_LABELS.done : ONBOARDING_LABELS.next)}
           </button>
         </div>
       </div>
@@ -308,7 +385,7 @@
 
 <style>
   .onb {
-    position: absolute;
+    position: fixed; /* lives in document.body (see `portal` in the script) */
     inset: 0;
     z-index: 2000; /* above the corner buttons (1000) and the globe-window (20) */
     overflow: hidden;
@@ -353,7 +430,8 @@
     position: absolute;
     box-sizing: border-box;
     max-height: calc(100% - 32px);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     padding: 20px 22px 18px;
     border-radius: 18px;
     background: rgba(17, 20, 32, 0.84);
@@ -364,6 +442,15 @@
     transition:
       left 0.38s cubic-bezier(0.22, 1, 0.36, 1),
       top 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Only the text scrolls (small landscape phones, long welcome cards);
+     the footer with the buttons stays pinned inside the card. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .meta {
@@ -409,6 +496,7 @@
     -webkit-text-fill-color: transparent;
     color: transparent;
     display: inline-block;
+    text-wrap: balance; /* long titles split evenly instead of leaving one word */
   }
 
   .chip {
@@ -429,7 +517,13 @@
     font-size: 15px;
     line-height: 1.5;
     color: rgba(255, 255, 255, 0.88);
-    white-space: pre-line; /* steps.ts text keeps its line/paragraph breaks */
+    white-space: pre-line; /* a single "\n" in steps.ts stays a line break */
+    text-wrap: pretty;     /* avoids one-word last lines where supported */
+  }
+
+  /* "\n\n" in steps.ts = paragraph break, spaced tighter than a blank line */
+  p + p {
+    margin-top: 0.75em;
   }
 
   /* Welcome cards: bigger type, more air */
@@ -451,6 +545,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    flex: 0 0 auto;
     margin-top: 18px;
   }
 
