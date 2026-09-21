@@ -28,7 +28,7 @@ export const ENTITY_VISITOR_STEPS: OnboardingStep[] = [
     title: 'SHARE',
     cta: 'Got it',
     text:
-      'Know someone who needs this, or who has this? Get a link that opens this exact post on the globe ' +
+      'Know someone who would love this? Get a link that opens this exact post on the globe ' +
       'and send it to the right human. No ads, no middleman, just people passing it on.',
   },
 ];
