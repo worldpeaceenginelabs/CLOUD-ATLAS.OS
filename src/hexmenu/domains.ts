@@ -361,6 +361,7 @@ const SOCIAL_TIME_CATEGORIES: CategoryOption[] = [
 // source, defined fresh from the transport-matching spec.
 const RIDE_CARGO_CATEGORIES: CategoryOption[] = [
   { id: 'person', name: 'Person' },
+  { id: 'food', name: 'Food' },
   { id: 'package', name: 'Package' },
   { id: 'animal', name: 'Animal' },
   { id: 'other', name: 'Other' },
