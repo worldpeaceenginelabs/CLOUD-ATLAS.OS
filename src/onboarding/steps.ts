@@ -45,13 +45,13 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     title: 'FREE YOUR CITY',
     text:
-      'Swarm Governance. Flip the script on any bad news!\n ' +
+      'Swarm Governance. Flip the script on any bad news!\n' +
       'Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure — or any everyday issue, whether local or global — and turn it into a public brainstorming.\n\n' +
       'Then you organize people around it: a petition, funding, ' +
       'or just enough people, same place, same time, with the right tools. From your street to the entire planet.\n\n' +
       'No committee. No NGO. No permission. Just people, intent, and lawful action.\n\n' +
       'Before, the city happened to you. Now you happen to the city.\n\n' +
-      'This works for entrepreneurs and builders too. Skip the guesswork: prototype through public brainstorms, with the people who will actually use it, and let their feedback shape it before you’ve built it. What survives this contact with reality beats what sounded good in a pitch deck. And once it’s ready, the same tools take it from prototype to the street.\n\n',
+      'PS: This works for entrepreneurs and builders too. Skip the guesswork: prototype through public brainstorms, with the people who will actually use it, and let their feedback shape it before you’ve built it. What survives this contact with reality beats what sounded good in a pitch deck. And once it’s ready, the same tools take it from prototype to the street.',
   },
   {
     title: 'UNDERSTAND YOUR WORLD',
@@ -79,7 +79,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     text:
       'Right now, right here. Need a ride, or driving anyway? Match with someone nearby in real time. ' +
       'Ridehailing is first — moving people, food, packages, pets, and more, all through one service. More live services will follow.\n\n' +
-      'Money, swap, share, free: you choose.  Zero fees. Free. Forever. Nobody takes a cut. Ever.',
+      'Money, swap, share, free: you choose. Zero commission. Zero fees. Free. Forever. Nobody takes a cut. Ever.',
   },
   {
     target: 'listings',
@@ -87,7 +87,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     text:
       'Offer what you have, find what you need. Rides, rooms, meals, tools, skills, socializing, volunteer projects: post it on the ' +
       'globe, or find the right human for the thing you want to do right now.\n\n' +
-      'Money, swap, share, free. You set the terms.  Zero fees. Free. Forever. Nobody takes a cut. Ever.',
+      'Money, swap, share, free. You set the terms. Zero commission. Zero fees. Free. Forever. Nobody takes a cut. Ever.',
   },
   {
     target: 'next',
