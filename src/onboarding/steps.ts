@@ -29,7 +29,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'FREE YOUR WORK',
     text:
       'Cloud Atlas OS is your new operating system.\n\n' +
-      'But: F*** the system. Just operate.' +
+      'But: F*** the system. Just operate.\n' +
       'Not: “Become an entrepreneur and learn the entire system first.”\n\n' +
       'Instead: you have a skill. You want to put it to work. Cloud Atlas OS gives you the infrastructure. ' +
       'You work. You earn. You handle your own taxes. Done.',
@@ -45,12 +45,13 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     title: 'FREE YOUR CITY',
     text:
-      'Swarm Governance. Flip the script on any bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure — or any everyday issue, whether local or global — and turn it into a public brainstorming.\n\n' +
+      'Swarm Governance. Flip the script on any bad news!\n ' +
+      'Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure — or any everyday issue, whether local or global — and turn it into a public brainstorming.\n\n' +
       'Then you organize people around it: a petition, funding, ' +
       'or just enough people, same place, same time, with the right tools. From your street to the entire planet.\n\n' +
-      'This works for entrepreneurs and builders too. Skip the guesswork: prototype through public brainstorms, with the people who will actually use it, and let their feedback shape it before you’ve built it. What survives this contact with reality beats what sounded good in a pitch deck. And once it’s ready, the same tools take it from prototype to the street.\n\n' +
       'No committee. No NGO. No permission. Just people, intent, and lawful action.\n\n' +
-      'Before, the city happened to you. Now you happen to the city.',
+      'Before, the city happened to you. Now you happen to the city.\n\n' +
+      'This works for entrepreneurs and builders too. Skip the guesswork: prototype through public brainstorms, with the people who will actually use it, and let their feedback shape it before you’ve built it. What survives this contact with reality beats what sounded good in a pitch deck. And once it’s ready, the same tools take it from prototype to the street.\n\n',
   },
   {
     title: 'UNDERSTAND YOUR WORLD',
