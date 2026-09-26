@@ -51,7 +51,8 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       'or just enough people, same place, same time, with the right tools. From your street to the entire planet.\n\n' +
       'No committee. No NGO. No permission. Just people, intent, and lawful action.\n\n' +
       'Before, the city happened to you. Now you happen to the city.\n\n' +
-      'PS: This works for entrepreneurs and builders too. Skip the guesswork: prototype through public brainstorms, with the people who will actually use it, and let their feedback shape it before you’ve built it. What survives this contact with reality beats what sounded good in a pitch deck. And once it’s ready, the same tools take it from prototype to the street.',
+      'PS: This works for entrepreneurs and builders as well. Skip the guesswork, Lean Startup style: prototype through public brainstorms, with the people who will actually use it, and let their feedback shape it before you’ve built it. What survives this contact with reality beats what sounded good in a pitch deck, and beats every assumption. And once it’s ready, the same tools take it from prototype to the street.\n\n' +
+      'That\'s the push toward a circular economy. Somewhere, someone decided "built to last" was bad for business, and that whole new devices or products with tiny iterations were good for business. Built to fail, or built to feel outdated — either way, it\'s profitable. That\'s the default everywhere else. But NOT here. Sometimes the brainstorm shows you nobody needs a tenth version of the same thing. Sometimes it means planning past launch day: what happens while it\'s in use, and what happens once it\'s done.',
   },
   {
     title: 'UNDERSTAND YOUR WORLD',
