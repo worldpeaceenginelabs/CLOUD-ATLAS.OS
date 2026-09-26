@@ -29,7 +29,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'FREE YOUR WORK',
     text:
       'Cloud Atlas OS is your new operating system.\n\n' +
-      'But: F*** the system. Just operate.\n' +
+      'But: F*** the system. Just operate.\n\n' +
       'Not: “Become an entrepreneur and learn the entire system first.”\n\n' +
       'Instead: you have a skill. You want to put it to work. Cloud Atlas OS gives you the infrastructure. ' +
       'You work. You earn. You handle your own taxes. Done.',
@@ -78,15 +78,16 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'LIVE',
     text:
       'Right now, right here. Need a ride, or driving anyway? Match with someone nearby in real time. ' +
-      'Money, swap, share, free: you choose. Zero commission. Ridehailing is first; more live services will follow.',
+      'Ridehailing is first — moving people, food, packages, pets, and more, all through one service. More live services will follow.\n\n' +
+      'Money, swap, share, free: you choose.  Zero fees. Free. Forever. Nobody takes a cut. Ever.',
   },
   {
     target: 'listings',
     title: 'LISTINGS',
     text:
       'Offer what you have, find what you need. Rides, rooms, meals, tools, skills, socializing, volunteer projects: post it on the ' +
-      'globe, or find the right human for the thing you want to do right now. Money, swap, share, free. ' +
-      'You set the terms. Zero commission.',
+      'globe, or find the right human for the thing you want to do right now.\n\n' +
+      'Money, swap, share, free. You set the terms.  Zero fees. Free. Forever. Nobody takes a cut. Ever.',
   },
   {
     target: 'next',
