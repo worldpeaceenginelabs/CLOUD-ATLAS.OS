@@ -44,8 +44,10 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     title: 'FREE YOUR CITY',
     text:
-      'You open the app. You see a problem. You brainstorm it. You organize people around it: a petition, funding, ' +
+      'Flip the script on any bad news! Take any flood, fire, drought, blackout, eviction, protest, injustice, crisis, or failure — or any everyday issue, whether local or global — and turn it into a public brainstorming.\n\n' +
+      'Then you organize people around it: a petition, funding, ' +
       'or just enough people, same place, same time, with the right tools. From your street to the entire planet.\n\n' +
+      'This works for entrepreneurs and builders too. Skip the guesswork: prototype through public brainstorms, with the people who will actually use it, and let their feedback shape it before you’ve built it. What survives this contact with reality beats what sounded good in a pitch deck. And once it’s ready, the same tools take it from prototype to the street.\n\n' +
       'No committee. No NGO. No permission. Just people, intent, and lawful action.\n\n' +
       'Before, the city happened to you. Now you happen to the city.',
   },
@@ -80,7 +82,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     target: 'listings',
     title: 'LISTINGS',
     text:
-      'Offer what you have, find what you need. Rides, rooms, meals, tools, skills, volunteer projects: post it on the ' +
+      'Offer what you have, find what you need. Rides, rooms, meals, tools, skills, socializing, volunteer projects: post it on the ' +
       'globe, or find the right human for the thing you want to do right now. Money, swap, share, free. ' +
       'You set the terms. Zero commission.',
   },
@@ -89,7 +91,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'NEXT',
     text:
       'One app, one flow, four missions to change how we work, govern, learn and live. ' +
-      'No committee, no NGO, no permission. Finish the first one to unlock the next.',
+      'Before, the world happened to you. Now you happen to the world. Finish the first one to unlock the next.',
   },
   {
     target: 'bbq',
