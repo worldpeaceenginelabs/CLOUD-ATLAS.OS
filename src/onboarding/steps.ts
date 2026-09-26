@@ -28,7 +28,8 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     title: 'FREE YOUR WORK',
     text:
-      'Cloud Atlas OS is your new operating system. But: F*** the system. Just operate.\n\n' +
+      'Cloud Atlas OS is your new operating system.\n\n' +
+      'But: F*** the system. Just operate.' +
       'Not: “Become an entrepreneur and learn the entire system first.”\n\n' +
       'Instead: you have a skill. You want to put it to work. Cloud Atlas OS gives you the infrastructure. ' +
       'You work. You earn. You handle your own taxes. Done.',
