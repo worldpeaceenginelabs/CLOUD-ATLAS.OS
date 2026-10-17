@@ -659,7 +659,7 @@
   }
 
   .card.welcome h2 {
-    font-size: 26px;
+    font-size: 20px;
   }
 
   .card.welcome p {
