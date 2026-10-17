@@ -55,6 +55,11 @@
   const RECT_RADIUS = 14;    // corner radius of that highlight (button radius + padding)
   const CARD_MAX_W = 380;
   const CARD_MAX_W_WELCOME = 460; // welcome cards are read, not glanced at
+  const CARD_MAX_W_FULLSCREEN = 640; // prologue: wide, type-driven, no card chrome
+  // .onb itself fades in over 0.35s (see CSS) — start the cascade only once
+  // that's done, or the first lines play out half-invisible underneath it.
+  const INTRO_START_DELAY = 380;
+  const INTRO_LINE_GAP = 2000; // each stat lands, sits, then the next begins
   const CARD_GAP = 18;       // target → card
   const EDGE = 16;           // card → screen edge
 
@@ -79,6 +84,8 @@
 
   $: step = list[index];
   $: isWelcome = !!step && !step.target;
+  $: isFullscreen = isWelcome && !!step.fullscreen;
+  $: introLines = isFullscreen ? step.text.split('\n\n') : [];
   $: isFirst = index === 0;
   $: isLast = index === list.length - 1;
 
@@ -194,7 +201,7 @@
   let cardH = 0;
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
-  $: cardW = Math.min(isWelcome ? CARD_MAX_W_WELCOME : CARD_MAX_W, Math.max(0, W - 2 * EDGE));
+  $: cardW = Math.min(isFullscreen ? CARD_MAX_W_FULLSCREEN : isWelcome ? CARD_MAX_W_WELCOME : CARD_MAX_W, Math.max(0, W - 2 * EDGE));
   $: cardLeft = clamp(target.cx - cardW / 2, EDGE, Math.max(EDGE, W - cardW - EDGE));
   $: belowTop = target.cy + target.h / 2 + CARD_GAP;
   $: aboveTop = target.cy - target.h / 2 - CARD_GAP - cardH;
@@ -290,7 +297,38 @@
     resizeObserver.observe(rootEl);
   });
 
+  let visibleIntroLines = 0;
+  let introTimers: ReturnType<typeof setTimeout>[] = [];
+
+  function clearIntroTimers() {
+    introTimers.forEach(clearTimeout);
+    introTimers = [];
+  }
+
+  function startIntroSequence() {
+    clearIntroTimers();
+    visibleIntroLines = 0;
+
+    if (!isFullscreen || reduceMotion) {
+      visibleIntroLines = introLines.length;
+      return;
+    }
+
+    introLines.forEach((_, i) => {
+      const timer = setTimeout(() => {
+        visibleIntroLines = i + 1;
+      }, INTRO_START_DELAY + INTRO_LINE_GAP * i);
+
+      introTimers.push(timer);
+    });
+  }
+
+  $: if (isFullscreen && ready) {
+    startIntroSequence();
+  }
+
   onDestroy(() => {
+    clearIntroTimers();
     if (resizeObserver) resizeObserver.disconnect();
   });
 </script>
@@ -343,32 +381,58 @@
     <div
       class="card"
       class:welcome={isWelcome}
+      class:fullscreen={isFullscreen}
       bind:this={cardEl}
       bind:clientHeight={cardH}
       style="left:{cardLeft}px; top:{cardTop}px; width:{cardW}px; text-align:{align};"
     >
       <div class="scroll">
       {#key index}
-        <div class="body" in:fly={{ y: 8, duration: reduceMotion ? 0 : 240 }}>
-          {#if list.length > 1}
-            <div class="meta">
-              <span class="progress">{ONBOARDING_LABELS.progress(index + 1, list.length)}</span>
-              <span class="dots" aria-hidden="true">
-                {#each list as _, i}
-                  <i class:active={i === index}></i>
-                {/each}
-              </span>
-            </div>
-          {/if}
+        {#if isFullscreen}
+          <div class="body intro">
+              {#each introLines.slice(0, visibleIntroLines) as line, i}
+                <p
+                  class="intro-line"
+                  in:fly={{
+                    y: 18,
+                    duration: reduceMotion ? 0 : 600
+                  }}
+                >{line}</p>
+              {/each}
+              {#if visibleIntroLines >= introLines.length}
+                <h2
+                  id="onb-title"
+                  class="intro-title"
+                  in:fly={{
+                    y: 18,
+                    duration: reduceMotion ? 0 : 700,
+                    delay: 350
+                  }}
+                >{step.title}</h2>
+              {/if}
+          </div>
+        {:else}
+          <div class="body" in:fly={{ y: 8, duration: reduceMotion ? 0 : 240 }}>
+            {#if list.length > 1}
+              <div class="meta">
+                <span class="progress">{ONBOARDING_LABELS.progress(index + 1, list.length)}</span>
+                <span class="dots" aria-hidden="true">
+                  {#each list as _, i}
+                    <i class:active={i === index}></i>
+                  {/each}
+                </span>
+              </div>
+            {/if}
 
-          <h2 id="onb-title">{step.title}</h2>
-          {#if step.comingSoon}
-            <span class="chip">{ONBOARDING_LABELS.comingSoon}</span>
-          {/if}
-          {#each step.text.split('\n\n') as para}
-            <p>{para}</p>
-          {/each}
-        </div>
+            <h2 id="onb-title">{step.title}</h2>
+            {#if step.comingSoon}
+              <span class="chip">{ONBOARDING_LABELS.comingSoon}</span>
+            {/if}
+            {#each step.text.split('\n\n') as para}
+              <p>{para}</p>
+            {/each}
+          </div>
+        {/if}
       {/key}
       </div>
 
@@ -532,6 +596,61 @@
   /* "\n\n" in steps.ts = paragraph break, spaced tighter than a blank line */
   p + p {
     margin-top: 0.75em;
+  }
+
+  /* Prologue: no card chrome, just type on the dim backdrop */
+  .card.fullscreen {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    padding: 28px 20px 22px;
+  }
+
+  .intro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    padding: 8px 0;
+  }
+
+  .intro-line {
+    margin: 0;
+    font-size: clamp(18px, 4.2vw, 26px);
+    line-height: 1.45;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: pre-line;
+  }
+
+  @media (max-width: 480px) {
+    .intro-line {
+      font-size: 0.55em;
+    }
+  }
+
+  /* "There is." — the line right before the payoff — lands harder */
+  .intro-line:last-of-type {
+    color: #fff;
+    font-weight: 700;
+    font-size: clamp(20px, 4.6vw, 28px);
+  }
+
+  .intro-title {
+    margin: 20px 0 0;
+    font-size: clamp(34px, 8vw, 54px);
+    line-height: 1.2;
+    text-align: center;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, #8fb0ff, #2ae9c9);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    text-wrap: balance;
   }
 
   /* Welcome cards: bigger type, more air */

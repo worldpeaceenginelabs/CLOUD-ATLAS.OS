@@ -21,9 +21,31 @@ export type OnboardingStep = {
   comingSoon?: boolean;
   /** Overrides the "Next" button label for this step only. */
   cta?: string;
+  /**
+   * Full-bleed cinematic slide instead of a card: `text`'s paragraphs
+   * reveal one at a time, then `title` lands last as the payoff line.
+   * Doesn't count toward "Step X of N" and never shows a spotlight.
+   * Only makes sense as the very first step (no `target`).
+   */
+  fullscreen?: boolean;
 };
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
+  // ─── Prologue (fullscreen, plays once before FREE YOUR WORK) ───
+  {
+    fullscreen: true,
+    cta: 'Let’s go',
+    title: 'Welcome to the World Peace Game.',
+    text:
+      'If you’re employed, your employer keeps most of what you earn.\n\n' +
+      'If you’re a freelancer, the gig economy takes 30%.\n\n' +
+      'Your country takes 50% of what remains.\n\n' +
+      'Your landlord takes 40% of what’s left.\n\n' +
+      'And the bank takes a cut from every transaction.\n\n' +
+      'What if there was a game where beating that system is the mission?\n\n' +
+      'There is.',
+  },
+
   // ─── Welcome cards ───
   {
     title: 'FREE YOUR WORK',
