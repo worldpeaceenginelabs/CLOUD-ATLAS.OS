@@ -151,7 +151,7 @@ function configureIon(options: CreateViewerOptions): void {
  * at app start.
  */
 const OSM_FADE_START_HEIGHT = 3_000_000; // above: Blue Marble only
-const OSM_FADE_END_HEIGHT = 1_500_000; // below: OSM only
+const OSM_FADE_END_HEIGHT = 80_000; // below: OSM only
 
 function configureImagery(viewer: Cesium.Viewer): void {
   const layers = viewer.imageryLayers;
@@ -184,9 +184,11 @@ function configureImagery(viewer: Cesium.Viewer): void {
 
   const updateOsmVisibility = () => {
     const height = viewer.camera.positionCartographic.height;
+    // Logarithmic interpolation: zooming is exponential, so the blend
+    // feels even across the whole range instead of front-loaded.
     const t = Cesium.Math.clamp(
-      (OSM_FADE_START_HEIGHT - height) /
-        (OSM_FADE_START_HEIGHT - OSM_FADE_END_HEIGHT),
+      Math.log(OSM_FADE_START_HEIGHT / height) /
+        Math.log(OSM_FADE_START_HEIGHT / OSM_FADE_END_HEIGHT),
       0,
       1
     );

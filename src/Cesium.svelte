@@ -30,4 +30,21 @@
     width: 100%;
     height: 100%;
   }
+
+  /* Cesium-ion-Logo ausblenden */
+  :global(.cesium-credit-logoContainer) {
+    display: none !important;
+  }
+
+  /* "Data attribution"-Link (öffnet die Lightbox) ausblenden */
+  :global(.cesium-credit-expand-link) {
+    display: none !important;
+  }
+
+  /* Credit-Leiste an den linken Bildschirmrand */
+  :global(.cesium-viewer-bottom) {
+    left: 0 !important;
+    right: auto !important;
+    text-align: left;
+  }
 </style>
