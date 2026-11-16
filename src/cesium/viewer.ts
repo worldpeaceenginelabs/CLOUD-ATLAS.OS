@@ -64,6 +64,9 @@ export function createViewer(
   const viewer = new Cesium.Viewer(container, {
     ...DEFAULT_VIEWER_OPTIONS,
     ...viewerOptions,
+
+    // Cesium-Ion-Basiskarte vollständig deaktivieren
+    baseLayer: false,
   });
 
   viewer.screenSpaceEventHandler.removeInputAction(
@@ -76,6 +79,8 @@ export function createViewer(
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(0, 0, 10000000),
   });
+
+  configureImagery(viewer);
 
   globeReadyPromise = new Promise((resolve) => {
     let loadingStarted = false;
@@ -136,6 +141,62 @@ function configureIon(options: CreateViewerOptions): void {
   if (token) {
     Cesium.Ion.defaultAccessToken = token;
   }
+}
+
+/**
+ * Imagery: NASA Blue Marble (offline, public/textures/blue-marble.jpg) from far away,
+ * OpenStreetMap once the camera gets close. OSM fades in between
+ * OSM_FADE_START_HEIGHT and OSM_FADE_END_HEIGHT (meters). While the
+ * layer is fully transparent it is hidden, so no OSM tiles are requested
+ * at app start.
+ */
+const OSM_FADE_START_HEIGHT = 3_000_000; // above: Blue Marble only
+const OSM_FADE_END_HEIGHT = 1_500_000; // below: OSM only
+
+function configureImagery(viewer: Cesium.Viewer): void {
+  const layers = viewer.imageryLayers;
+
+  // Base: NASA Blue Marble (offline, single world image in public/textures/)
+  layers.add(
+    Cesium.ImageryLayer.fromProviderAsync(
+      Cesium.SingleTileImageryProvider.fromUrl(
+        `${import.meta.env.BASE_URL}textures/blue-marble.jpg`,
+        {
+          credit: new Cesium.Credit(
+            '<a href="https://visibleearth.nasa.gov/" target="_blank" rel="noopener">NASA Visible Earth</a>',
+            true
+          ),
+        }
+      )
+    )
+  );
+
+  // Top: OpenStreetMap
+  const osmLayer = layers.addImageryProvider(
+    new Cesium.OpenStreetMapImageryProvider({
+      url: 'https://tile.openstreetmap.org/',
+      credit: new Cesium.Credit(
+        '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>',
+        true
+      ),
+    })
+  );
+
+  const updateOsmVisibility = () => {
+    const height = viewer.camera.positionCartographic.height;
+    const t = Cesium.Math.clamp(
+      (OSM_FADE_START_HEIGHT - height) /
+        (OSM_FADE_START_HEIGHT - OSM_FADE_END_HEIGHT),
+      0,
+      1
+    );
+    osmLayer.alpha = t;
+    osmLayer.show = t > 0;
+  };
+
+  viewer.camera.percentageChanged = 0.01;
+  viewer.camera.changed.addEventListener(updateOsmVisibility);
+  updateOsmVisibility();
 }
 
 function configureScene(viewer: Cesium.Viewer): void {
