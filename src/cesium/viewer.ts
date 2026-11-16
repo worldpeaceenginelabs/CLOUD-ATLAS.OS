@@ -153,6 +153,12 @@ function configureIon(options: CreateViewerOptions): void {
 const OSM_FADE_START_HEIGHT = 3_000_000; // above: Blue Marble only
 const OSM_FADE_END_HEIGHT = 80_000; // below: OSM only
 
+// Time constant (seconds) of the alpha smoothing. The OSM alpha eases
+// towards its height-based target instead of following it instantly, so
+// fast mouse-wheel zooms don't produce a visible jump. Smaller = more
+// direct, larger = softer but laggier. 0 disables smoothing.
+const OSM_FADE_SMOOTHING_SECONDS = 0.3;
+
 function configureImagery(viewer: Cesium.Viewer): void {
   const layers = viewer.imageryLayers;
 
@@ -182,23 +188,49 @@ function configureImagery(viewer: Cesium.Viewer): void {
     })
   );
 
-  const updateOsmVisibility = () => {
+  // Height-based target alpha. Logarithmic interpolation: zooming is
+  // exponential, so the blend feels even across the whole range instead
+  // of front-loaded.
+  const computeTargetAlpha = (): number => {
     const height = viewer.camera.positionCartographic.height;
-    // Logarithmic interpolation: zooming is exponential, so the blend
-    // feels even across the whole range instead of front-loaded.
-    const t = Cesium.Math.clamp(
+    return Cesium.Math.clamp(
       Math.log(OSM_FADE_START_HEIGHT / height) /
         Math.log(OSM_FADE_START_HEIGHT / OSM_FADE_END_HEIGHT),
       0,
       1
     );
-    osmLayer.alpha = t;
-    osmLayer.show = t > 0;
   };
 
-  viewer.camera.percentageChanged = 0.01;
-  viewer.camera.changed.addEventListener(updateOsmVisibility);
-  updateOsmVisibility();
+  const applyAlpha = (alpha: number) => {
+    osmLayer.alpha = alpha;
+    osmLayer.show = alpha > 0.001;
+  };
+
+  // Start without smoothing so the first frame is already correct.
+  let currentAlpha = computeTargetAlpha();
+  applyAlpha(currentAlpha);
+
+  // Ease the real alpha towards the target every frame (time-based, so
+  // it behaves the same at 60 and 120 Hz).
+  let lastTime = performance.now();
+  viewer.scene.preRender.addEventListener(() => {
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    const target = computeTargetAlpha();
+    if (currentAlpha === target) return;
+
+    if (OSM_FADE_SMOOTHING_SECONDS <= 0) {
+      currentAlpha = target;
+    } else {
+      currentAlpha +=
+        (target - currentAlpha) * (1 - Math.exp(-dt / OSM_FADE_SMOOTHING_SECONDS));
+      if (Math.abs(target - currentAlpha) < 0.001) currentAlpha = target;
+    }
+
+    applyAlpha(currentAlpha);
+  });
 }
 
 function configureScene(viewer: Cesium.Viewer): void {
