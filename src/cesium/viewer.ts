@@ -144,7 +144,7 @@ function configureIon(options: CreateViewerOptions): void {
 }
 
 /**
- * Imagery: NASA Blue Marble (offline, public/textures/blue-marble.jpg) from far away,
+ * Imagery: NASA Blue Marble (offline, public/textures/blue-marble-*.jpg) from far away,
  * OpenStreetMap once the camera gets close. OSM fades in between
  * OSM_FADE_START_HEIGHT and OSM_FADE_END_HEIGHT (meters). While the
  * layer is fully transparent it is hidden, so no OSM tiles are requested
@@ -159,22 +159,48 @@ const OSM_FADE_END_HEIGHT = 80_000; // below: OSM only
 // direct, larger = softer but laggier. 0 disables smoothing.
 const OSM_FADE_SMOOTHING_SECONDS = 0.3;
 
+// Blue Marble variants, largest first. A variant is only tried if the GPU's
+// maximum texture size can hold it; if loading fails (missing file, decode
+// error) the next smaller one is tried, so the globe never stays empty.
+const BLUE_MARBLE_VARIANTS = [
+  { width: 2048, file: 'blue-marble-2048.jpg' },
+  { width: 1024, file: 'blue-marble-1024.jpg' },
+];
+
+async function loadBlueMarbleProvider(): Promise<Cesium.SingleTileImageryProvider> {
+  const maxTextureSize = Cesium.ContextLimits?.maximumTextureSize ?? 2048;
+  const credit = new Cesium.Credit(
+    '<a href="https://visibleearth.nasa.gov/" target="_blank" rel="noopener">NASA Visible Earth</a>',
+    true
+  );
+
+  // Smallest variant is always allowed as a last resort.
+  const candidates = BLUE_MARBLE_VARIANTS.filter(
+    (v, i) => v.width <= maxTextureSize || i === BLUE_MARBLE_VARIANTS.length - 1
+  );
+
+  let lastError: unknown;
+  for (const { file } of candidates) {
+    try {
+      return await Cesium.SingleTileImageryProvider.fromUrl(
+        `${import.meta.env.BASE_URL}textures/${file}`,
+        { credit }
+      );
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 function configureImagery(viewer: Cesium.Viewer): void {
   const layers = viewer.imageryLayers;
 
-  // Base: NASA Blue Marble (offline, single world image in public/textures/)
+  // Base: NASA Blue Marble (offline, public/textures/). Added at index 0
+  // so it always stays below OSM, even though it resolves asynchronously.
   layers.add(
-    Cesium.ImageryLayer.fromProviderAsync(
-      Cesium.SingleTileImageryProvider.fromUrl(
-        `${import.meta.env.BASE_URL}textures/blue-marble.jpg`,
-        {
-          credit: new Cesium.Credit(
-            '<a href="https://visibleearth.nasa.gov/" target="_blank" rel="noopener">NASA Visible Earth</a>',
-            true
-          ),
-        }
-      )
-    )
+    Cesium.ImageryLayer.fromProviderAsync(loadBlueMarbleProvider()),
+    0
   );
 
   // Top: OpenStreetMap
