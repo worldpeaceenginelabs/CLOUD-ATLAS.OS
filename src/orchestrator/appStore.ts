@@ -58,6 +58,8 @@ export interface ListingRecord {
   dTag: string;
   domain: string;
   model: string;
+  /** Unix seconds. The event's `created_at` — seeds the stale-event guard from the local cache after a reload. */
+  createdAt: number;
   expiresAt: number;
   location: { latitude: number; longitude: number } | null;
   /** Parsed detail content as published (title, category, description, contact, interactionMode, ...). */
@@ -92,6 +94,8 @@ export interface MissionRecord {
   author: string;
   dTag: string;
   location: MissionLocation;
+  /** Unix seconds. The event's `created_at` — seeds the stale-event guard from the local cache after a reload. */
+  createdAt: number;
   /** Unix seconds. From the event's NIP-40 `expiration` tag. Required: events without a valid tag (or one beyond MISSION_TTL_DAYS from now) are discarded on receipt. */
   expiresAt: number;
   content: {

@@ -64,6 +64,7 @@
   import Location from '../hexmenu/Location.svelte';
   import Marketing from '../shared/Marketing.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
+  import { formatExpiry } from '../shared/formatExpiry';
   import Onboarding from '../onboarding/Onboarding.svelte';
   import { ENTITY_OWNER_STEPS, ENTITY_VISITOR_STEPS } from '../onboarding/entitySteps';
   import type { OnboardingStep } from '../onboarding/steps';
@@ -385,10 +386,6 @@
     return `Area · ${loc.west.toFixed(2)}, ${loc.south.toFixed(2)} → ${loc.east.toFixed(2)}, ${loc.north.toFixed(2)}`;
   }
 
-  function formatTimestamp(unixSecs: number): string {
-    return new Date(unixSecs * 1000).toLocaleString();
-  }
-
 </script>
 
 <svelte:window on:keydown={onKeydown} />
@@ -504,12 +501,10 @@
           <div class="model">{record.model.replace(/_/g, ' ')}</div>
         {/if}
 
-        {#if record.kind === 'listing'}
-          <div class="field">
-            <span class="label">Expires</span>
-            <span class="value">{formatTimestamp(record.expiresAt)}</span>
-          </div>
-        {/if}
+        <div class="field">
+          <span class="label">Expires</span>
+          <span class="value">{formatExpiry(record.expiresAt)}</span>
+        </div>
 
         {#if categoryOf(record)}
           <div class="field">

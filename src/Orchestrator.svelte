@@ -114,11 +114,17 @@
   const LISTING_SEARCH_PRECISION_INITIAL = 5;
   const LISTING_QUERY_TIMEOUT_MS = 15_000;
 
-  /** Mission discovery is global/unbounded (no geohash, no limit — see the mission spec §11) and just re-runs on this interval; no scheduler needed for something this simple. */
-  const MISSION_DISCOVERY_INTERVAL_MS = 30 * 60 * 1000;
   /** A mission stays visible this long after its last publish; editing/saving it republishes and renews the clock. */
   const MISSION_TTL_DAYS = 30;
   const MISSION_QUERY_TIMEOUT_MS = 20_000;
+
+  /** Mission sync pages are requested newest-first and walk backwards through `until`. A relay may answer with fewer events than this (its own cap) — the sync keeps going until a page brings nothing new. */
+  const MISSION_SYNC_PAGE_LIMIT = 500;
+  /** Resuming from the stored cursor re-reads this much history, to absorb relay clock skew and late propagation. */
+  const MISSION_SYNC_OVERLAP_SECS = 3600;
+  /** Delay before an incomplete sync run (no relay answered) is tried again. */
+  const MISSION_SYNC_RETRY_MS = 30_000;
+  const MISSION_SYNC_CURSOR_KEY = 'cloudatlas.missionSyncCursor';
 
   // ═══════════════════════════════════════════════════════════════════
   // Entry point (§1) — plain prop, no exported imperative methods
@@ -318,7 +324,7 @@
 
   interface ListingSearchState {
     model: string;
-    categoryFilter: string[] | null;
+    categoryFilter: string[];
     geohash5: string;
     geohash4: string;
     precision: 5 | 4;
@@ -329,10 +335,17 @@
 
   // ─── Background tombstone watcher (§4) — runs for the component's whole lifetime ──
 
-  let tombstoneSub: SubscriptionHandle | null = null;
-  let tombstoneCursor = Math.floor(Date.now() / 1000);
+  // One watcher per kind: a listing tombstone only has to be found for as long
+  // as a listing can live (ABSOLUTE_MAX_VALIDITY_DAYS), a mission tombstone for
+  // as long as a mission can (MISSION_TTL_DAYS) — see tombstoneExpirationTag().
+  let listingTombstoneSub: SubscriptionHandle | null = null;
+  let missionTombstoneSub: SubscriptionHandle | null = null;
 
-  let missionDiscoveryTimer: ReturnType<typeof setInterval> | undefined;
+  // ─── Mission sync — paginated catch-up plus a standing live subscription ──
+
+  let missionLiveSub: SubscriptionHandle | null = null;
+  let missionSyncRetryTimer: ReturnType<typeof setTimeout> | undefined;
+  let destroyed = false;
 
   // ─── Generic event processing — kind-agnostic dispatch (persist → store) ──
   //
@@ -376,6 +389,47 @@
     return expiresAt;
   }
 
+  /**
+   * Newest version seen per logical id (`${author}:${dTag}`), for listings and
+   * missions alike. Relays can hand back an older version of a replaceable
+   * event after a newer one (a lagging relay in a query result, the order
+   * inside one result, a replay after reconnect) — without this check the
+   * older version would overwrite the newer one in the store *and* in
+   * IndexedDB, and a deleted entity could reappear. Also covers a tombstone
+   * arriving before a stale copy of the entity it deleted.
+   *
+   * `created_at` has one-second resolution, so a tie is decided explicitly:
+   * a tombstone beats a live version of the same second.
+   *
+   * Kept independent of the store on purpose: a new listing search empties
+   * the store, but must not make the guard forget a tombstone. Seeded from
+   * the local cache at startup (see onMount).
+   */
+  const latestEventAt = new Map<string, { at: number; deleted: boolean }>();
+
+  function isStaleEvent(id: string, event: NostrEvent, deleted: boolean): boolean {
+    const seen = latestEventAt.get(id);
+
+    if (seen) {
+      if (event.created_at < seen.at) return true;
+      if (event.created_at === seen.at && seen.deleted && !deleted) return true;
+    }
+
+    latestEventAt.set(id, { at: event.created_at, deleted });
+    return false;
+  }
+
+  /** Lower bound for the `created_at` of our next event for this id: strictly newer than the newest version we know, so edit/delete in the same second stay ordered on every relay. */
+  function nextCreatedAt(id: string): number | undefined {
+    const seen = latestEventAt.get(id);
+    return seen ? seen.at + 1 : undefined;
+  }
+
+  /** A tombstone only has to outlive the longest-lived copy of the entity it retires. */
+  function tombstoneExpirationTag(lifetimeDays: number): string[] {
+    return ['expiration', String(Math.floor(Date.now() / 1000) + lifetimeDays * 86400)];
+  }
+
   async function processEvent(
     event: NostrEvent,
     opts: ProcessEventOptions = { persist: true },
@@ -406,7 +460,12 @@
     }
 
     const dTag = id.slice(id.indexOf(':') + 1);
-    const marker = client.publishDeletionMarker(dTag, [], LISTING_KIND);
+    const marker = client.publishDeletionMarker(
+      dTag,
+      [tombstoneExpirationTag(ABSOLUTE_MAX_VALIDITY_DAYS)],
+      LISTING_KIND,
+      nextCreatedAt(id),
+    );
 
     const own = await client.query(
       { kinds: [LISTING_KIND], ids: [marker.id] },
@@ -428,7 +487,12 @@
     }
 
     const dTag = id.slice(id.indexOf(':') + 1);
-    const marker = client.publishDeletionMarker(dTag, [], MISSION_KIND);
+    const marker = client.publishDeletionMarker(
+      dTag,
+      [tombstoneExpirationTag(MISSION_TTL_DAYS)],
+      MISSION_KIND,
+      nextCreatedAt(id),
+    );
 
     const own = await client.query(
       { kinds: [MISSION_KIND], ids: [marker.id] },
@@ -1257,6 +1321,13 @@
   ) {
     if (!client) return;
 
+    const categoryIds = categoryIdsOf(content);
+
+    if (categoryIds.length === 0) {
+      setError('A category is required.');
+      return;
+    }
+
     const now = Math.floor(Date.now() / 1000);
 
     let expiresAt: number;
@@ -1323,6 +1394,10 @@
       ['expiration', String(expiresAt)],
       ...anypay.map((id) => ['anypay', id]),
     ];
+
+    // Category tags let the relay filter a search down to the chosen
+    // categories; the category itself stays part of the JSON content.
+    tags.push(...categoryIds.map((id) => ['c', id]));
 
     if (shouldTag && location) {
       const g5 = encode(
@@ -1396,48 +1471,39 @@
     endWorkflow();
   }
 
-  function normalizeCategoryFilter(
-    content: Record<string, any>,
-  ): string[] | null {
-    if (
-      Array.isArray(content.categoryIds) &&
-      content.categoryIds.length
-    ) {
-      return content.categoryIds;
+  /** The category ids a listing/search payload carries — `categoryIds` (multi-select models) or the single `categoryId`. Empty if it carries none. */
+  function categoryIdsOf(content: Record<string, any>): string[] {
+    if (Array.isArray(content.categoryIds) && content.categoryIds.length) {
+      return content.categoryIds.filter(
+        (id: unknown): id is string => typeof id === 'string' && id.length > 0,
+      );
     }
 
-    if (
-      typeof content.categoryId === 'string' &&
-      content.categoryId
-    ) {
+    if (typeof content.categoryId === 'string' && content.categoryId) {
       return [content.categoryId];
     }
 
-    return null;
+    return [];
   }
 
-  function eventMatchesCategory(
-    event: NostrEvent,
-    wanted: string[],
-  ): boolean {
-    try {
-      const content = JSON.parse(event.content);
-
-      const ids: string[] = content.categoryId
-        ? [content.categoryId]
-        : content.categoryIds ?? [];
-
-      return ids.some((id: string) =>
-        wanted.includes(id),
-      );
-    } catch {
-      return false;
-    }
+  /** The relay-side filter of a listing search: model, geohash cell and chosen categories. The same filter drives the one-shot query and the live subscription. */
+  function listingSearchFilter(
+    model: string,
+    geohash: string,
+    categoryIds: string[],
+  ): NostrFilter {
+    return buildFilter({
+      kinds: [LISTING_KIND],
+      tags: {
+        t: [`listing-${model}`],
+        g: [geohash],
+        c: categoryIds,
+      },
+    });
   }
 
   async function runListingQuery(
     filter: NostrFilter,
-    categoryFilter: string[] | null,
   ): Promise<Map<string, ListingRecord | null>> {
     const buffer =
       new Map<string, ListingRecord | null>();
@@ -1453,16 +1519,6 @@
     );
 
     for (const event of result.events) {
-      if (
-        categoryFilter &&
-        !eventMatchesCategory(
-          event,
-          categoryFilter,
-        )
-      ) {
-        continue;
-      }
-
       await processEvent(event, {
         persist: true,
         buffer,
@@ -1485,8 +1541,22 @@
         content.location as LocationValue | undefined,
       );
 
-    const categoryFilter =
-      normalizeCategoryFilter(content);
+    if (!location) {
+      setError('Listing search requires a location.');
+      return;
+    }
+
+    const categoryFilter = categoryIdsOf(content);
+
+    if (categoryFilter.length === 0) {
+      setError('A category is required.');
+      return;
+    }
+
+    // The previous search's live subscription belongs to the previous
+    // category/cell — it must not keep feeding the store.
+    listingSearch?.liveSub?.close();
+    listingSearch = null;
 
     appStore.update((s) => ({
       ...s,
@@ -1494,64 +1564,23 @@
       listingSearch: null,
     }));
 
-    if (!location) {
-      const nextSearch: ListingSearchState = {
-        model,
-        categoryFilter,
-        geohash5: '',
-        geohash4: '',
-        precision: 5,
-      };
-
-      const buffer = await runListingQuery(
-        buildFilter({
-          kinds: [LISTING_KIND],
-          tags: {
-            t: [`listing-${model}`],
-          },
-        }),
-        categoryFilter,
-      );
-
-      if (activeWorkflowToken !== token) return;
-
-      flushListingBuffer(buffer);
-
-      listingSearch = nextSearch;
-
-      endWorkflow();
-      return;
-    }
-
     const geohash5 = encode(
       location.latitude,
       location.longitude,
       LISTING_SEARCH_PRECISION_INITIAL,
     );
 
-    const geohash4 = geohash5.slice(0, 4);
-
     const nextSearch: ListingSearchState = {
       model,
       categoryFilter,
       geohash5,
-      geohash4,
+      geohash4: geohash5.slice(0, 4),
       precision: 5,
     };
 
-    const filter = buildFilter({
-      kinds: [LISTING_KIND],
-      tags: {
-        t: [`listing-${model}`],
-        g: [geohash5],
-      },
-    });
+    const filter = listingSearchFilter(model, geohash5, categoryFilter);
 
-    const buffer =
-      await runListingQuery(
-        filter,
-        categoryFilter,
-      );
+    const buffer = await runListingQuery(filter);
 
     if (activeWorkflowToken !== token) return;
 
@@ -1575,7 +1604,7 @@
     endWorkflow({
       listingSearch: {
         model: nextSearch.model,
-        canLoadMore: !!nextSearch.geohash4,
+        canLoadMore: true,
       },
     });
   }
@@ -1594,8 +1623,7 @@
       !client ||
       activeWorkflowToken ||
       !listingSearch ||
-      listingSearch.precision !== 5 ||
-      !listingSearch.geohash4
+      listingSearch.precision !== 5
     ) {
       return;
     }
@@ -1607,19 +1635,13 @@
       precision: 4,
     };
 
-    const filter = buildFilter({
-      kinds: [LISTING_KIND],
-      tags: {
-        t: [`listing-${scope.model}`],
-        g: [scope.geohash4],
-      },
-    });
+    const filter = listingSearchFilter(
+      scope.model,
+      scope.geohash4,
+      scope.categoryFilter,
+    );
 
-    const buffer =
-      await runListingQuery(
-        filter,
-        scope.categoryFilter,
-      );
+    const buffer = await runListingQuery(filter);
 
     // Abort happened while the bounded query was in flight.
     // Do not flush anything and do not modify the existing search scope.
@@ -1675,6 +1697,8 @@
       const id =
         `${target.author}:${target.dTag}`;
 
+      if (isStaleEvent(id, event, true)) return;
+
       listingExpiryTracker.clear(id);
 
       if (opts.persist) {
@@ -1695,6 +1719,11 @@
 
     const id =
       `${event.pubkey}:${dTag}`;
+
+    if (isStaleEvent(id, event, false)) return;
+
+    // This exact version is already in the store: nothing to persist or update.
+    if (get(appStore).listings[id]?.eventId === event.id) return;
 
     const expiresAt =
       acceptableExpiration(
@@ -1745,6 +1774,7 @@
         event.tags.find(
           (t) => t[0] === 'model',
         )?.[1] ?? '',
+      createdAt: event.created_at,
       expiresAt,
       location:
         extractStartCoordinate(
@@ -1840,30 +1870,36 @@
     });
   }
 
-  function startTombstoneWatcher() {
+  function startTombstoneWatchers() {
     if (!client) return;
 
-    tombstoneSub = client.subscribe(
-      'tombstones',
+    const now = Math.floor(Date.now() / 1000);
+
+    // Tombstones carry an expiration (see tombstoneExpirationTag), so a
+    // tombstone that matters is never older than the entity's maximum
+    // lifetime. `since` stays fixed: on a relay reconnect the stored
+    // subscription is replayed with it and delivers whatever was missed.
+    listingTombstoneSub = client.subscribe(
+      'tombstones-listing',
       buildFilter({
-        kinds: [
-          LISTING_KIND,
-          MISSION_KIND,
-        ],
-        tags: {
-          t: [DELETION_TAG_VALUE],
-        },
-        since: tombstoneCursor,
+        kinds: [LISTING_KIND],
+        tags: { t: [DELETION_TAG_VALUE] },
+        since: now - ABSOLUTE_MAX_VALIDITY_DAYS * 86400,
       }),
       (event) => {
-        tombstoneCursor = Math.max(
-          tombstoneCursor,
-          event.created_at,
-        );
+        processEvent(event, { persist: true });
+      },
+    );
 
-        processEvent(event, {
-          persist: true,
-        });
+    missionTombstoneSub = client.subscribe(
+      'tombstones-mission',
+      buildFilter({
+        kinds: [MISSION_KIND],
+        tags: { t: [DELETION_TAG_VALUE] },
+        since: now - MISSION_TTL_DAYS * 86400,
+      }),
+      (event) => {
+        processEvent(event, { persist: true });
       },
     );
   }
@@ -1932,6 +1968,7 @@
         kind: MISSION_KIND,
         tags,
         content,
+        minCreatedAt: nextCreatedAt(`${client.pubkey}:${dTag}`),
         verifyFilter: {
           kinds: [MISSION_KIND],
           authors: [client.pubkey],
@@ -1974,29 +2011,9 @@
   }
 
   /**
-   * Newest `created_at` seen per mission id. Relays can hand back an older
-   * version of a replaceable event after a newer one (a lagging relay in a
-   * query result, the 30-minute discovery re-fetch) — without this check
-   * the older version would overwrite the freshly edited one in the store
-   * *and* in IndexedDB. Also covers a tombstone arriving before a stale copy
-   * of the mission it deleted. In-memory only: after a reload the first
-   * event seen per mission seeds it again.
-   */
-  const latestMissionEventAt = new Map<string, number>();
-
-  function isStaleMissionEvent(id: string, event: NostrEvent): boolean {
-    const seen = latestMissionEventAt.get(id);
-
-    if (seen !== undefined && event.created_at < seen) return true;
-
-    latestMissionEventAt.set(id, event.created_at);
-    return false;
-  }
-
-  /**
    * The single receive-path pipeline for every mission-kind event,
-   * regardless of source (discovery poll, our own just-published mission
-   * fetched back, or the tombstone watcher). Only ever called from
+   * regardless of source (mission sync, the live subscription, our own
+   * just-published mission fetched back, or the tombstone watcher). Only ever called from
    * processEvent() — the `MISSION_KIND` case of its switch — never
    * directly. Same persist → store contract as processListingEvent():
    * persistence is always awaited to completion before the store is
@@ -2017,7 +2034,7 @@
       const id =
         `${target.author}:${target.dTag}`;
 
-      if (isStaleMissionEvent(id, event)) return;
+      if (isStaleEvent(id, event, true)) return;
 
       missionExpiryTracker.clear(id);
 
@@ -2036,7 +2053,10 @@
     const id =
       `${event.pubkey}:${dTag}`;
 
-    if (isStaleMissionEvent(id, event)) return;
+    if (isStaleEvent(id, event, false)) return;
+
+    // This exact version is already in the store: nothing to persist or update.
+    if (get(appStore).missions[id]?.eventId === event.id) return;
 
     // Must come after the stale check: an old, already-expired version
     // handed back by a lagging relay must not remove a freshly renewed one.
@@ -2088,6 +2108,7 @@
       author: event.pubkey,
       dTag,
       location,
+      createdAt: event.created_at,
       expiresAt,
       content: {
         title:
@@ -2160,20 +2181,121 @@
     });
   }
 
-  async function discoverMissions() {
+  function readMissionSyncCursor(): number | null {
+    try {
+      const raw = localStorage.getItem(MISSION_SYNC_CURSOR_KEY);
+      return raw && /^\d+$/.test(raw) ? Number(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeMissionSyncCursor(unixSecs: number) {
+    try {
+      localStorage.setItem(MISSION_SYNC_CURSOR_KEY, String(unixSecs));
+    } catch {}
+  }
+
+  /**
+   * Pulls every mission published since `since`, newest first, page by
+   * page: each page asks for the events up to `until` (the oldest
+   * `created_at` of the previous page) and the walk ends when a page brings
+   * no event that hasn't been seen already. That end condition does not
+   * depend on how many events a relay is willing to return per request, so a
+   * relay-side cap can never silently cut the result short.
+   *
+   * Returns false if no relay answered, so the caller doesn't treat the run
+   * as complete.
+   */
+  async function syncMissions(since: number): Promise<boolean> {
+    if (!client) return false;
+
+    const collected = new Set<string>();
+    let until: number | undefined;
+
+    for (;;) {
+      const result = await client.query(
+        buildFilter({
+          kinds: [MISSION_KIND],
+          tags: { t: ['mission'] },
+          since,
+          until,
+          limit: MISSION_SYNC_PAGE_LIMIT,
+        }),
+        {
+          timeoutMs: MISSION_QUERY_TIMEOUT_MS,
+          retries: 1,
+        },
+      );
+
+      if (result.status === 'failed') return false;
+
+      const fresh = result.events.filter((e) => !collected.has(e.id));
+
+      if (fresh.length === 0) return true;
+
+      for (const event of fresh) {
+        collected.add(event.id);
+        await processEvent(event, { persist: true });
+      }
+
+      until = result.events.reduce(
+        (oldest, e) => Math.min(oldest, e.created_at),
+        Infinity,
+      );
+    }
+  }
+
+  /**
+   * One sync run: first start → everything of the last MISSION_TTL_DAYS;
+   * later starts → only what is new since the stored cursor (minus a safety
+   * overlap). The cursor only advances after a run that reached the relays.
+   */
+  async function runMissionSync() {
+    if (!client || destroyed) return;
+
+    const startedAt = Math.floor(Date.now() / 1000);
+    const windowStart = startedAt - MISSION_TTL_DAYS * 86400;
+    const cursor = readMissionSyncCursor();
+
+    const since =
+      cursor === null
+        ? windowStart
+        : Math.max(windowStart, cursor - MISSION_SYNC_OVERLAP_SECS);
+
+    const complete = await syncMissions(since);
+
+    if (destroyed) return;
+
+    if (complete) {
+      writeMissionSyncCursor(startedAt);
+    } else {
+      missionSyncRetryTimer = setTimeout(runMissionSync, MISSION_SYNC_RETRY_MS);
+    }
+  }
+
+  /**
+   * The live subscription goes up *before* the catch-up starts, so nothing
+   * published while the sync runs can slip through. Its `since` stays fixed:
+   * after a relay reconnect the client replays the subscription and the
+   * relay delivers everything missed in between — no polling needed.
+   */
+  function startMissionSync() {
     if (!client) return;
 
-    const result = await client.query(
-      { kinds: [MISSION_KIND] },
-      {
-        timeoutMs: MISSION_QUERY_TIMEOUT_MS,
-        retries: 1,
+    missionLiveSub = client.subscribe(
+      'missions-live',
+      buildFilter({
+        kinds: [MISSION_KIND],
+        tags: { t: ['mission'] },
+        since: Math.floor(Date.now() / 1000),
+      }),
+      (event) => {
+        processEvent(event, { persist: true });
       },
     );
 
-    for (const event of result.events) {
-      await processEvent(event, { persist: true });
-    }
+    runMissionSync();
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2222,12 +2344,22 @@
       Record<string, ListingRecord> = {};
 
     for (const record of cached) {
-      if (record.expiresAt <= now) {
+      // `createdAt` and `expiresAt` are required: a cached listing without
+      // them (or already expired) is dropped from the cache and the store.
+      if (
+        typeof record.createdAt !== 'number' ||
+        record.expiresAt <= now
+      ) {
         deleteListingPersisted(
           record.id,
         ).catch(() => {});
         continue;
       }
+
+      latestEventAt.set(record.id, {
+        at: record.createdAt,
+        deleted: false,
+      });
 
       hydrated[record.id] = record;
 
@@ -2269,9 +2401,10 @@
         Record<string, MissionRecord> = {};
 
       for (const mission of cachedMissions) {
-        // `expiresAt` is required: a cached mission without it (or
-        // already expired) is dropped from cache and store.
+        // `createdAt` and `expiresAt` are required: a cached mission
+        // without them (or already expired) is dropped from cache and store.
         if (
+          typeof mission.createdAt !== 'number' ||
           typeof mission.expiresAt !== 'number' ||
           mission.expiresAt <= now
         ) {
@@ -2280,6 +2413,11 @@
           ).catch(() => {});
           continue;
         }
+
+        latestEventAt.set(mission.id, {
+          at: mission.createdAt,
+          deleted: false,
+        });
 
         missionExpiryTracker.set(
           mission.id,
@@ -2311,15 +2449,9 @@
       }));
     }
 
-    discoverMissions();
+    startMissionSync();
 
-    missionDiscoveryTimer =
-      setInterval(
-        discoverMissions,
-        MISSION_DISCOVERY_INTERVAL_MS,
-      );
-
-    startTombstoneWatcher();
+    startTombstoneWatchers();
   });
 
   onDestroy(() => {
@@ -2327,17 +2459,21 @@
 
     listingSearch?.liveSub?.close();
 
-    tombstoneSub?.close();
+    listingTombstoneSub?.close();
+
+    missionTombstoneSub?.close();
+
+    missionLiveSub?.close();
+
+    destroyed = true;
+
+    if (missionSyncRetryTimer) {
+      clearTimeout(missionSyncRetryTimer);
+    }
 
     listingExpiryTracker.clearAll();
 
     missionExpiryTracker.clearAll();
-
-    if (missionDiscoveryTimer) {
-      clearInterval(
-        missionDiscoveryTimer,
-      );
-    }
 
     client?.disconnect();
   });

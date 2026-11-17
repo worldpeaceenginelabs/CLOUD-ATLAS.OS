@@ -144,6 +144,8 @@ import {
   
   interface StoredSubscription {
     id: string;
+    /** Event ids this subscription already delivered. Deduplication is per subscription: a later query must still receive events an earlier query or subscription has already seen. */
+    seenEventIds: Set<string>;
     filter: NostrFilter;
     onEvent: (event: NostrEvent) => void;
     onEose?: () => void;
@@ -193,6 +195,8 @@ import {
     content: string;
     /** Overrides the client's default replaceable kind for this call. */
     kind?: number;
+    /** Lower bound for `created_at` (unix seconds). Callers pass the newest version they know of plus one, so a follow-up event (edit, tombstone) is strictly newer than its predecessor even within the same second. */
+    minCreatedAt?: number;
   }
   
   export interface PublishWithVerifyOptions extends ReplaceableEventInput {
@@ -398,7 +402,7 @@ import {
      * generic infrastructure for late-relay replay, not a persistence layer.
      */
     private publishReplayBuffer = new Map<string, string>(); // cacheKey -> signed ["EVENT", ...] JSON
-    private seenEventIds = new Set<string>(); // cross-relay dedup
+    private verifiedEventIds = new Set<string>(); // signature already checked (avoids re-verifying the same event per subscription)
     private conversationKeys = new Map<string, Uint8Array>(); // peer pubkey -> NIP-44 key
     private reconnectAttempts = new Map<string, number>();
     private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -587,28 +591,31 @@ import {
     }
   
     private handleIncomingEvent(subId: string, event: NostrEvent): void {
+      const sub = this.subscriptions.get(subId);
+      if (!sub) return;
+
       const isOwn = event.pubkey === this.pk;
-  
+
       // Own events skip verification/dedup so self-subscriptions see every echo.
       if (!isOwn) {
-        if (this.seenEventIds.has(event.id)) return;
-  
-        if (!verifyNostrEvent(event)) {
-          this.log('warn', `Rejected event with invalid signature: ${event.id?.slice(0, 8)}`);
-          return;
+        // Cross-relay and replay dedup, scoped to this subscription only.
+        if (sub.seenEventIds.has(event.id)) return;
+
+        if (!this.verifiedEventIds.has(event.id)) {
+          if (!verifyNostrEvent(event)) {
+            this.log('warn', `Rejected event with invalid signature: ${event.id?.slice(0, 8)}`);
+            return;
+          }
+
+          addCapped(this.verifiedEventIds, event.id);
         }
-  
-        this.seenEventIds.add(event.id);
-        if (this.seenEventIds.size > MAX_SEEN_IDS) {
-          const iter = this.seenEventIds.values();
-          this.seenEventIds.delete(iter.next().value!);
-        }
+
+        addCapped(sub.seenEventIds, event.id);
       }
-  
-      const sub = this.subscriptions.get(subId);
-      sub?.onEvent(event);
+
+      sub.onEvent(event);
     }
-  
+
     // ─── Publishing ─────────────────────────────────────────────────────
   
     /** Broadcast a signed event message to all connected relays. */
@@ -644,7 +651,7 @@ import {
       const kind = input.kind ?? this.replaceableKind;
       const template: EventTemplate = {
         kind,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: Math.max(Math.floor(Date.now() / 1000), input.minCreatedAt ?? 0),
         tags: [['d', input.dTag], ...(input.tags ?? [])],
         content: input.content,
       };
@@ -699,12 +706,18 @@ import {
      * ordinary replaceable event via publishReplaceable — no new publish
      * mechanism, just the DELETION_TAG_VALUE convention layered on top.
      */
-    publishDeletionMarker(dTag: string, extraTags: string[][] = [], kind?: number): NostrEvent {
+    publishDeletionMarker(
+      dTag: string,
+      extraTags: string[][] = [],
+      kind?: number,
+      minCreatedAt?: number,
+    ): NostrEvent {
       return this.publishReplaceable({
         dTag,
         tags: [['t', DELETION_TAG_VALUE], ...extraTags],
         content: '',
         kind,
+        minCreatedAt,
       });
     }
   
@@ -723,7 +736,7 @@ import {
       onEose?: () => void,
       onEoseRelay?: (relayUrl: string) => void,
     ): SubscriptionHandle {
-      this.subscriptions.set(id, { id, filter, onEvent, onEose, onEoseRelay });
+      this.subscriptions.set(id, { id, seenEventIds: new Set(), filter, onEvent, onEose, onEoseRelay });
   
       for (const ws of this.sockets.values()) {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(['REQ', id, filter]));
@@ -935,6 +948,14 @@ import {
   // Internal utilities
   // ═══════════════════════════════════════════════════════════════════════
   
+  /** Adds `id` to `set`, evicting the oldest entry once MAX_SEEN_IDS is exceeded. */
+  function addCapped(set: Set<string>, id: string): void {
+    set.add(id);
+    if (set.size > MAX_SEEN_IDS) {
+      set.delete(set.values().next().value!);
+    }
+  }
+
   function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
