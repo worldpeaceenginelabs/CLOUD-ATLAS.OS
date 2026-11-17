@@ -43,12 +43,12 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { camera, entity, pick, location, route } from './api';
   import type { EntityOptions, RoutePreview } from './api';
-  import { appStore, type AppState, type EntityRecord, type LiveRecord, type ListingRecord, type MissionRecord } from '../orchestrator/appStore';
+  import { appStore, type AppState, type EntityRecord, type LiveRecord, type ListingRecord, type MissionRecord, type DeepLink } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
   import { waitForGlobeLoaded } from './viewer';
 
-  /** Set by App.svelte from the current URL (see its own header comment) — the event this deep link should open, once it's known locally. */
-  export let deepLink: { domain: string; eventId: string } | null = null;
+  /** Set by App.svelte from the current URL (see its own header comment) — the resource (author + d-tag) this deep link should open, once it's known locally. */
+  export let deepLink: DeepLink | null = null;
 
   const dispatch = createEventDispatcher();
 
@@ -82,7 +82,7 @@
 
   // Deep-link resolution: keeps checking every time the Store changes
   // (a fresh discovery result, a fetch Orchestrator triggered for this
-  // exact event via its own `openEventId` prop, ...) until the target
+  // exact resource via its own `openDeepLink` prop, ...) until the target
   // record shows up, then stops — `deepLinkResolved` also stops it from
   // reopening itself if the person closes the panel afterward.
   let deepLinkResolved = false;
@@ -90,13 +90,17 @@
   $: if (deepLink && !deepLinkResolved && $appStore) {
     const state = appStore.get();
 
+    const link = deepLink;
+    const id = `${link.author}:${link.dTag}`;
+
+    // The domain segment must agree with the record: `mission` only
+    // matches a mission, any other domain only a listing of that domain.
     const match =
-      Object.values(state.listings).find(
-        (listing) => listing.eventId === deepLink!.eventId
-      ) ??
-      Object.values(state.missions).find(
-        (mission) => mission.eventId === deepLink!.eventId
-      );
+      link.domain === 'mission'
+        ? state.missions[id]
+        : state.listings[id]?.domain === link.domain
+          ? state.listings[id]
+          : undefined;
 
     if (match) {
       selectRecordById(match.id);

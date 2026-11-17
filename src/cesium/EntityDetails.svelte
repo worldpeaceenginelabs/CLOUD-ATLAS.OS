@@ -591,7 +591,8 @@
 {#if showMarketing && record}
   <Marketing
     domain={record.kind === 'mission' ? 'mission' : record.domain}
-    eventId={record.eventId}
+    author={record.author}
+    dTag={record.dTag}
     on:close={() => (showMarketing = false)}
   />
 {/if}

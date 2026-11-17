@@ -6,6 +6,8 @@
   import OverlayLayer from "./OverlayLayer.svelte";
   import EntityLayer from "./cesium/EntityLayer.svelte";
   import Orchestrator from "./Orchestrator.svelte";
+  import { DOMAINS } from "./hexmenu/domains";
+  import type { DeepLink } from "./orchestrator/appStore";
   import MissionTV from "./missions/MissionTV.svelte";
   import About from "./shared/About.svelte";
   import ProgressBar from "./shared/ProgressBar.svelte";
@@ -58,21 +60,25 @@
     try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch {}
   }
 
-  // Web deep link (§4-§8 of the marketing/delete instruction): parsed
-  // once on mount from the current URL, e.g. /move/abc123 ->
-  // { domain: 'move', eventId: 'abc123' } — `domain` here is a real
-  // Cloud Atlas domain (move, goods, food, skills, ...), never "listing"
-  // (that's an operating mode, LIVE/LISTING, not a domain). This is the
-  // only URL handling in the app — no router. An unrecognized path just
-  // leaves `deepLink` null and the app behaves exactly as it always did.
-  let deepLink: { domain: string; eventId: string } | null = null;
+  // Web deep link: parsed once on mount from the current URL,
+  // /<domain>/<author-pubkey-hex>/<dTag>, e.g. /move/<64 hex>/listing-<uuid>
+  // or /mission/<64 hex>/mission-<uuid>. `domain` is a real Cloud Atlas
+  // domain (move, goods, food, skills, ...) or the fixed segment `mission`
+  // — never "listing" (that's an operating mode, not a domain). The link
+  // addresses the replaceable resource (author + d-tag), so it survives
+  // edits. There is no fallback: any path that doesn't match this exact
+  // shape leaves `deepLink` null. This is the only URL handling in the
+  // app — no router.
+  let deepLink: DeepLink | null = null;
 
-  function parseDeepLinkPath(pathname: string): { domain: string; eventId: string } | null {
+  function parseDeepLinkPath(pathname: string): DeepLink | null {
     const parts = pathname.split('/').filter(Boolean);
-    if (parts.length !== 2) return null;
-    const [domain, eventId] = parts;
-    if (!domain || !eventId) return null;
-    return { domain, eventId };
+    if (parts.length !== 3) return null;
+    const [domain, author, dTag] = parts;
+    if (domain !== 'mission' && !DOMAINS.some((d) => d.id === domain)) return null;
+    if (!/^[0-9a-f]{64}$/.test(author)) return null;
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(dTag)) return null;
+    return { domain, author, dTag };
   }
 
   // Owner-initiated deletion (cesium/EntityDetails.svelte's or missions/
@@ -234,7 +240,7 @@
       {submit}
       {deleteRequest}
       {missionSubmit}
-      openEventId={deepLink?.eventId ?? null}
+      openDeepLink={deepLink}
     />
 
     <button class="corner-btn mission-tv-btn" on:click={() => (missionTVOpen = true)} title="MissionTV">

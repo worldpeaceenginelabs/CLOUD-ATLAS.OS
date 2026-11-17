@@ -40,12 +40,13 @@
   // pattern as `submit`, each its own small isolated operation rather than
   // a bounded workflow (neither runs *through* beginWorkflow/endWorkflow):
   // `deleteRequest` (owner deletion, bubbled up from cesium/EntityDetails.svelte
-  // via its parent) and `openEventId` (deep-link resolution: fetches one
-  // specific event by id if it isn't already known — App.svelte sets this
-  // from the current URL). `deleteRequest` is however *refused* while a
-  // workflow is active (a delete racing an in-flight publish of the same
-  // entity could leave the store showing something already deleted);
-  // `openEventId` is a pure read and stays ungated.
+  // via its parent) and `openDeepLink` (deep-link resolution: fetches one
+  // specific replaceable resource by author + d-tag if it isn't already
+  // known — App.svelte sets this from the current URL). `deleteRequest` is
+  // however *refused* while a workflow is active (a delete racing an
+  // in-flight publish of the same entity could leave the store showing
+  // something already deleted); `openDeepLink` is a pure read and stays
+  // ungated.
   // -----------------------------------------------------------------------
 
   import { onMount, onDestroy } from 'svelte';
@@ -78,6 +79,7 @@
     type MissionRecord,
     type MissionLocation,
     type MissionLanes,
+    type DeepLink,
   } from './orchestrator/appStore';
   import {
     saveListing,
@@ -149,7 +151,7 @@
   /**
    * A newly created or edited mission (see missions/SwarmGovernance.svelte's
    * Submit/Save). Same prop-down pattern as `submit` — and, unlike
-   * `deleteRequest`/`openEventId` below, a full workflow in the same sense
+   * `deleteRequest`/`openDeepLink` below, a full workflow in the same sense
    * as a LIVE or LISTING submit: publishMission() runs through
    * beginWorkflow/endWorkflow/activeWorkflowToken and is refused while
    * another workflow is active, same as handleSubmit(). Fed from two
@@ -168,22 +170,20 @@
   $: if (missionSubmit) publishMission(missionSubmit);
 
   /**
-   * A specific Nostr event id to fetch and bring into the Store if it
-   * isn't already known — the network-side half of opening a deep link
-   * (cesium/EntityLayer.svelte does the Store-side half: selecting it
-   * once present, across both listings and missions). Reuses the exact
-   * same fetch-by-id + processEvent() pipeline already used for our own
-   * publish-echoes and for delete confirmations — not a second discovery
-   * mechanism. The event's own `kind` (not the deep link's URL domain)
-   * decides which domain processor handles it, inside processEvent()
-   * itself.
+   * A deep link (author + d-tag + domain) to fetch and bring into the Store
+   * if it isn't already known — the network-side half of opening a deep
+   * link (cesium/EntityLayer.svelte does the Store-side half: selecting it
+   * once present, across both listings and missions). The URL's domain
+   * segment decides the kind (`mission` → MISSION_KIND, any other domain →
+   * LISTING_KIND); the fetched event then goes through the normal
+   * processEvent() pipeline — not a second discovery mechanism.
    */
-  export let openEventId: string | null = null;
+  export let openDeepLink: DeepLink | null = null;
 
   // Deep links are resolved explicitly from onMount after the Nostr client
-  // exists. There is deliberately no reactive `openEventId` fetch here:
+  // exists. There is deliberately no reactive `openDeepLink` fetch here:
   // App.svelte may provide the prop before `client` has been initialized,
-  // and a reactive statement depending only on openEventId would then
+  // and a reactive statement depending only on openDeepLink would then
   // never rerun when client becomes available.
 
   // ─── Single active workflow (§1/§2 of the second review) ────────────
@@ -357,6 +357,25 @@
     buffer?: Map<string, ListingRecord | null>;
   }
 
+  /**
+   * Returns the event's NIP-40 `expiration` if it is acceptable on
+   * receipt, otherwise null (→ the caller discards the event). Required:
+   * no tag, a malformed tag, or an expiration more than `maxDays` from now
+   * is rejected. An expiration in the past is still returned — the caller
+   * treats that as "expired" and removes the record.
+   */
+  function acceptableExpiration(event: NostrEvent, maxDays: number): number | null {
+    const tag = event.tags?.find((t) => t[0] === 'expiration')?.[1];
+    if (!tag || !/^\d+$/.test(tag)) return null;
+
+    const expiresAt = getExpiration(event);
+    if (expiresAt === undefined) return null;
+
+    if (expiresAt > Math.floor(Date.now() / 1000) + maxDays * 86400) return null;
+
+    return expiresAt;
+  }
+
   async function processEvent(
     event: NostrEvent,
     opts: ProcessEventOptions = { persist: true },
@@ -422,17 +441,26 @@
   }
 
   /**
-   * Fetches one specific event by its actual Nostr event id — a listing
-   * or a mission, whichever it turns out to be — and feeds it through the
-   * matching normal receive pipeline. Which pipeline that is is decided
-   * once, inside processEvent() itself, from the event's own `kind`.
+   * Fetches the current version of one replaceable resource (author +
+   * d-tag) and feeds it through the normal receive pipeline. The kind is
+   * derived from the deep link's domain segment.
    */
-  async function fetchEntityByEventId(eventId: string) {
+  async function fetchEntityByDeepLink(link: DeepLink) {
     if (!client) return;
 
+    const isMission = link.domain === 'mission';
+
     const result = await client.query(
-      { kinds: [LISTING_KIND, MISSION_KIND], ids: [eventId] },
-      { timeoutMs: LISTING_QUERY_TIMEOUT_MS, retries: 1 },
+      {
+        kinds: [isMission ? MISSION_KIND : LISTING_KIND],
+        authors: [link.author],
+        '#d': [link.dTag],
+        limit: 1,
+      },
+      {
+        timeoutMs: isMission ? MISSION_QUERY_TIMEOUT_MS : LISTING_QUERY_TIMEOUT_MS,
+        retries: 1,
+      },
     );
 
     for (const event of result.events) {
@@ -1669,15 +1697,17 @@
       `${event.pubkey}:${dTag}`;
 
     const expiresAt =
-      getExpiration(event);
+      acceptableExpiration(
+        event,
+        ABSOLUTE_MAX_VALIDITY_DAYS,
+      );
+
+    if (expiresAt === null) return;
 
     const now =
       Math.floor(Date.now() / 1000);
 
-    if (
-      expiresAt != null &&
-      expiresAt <= now
-    ) {
+    if (expiresAt <= now) {
       listingExpiryTracker.clear(id);
 
       if (opts.persist) {
@@ -1715,11 +1745,7 @@
         event.tags.find(
           (t) => t[0] === 'model',
         )?.[1] ?? '',
-      expiresAt:
-        expiresAt ??
-        now +
-          ABSOLUTE_MAX_VALIDITY_DAYS *
-            86400,
+      expiresAt,
       location:
         extractStartCoordinate(
           content.location as
@@ -1742,20 +1768,18 @@
       upsertListingInStore(record);
     }
 
-    if (expiresAt != null) {
-      listingExpiryTracker.set(
-        id,
-        expiresAt,
-        async () => {
-          try {
-            await deleteListingPersisted(id);
-            removeListingFromStore(id);
-          } catch {
-            // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
-          }
-        },
-      );
-    }
+    listingExpiryTracker.set(
+      id,
+      expiresAt,
+      async () => {
+        try {
+          await deleteListingPersisted(id);
+          removeListingFromStore(id);
+        } catch {
+          // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
+        }
+      },
+    );
   }
 
   function upsertListingInStore(
@@ -2016,9 +2040,15 @@
 
     // Must come after the stale check: an old, already-expired version
     // handed back by a lagging relay must not remove a freshly renewed one.
+    // A mission without a valid `expiration` tag (or one beyond
+    // MISSION_TTL_DAYS from now) is discarded — no fallback.
     const expiresAt =
-      getExpiration(event) ??
-      event.created_at + MISSION_TTL_DAYS * 86400;
+      acceptableExpiration(
+        event,
+        MISSION_TTL_DAYS,
+      );
+
+    if (expiresAt === null) return;
 
     if (expiresAt <= Math.floor(Date.now() / 1000)) {
       missionExpiryTracker.clear(id);
@@ -2176,10 +2206,10 @@
     client.connect();
 
     // Resolve an App.svelte deep link only after the Nostr client exists.
-    // This avoids the startup race where openEventId is already populated
+    // This avoids the startup race where openDeepLink is already populated
     // while client is still null.
-    if (openEventId) {
-      fetchEntityByEventId(openEventId);
+    if (openDeepLink) {
+      fetchEntityByDeepLink(openDeepLink);
     }
 
     const cached =
@@ -2239,33 +2269,34 @@
         Record<string, MissionRecord> = {};
 
       for (const mission of cachedMissions) {
-        // Records cached before missions expired have no `expiresAt`:
-        // keep them for now, the discovery run below renews or drops them.
-        if (typeof mission.expiresAt === 'number') {
-          if (mission.expiresAt <= now) {
-            deleteMissionPersisted(
-              mission.id,
-            ).catch(() => {});
-            continue;
-          }
-
-          missionExpiryTracker.set(
+        // `expiresAt` is required: a cached mission without it (or
+        // already expired) is dropped from cache and store.
+        if (
+          typeof mission.expiresAt !== 'number' ||
+          mission.expiresAt <= now
+        ) {
+          deleteMissionPersisted(
             mission.id,
-            mission.expiresAt,
-            async () => {
-              try {
-                await deleteMissionPersisted(
-                  mission.id,
-                );
-                removeMissionFromStore(
-                  mission.id,
-                );
-              } catch {
-                // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
-              }
-            },
-          );
+          ).catch(() => {});
+          continue;
         }
+
+        missionExpiryTracker.set(
+          mission.id,
+          mission.expiresAt,
+          async () => {
+            try {
+              await deleteMissionPersisted(
+                mission.id,
+              );
+              removeMissionFromStore(
+                mission.id,
+              );
+            } catch {
+              // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
+            }
+          },
+        );
 
         hydratedMissions[mission.id] =
           mission;

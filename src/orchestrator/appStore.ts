@@ -40,12 +40,19 @@ export interface LiveRecord {
   awaitingConfirmation: boolean;
 }
 
+/** Parsed web deep link: `/<domain>/<author-pubkey-hex>/<dTag>`. `domain` is a Cloud Atlas domain id, or `mission` for a Mission. Addresses the replaceable resource (author + d-tag), not one event version. */
+export interface DeepLink {
+  domain: string;
+  author: string;
+  dTag: string;
+}
+
 /** A single LISTING record, as far as the rest of the app needs to see it. */
 export interface ListingRecord {
   kind: 'listing';
   /** `${author}:${dTag}` — the record's logical (application-level) identity. */
   id: string;
-  /** The actual Nostr event id of the current version of this listing — used for shareable links (Marketing), never for application-level identity/dedup (that's `id`/`dTag`, which stays stable across republishes; `eventId` changes on every update). */
+  /** The actual Nostr event id of the current version of this listing — used to detect that a newer version arrived (edit conflict detection), never for application-level identity/dedup or links (that's `id`/`dTag`, which stays stable across republishes; `eventId` changes on every update). */
   eventId: string;
   author: string;
   dTag: string;
@@ -80,12 +87,12 @@ export interface MissionRecord {
   kind: 'mission';
   /** `${author}:${dTag}` — the record's logical (application-level) identity, same convention as ListingRecord. */
   id: string;
-  /** The actual Nostr event id of the current version — used for shareable links (Marketing), same convention as ListingRecord.eventId. */
+  /** The actual Nostr event id of the current version — same convention as ListingRecord.eventId. */
   eventId: string;
   author: string;
   dTag: string;
   location: MissionLocation;
-  /** Unix seconds. From the event's NIP-40 `expiration` tag; events without one (published before missions expired) fall back to `created_at + MISSION_TTL_DAYS`. */
+  /** Unix seconds. From the event's NIP-40 `expiration` tag. Required: events without a valid tag (or one beyond MISSION_TTL_DAYS from now) are discarded on receipt. */
   expiresAt: number;
   content: {
     title: string;

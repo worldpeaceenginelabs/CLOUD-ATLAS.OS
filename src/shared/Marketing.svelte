@@ -2,19 +2,20 @@
   // shared/Marketing.svelte
   // -----------------------------------------------------------------------
   // A small, self-contained modal: shows a shareable link for one specific
-  // event. Takes only the two plain values the link is built from — no
+  // replaceable resource. Takes only the plain values the link is built from — no
   // Nostr, no Store access, no knowledge of LIVE/LISTING or EntityRecord.
   // Opened locally by cesium/EntityDetails.svelte (its owner-only Marketing
   // button); this component doesn't know or care who opened it or why.
   //
-  // Link shape: <origin>/<domain>/<eventId> — nothing else goes into it,
+  // Link shape: <origin>/<domain>/<author-pubkey-hex>/<dTag> — nothing else goes into it,
   // deliberately (no model, action, title, or payload data).
   // -----------------------------------------------------------------------
   import { createEventDispatcher } from 'svelte';
   import CloseButton from './CloseButton.svelte';
 
   export let domain: string;
-  export let eventId: string;
+  export let author: string;
+  export let dTag: string;
 
   const dispatch = createEventDispatcher();
 
@@ -26,7 +27,7 @@
     if (e.key === 'Escape') close();
   }
 
-  const shareUrl = `${window.location.origin}/${domain}/${eventId}`;
+  const shareUrl = `${window.location.origin}/${domain}/${author}/${dTag}`;
   const shareText = 'Check this out on Cloud Atlas OS:';
   const encodedText = encodeURIComponent(shareText);
   const encodedUrl = encodeURIComponent(shareUrl);
