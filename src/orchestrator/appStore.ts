@@ -75,7 +75,7 @@ export interface MissionLanes {
   crowdfunding: string;
 }
 
-/** A single Mission, as far as the rest of the app needs to see it. Logically separate from LIVE/LISTING (its own Store slice, its own Nostr kind) — never expires, unlike a listing. */
+/** A single Mission, as far as the rest of the app needs to see it. Logically separate from LIVE/LISTING (its own Store slice, its own Nostr kind). Expires like a listing, just on a much longer clock (MISSION_TTL_DAYS); every republish (create or edit-save) renews it. */
 export interface MissionRecord {
   kind: 'mission';
   /** `${author}:${dTag}` — the record's logical (application-level) identity, same convention as ListingRecord. */
@@ -85,6 +85,8 @@ export interface MissionRecord {
   author: string;
   dTag: string;
   location: MissionLocation;
+  /** Unix seconds. From the event's NIP-40 `expiration` tag; events without one (published before missions expired) fall back to `created_at + MISSION_TTL_DAYS`. */
+  expiresAt: number;
   content: {
     title: string;
     description: string;

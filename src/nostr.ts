@@ -310,6 +310,8 @@ import {
     clearAll(): void;
   }
   
+  const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
   export function createExpiryTracker(): ExpiryTracker {
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
   
@@ -318,14 +320,24 @@ import {
         const existing = timers.get(key);
         if (existing) clearTimeout(existing);
   
-        const delayMs = Math.max(0, expirationUnixSecs * 1000 - Date.now());
-        timers.set(
-          key,
-          setTimeout(() => {
-            timers.delete(key);
-            onExpire();
-          }, delayMs),
-        );
+        // setTimeout stores its delay as a signed 32-bit int (~24.8 days);
+        // anything longer fires immediately. Arm in chunks and re-check.
+        const arm = () => {
+          const remainingMs = expirationUnixSecs * 1000 - Date.now();
+          const delayMs = Math.min(Math.max(0, remainingMs), MAX_TIMEOUT_MS);
+          timers.set(
+            key,
+            setTimeout(() => {
+              timers.delete(key);
+              if (expirationUnixSecs * 1000 - Date.now() > 0) {
+                arm();
+                return;
+              }
+              onExpire();
+            }, delayMs),
+          );
+        };
+        arm();
       },
       clear(key) {
         const existing = timers.get(key);

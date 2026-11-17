@@ -114,6 +114,8 @@
 
   /** Mission discovery is global/unbounded (no geohash, no limit — see the mission spec §11) and just re-runs on this interval; no scheduler needed for something this simple. */
   const MISSION_DISCOVERY_INTERVAL_MS = 30 * 60 * 1000;
+  /** A mission stays visible this long after its last publish; editing/saving it republishes and renews the clock. */
+  const MISSION_TTL_DAYS = 30;
   const MISSION_QUERY_TIMEOUT_MS = 20_000;
 
   // ═══════════════════════════════════════════════════════════════════
@@ -269,6 +271,7 @@
   let client: NostrClient | null = null;
   let connectedRelays = 0;
   const listingExpiryTracker = createExpiryTracker();
+  const missionExpiryTracker = createExpiryTracker();
 
   // ─── LIVE session state — at most one active at a time (§11) ───────
 
@@ -1870,6 +1873,13 @@
 
     const tags: string[][] = [
       ['t', 'mission'],
+      [
+        'expiration',
+        String(
+          Math.floor(Date.now() / 1000) +
+            MISSION_TTL_DAYS * 86400,
+        ),
+      ],
     ];
 
     if (
@@ -1985,6 +1995,8 @@
 
       if (isStaleMissionEvent(id, event)) return;
 
+      missionExpiryTracker.clear(id);
+
       if (opts.persist) {
         await deleteMissionPersisted(id);
       }
@@ -2001,6 +2013,24 @@
       `${event.pubkey}:${dTag}`;
 
     if (isStaleMissionEvent(id, event)) return;
+
+    // Must come after the stale check: an old, already-expired version
+    // handed back by a lagging relay must not remove a freshly renewed one.
+    const expiresAt =
+      getExpiration(event) ??
+      event.created_at + MISSION_TTL_DAYS * 86400;
+
+    if (expiresAt <= Math.floor(Date.now() / 1000)) {
+      missionExpiryTracker.clear(id);
+
+      if (opts.persist) {
+        await deleteMissionPersisted(id);
+      }
+
+      removeMissionFromStore(id);
+
+      return;
+    }
 
     let parsed: any;
 
@@ -2028,6 +2058,7 @@
       author: event.pubkey,
       dTag,
       location,
+      expiresAt,
       content: {
         title:
           typeof parsed.title === 'string'
@@ -2055,6 +2086,15 @@
     }
 
     upsertMissionInStore(record);
+
+    missionExpiryTracker.set(id, expiresAt, async () => {
+      try {
+        await deleteMissionPersisted(id);
+        removeMissionFromStore(id);
+      } catch {
+        // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
+      }
+    });
   }
 
   function upsertMissionInStore(
@@ -2199,6 +2239,34 @@
         Record<string, MissionRecord> = {};
 
       for (const mission of cachedMissions) {
+        // Records cached before missions expired have no `expiresAt`:
+        // keep them for now, the discovery run below renews or drops them.
+        if (typeof mission.expiresAt === 'number') {
+          if (mission.expiresAt <= now) {
+            deleteMissionPersisted(
+              mission.id,
+            ).catch(() => {});
+            continue;
+          }
+
+          missionExpiryTracker.set(
+            mission.id,
+            mission.expiresAt,
+            async () => {
+              try {
+                await deleteMissionPersisted(
+                  mission.id,
+                );
+                removeMissionFromStore(
+                  mission.id,
+                );
+              } catch {
+                // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
+              }
+            },
+          );
+        }
+
         hydratedMissions[mission.id] =
           mission;
       }
@@ -2231,6 +2299,8 @@
     tombstoneSub?.close();
 
     listingExpiryTracker.clearAll();
+
+    missionExpiryTracker.clearAll();
 
     if (missionDiscoveryTimer) {
       clearInterval(
