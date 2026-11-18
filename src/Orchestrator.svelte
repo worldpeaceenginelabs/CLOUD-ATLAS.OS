@@ -120,11 +120,13 @@
 
   /** Mission sync pages are requested newest-first and walk backwards through `until`. A relay may answer with fewer events than this (its own cap) — the sync keeps going until a page brings nothing new. */
   const MISSION_SYNC_PAGE_LIMIT = 500;
-  /** Resuming from the stored cursor re-reads this much history, to absorb relay clock skew and late propagation. */
+  /** Resuming from a relay's stored cursor re-reads this much history, to absorb relay clock skew and late propagation. */
   const MISSION_SYNC_OVERLAP_SECS = 3600;
-  /** Delay before an incomplete sync run (no relay answered) is tried again. */
-  const MISSION_SYNC_RETRY_MS = 30_000;
-  const MISSION_SYNC_CURSOR_KEY = 'cloudatlas.missionSyncCursor';
+  /** A relay whose sync run did not complete is retried after this delay, doubling on every further failure up to the maximum. */
+  const MISSION_SYNC_RETRY_BASE_MS = 30_000;
+  const MISSION_SYNC_RETRY_MAX_MS = 300_000;
+  /** localStorage: `{ [relayUrl]: unix seconds }` — per relay, the start of its last completed mission sync. */
+  const MISSION_SYNC_CURSORS_KEY = 'cloudatlas.missionSyncCursors';
 
   // ═══════════════════════════════════════════════════════════════════
   // Entry point (§1) — plain prop, no exported imperative methods
@@ -344,7 +346,13 @@
   // ─── Mission sync — paginated catch-up plus a standing live subscription ──
 
   let missionLiveSub: SubscriptionHandle | null = null;
-  let missionSyncRetryTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Relays with a sync run in flight — at most one run per relay at a time. */
+  const missionSyncRunning = new Set<string>();
+  /** Consecutive incomplete runs per relay — drives the retry back-off. */
+  const missionSyncFailures = new Map<string, number>();
+  const missionSyncRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Event ids already processed by a mission sync run, across all relays: the same event arriving from seven mirrors is persisted once. */
+  const missionSyncProcessed = new Set<string>();
   let destroyed = false;
 
   // ─── Generic event processing — kind-agnostic dispatch (persist → store) ──
@@ -2181,40 +2189,55 @@
     });
   }
 
-  function readMissionSyncCursor(): number | null {
+  function readMissionSyncCursors(): Record<string, number> {
     try {
-      const raw = localStorage.getItem(MISSION_SYNC_CURSOR_KEY);
-      return raw && /^\d+$/.test(raw) ? Number(raw) : null;
+      const raw = localStorage.getItem(MISSION_SYNC_CURSORS_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+
+      if (!parsed || typeof parsed !== 'object') return {};
+
+      const cursors: Record<string, number> = {};
+
+      for (const [url, at] of Object.entries(parsed)) {
+        if (typeof at === 'number') cursors[url] = at;
+      }
+
+      return cursors;
     } catch {
-      return null;
+      return {};
     }
   }
 
-  function writeMissionSyncCursor(unixSecs: number) {
+  function writeMissionSyncCursor(url: string, unixSecs: number) {
     try {
-      localStorage.setItem(MISSION_SYNC_CURSOR_KEY, String(unixSecs));
+      localStorage.setItem(
+        MISSION_SYNC_CURSORS_KEY,
+        JSON.stringify({ ...readMissionSyncCursors(), [url]: unixSecs }),
+      );
     } catch {}
   }
 
   /**
-   * Pulls every mission published since `since`, newest first, page by
-   * page: each page asks for the events up to `until` (the oldest
-   * `created_at` of the previous page) and the walk ends when a page brings
-   * no event that hasn't been seen already. That end condition does not
-   * depend on how many events a relay is willing to return per request, so a
-   * relay-side cap can never silently cut the result short.
+   * Walks one relay's missions since `since`, newest first, page by page:
+   * each page asks for the events up to `until` (the oldest `created_at` of
+   * the previous page), and the walk ends when a page brings no event that
+   * this relay hasn't delivered already. That end condition doesn't depend
+   * on how many events the relay is willing to return per request, so no
+   * relay-side cap can cut the result short.
    *
-   * Returns false if no relay answered, so the caller doesn't treat the run
-   * as complete.
+   * Returns true only if the relay answered every page completely (EOSE).
+   * Anything else — not connected, stalled, dropped — is false: the events
+   * received so far are processed and kept, but the run does not count.
    */
-  async function syncMissions(since: number): Promise<boolean> {
+  async function syncMissionsFromRelay(url: string, since: number): Promise<boolean> {
     if (!client) return false;
 
     const collected = new Set<string>();
     let until: number | undefined;
 
     for (;;) {
-      const result = await client.query(
+      const page = await client.queryRelay(
+        url,
         buildFilter({
           kinds: [MISSION_KIND],
           tags: { t: ['mission'] },
@@ -2222,24 +2245,26 @@
           until,
           limit: MISSION_SYNC_PAGE_LIMIT,
         }),
-        {
-          timeoutMs: MISSION_QUERY_TIMEOUT_MS,
-          retries: 1,
-        },
+        { timeoutMs: MISSION_QUERY_TIMEOUT_MS },
       );
 
-      if (result.status === 'failed') return false;
-
-      const fresh = result.events.filter((e) => !collected.has(e.id));
-
-      if (fresh.length === 0) return true;
+      const fresh = page.events.filter((e) => !collected.has(e.id));
 
       for (const event of fresh) {
         collected.add(event.id);
+
+        if (missionSyncProcessed.has(event.id)) continue;
+
         await processEvent(event, { persist: true });
+
+        missionSyncProcessed.add(event.id);
       }
 
-      until = result.events.reduce(
+      if (!page.complete) return false;
+
+      if (fresh.length === 0) return true;
+
+      until = page.events.reduce(
         (oldest, e) => Math.min(oldest, e.created_at),
         Infinity,
       );
@@ -2247,38 +2272,75 @@
   }
 
   /**
-   * One sync run: first start → everything of the last MISSION_TTL_DAYS;
-   * later starts → only what is new since the stored cursor (minus a safety
-   * overlap). The cursor only advances after a run that reached the relays.
+   * One sync run against one relay: first contact → everything of the last
+   * MISSION_TTL_DAYS; later → only what is new since this relay's stored
+   * cursor (minus a safety overlap). The cursor only advances after a
+   * complete run, so a relay that stalls just keeps its old cursor and is
+   * retried — every other relay is unaffected.
    */
-  async function runMissionSync() {
-    if (!client || destroyed) return;
+  async function runMissionSyncForRelay(url: string) {
+    if (!client || destroyed || missionSyncRunning.has(url)) return;
+
+    const pendingRetry = missionSyncRetryTimers.get(url);
+
+    if (pendingRetry) {
+      clearTimeout(pendingRetry);
+      missionSyncRetryTimers.delete(url);
+    }
+
+    missionSyncRunning.add(url);
 
     const startedAt = Math.floor(Date.now() / 1000);
     const windowStart = startedAt - MISSION_TTL_DAYS * 86400;
-    const cursor = readMissionSyncCursor();
+    const cursor = readMissionSyncCursors()[url];
 
     const since =
-      cursor === null
+      cursor === undefined
         ? windowStart
         : Math.max(windowStart, cursor - MISSION_SYNC_OVERLAP_SECS);
 
-    const complete = await syncMissions(since);
+    let complete = false;
+
+    try {
+      complete = await syncMissionsFromRelay(url, since);
+    } catch (err) {
+      console.warn(`[Orchestrator] Mission sync with ${url} failed:`, err);
+    }
+
+    missionSyncRunning.delete(url);
 
     if (destroyed) return;
 
     if (complete) {
-      writeMissionSyncCursor(startedAt);
-    } else {
-      missionSyncRetryTimer = setTimeout(runMissionSync, MISSION_SYNC_RETRY_MS);
+      writeMissionSyncCursor(url, startedAt);
+      missionSyncFailures.delete(url);
+      return;
     }
+
+    // Incomplete: the cursor stays where it was. A relay that dropped is
+    // picked up again by onRelayConnect when it reconnects; one that is
+    // still connected but stalled is retried with a growing delay.
+    if (!client.getConnectedRelayUrls().includes(url)) return;
+
+    const failures = missionSyncFailures.get(url) ?? 0;
+
+    missionSyncFailures.set(url, failures + 1);
+
+    missionSyncRetryTimers.set(
+      url,
+      setTimeout(
+        () => runMissionSyncForRelay(url),
+        Math.min(MISSION_SYNC_RETRY_BASE_MS * 2 ** failures, MISSION_SYNC_RETRY_MAX_MS),
+      ),
+    );
   }
 
   /**
-   * The live subscription goes up *before* the catch-up starts, so nothing
-   * published while the sync runs can slip through. Its `since` stays fixed:
-   * after a relay reconnect the client replays the subscription and the
-   * relay delivers everything missed in between — no polling needed.
+   * The live subscription goes up *before* any catch-up starts, so nothing
+   * published while the syncs run can slip through. After that every relay
+   * syncs itself independently: the ones already connected right now, and
+   * each one that connects later (first connect or reconnect) the moment it
+   * does.
    */
   function startMissionSync() {
     if (!client) return;
@@ -2295,7 +2357,13 @@
       },
     );
 
-    runMissionSync();
+    client.onRelayConnect((url) => {
+      runMissionSyncForRelay(url);
+    });
+
+    for (const url of client.getConnectedRelayUrls()) {
+      runMissionSyncForRelay(url);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2467,9 +2535,11 @@
 
     destroyed = true;
 
-    if (missionSyncRetryTimer) {
-      clearTimeout(missionSyncRetryTimer);
+    for (const timer of missionSyncRetryTimers.values()) {
+      clearTimeout(timer);
     }
+
+    missionSyncRetryTimers.clear();
 
     listingExpiryTracker.clearAll();
 

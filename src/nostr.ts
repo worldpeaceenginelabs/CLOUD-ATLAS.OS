@@ -146,6 +146,8 @@ import {
     id: string;
     /** Event ids this subscription already delivered. Deduplication is per subscription: a later query must still receive events an earlier query or subscription has already seen. */
     seenEventIds: Set<string>;
+    /** If set, the subscription lives on this one relay only (see queryRelay) instead of on every connected relay. */
+    relayUrl?: string;
     filter: NostrFilter;
     onEvent: (event: NostrEvent) => void;
     onEose?: () => void;
@@ -407,6 +409,8 @@ import {
     private reconnectAttempts = new Map<string, number>();
     private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
     private relayCountCallback: ((connected: number, total: number) => void) | null = null;
+    private relayConnectCallback: ((url: string) => void) | null = null;
+    private relayQueryCounter = 0;
     private closed = false;
   
     constructor(secretKey: Uint8Array, options: NostrClientOptions = {}) {
@@ -425,6 +429,11 @@ import {
   
     // ─── Connection ────────────────────────────────────────────────────
   
+    /** Register a callback fired each time a relay (re)connects — after the stored subscriptions were replayed to it. */
+    onRelayConnect(cb: (url: string) => void): void {
+      this.relayConnectCallback = cb;
+    }
+
     /** Register a callback fired whenever the connected-relay count changes. */
     onRelayCountChange(cb: (connected: number, total: number) => void): void {
       this.relayCountCallback = cb;
@@ -525,8 +534,13 @@ import {
           // Replay cached (replaceable/one-off) events to this newly connected relay.
           for (const msg of this.publishReplayBuffer.values()) ws.send(msg);
   
-          // Replay active subscriptions to this relay.
-          for (const sub of this.subscriptions.values()) ws.send(JSON.stringify(['REQ', sub.id, sub.filter]));
+          // Replay active subscriptions to this relay (single-relay subscriptions only to their own relay).
+          for (const sub of this.subscriptions.values()) {
+            if (sub.relayUrl && sub.relayUrl !== url) continue;
+            ws.send(JSON.stringify(['REQ', sub.id, sub.filter]));
+          }
+
+          this.relayConnectCallback?.(url);
         };
   
         ws.onclose = () => {
@@ -735,10 +749,12 @@ import {
       onEvent: (event: NostrEvent) => void,
       onEose?: () => void,
       onEoseRelay?: (relayUrl: string) => void,
+      relayUrl?: string,
     ): SubscriptionHandle {
-      this.subscriptions.set(id, { id, seenEventIds: new Set(), filter, onEvent, onEose, onEoseRelay });
+      this.subscriptions.set(id, { id, seenEventIds: new Set(), relayUrl, filter, onEvent, onEose, onEoseRelay });
   
-      for (const ws of this.sockets.values()) {
+      for (const [url, ws] of this.sockets) {
+        if (relayUrl && relayUrl !== url) continue;
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(['REQ', id, filter]));
       }
   
@@ -751,8 +767,10 @@ import {
   
     /** Remove a subscription and send CLOSE to all connected relays. */
     unsubscribe(id: string): void {
+      const sub = this.subscriptions.get(id);
       this.subscriptions.delete(id);
-      for (const ws of this.sockets.values()) {
+      for (const [url, ws] of this.sockets) {
+        if (sub?.relayUrl && sub.relayUrl !== url) continue;
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(['CLOSE', id]));
       }
     }
@@ -766,7 +784,8 @@ import {
       const sub = this.subscriptions.get(id);
       if (!sub) return;
       sub.filter = newFilter;
-      for (const ws of this.sockets.values()) {
+      for (const [url, ws] of this.sockets) {
+        if (sub.relayUrl && sub.relayUrl !== url) continue;
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify(['CLOSE', id]));
           ws.send(JSON.stringify(['REQ', id, newFilter]));
@@ -880,6 +899,56 @@ import {
       });
     }
   
+    /**
+     * One-shot snapshot query against exactly one relay. `complete` is true
+     * only if that relay answered with EOSE; a relay that is not connected,
+     * stalls past the timeout, or drops mid-query yields `complete: false`
+     * (with whatever events arrived until then). There is no in-between: a
+     * caller walking a relay page by page knows for certain whether this
+     * relay delivered everything it was asked for.
+     */
+    queryRelay(
+      url: string,
+      filter: NostrFilter,
+      options: { timeoutMs?: number } = {},
+    ): Promise<{ complete: boolean; events: NostrEvent[] }> {
+      const events: NostrEvent[] = [];
+      const ws = this.sockets.get(url);
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        return Promise.resolve({ complete: false, events });
+      }
+
+      const subId = `relayq-${++this.relayQueryCounter}`;
+
+      return new Promise((resolve) => {
+        let settled = false;
+
+        const finish = (complete: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          this.unsubscribe(subId);
+          resolve({ complete, events });
+        };
+
+        const timeout = setTimeout(() => finish(false), options.timeoutMs ?? 20000);
+
+        this.subscribe(
+          subId,
+          filter,
+          (event) => {
+            events.push(event);
+          },
+          undefined,
+          (relayUrl) => {
+            if (relayUrl === url) finish(true);
+          },
+          url,
+        );
+      });
+    }
+
     // ─── NIP-44 encryption / encrypted events ──────────────────────────
   
     /** Get (or derive and cache) the NIP-44 conversation key for a peer. */
