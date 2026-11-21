@@ -65,9 +65,14 @@
   import Marketing from '../shared/Marketing.svelte';
   import CloseButton from '../shared/CloseButton.svelte';
   import { formatExpiry } from '../shared/formatExpiry';
+  import { INTERACTION_MODE_LABELS, type InteractionMode } from '../hexmenu/domains';
   import Onboarding from '../onboarding/Onboarding.svelte';
   import { ENTITY_OWNER_STEPS, ENTITY_VISITOR_STEPS } from '../onboarding/entitySteps';
   import type { OnboardingStep } from '../onboarding/steps';
+
+  $: interactionModeLabel = record?.kind === 'listing'
+    ? INTERACTION_MODE_LABELS[record.content.interactionMode as InteractionMode]
+    : '';
 
   export let record: ListingRecord | MissionRecord | null = null;
   /** This client's own pubkey (from `$appStore.ownPubkey`) — compared against a listing's/mission's `author` to decide whether to show the owner-only actions below. */
@@ -525,12 +530,10 @@
             </div>
           {/if}
 
-          {#if fieldOf(record, 'interactionMode')}
-            <div class="field">
-              <span class="label">Format</span>
-              <span class="value">{humanize(fieldOf(record, 'interactionMode') ?? '')}</span>
-            </div>
-          {/if}
+          <div class="field">
+            <span class="label">Participation</span>
+            <span class="value">{interactionModeLabel}</span>
+          </div>
 
           {#if formatCoords(record.location)}
             <div class="field">

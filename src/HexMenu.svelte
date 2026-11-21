@@ -9,7 +9,7 @@
   import SwarmGovernance from './missions/SwarmGovernance.svelte';
   import Omnipedia from './missions/Omnipedia.svelte';
   import {
-    DOMAINS, ANYPAY_OPTIONS, detailsFor, locationFor, isDetailsComplete, isLocationComplete,
+    DOMAINS, ANYPAY_OPTIONS, detailsFor, locationFor, isDetailsComplete, isLocationComplete, isLocationRequired,
     MODES, SHORTCUT_MODES, ACTIONS, FORM_STEP_LABELS,
     type LocationValue,
   } from './hexmenu/domains';
@@ -333,6 +333,9 @@
         ...selAnypay.map(id => ['anypay', id]),
       ],
       content: JSON.stringify({
+        // A model without the in-person/online/both selector is in person by
+        // definition — but every listing states it explicitly.
+        ...(inPersonOnlyModel ? { interactionMode: 'in_person' } : {}),
         ...detailsValues,
         location: selLocation,
       }),
@@ -626,6 +629,25 @@
 
   $: detailsSchema = effectiveModel ? detailsFor(effectiveModel, selAction) : null;
 
+  // The in-person/online/both selector shows 'In person' as selected, so
+  // that has to be the real value, not an unset one the rest of the app
+  // would have to treat as a special case. Re-applies after every reset of
+  // detailsValues (model/domain/mode switch).
+  // A search asks how to take part, which has no 'both' answer (a `both`
+  // listing matches either one) — a 'both' left over from an offer form
+  // would be an invalid answer there.
+  $: if (
+    detailsSchema?.interactionMode &&
+    (!detailsValues.interactionMode ||
+      (selAction === 'search' && detailsValues.interactionMode === 'both'))
+  ) {
+    detailsValues = { ...detailsValues, interactionMode: 'in_person' };
+  }
+
+  // Listing models without the selector (everything except LIVE's
+  // internal-only model): in person, stated explicitly in the payload.
+  $: inPersonOnlyModel = !!effectiveModel && !effectiveModel.internalOnly && !detailsSchema?.interactionMode;
+
   // locationSchema now resolves per-action the same way detailsSchema
   // always has — via locationFor(), mirroring detailsFor() exactly.
   // Reading effectiveModel.location directly here was the actual bug
@@ -643,8 +665,19 @@
   // — both live in domains.ts (see detailsFor()'s comment) so HexMenu
   // never needs to know the field vocabulary itself.
   $: detailsDone = isDetailsComplete(detailsSchema, detailsValues);
-  $: locationDone = isLocationComplete(locationSchema, selLocation);
+  // An online-only choice needs no location at all: the step disappears and
+  // counts as done; any location chosen before is dropped, including its
+  // marker on the globe (the block below only reacts to a step turning
+  // incomplete, which this switch is not).
+  $: locationRequired = isLocationRequired(detailsSchema, detailsValues);
+  $: locationDone = !locationRequired || isLocationComplete(locationSchema, selLocation);
   let previousLocationDone = false;
+
+  $: if (!locationRequired && selLocation) {
+    selLocation = null;
+    pick.clear();
+    pick.area.clear();
+  }
 
   $: {
     if (previousLocationDone && !locationDone) {
@@ -685,7 +718,11 @@
       id: activeActionCfg.submitNodeId, label: activeActionCfg.submitLabel,
       col: submitCol, lrow: formLrow, formRow: true, done: submitReady,
     });
-    return base;
+    // The location step only exists while a location is needed; the steps
+    // that remain move up.
+    return base
+      .filter((n) => n.id !== 'location' || locationRequired)
+      .map((n, i) => ({ ...n, col: i }));
   })() : [];
 
   $: nodes = [...headerNodes, ...shortcutNodes, ...actionNodes, ...placeholderNodes, ...domainNodes, ...modelNodes, ...formNodes];
@@ -894,6 +931,7 @@
     <Details
       schema={detailsSchema}
       values={detailsValues}
+      action={selAction}
       on:update={onDetailsUpdate}
       on:close={() => detailsModalOpen = false}
     />

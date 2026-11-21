@@ -61,12 +61,24 @@
    */
   let selectedId: string | null = null;
 
+  /**
+   * A record opened on request (a clicked list row, a deep link to someone
+   * else's listing) that is NOT part of the drawn set: it gets a marker of
+   * its own, and both go away together when its panel closes or the list
+   * that asked for it is closed. Shown as given — it is a snapshot.
+   */
+  let temporaryRecord: ListingRecord | MissionRecord | null = null;
+  let temporaryMarkerId: string | null = null;
+  /** The newest OpenRequest already acted on — a request stays in the Store, it must only act once. */
+  let handledNonce = 0;
+
   /** Only what EntityDetails can show: a listing or a mission — always the Store's current version of the selected id (null once it's gone, e.g. deleted or expired). */
   let selectedRecord: ListingRecord | MissionRecord | null = null;
   $: selectedRecord = selectedId
     ? ($appStore.listings[selectedId] ?? $appStore.missions[selectedId] ?? null)
-    : null;
+    : temporaryRecord;
   let globeReady = false;
+
 
   /** Set once showUserLocation() resolves the device position — reused so a click on the "Your Location!" entity can fly back there without re-fetching position. */
   let userLocationCoords: { longitude: number; latitude: number } | null = null;
@@ -76,9 +88,87 @@
     const state = appStore.get();
     const match = state.listings[recordId] ?? state.missions[recordId] ?? null;
 
+    closeTemporary();
     selectedId = match ? recordId : null;
     return !!match;
   }
+
+  function closeTemporary() {
+    if (temporaryMarkerId) {
+      try {
+        entity.remove(temporaryMarkerId);
+      } catch {
+        // Cesium viewer already gone.
+      }
+
+      temporaryMarkerId = null;
+    }
+
+    temporaryRecord = null;
+  }
+
+  /** Brings the camera to a record: an area mission to its bounds, everything else to its point. A record without a place stays where the camera is. */
+  function flyToRecord(record: ListingRecord | MissionRecord) {
+    try {
+      if (record.kind === 'mission' && record.location.kind === 'area') {
+        const { west, south, east, north } = record.location;
+
+        Promise.resolve(camera.flyToRectangle({ west, south, east, north })).catch(() => {});
+        return;
+      }
+
+      const point = toLatLon(record);
+
+      if (!point) return;
+
+      Promise.resolve(
+        camera.flyTo(
+          { longitude: point.longitude, latitude: point.latitude, height: 5000 },
+          { duration: 1.5 }
+        )
+      ).catch(() => {});
+    } catch {
+      // Cesium viewer not mounted yet — nothing to fly.
+    }
+  }
+
+  /**
+   * Acts on the Orchestrator's request to show a record (see OpenRequest
+   * in appStore.ts). A request that is gone (null) means the list that made
+   * it was closed: its temporary record and marker go with it.
+   */
+  function handleOpenRequest(request: AppState['openRequest']) {
+    if (!request) {
+      closeTemporary();
+      return;
+    }
+
+    if (request.nonce === handledNonce) return;
+
+    handledNonce = request.nonce;
+
+    closeTemporary();
+
+    if (request.temporary) {
+      selectedId = null;
+      temporaryRecord = request.record;
+
+      if (hasRenderableLocation(request.record)) {
+        try {
+          temporaryMarkerId = `temp:${request.record.id}`;
+          entity.add(temporaryMarkerId, entityOptionsFor(request.record));
+        } catch {
+          temporaryMarkerId = null;
+        }
+      }
+    } else {
+      selectedId = request.record.id;
+    }
+
+    if (request.fly) flyToRecord(request.record);
+  }
+
+  $: handleOpenRequest($appStore.openRequest);
 
   // Deep-link resolution: keeps checking every time the Store changes
   // (a fresh discovery result, a fetch Orchestrator triggered for this
@@ -414,6 +504,8 @@
 
     activeMarkerIds.clear();
 
+    closeTemporary();
+
     driverRoutePreview?.remove();
     driverRoutePreview = null;
   });
@@ -424,10 +516,14 @@
 record={selectedRecord}
 ownPubkey={$appStore.ownPubkey}
 busy={$appStore.inFlight}
-on:close={() => (selectedId = null)}
+on:close={() => {
+selectedId = null;
+closeTemporary();
+}}
 on:delete={(e) => {
 dispatch('delete', e.detail);
 selectedId = null;
+closeTemporary();
 }}
 on:submit={(e) => dispatch('missionSubmit', e.detail)}
 />

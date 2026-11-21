@@ -14,6 +14,7 @@
  */
 
 import { createStore, type Store } from '../store';
+import type { InteractionMode } from '../hexmenu/domains';
 
 /** A single LIVE match/claim record, as far as the rest of the app needs to see it. */
 export interface LiveRecord {
@@ -107,17 +108,67 @@ export interface MissionRecord {
 
 export type EntityRecord = LiveRecord | ListingRecord | MissionRecord;
 
+/** One row of the search result list, prepared by the Orchestrator so the list component only has to draw it. */
+export type ListingViewRow =
+  | {
+      type: 'listing';
+      /** The record's logical id (`${author}:${dTag}`). */
+      id: string;
+      title: string;
+      /** Display name(s) of the listing's category/categories. */
+      category: string;
+      /** Unix seconds. */
+      expiresAt: number;
+      interactionMode: InteractionMode;
+    }
+  | {
+      /** A stretch of time nobody has loaded completely: listings published in [lo, hi] (unix seconds) may exist. */
+      type: 'gap';
+      key: string;
+      lo: number;
+      hi: number;
+    };
+
+/** What the search result list shows — the Orchestrator's one projection of the active LISTING search (null = no list open). */
+export interface ListingViewState {
+  mode: 'map' | 'online';
+  /** Heading: where the list looks, e.g. 'Nearby · ~5 km'. */
+  areaLabel: string;
+  /** Epoch ms of the newest successful relay fetch of this search, or null before the first one. */
+  updatedAt: number | null;
+  /** Whether the newest fetch was answered completely by every connected relay (null before the first one). */
+  complete: boolean | null;
+  rows: ListingViewRow[];
+  /** Map search only: the area can be widened (this one is loaded all the way down). */
+  canWiden: boolean;
+  /** Map search only: the list is on the wider area and can go back to nearby. */
+  canNarrow: boolean;
+}
+
+/** Ask the details panel to show a record: after a publish, or from a list row. */
+export interface OpenRequest {
+  record: ListingRecord | MissionRecord;
+  /** Fly the camera to the record's location first (ignored if it has none). */
+  fly: boolean;
+  /** The record is not part of the drawn set: draw a marker for it that disappears together with the panel. */
+  temporary: boolean;
+  /** Distinguishes a repeated request for the same record. */
+  nonce: number;
+}
+
 export interface AppState {
   /** True while a discovery/synchronization cycle for the most recent payload is still running (orchestrator-prompt.md §7). */
   inFlight: boolean;
   /** The current LIVE session's public view, if any (LIVE has no persisted history — one at a time, see §11). */
   live: LiveRecord | null;
-  /** All known, non-expired LISTING records, keyed by `${author}:${dTag}`. */
+  /** The LISTING records drawn on the map: the caller's own plus the results of the active map search, keyed by `${author}:${dTag}`. Everything ever received lives in the local cache (IndexedDB), not here. */
   listings: Record<string, ListingRecord>;
   /** All known Missions, keyed by `${author}:${dTag}` — logically separate from live/listings (orchestrator-prompt-mission.md §9), a different Store slice entirely, not commingled with either. */
   missions: Record<string, MissionRecord>;
-  /** The active LISTING search's model and whether a coarser "Load More" page is available (orchestrator-prompt.md §3.4). Null when no search is active. */
-  listingSearch: { model: string; canLoadMore: boolean } | null;
+  /** The active LISTING search as the result list shows it. Null when no list is open. */
+  listingView: ListingViewState | null;
+  /** The newest request to show a record in the details panel (see OpenRequest). Null = nothing requested, or the list that requested it was closed. */
+  openRequest: OpenRequest | null;
   /** Last user-facing validation/operational error, if any (e.g. a lead-time violation on publish). Cleared on the next successful operation. */
   lastError: string | null;
   /** This client's own public key, once known (set once, right after the Nostr client is created) — lets any reader determine "am I the author of this record" without talking to Nostr itself. */
@@ -129,7 +180,8 @@ const initialState: AppState = {
   live: null,
   listings: {},
   missions: {},
-  listingSearch: null,
+  listingView: null,
+  openRequest: null,
   lastError: null,
   ownPubkey: null,
 };

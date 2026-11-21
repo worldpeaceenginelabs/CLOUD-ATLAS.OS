@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import CloseButton from '../shared/CloseButton.svelte';
+  import { OFFER_INTERACTION_OPTIONS, SEARCH_INTERACTION_OPTIONS } from './domains';
 
   // schema: one entry from formSchema.ts, or null/undefined if the
   // current model/ride-type has no schema — Details renders a small
@@ -13,13 +14,14 @@
   // what to do with it.
   export let values = {};
 
+  // 'offer' | 'search' — the in-person/online/both selector asks a different
+  // question in each: what the offer IS, or how the searcher wants to take part.
+  export let action = null;
+
   const dispatch = createEventDispatcher();
 
-  const INTERACTION_MODE_OPTIONS = [
-    { id: 'in_person', label: 'In-Person' },
-    { id: 'online', label: 'Online' },
-    { id: 'both', label: 'Both' },
-  ];
+  $: interactionOptions =
+    action === 'search' ? SEARCH_INTERACTION_OPTIONS : OFFER_INTERACTION_OPTIONS;
 
   function set(key, value) {
     dispatch('update', { key, value });
@@ -53,11 +55,15 @@
         <p class="hint">Fill in what applies, then close with ✕.</p>
 
         {#if schema.interactionMode}
+          <p class="hint">
+            {action === 'search' ? 'How do you want to take part?' : 'How can people take part?'}
+          </p>
+
           <div class="mode-row">
-            {#each INTERACTION_MODE_OPTIONS as m}
+            {#each interactionOptions as m}
               <button
                 class="mode-opt"
-                class:selected={(values.interactionMode || 'in_person') === m.id}
+                class:selected={values.interactionMode === m.id}
                 on:click={() => set('interactionMode', m.id)}
               >{m.label}</button>
             {/each}

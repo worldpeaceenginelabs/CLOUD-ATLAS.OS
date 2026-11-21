@@ -81,6 +81,18 @@
     type MissionLanes,
     type DeepLink,
   } from './orchestrator/appStore';
+  import { runRelayPages } from './orchestrator/pagedQuery';
+  import {
+    addInterval,
+    unionIntervals,
+    findGaps,
+    claimFromRun,
+    combineClaims,
+    type Interval,
+  } from './orchestrator/coverage';
+  import { loadCoverage, saveCoverage, type CoverageBySegment } from './orchestrator/coverageStore';
+  import { buildListingRows, categoryIdsOf } from './orchestrator/listingView';
+  import { tombstoneFilters } from './orchestrator/tombstoneCheck';
   import {
     saveListing,
     deleteListing as deleteListingPersisted,
@@ -91,8 +103,9 @@
     deleteMission as deleteMissionPersisted,
     loadAllMissions,
   } from './orchestrator/missionPersistence';
-  import type { LocationValue } from './hexmenu/domains';
+  import { isInteractionMode, type LocationValue } from './hexmenu/domains';
   import LiveOverlay from './live/LiveOverlay.svelte';
+  import ListingResultList from './listing/ListingResultList.svelte';
 
   // ─── Tuning constants (orchestrator's own policy, not infrastructure) ──
 
@@ -113,6 +126,10 @@
 
   const LISTING_SEARCH_PRECISION_INITIAL = 5;
   const LISTING_QUERY_TIMEOUT_MS = 15_000;
+  /** A listing search shows the newest N listings per relay; older ones come page by page through the gap buttons. */
+  const LISTING_PAGE_LIMIT = 100;
+  /** Listings per tombstone question (one filter). */
+  const LISTING_TOMBSTONE_BLOCK = 100;
 
   /** A mission stays visible this long after its last publish; editing/saving it republishes and renews the clock. */
   const MISSION_TTL_DAYS = 30;
@@ -261,16 +278,12 @@
       cancelActiveLiveSession();
     }
 
-    if (listingSearch) {
-      listingSearch.liveSub?.close();
-      listingSearch = null;
-    }
-
+    // A listing search keeps whatever it has loaded so far: its list stays
+    // open and shows the partial result, the person can retry from there.
     appStore.update((s) => ({
       ...s,
       inFlight: false,
       lastError: null,
-      listingSearch: null,
     }));
   }
 
@@ -324,23 +337,51 @@
 
   // ─── LISTING search state — tracks the active search scope for "Load More" ──
 
-  interface ListingSearchState {
+  // ─── LISTING: local cache + the active search ──────────────────────
+  //
+  // Every listing ever received is cached (IndexedDB, mirrored in
+  // `cachedListings`). A search is a snapshot over that cache: it shows the
+  // matching cached listings at once, then loads the newest page from the
+  // relays and fills in what is new. `appStore.listings` is only the DRAWN
+  // set — the caller's own listings plus the results of the active map
+  // search — never the whole cache.
+
+  const cachedListings = new Map<string, ListingRecord>();
+
+  /** Loaded stretches of time per search segment (see coverage.ts), persisted in coverageStore.ts. */
+  let coverage: CoverageBySegment = {};
+
+  interface ListingSearchSession {
+    /** 'map': on-site search, results are drawn on the globe. 'online': worldwide, results are listed only. */
+    mode: 'map' | 'online';
     model: string;
-    categoryFilter: string[];
-    geohash5: string;
-    geohash4: string;
-    precision: 5 | 4;
-    liveSub?: SubscriptionHandle;
+    categoryIds: string[];
+    /** Map only: which of the two cells the list currently looks at. */
+    scope: 'nearby' | 'wider';
+    /** Map only: geohash cells (precision 5 and its precision-4 parent) around the searched location. */
+    cell5: string;
+    cell4: string;
+    /** Ids of the cached listings that belong to the list right now. */
+    viewIds: Set<string>;
+    /** Ids already asked about tombstones in this session — never asked twice. */
+    checked: Set<string>;
+    /** Newest relay fetch per area (epoch ms) and whether every connected relay answered completely. */
+    fetched: Record<string, { at: number; complete: boolean }>;
   }
 
-  let listingSearch: ListingSearchState | null = null;
+  let listingSession: ListingSearchSession | null = null;
+  /** The workflow token of the listing workflow the open list started, so closing the list only aborts its own work. */
+  let listingWorkflowToken: symbol | null = null;
+  let openNonce = 0;
 
   // ─── Background tombstone watcher (§4) — runs for the component's whole lifetime ──
 
-  // One watcher per kind: a listing tombstone only has to be found for as long
-  // as a listing can live (ABSOLUTE_MAX_VALIDITY_DAYS), a mission tombstone for
-  // as long as a mission can (MISSION_TTL_DAYS) — see tombstoneExpirationTag().
-  let listingTombstoneSub: SubscriptionHandle | null = null;
+  // Missions are one global stream, so their tombstones are watched globally.
+  // Listing tombstones are not: a search asks for the tombstones of exactly
+  // the listings it shows (see fetchTombstonesFor), and each relay is asked
+  // once for the caller's own on connect (see checkOwnTombstonesOnRelay).
+  // A tombstone only has to outlive the longest-lived copy of what it
+  // retires — see tombstoneExpirationTag().
   let missionTombstoneSub: SubscriptionHandle | null = null;
 
   // ─── Mission sync — paginated catch-up plus a standing live subscription ──
@@ -374,8 +415,6 @@
 
   interface ProcessEventOptions {
     persist: boolean;
-    /** LISTING-only: batches store writes across a whole discovery page instead of writing per-event — see flushListingBuffer(). Ignored by processMissionEvent(), which has no batched caller. */
-    buffer?: Map<string, ListingRecord | null>;
   }
 
   /**
@@ -537,6 +576,19 @@
 
     for (const event of result.events) {
       await processEvent(event, { persist: true });
+    }
+
+    // Someone else's listing is cached but not on the map: show it the way a
+    // list row does. (The caller's own are drawn, EntityLayer's deepLink finds them.)
+    if (!isMission) {
+      const record = cachedListings.get(`${link.author}:${link.dTag}`);
+
+      if (record && !get(appStore).listings[record.id]) {
+        requestOpen(record, {
+          fly: record.content.interactionMode !== 'online' && !!record.location,
+          temporary: true,
+        });
+      }
     }
   }
 
@@ -1336,6 +1388,13 @@
       return;
     }
 
+    const interactionMode = content.interactionMode;
+
+    if (!isInteractionMode(interactionMode)) {
+      setError('Choose how people can take part: in person, online or both.');
+      return;
+    }
+
     const now = Math.floor(Date.now() / 1000);
 
     let expiresAt: number;
@@ -1389,14 +1448,18 @@
       content.location as LocationValue | undefined,
     );
 
-    const interactionMode =
-      content.interactionMode as string | undefined;
+    // Findable by the on-site search (`listing-<model>` + geohash) unless it
+    // is online only; findable by the online search (`listing-online-<model>`)
+    // unless it is in person only. A `both` listing is findable by both.
+    const onSite = interactionMode !== 'online';
+    const online = interactionMode !== 'in_person';
 
-    const shouldTag =
-      !!location && interactionMode !== 'online';
+    if (onSite && !location) {
+      setError('A location is required.');
+      return;
+    }
 
     const tags: string[][] = [
-      ['t', `listing-${model}`],
       ['domain', domain],
       ['model', model],
       ['expiration', String(expiresAt)],
@@ -1407,7 +1470,15 @@
     // categories; the category itself stays part of the JSON content.
     tags.push(...categoryIds.map((id) => ['c', id]));
 
-    if (shouldTag && location) {
+    if (onSite) {
+      tags.push(['t', `listing-${model}`]);
+    }
+
+    if (online) {
+      tags.push(['t', `listing-online-${model}`]);
+    }
+
+    if (onSite && location) {
       const g5 = encode(
         location.latitude,
         location.longitude,
@@ -1463,77 +1534,356 @@
 
     if (activeWorkflowToken !== token) return;
 
-    const buffer =
-      new Map<string, ListingRecord | null>();
-
     for (const event of own.events) {
-      await processEvent(event, {
-        persist: true,
-        buffer,
-      });
+      await processEvent(event, { persist: true });
     }
 
     if (activeWorkflowToken !== token) return;
 
-    flushListingBuffer(buffer);
     endWorkflow();
+
+    // Show the person what they just published: fly to it if it has a place
+    // (an online-only listing has none), and open its details.
+    const published = cachedListings.get(`${client.pubkey}:${dTag}`);
+
+    if (published) {
+      requestOpen(published, {
+        fly: interactionMode !== 'online' && !!published.location,
+        temporary: false,
+      });
+    }
   }
 
-  /** The category ids a listing/search payload carries — `categoryIds` (multi-select models) or the single `categoryId`. Empty if it carries none. */
-  function categoryIdsOf(content: Record<string, any>): string[] {
-    if (Array.isArray(content.categoryIds) && content.categoryIds.length) {
-      return content.categoryIds.filter(
-        (id: unknown): id is string => typeof id === 'string' && id.length > 0,
-      );
-    }
+  // ═══════════════════════════════════════════════════════════════════
+  // LISTING search — snapshots over the local cache
+  // ═══════════════════════════════════════════════════════════════════
 
-    if (typeof content.categoryId === 'string' && content.categoryId) {
-      return [content.categoryId];
-    }
-
-    return [];
+  function nowSecs(): number {
+    return Math.floor(Date.now() / 1000);
   }
 
-  /** The relay-side filter of a listing search: model, geohash cell and chosen categories. The same filter drives the one-shot query and the live subscription. */
-  function listingSearchFilter(
-    model: string,
-    geohash: string,
-    categoryIds: string[],
-  ): NostrFilter {
+  /** The oldest `created_at` a live listing can have: nothing lives longer than ABSOLUTE_MAX_VALIDITY_DAYS. */
+  function horizonSecs(): number {
+    return nowSecs() - ABSOLUTE_MAX_VALIDITY_DAYS * 86400;
+  }
+
+  function ownPubkey(): string {
+    return client?.pubkey ?? '';
+  }
+
+  /** The area a search segment covers: the online search is one area, the map search one geohash cell per scope. */
+  function areaKey(s: ListingSearchSession, scope: 'nearby' | 'wider' = s.scope): string {
+    if (s.mode === 'online') return 'online';
+    return scope === 'nearby' ? `g5:${s.cell5}` : `g4:${s.cell4}`;
+  }
+
+  function segmentKey(s: ListingSearchSession, scope: 'nearby' | 'wider' = s.scope): string {
+    return [s.model, [...s.categoryIds].sort().join(','), areaKey(s, scope)].join('|');
+  }
+
+  /** What is loaded completely for the segment the list looks at. Loading the wider cell also loads everything inside the nearby cell, so nearby inherits it. */
+  function coverageOf(s: ListingSearchSession): Interval[] {
+    const own = coverage[segmentKey(s)] ?? [];
+
+    if (s.mode === 'map' && s.scope === 'nearby') {
+      return unionIntervals(own, coverage[segmentKey(s, 'wider')] ?? []);
+    }
+
+    return own;
+  }
+
+  function addCoverage(s: ListingSearchSession, from: number, to: number) {
+    const key = segmentKey(s);
+
+    coverage = { ...coverage, [key]: addInterval(coverage[key] ?? [], from, to) };
+
+    saveCoverage(coverage, horizonSecs());
+  }
+
+  function areaLabelOf(s: ListingSearchSession): string {
+    if (s.mode === 'online') return 'Online · worldwide';
+    return s.scope === 'nearby' ? 'Nearby · ~5 km' : 'Wider area · ~40 km';
+  }
+
+  /** Whether a (cached) listing belongs to the list the session currently shows. */
+  function matchesSession(record: ListingRecord, s: ListingSearchSession): boolean {
+    if (record.model !== s.model) return false;
+
+    const categories = categoryIdsOf(record.content);
+
+    if (!categories.some((id) => s.categoryIds.includes(id))) return false;
+
+    const mode = record.content.interactionMode;
+
+    if (s.mode === 'online') {
+      return mode === 'online' || mode === 'both';
+    }
+
+    if ((mode !== 'in_person' && mode !== 'both') || !record.location) return false;
+
+    const precision = s.scope === 'nearby' ? 5 : 4;
+    const cell = encode(record.location.latitude, record.location.longitude, precision);
+
+    return cell === (s.scope === 'nearby' ? s.cell5 : s.cell4);
+  }
+
+  /** Fills the list from the cache and redraws the map to the caller's own listings plus (map search) the matching ones. */
+  function rebuildListingView(s: ListingSearchSession) {
+    const now = nowSecs();
+
+    s.viewIds = new Set();
+
+    for (const record of cachedListings.values()) {
+      if (
+        record.expiresAt > now &&
+        !latestEventAt.get(record.id)?.deleted &&
+        matchesSession(record, s)
+      ) {
+        s.viewIds.add(record.id);
+      }
+    }
+
+    const drawn: Record<string, ListingRecord> = {};
+
+    for (const record of cachedListings.values()) {
+      if (record.author === ownPubkey()) drawn[record.id] = record;
+    }
+
+    if (s.mode === 'map') {
+      for (const id of s.viewIds) {
+        drawn[id] = cachedListings.get(id)!;
+      }
+    }
+
+    appStore.update((st) => ({ ...st, listings: drawn }));
+  }
+
+  function publishListingView() {
+    const s = listingSession;
+
+    if (!s) {
+      appStore.update((st) => (st.listingView ? { ...st, listingView: null } : st));
+      return;
+    }
+
+    const covered = coverageOf(s);
+    const gaps = findGaps(covered, horizonSecs());
+    const records = [...s.viewIds]
+      .map((id) => cachedListings.get(id))
+      .filter((r): r is ListingRecord => !!r);
+    const fetched = s.fetched[areaKey(s)];
+
+    appStore.update((st) => ({
+      ...st,
+      listingView: {
+        mode: s.mode,
+        areaLabel: areaLabelOf(s),
+        updatedAt: fetched?.at ?? null,
+        complete: fetched?.complete ?? null,
+        rows: buildListingRows(records, gaps),
+        canWiden: s.mode === 'map' && s.scope === 'nearby' && covered.length > 0 && gaps.length === 0,
+        canNarrow: s.mode === 'map' && s.scope === 'wider',
+      },
+    }));
+  }
+
+  // Events of one page arrive one by one: publish the list once per tick.
+  let listingViewScheduled = false;
+
+  function scheduleListingViewPublish() {
+    if (listingViewScheduled || !listingSession) return;
+
+    listingViewScheduled = true;
+
+    queueMicrotask(() => {
+      listingViewScheduled = false;
+      publishListingView();
+    });
+  }
+
+  /** The relay-side filter of one search segment — the only place a listing search decides what to ask the relays. */
+  function listingSegmentFilter(s: ListingSearchSession): NostrFilter {
+    if (s.mode === 'online') {
+      return buildFilter({
+        kinds: [LISTING_KIND],
+        tags: { t: [`listing-online-${s.model}`], c: s.categoryIds },
+      });
+    }
+
     return buildFilter({
       kinds: [LISTING_KIND],
       tags: {
-        t: [`listing-${model}`],
-        g: [geohash],
-        c: categoryIds,
+        t: [`listing-${s.model}`],
+        g: [s.scope === 'nearby' ? s.cell5 : s.cell4],
+        c: s.categoryIds,
       },
     });
   }
 
-  async function runListingQuery(
-    filter: NostrFilter,
-  ): Promise<Map<string, ListingRecord | null>> {
-    const buffer =
-      new Map<string, ListingRecord | null>();
+  interface ListingFetchOutcome {
+    /** Relays that answered completely / relays asked. */
+    answered: number;
+    total: number;
+  }
 
-    if (!client) return buffer;
+  /**
+   * Loads one page — the newest `LISTING_PAGE_LIMIT` per relay — of the
+   * time between `since` and `until` (omitted = up to now) from every
+   * connected relay in parallel, records what that proves as covered, and
+   * asks for the tombstones of whatever the list shows that wasn't asked
+   * about yet. Returns null if the workflow was aborted meanwhile.
+   */
+  async function fetchListingPage(
+    s: ListingSearchSession,
+    token: symbol,
+    since: number,
+    until: number | undefined,
+  ): Promise<ListingFetchOutcome | null> {
+    if (!client) return null;
 
-    const result = await client.query(
-      filter,
-      {
-        timeoutMs: LISTING_QUERY_TIMEOUT_MS,
-        retries: 1,
-      },
+    const relays = client.getConnectedRelayUrls();
+    const fetchedAt = nowSecs();
+    const floor = Math.max(since, horizonSecs());
+    const base = listingSegmentFilter(s);
+
+    const runs = await Promise.all(
+      relays.map((url) =>
+        runRelayPages(
+          (filter) =>
+            client!.queryRelay(url, filter, { timeoutMs: LISTING_QUERY_TIMEOUT_MS }),
+          base,
+          {
+            since: floor,
+            until,
+            limit: LISTING_PAGE_LIMIT,
+            maxPages: 1,
+            confirmShortPages: true,
+            shouldStop: () => activeWorkflowToken !== token,
+            onEvents: async (events) => {
+              for (const event of events) {
+                await processEvent(event, { persist: true });
+              }
+            },
+          },
+        ),
+      ),
     );
 
-    for (const event of result.events) {
-      await processEvent(event, {
-        persist: true,
-        buffer,
-      });
+    if (activeWorkflowToken !== token) return null;
+
+    const claim = combineClaims(runs.map((run) => claimFromRun(run, floor, until, fetchedAt)));
+
+    if (claim) addCoverage(s, claim[0], claim[1]);
+
+    const complete = relays.length > 0 && runs.every((run) => run.complete);
+    const key = areaKey(s);
+
+    if (until === undefined || !s.fetched[key]) {
+      s.fetched[key] = { at: Date.now(), complete };
+    } else {
+      s.fetched[key] = { ...s.fetched[key], complete: s.fetched[key].complete && complete };
     }
 
-    return buffer;
+    await checkNewTombstones(s, token);
+
+    if (activeWorkflowToken !== token) return null;
+
+    publishListingView();
+
+    return { answered: runs.filter((run) => run.complete).length, total: relays.length };
+  }
+
+  /** Message for the status pill when a fetch was not answered completely. */
+  function fetchStatusPatch(outcome: ListingFetchOutcome): Partial<AppState> {
+    if (outcome.answered === 0) {
+      return { lastError: "Couldn't reach any relay — try again." };
+    }
+
+    if (outcome.answered < outcome.total) {
+      return { lastError: "Some relays didn't answer — results may be incomplete." };
+    }
+
+    return {};
+  }
+
+  /** Asks every connected relay, once, which of these listings have been deleted, and applies what it hears. */
+  async function fetchTombstonesFor(records: ListingRecord[], token: symbol | null) {
+    if (!client || records.length === 0) return;
+
+    const filters = tombstoneFilters(
+      records.map((r) => ({ author: r.author, dTag: r.dTag })),
+      {
+        kind: LISTING_KIND,
+        deletionTag: DELETION_TAG_VALUE,
+        blockSize: LISTING_TOMBSTONE_BLOCK,
+      },
+    );
+    const since = horizonSecs();
+
+    await Promise.all(
+      client.getConnectedRelayUrls().map(async (url) => {
+        for (const filter of filters) {
+          await runRelayPages(
+            (f) => client!.queryRelay(url, f, { timeoutMs: LISTING_QUERY_TIMEOUT_MS }),
+            filter,
+            {
+              since,
+              limit: LISTING_PAGE_LIMIT,
+              maxPages: Infinity,
+              shouldStop: () => destroyed || (token !== null && activeWorkflowToken !== token),
+              onEvents: async (events) => {
+                for (const event of events) {
+                  await processEvent(event, { persist: true });
+                }
+              },
+            },
+          );
+        }
+      }),
+    );
+  }
+
+  /** Tombstone check for what the list shows — only the listings that came in since the last check, never the whole list again. */
+  async function checkNewTombstones(s: ListingSearchSession, token: symbol) {
+    const fresh: ListingRecord[] = [];
+
+    for (const id of s.viewIds) {
+      if (s.checked.has(id)) continue;
+
+      const record = cachedListings.get(id);
+
+      if (record) {
+        s.checked.add(id);
+        fresh.push(record);
+      }
+    }
+
+    await fetchTombstonesFor(fresh, token);
+  }
+
+  /** On every relay connect: which of the caller's own listings have been deleted (e.g. from another device)? */
+  async function checkOwnTombstonesOnRelay(url: string) {
+    if (!client) return;
+
+    await runRelayPages(
+      (filter) => client!.queryRelay(url, filter, { timeoutMs: LISTING_QUERY_TIMEOUT_MS }),
+      buildFilter({
+        kinds: [LISTING_KIND],
+        authors: [client.pubkey],
+        tags: { t: [DELETION_TAG_VALUE] },
+      }),
+      {
+        since: horizonSecs(),
+        limit: LISTING_PAGE_LIMIT,
+        maxPages: Infinity,
+        shouldStop: () => destroyed,
+        onEvents: async (events) => {
+          for (const event of events) {
+            await processEvent(event, { persist: true });
+          }
+        },
+      },
+    );
   }
 
   async function searchListings(
@@ -1544,154 +1894,219 @@
   ) {
     if (!client) return;
 
-    const location =
-      extractStartCoordinate(
-        content.location as LocationValue | undefined,
-      );
+    // How the searcher wants to take part. A `both` listing matches either answer.
+    const interactionMode = content.interactionMode;
 
-    if (!location) {
-      setError('Listing search requires a location.');
+    if (interactionMode !== 'in_person' && interactionMode !== 'online') {
+      setError('Choose how you want to take part: in person or online.');
       return;
     }
 
-    const categoryFilter = categoryIdsOf(content);
+    const categoryIds = categoryIdsOf(content);
 
-    if (categoryFilter.length === 0) {
+    if (categoryIds.length === 0) {
       setError('A category is required.');
       return;
     }
 
-    // The previous search's live subscription belongs to the previous
-    // category/cell — it must not keep feeding the store.
-    listingSearch?.liveSub?.close();
-    listingSearch = null;
+    let cell5 = '';
 
-    appStore.update((s) => ({
-      ...s,
-      listings: {},
-      listingSearch: null,
-    }));
+    if (interactionMode === 'in_person') {
+      const location = extractStartCoordinate(
+        content.location as LocationValue | undefined,
+      );
 
-    const geohash5 = encode(
-      location.latitude,
-      location.longitude,
-      LISTING_SEARCH_PRECISION_INITIAL,
-    );
+      if (!location) {
+        setError('Listing search requires a location.');
+        return;
+      }
 
-    const nextSearch: ListingSearchState = {
+      cell5 = encode(
+        location.latitude,
+        location.longitude,
+        LISTING_SEARCH_PRECISION_INITIAL,
+      );
+    }
+
+    closeListingSession();
+
+    const session: ListingSearchSession = {
+      mode: interactionMode === 'online' ? 'online' : 'map',
       model,
-      categoryFilter,
-      geohash5,
-      geohash4: geohash5.slice(0, 4),
-      precision: 5,
+      categoryIds,
+      scope: 'nearby',
+      cell5,
+      cell4: cell5.slice(0, 4),
+      viewIds: new Set(),
+      checked: new Set(),
+      fetched: {},
     };
 
-    const filter = listingSearchFilter(model, geohash5, categoryFilter);
+    listingSession = session;
+    listingWorkflowToken = token;
 
-    const buffer = await runListingQuery(filter);
+    // The cache answers first: what is already known is on screen at once.
+    rebuildListingView(session);
+    publishListingView();
 
-    if (activeWorkflowToken !== token) return;
+    const outcome = await fetchListingPage(session, token, horizonSecs(), undefined);
 
-    flushListingBuffer(buffer);
+    if (outcome === null) return;
 
-    const liveSub = client.subscribe(
-      `listing-live-${geohash5}`,
-      filter,
-      (event) => {
-        processEvent(event, {
-          persist: true,
-        });
-      },
-    );
-
-    listingSearch = {
-      ...nextSearch,
-      liveSub,
-    };
-
-    endWorkflow({
-      listingSearch: {
-        model: nextSearch.model,
-        canLoadMore: true,
-      },
-    });
+    endWorkflow(fetchStatusPatch(outcome));
   }
 
-  /**
-   * Fetch the next, coarser page of the current LISTING search.
-   *
-   * Important abort rule:
-   * the current search remains at precision 5 until the bounded query has
-   * completed and the workflow token has been verified. Therefore an Abort
-   * during the query cannot leave `listingSearch` falsely marked as
-   * precision 4.
-   */
-  async function loadMoreListings() {
-    if (
-      !client ||
-      activeWorkflowToken ||
-      !listingSearch ||
-      listingSearch.precision !== 5
-    ) {
+  /** The list's button for one gap: load the newest page of exactly that stretch of time. */
+  async function loadListingGap(lo: number, hi: number) {
+    const session = listingSession;
+
+    if (!client || !session) return;
+
+    if (activeWorkflowToken) {
+      rejectWhileBusy('load request');
       return;
     }
 
     const token = beginWorkflow();
 
-    const scope: ListingSearchState = {
-      ...listingSearch,
-      precision: 4,
-    };
+    listingWorkflowToken = token;
 
-    const filter = listingSearchFilter(
-      scope.model,
-      scope.geohash4,
-      scope.categoryFilter,
-    );
+    const outcome = await fetchListingPage(session, token, lo, hi);
 
-    const buffer = await runListingQuery(filter);
+    if (outcome === null) return;
 
-    // Abort happened while the bounded query was in flight.
-    // Do not flush anything and do not modify the existing search scope.
-    if (activeWorkflowToken !== token) return;
+    endWorkflow(fetchStatusPatch(outcome));
+  }
 
-    flushListingBuffer(buffer);
+  /** Map search: look at the wider cell, or back at the nearby one. */
+  async function switchListingScope(scope: 'nearby' | 'wider') {
+    const session = listingSession;
 
-    // Only after the bounded batch has completed successfully does the
-    // old precision-5 subscription get replaced by the precision-4 one.
-    listingSearch?.liveSub?.close();
+    if (!client || !session || session.mode !== 'map' || session.scope === scope) return;
 
-    const liveSub = client.subscribe(
-      `listing-live-${scope.geohash4}`,
-      filter,
-      (event) => {
-        processEvent(event, {
-          persist: true,
-        });
+    if (activeWorkflowToken) {
+      rejectWhileBusy('area change');
+      return;
+    }
+
+    const token = beginWorkflow();
+
+    listingWorkflowToken = token;
+
+    session.scope = scope;
+
+    rebuildListingView(session);
+    publishListingView();
+
+    // An area looked at for the first time in this search gets its newest page.
+    if (!session.fetched[areaKey(session)]) {
+      const outcome = await fetchListingPage(session, token, horizonSecs(), undefined);
+
+      if (outcome === null) return;
+
+      endWorkflow(fetchStatusPatch(outcome));
+      return;
+    }
+
+    endWorkflow();
+  }
+
+  /** Ends the search session: the list closes. Markers of a map search stay until the next search; a temporary marker goes with it. */
+  function closeListingSession() {
+    listingSession = null;
+    listingWorkflowToken = null;
+
+    appStore.update((st) => ({
+      ...st,
+      listingView: null,
+      openRequest: st.openRequest?.temporary ? null : st.openRequest,
+    }));
+  }
+
+  /** The list's ✕: stops the search still loading into it, then closes it. */
+  function closeListingList() {
+    if (listingWorkflowToken && activeWorkflowToken === listingWorkflowToken) {
+      activeWorkflowToken = null;
+
+      appStore.update((st) => ({ ...st, inFlight: false, lastError: null }));
+    }
+
+    closeListingSession();
+  }
+
+  function requestOpen(
+    record: ListingRecord | MissionRecord,
+    how: { fly: boolean; temporary: boolean },
+  ) {
+    appStore.update((st) => ({
+      ...st,
+      openRequest: {
+        record,
+        fly: how.fly,
+        temporary: how.temporary,
+        nonce: ++openNonce,
       },
-    );
+    }));
+  }
 
-    listingSearch = {
-      ...scope,
-      liveSub,
-    };
+  /** A row of the list was clicked: show the listing — and fly to it if it has a place. A listing that is not on the map gets a marker that lives as long as its panel. */
+  function openFromList(id: string) {
+    const record = cachedListings.get(id);
 
-    endWorkflow({
-      listingSearch: {
-        model: scope.model,
-        canLoadMore: false,
-      },
+    if (!record) return;
+
+    requestOpen(record, {
+      fly: record.content.interactionMode !== 'online' && !!record.location,
+      temporary: !get(appStore).listings[id],
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LISTING receive path
+  // ═══════════════════════════════════════════════════════════════════
+
+  /** Removes a listing everywhere it lives in memory: cache, list, map. Persistence is the caller's business. */
+  function forgetListing(id: string) {
+    cachedListings.delete(id);
+    listingSession?.viewIds.delete(id);
+    removeListingFromStore(id);
+    scheduleListingViewPublish();
+  }
+
+  async function expireListing(id: string) {
+    try {
+      await deleteListingPersisted(id);
+      forgetListing(id);
+    } catch {
+      // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
+    }
+  }
+
+  /** A cached listing the current search asks for goes into the list (and, for a map search, onto the map); the caller's own are always on the map. */
+  function adoptListing(record: ListingRecord) {
+    const inView = !!listingSession && matchesSession(record, listingSession);
+
+    if (inView) {
+      listingSession!.viewIds.add(record.id);
+    }
+
+    if (record.author === ownPubkey() || (inView && listingSession!.mode === 'map')) {
+      upsertListingInStore(record);
+    }
+
+    if (inView) {
+      scheduleListingViewPublish();
+    }
   }
 
   /**
    * The single receive-path pipeline for every listing-kind event,
-   * regardless of source (discovery query, live subscription, our own
-   * just-published listing fetched back, or the tombstone watcher). Only
-   * ever called from processEvent() — the `LISTING_KIND` case of its
-   * switch — never directly. Persistence is always awaited to completion
-   * before the store (or buffer) is touched; see the persist → store
-   * contract above processEvent().
+   * regardless of source (search page, tombstone check, our own
+   * just-published listing fetched back, or a deep link). Only ever called
+   * from processEvent() — the `LISTING_KIND` case of its switch — never
+   * directly. Persistence is always awaited to completion before cache,
+   * list or map are touched; see the persist → store contract above
+   * processEvent().
    */
   async function processListingEvent(
     event: NostrEvent,
@@ -1713,11 +2128,7 @@
         await deleteListingPersisted(id);
       }
 
-      if (opts.buffer) {
-        opts.buffer.set(id, null);
-      } else {
-        removeListingFromStore(id);
-      }
+      forgetListing(id);
 
       return;
     }
@@ -1730,8 +2141,14 @@
 
     if (isStaleEvent(id, event, false)) return;
 
-    // This exact version is already in the store: nothing to persist or update.
-    if (get(appStore).listings[id]?.eventId === event.id) return;
+    // This exact version is already cached: nothing to persist, it only may
+    // have become part of the current list.
+    const known = cachedListings.get(id);
+
+    if (known?.eventId === event.id) {
+      adoptListing(known);
+      return;
+    }
 
     const expiresAt =
       acceptableExpiration(
@@ -1751,11 +2168,7 @@
         await deleteListingPersisted(id);
       }
 
-      if (opts.buffer) {
-        opts.buffer.set(id, null);
-      } else {
-        removeListingFromStore(id);
-      }
+      forgetListing(id);
 
       return;
     }
@@ -1767,6 +2180,9 @@
     } catch {
       return;
     }
+
+    // Every listing states how it can be taken part in; one that doesn't is not valid.
+    if (!isInteractionMode(content.interactionMode)) return;
 
     const record: ListingRecord = {
       kind: 'listing',
@@ -1797,26 +2213,14 @@
       await saveListing(record);
     }
 
-    if (opts.buffer) {
-      opts.buffer.set(
-        id,
-        record,
-      );
-    } else {
-      upsertListingInStore(record);
-    }
+    cachedListings.set(id, record);
+
+    adoptListing(record);
 
     listingExpiryTracker.set(
       id,
       expiresAt,
-      async () => {
-        try {
-          await deleteListingPersisted(id);
-          removeListingFromStore(id);
-        } catch {
-          // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
-        }
-      },
+      () => expireListing(id),
     );
   }
 
@@ -1853,52 +2257,13 @@
     });
   }
 
-  function flushListingBuffer(
-    buffer: Map<string, ListingRecord | null>,
-  ) {
-    if (buffer.size === 0) return;
-
-    appStore.update((s) => {
-      const listings = {
-        ...s.listings,
-      };
-
-      for (const [id, record] of buffer) {
-        if (record) {
-          listings[id] = record;
-        } else {
-          delete listings[id];
-        }
-      }
-
-      return {
-        ...s,
-        listings,
-      };
-    });
-  }
-
   function startTombstoneWatchers() {
     if (!client) return;
 
     const now = Math.floor(Date.now() / 1000);
 
-    // Tombstones carry an expiration (see tombstoneExpirationTag), so a
-    // tombstone that matters is never older than the entity's maximum
-    // lifetime. `since` stays fixed: on a relay reconnect the stored
-    // subscription is replayed with it and delivers whatever was missed.
-    listingTombstoneSub = client.subscribe(
-      'tombstones-listing',
-      buildFilter({
-        kinds: [LISTING_KIND],
-        tags: { t: [DELETION_TAG_VALUE] },
-        since: now - ABSOLUTE_MAX_VALIDITY_DAYS * 86400,
-      }),
-      (event) => {
-        processEvent(event, { persist: true });
-      },
-    );
-
+    // `since` stays fixed: on a relay reconnect the stored subscription is
+    // replayed with it and delivers whatever was missed.
     missionTombstoneSub = client.subscribe(
       'tombstones-mission',
       buildFilter({
@@ -2016,6 +2381,13 @@
     }
 
     endWorkflow();
+
+    // Fly to the mission and open its details.
+    const published = get(appStore).missions[`${client.pubkey}:${dTag}`];
+
+    if (published) {
+      requestOpen(published, { fly: true, temporary: false });
+    }
   }
 
   /**
@@ -2025,9 +2397,7 @@
    * processEvent() — the `MISSION_KIND` case of its switch — never
    * directly. Same persist → store contract as processListingEvent():
    * persistence is always awaited to completion before the store is
-   * touched. `opts.buffer` doesn't apply here — nothing calls
-   * processMissionEvent() with a batch to flush — so it's accepted for
-   * signature parity with processListingEvent() but otherwise ignored.
+   * touched.
    */
   async function processMissionEvent(
     event: NostrEvent,
@@ -2232,43 +2602,28 @@
   async function syncMissionsFromRelay(url: string, since: number): Promise<boolean> {
     if (!client) return false;
 
-    const collected = new Set<string>();
-    let until: number | undefined;
+    const run = await runRelayPages(
+      (filter) =>
+        client!.queryRelay(url, filter, { timeoutMs: MISSION_QUERY_TIMEOUT_MS }),
+      buildFilter({ kinds: [MISSION_KIND], tags: { t: ['mission'] } }),
+      {
+        since,
+        limit: MISSION_SYNC_PAGE_LIMIT,
+        maxPages: Infinity,
+        shouldStop: () => destroyed,
+        onEvents: async (events) => {
+          for (const event of events) {
+            if (missionSyncProcessed.has(event.id)) continue;
 
-    for (;;) {
-      const page = await client.queryRelay(
-        url,
-        buildFilter({
-          kinds: [MISSION_KIND],
-          tags: { t: ['mission'] },
-          since,
-          until,
-          limit: MISSION_SYNC_PAGE_LIMIT,
-        }),
-        { timeoutMs: MISSION_QUERY_TIMEOUT_MS },
-      );
+            await processEvent(event, { persist: true });
 
-      const fresh = page.events.filter((e) => !collected.has(e.id));
+            missionSyncProcessed.add(event.id);
+          }
+        },
+      },
+    );
 
-      for (const event of fresh) {
-        collected.add(event.id);
-
-        if (missionSyncProcessed.has(event.id)) continue;
-
-        await processEvent(event, { persist: true });
-
-        missionSyncProcessed.add(event.id);
-      }
-
-      if (!page.complete) return false;
-
-      if (fresh.length === 0) return true;
-
-      until = page.events.reduce(
-        (oldest, e) => Math.min(oldest, e.created_at),
-        Infinity,
-      );
-    }
+    return run.complete;
   }
 
   /**
@@ -2342,7 +2697,7 @@
    * each one that connects later (first connect or reconnect) the moment it
    * does.
    */
-  function startMissionSync() {
+  function startRelaySync() {
     if (!client) return;
 
     missionLiveSub = client.subscribe(
@@ -2357,13 +2712,17 @@
       },
     );
 
-    client.onRelayConnect((url) => {
-      runMissionSyncForRelay(url);
-    });
+    client.onRelayConnect(handleRelayConnect);
 
     for (const url of client.getConnectedRelayUrls()) {
-      runMissionSyncForRelay(url);
+      handleRelayConnect(url);
     }
+  }
+
+  /** What every relay gets as soon as it is connected (first connect and reconnect): the mission catch-up, and the question which of the caller's own listings were deleted meanwhile. */
+  function handleRelayConnect(url: string) {
+    runMissionSyncForRelay(url);
+    checkOwnTombstonesOnRelay(url);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -2408,15 +2767,14 @@
     const now =
       Math.floor(Date.now() / 1000);
 
-    const hydrated:
-      Record<string, ListingRecord> = {};
-
     for (const record of cached) {
-      // `createdAt` and `expiresAt` are required: a cached listing without
-      // them (or already expired) is dropped from the cache and the store.
+      // `createdAt`, `expiresAt` and an explicit participation mode are
+      // required: a cached listing without them (or already expired) is
+      // dropped from the cache.
       if (
         typeof record.createdAt !== 'number' ||
-        record.expiresAt <= now
+        record.expiresAt <= now ||
+        !isInteractionMode(record.content?.interactionMode)
       ) {
         deleteListingPersisted(
           record.id,
@@ -2429,35 +2787,29 @@
         deleted: false,
       });
 
-      hydrated[record.id] = record;
+      cachedListings.set(record.id, record);
 
       listingExpiryTracker.set(
         record.id,
         record.expiresAt,
-        async () => {
-          try {
-            await deleteListingPersisted(
-              record.id,
-            );
-            removeListingFromStore(
-              record.id,
-            );
-          } catch {
-            // Store nicht verändern, wenn die Persistenzlöschung fehlgeschlagen ist.
-          }
-        },
+        () => expireListing(record.id),
       );
     }
 
-    if (
-      Object.keys(hydrated).length > 0
-    ) {
+    coverage = loadCoverage(horizonSecs());
+
+    // Only the caller's own listings are on the map after a start; anyone
+    // else's appear through a search.
+    const own: Record<string, ListingRecord> = {};
+
+    for (const record of cachedListings.values()) {
+      if (record.author === client.pubkey) own[record.id] = record;
+    }
+
+    if (Object.keys(own).length > 0) {
       appStore.update((s) => ({
         ...s,
-        listings: {
-          ...s.listings,
-          ...hydrated,
-        },
+        listings: { ...s.listings, ...own },
       }));
     }
 
@@ -2517,17 +2869,13 @@
       }));
     }
 
-    startMissionSync();
+    startRelaySync();
 
     startTombstoneWatchers();
   });
 
   onDestroy(() => {
     cancelActiveLiveSession();
-
-    listingSearch?.liveSub?.close();
-
-    listingTombstoneSub?.close();
 
     missionTombstoneSub?.close();
 
@@ -2555,8 +2903,7 @@
   $: statusVisible =
     connectedRelays === 0 ||
     $appStore.inFlight ||
-    !!$appStore.lastError ||
-    !!$appStore.listingSearch?.canLoadMore;
+    !!$appStore.lastError;
 </script>
 
 {#if statusVisible}
@@ -2592,15 +2939,23 @@
       </span>
     {/if}
 
-    {#if $appStore.listingSearch?.canLoadMore && !$appStore.inFlight}
-      <button
-        class="load-more"
-        on:click={loadMoreListings}
-      >
-        Load More
-      </button>
-    {/if}
   </div>
+{/if}
+
+<!--
+  The search result list: presentational only, driven by the Orchestrator's
+  own projection ($appStore.listingView) — same "dumb component, Store
+  flows down, events flow up" contract as LiveOverlay below.
+-->
+{#if $appStore.listingView}
+  <ListingResultList
+    view={$appStore.listingView}
+    on:open={(e) => openFromList(e.detail.id)}
+    on:gap={(e) => loadListingGap(e.detail.lo, e.detail.hi)}
+    on:widen={() => switchListingScope('wider')}
+    on:narrow={() => switchListingScope('nearby')}
+    on:close={closeListingList}
+  />
 {/if}
 
 <!--
@@ -2654,22 +3009,6 @@
 
   .row.error {
     color: #ff6b6b;
-  }
-
-  .load-more {
-    background: linear-gradient(90deg, #335bf4, #2ae9c9);
-    border: none;
-    color: #0b0b0d;
-    font-weight: 600;
-    padding: 0.35em 0.9em;
-    border-radius: 999px;
-    cursor: pointer;
-    font-size: 1em;
-  }
-
-  .load-more:hover,
-  .load-more:focus-visible {
-    filter: brightness(1.08);
   }
 
   .abort {

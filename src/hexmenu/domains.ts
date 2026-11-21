@@ -47,7 +47,8 @@
 // description:  { placeholder } | undefined
 // contact:      { hint } | undefined
 // Everything present is required, EXCEPT date (only required when
-// date.required === true) and interactionMode (never blocks readiness).
+// date.required === true). interactionMode is never missing once the
+// form is open: HexMenu pre-selects 'in_person' as a real value.
 
 export type GeometryType = 'point' | 'route';
 
@@ -77,10 +78,15 @@ export interface CategoryOption {
 }
 
 export interface DetailsConfig {
-  // Whether this model's form should include the in-person/online/both
-  // selector (Details.svelte). Named `interactionMode` — not `mode` —
-  // to avoid colliding with the app-level MODE concept (live/listings,
-  // see HexMenu.svelte's selMode); this is an unrelated per-model field.
+  // Whether this model's form includes the in-person/online/both
+  // selector (Details.svelte) — how a listing can be taken part in
+  // (see InteractionMode). Named `interactionMode` — not `mode` — to
+  // avoid colliding with the app-level MODE concept (live/listings, see
+  // HexMenu.svelte's selMode); this is an unrelated per-model field.
+  // Models without the selector are in person by definition: every
+  // listing still carries an explicit `interactionMode` in its content
+  // (HexMenu writes 'in_person' for them), so nothing downstream ever
+  // branches on whether a model has the selector.
   interactionMode?: true;
   title?: { label: string; placeholder: string };
   category?: { options: CategoryOption[]; multi: boolean };
@@ -204,6 +210,72 @@ export function isLocationComplete(schema: LocationConfig | null, value: Locatio
   if (!value) return false;
   if (value.geometry !== schema.geometry) return false;
   return value.geometry === 'point' ? !!value.point : !!(value.from && value.to);
+}
+
+// ─── How a listing can be taken part in ───
+//
+// These describe participation options, not event types:
+//   in_person — only on site
+//   online    — only online
+//   both      — on site and online
+//
+// Tags (Orchestrator): `listing-<model>` (+ geohash) means "findable by
+// the on-site search", `listing-online-<model>` means "can be taken part
+// in online" — so a `both` listing carries both, an `online` one only the
+// second, an `in_person` one only the first.
+export type InteractionMode = 'in_person' | 'online' | 'both';
+
+export const INTERACTION_MODES: readonly InteractionMode[] = ['in_person', 'online', 'both'];
+
+export function isInteractionMode(value: unknown): value is InteractionMode {
+  return typeof value === 'string' && (INTERACTION_MODES as readonly string[]).includes(value);
+}
+
+// Wording per place it is shown. Stored values never change.
+export const INTERACTION_MODE_LABELS: Record<InteractionMode, string> = {
+  in_person: 'In person only',
+  online: 'Online only',
+  both: 'In person & online',
+};
+
+// Offer form (Details.svelte): what the publisher's listing IS.
+export const OFFER_INTERACTION_OPTIONS: { id: InteractionMode; label: string }[] = [
+  { id: 'in_person', label: 'In person only' },
+  { id: 'online', label: 'Online only' },
+  { id: 'both', label: 'Both (in person & online)' },
+];
+
+// Search form (Details.svelte): how the searcher wants to take part —
+// a `both` listing matches either answer, so there is no 'both' here.
+export const SEARCH_INTERACTION_OPTIONS: { id: InteractionMode; label: string }[] = [
+  { id: 'in_person', label: 'In person' },
+  { id: 'online', label: 'Online' },
+];
+
+// Whether the form needs a location. Only an 'online' choice drops it —
+// everything else (including models without the selector) needs one.
+export function isLocationRequired(schema: DetailsConfig | null, values: Record<string, any>): boolean {
+  return !(schema?.interactionMode && values.interactionMode === 'online');
+}
+
+// A category's display name within one model, or the id itself if the
+// model/category is unknown (never throws — used for list rows only).
+export function categoryLabel(modelId: string, categoryId: string): string {
+  for (const domain of DOMAINS) {
+    const model = domain.models.find((m) => m.id === modelId);
+
+    if (!model) continue;
+
+    const spec = model.details;
+    const configs = 'offer' in spec && 'search' in spec ? [spec.offer, spec.search] : [spec];
+
+    for (const cfg of configs) {
+      const found = cfg.category?.options.find((o) => o.id === categoryId);
+      if (found) return found.name;
+    }
+  }
+
+  return categoryId;
 }
 
 export interface DomainConfig {
