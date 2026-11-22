@@ -130,6 +130,8 @@
   const LISTING_PAGE_LIMIT = 100;
   /** Listings per tombstone question (one filter). */
   const LISTING_TOMBSTONE_BLOCK = 100;
+  /** All relays mirror each other, so one complete answer is the full answer: a fetch counts as complete once this many relays have answered completely. */
+  const MIN_COMPLETE_RELAYS = 1;
 
   /** A mission stays visible this long after its last publish; editing/saving it republishes and renews the clock. */
   const MISSION_TTL_DAYS = 30;
@@ -365,7 +367,7 @@
     viewIds: Set<string>;
     /** Ids already asked about tombstones in this session — never asked twice. */
     checked: Set<string>;
-    /** Newest relay fetch per area (epoch ms) and whether every connected relay answered completely. */
+    /** Newest relay fetch per area (epoch ms) and whether enough relays (MIN_COMPLETE_RELAYS) answered completely. */
     fetched: Record<string, { at: number; complete: boolean }>;
   }
 
@@ -1721,9 +1723,8 @@
   }
 
   interface ListingFetchOutcome {
-    /** Relays that answered completely / relays asked. */
+    /** Relays that answered completely. */
     answered: number;
-    total: number;
   }
 
   /**
@@ -1775,7 +1776,8 @@
 
     if (claim) addCoverage(s, claim[0], claim[1]);
 
-    const complete = relays.length > 0 && runs.every((run) => run.complete);
+    const answered = runs.filter((run) => run.complete).length;
+    const complete = answered >= MIN_COMPLETE_RELAYS;
     const key = areaKey(s);
 
     if (until === undefined || !s.fetched[key]) {
@@ -1790,17 +1792,13 @@
 
     publishListingView();
 
-    return { answered: runs.filter((run) => run.complete).length, total: relays.length };
+    return { answered };
   }
 
-  /** Message for the status pill when a fetch was not answered completely. */
+  /** Message for the status pill when no relay answered. Relays that stay silent while another one answers are not worth a message: they mirror the same data. */
   function fetchStatusPatch(outcome: ListingFetchOutcome): Partial<AppState> {
     if (outcome.answered === 0) {
       return { lastError: "Couldn't reach any relay — try again." };
-    }
-
-    if (outcome.answered < outcome.total) {
-      return { lastError: "Some relays didn't answer — results may be incomplete." };
     }
 
     return {};
