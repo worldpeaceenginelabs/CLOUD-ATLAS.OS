@@ -9,6 +9,13 @@
  * Why `until` and not "ask for the next page by offset": relays only
  * sort by `created_at`, newest first. Each page asks for the events up to
  * the oldest `created_at` of the previous one.
+ *
+ * Why whole seconds: a page boundary can fall inside one second, and the
+ * next page (`until` inclusive) cannot get past it if that second alone
+ * holds a page's worth of events. So whenever the walk stops at a second,
+ * or gets stuck in one, `drainSecond` first delivers that second completely.
+ * Everything a run reports as delivered is therefore delivered in whole
+ * seconds. This assumes a relay answers at least `limit` events per request.
  */
 
 import type { NostrEvent, NostrFilter } from '../nostr';
@@ -43,6 +50,13 @@ export interface PageRunOptions {
   shouldStop?: () => boolean;
   /** Called with each page's new (not yet seen in this run) events, before the next page is requested. */
   onEvents?: (events: NostrEvent[]) => Promise<void> | void;
+  /**
+   * Upper bound of the limit `drainSecond` asks for when one second holds
+   * more events than a page. If the second is still not delivered whole
+   * at that size, the run ends as incomplete instead of vouching for it.
+   * Default: `limit * 64`.
+   */
+  maxSecondLimit?: number;
 }
 
 export interface PageRun {
@@ -63,6 +77,7 @@ export async function runRelayPages(
 ): Promise<PageRun> {
   const seen = new Set<string>();
   const events: NostrEvent[] = [];
+  const maxSecondLimit = options.maxSecondLimit ?? options.limit * 64;
   let until = options.until;
   let oldest: number | null = null;
   let exhausted = false;
@@ -70,19 +85,9 @@ export async function runRelayPages(
   let allowed = options.maxPages;
   let confirmed = false;
 
-  for (let page = 0; page < allowed; page++) {
-    if (options.shouldStop?.()) {
-      return { events, complete: false, exhausted: false, oldest };
-    }
-
-    const answer = await query({
-      ...base,
-      since: options.since,
-      until,
-      limit: options.limit,
-    });
-
-    const fresh = answer.events.filter((e) => !seen.has(e.id));
+  /** Records the answer's new events and hands them to the caller. */
+  const take = async (batch: NostrEvent[]): Promise<NostrEvent[]> => {
+    const fresh = batch.filter((e) => !seen.has(e.id));
 
     for (const event of fresh) {
       seen.add(event.id);
@@ -94,13 +99,73 @@ export async function runRelayPages(
       await options.onEvents?.(fresh);
     }
 
-    if (!answer.complete) {
-      return { events, complete: false, exhausted: false, oldest };
+    return fresh;
+  };
+
+  const finish = (complete: boolean): PageRun => ({
+    events,
+    complete,
+    exhausted: complete && exhausted,
+    oldest,
+  });
+
+  /**
+   * Delivers ALL events of one second: a page cannot split a second, so ask
+   * for exactly that second with a growing limit until the answer is shorter
+   * than the limit asked for. False if that cannot be shown (a relay did not
+   * answer fully, the run was stopped, or `maxSecondLimit` was reached).
+   */
+  const drainSecond = async (second: number): Promise<boolean> => {
+    let size = options.limit;
+
+    while (size < maxSecondLimit) {
+      if (options.shouldStop?.()) return false;
+
+      size = Math.min(size * 2, maxSecondLimit);
+
+      const answer = await query({ ...base, since: second, until: second, limit: size });
+
+      await take(answer.events);
+
+      if (!answer.complete) return false;
+      if (answer.events.length < size) return true;
     }
 
+    return false;
+  };
+
+  for (let page = 0; page < allowed; page++) {
+    if (options.shouldStop?.()) return finish(false);
+
+    const answer = await query({
+      ...base,
+      since: options.since,
+      until,
+      limit: options.limit,
+    });
+
+    const fresh = await take(answer.events);
+
+    if (!answer.complete) return finish(false);
+
     if (fresh.length === 0) {
-      exhausted = true;
-      break;
+      if (answer.events.length < options.limit || until === undefined) {
+        exhausted = true;
+        break;
+      }
+
+      // A full page of events we already have: one second holds at least
+      // `limit` events and the walk cannot get past it. Take the whole second.
+      if (!(await drainSecond(until))) return finish(false);
+
+      until -= 1;
+
+      if (until < options.since) {
+        exhausted = true;
+        break;
+      }
+
+      continue;
     }
 
     if (
@@ -116,5 +181,11 @@ export async function runRelayPages(
     until = answer.events.reduce((o, e) => Math.min(o, e.created_at), Infinity);
   }
 
-  return { events, complete: true, exhausted, oldest };
+  // Stopped by the page limit: make the oldest second whole, so that
+  // "delivered down to `oldest`" is true for every second it names.
+  if (!exhausted && oldest !== null && !(await drainSecond(oldest))) {
+    return finish(false);
+  }
+
+  return finish(true);
 }
