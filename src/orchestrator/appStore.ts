@@ -136,7 +136,7 @@ export interface ListingViewState {
   areaLabel: string;
   /** Epoch ms of the newest successful relay fetch of this search, or null before the first one. */
   updatedAt: number | null;
-  /** Whether the newest fetch was answered completely by enough relays — MIN_COMPLETE_RELAYS in Orchestrator, one while the relays mirror each other (null before the first one). */
+  /** True once the newest page of the area was answered completely by enough relays (MIN_COMPLETE_RELAYS in Orchestrator); null while the area is not loaded yet in this search. */
   complete: boolean | null;
   rows: ListingViewRow[];
   /** Map search only: the area can be widened (this one is loaded all the way down). */

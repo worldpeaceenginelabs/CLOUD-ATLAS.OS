@@ -367,8 +367,8 @@
     viewIds: Set<string>;
     /** Ids already asked about tombstones in this session — never asked twice. */
     checked: Set<string>;
-    /** Newest relay fetch per area (epoch ms) and whether enough relays (MIN_COMPLETE_RELAYS) answered completely. */
-    fetched: Record<string, { at: number; complete: boolean }>;
+    /** When the newest page of an area was last answered completely by enough relays (epoch ms, MIN_COMPLETE_RELAYS). No entry means the area is not loaded yet in this search — switching to it tries again. */
+    fetched: Record<string, { at: number }>;
   }
 
   let listingSession: ListingSearchSession | null = null;
@@ -1681,7 +1681,7 @@
         mode: s.mode,
         areaLabel: areaLabelOf(s),
         updatedAt: fetched?.at ?? null,
-        complete: fetched?.complete ?? null,
+        complete: fetched ? true : null,
         rows: buildListingRows(records, gaps),
         canWiden: s.mode === 'map' && s.scope === 'nearby' && covered.length > 0 && gaps.length === 0,
         canNarrow: s.mode === 'map' && s.scope === 'wider',
@@ -1777,13 +1777,10 @@
     if (claim) addCoverage(s, claim[0], claim[1]);
 
     const answered = runs.filter((run) => run.complete).length;
-    const complete = answered >= MIN_COMPLETE_RELAYS;
-    const key = areaKey(s);
 
-    if (until === undefined || !s.fetched[key]) {
-      s.fetched[key] = { at: Date.now(), complete };
-    } else {
-      s.fetched[key] = { ...s.fetched[key], complete: s.fetched[key].complete && complete };
+    // Only the newest page counts as "loaded", and only if enough relays answered it. Gap fetches never touch the entry.
+    if (until === undefined && answered >= MIN_COMPLETE_RELAYS) {
+      s.fetched[areaKey(s)] = { at: Date.now() };
     }
 
     await checkNewTombstones(s, token);
