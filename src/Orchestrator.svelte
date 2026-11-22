@@ -92,7 +92,7 @@
   } from './orchestrator/coverage';
   import { loadCoverage, saveCoverage, type CoverageBySegment } from './orchestrator/coverageStore';
   import { buildListingRows, categoryIdsOf } from './orchestrator/listingView';
-  import { tombstoneFilters } from './orchestrator/tombstoneCheck';
+  import { tombstoneBlocks } from './orchestrator/tombstoneCheck';
   import {
     saveListing,
     deleteListing as deleteListingPersisted,
@@ -365,7 +365,7 @@
     cell4: string;
     /** Ids of the cached listings that belong to the list right now. */
     viewIds: Set<string>;
-    /** Ids already asked about tombstones in this session — never asked twice. */
+    /** Ids whose tombstone question enough relays (MIN_COMPLETE_RELAYS) answered completely in this session. Asked again, on the next fetch, until then. */
     checked: Set<string>;
     /** When the newest page of an area was last answered completely by enough relays (epoch ms, MIN_COMPLETE_RELAYS). No entry means the area is not loaded yet in this search — switching to it tries again. */
     fetched: Record<string, { at: number }>;
@@ -1801,12 +1801,17 @@
     return {};
   }
 
-  /** Asks every connected relay, once, which of these listings have been deleted, and applies what it hears. */
-  async function fetchTombstonesFor(records: ListingRecord[], token: symbol | null) {
-    if (!client || records.length === 0) return;
+  /**
+   * Asks every connected relay which of these listings have been deleted and applies what it hears.
+   * Returns the ids of the listings whose question enough relays answered completely; the rest stays open.
+   */
+  async function fetchTombstonesFor(records: ListingRecord[], token: symbol | null): Promise<Set<string>> {
+    const answeredIds = new Set<string>();
 
-    const filters = tombstoneFilters(
-      records.map((r) => ({ author: r.author, dTag: r.dTag })),
+    if (!client || records.length === 0) return answeredIds;
+
+    const blocks = tombstoneBlocks(
+      records.map((r) => ({ id: r.id, author: r.author, dTag: r.dTag })),
       {
         kind: LISTING_KIND,
         deletionTag: DELETION_TAG_VALUE,
@@ -1815,12 +1820,14 @@
     );
     const since = horizonSecs();
 
-    await Promise.all(
+    const perRelay = await Promise.all(
       client.getConnectedRelayUrls().map(async (url) => {
-        for (const filter of filters) {
-          await runRelayPages(
+        const answered = blocks.map(() => false);
+
+        for (let b = 0; b < blocks.length; b++) {
+          const run = await runRelayPages(
             (f) => client!.queryRelay(url, f, { timeoutMs: LISTING_QUERY_TIMEOUT_MS }),
-            filter,
+            blocks[b].filter,
             {
               since,
               limit: LISTING_PAGE_LIMIT,
@@ -1833,27 +1840,40 @@
               },
             },
           );
+
+          answered[b] = run.complete;
+
+          // A relay that fails once is not asked the remaining blocks: one timeout, not one per block.
+          if (!run.complete) break;
         }
+
+        return answered;
       }),
     );
+
+    blocks.forEach((block, b) => {
+      if (perRelay.filter((answered) => answered[b]).length < MIN_COMPLETE_RELAYS) return;
+
+      for (const key of block.keys) answeredIds.add(key.id);
+    });
+
+    return answeredIds;
   }
 
   /** Tombstone check for what the list shows — only the listings that came in since the last check, never the whole list again. */
   async function checkNewTombstones(s: ListingSearchSession, token: symbol) {
-    const fresh: ListingRecord[] = [];
+    const pending: ListingRecord[] = [];
 
     for (const id of s.viewIds) {
       if (s.checked.has(id)) continue;
 
       const record = cachedListings.get(id);
 
-      if (record) {
-        s.checked.add(id);
-        fresh.push(record);
-      }
+      if (record) pending.push(record);
     }
 
-    await fetchTombstonesFor(fresh, token);
+    // Only what was answered counts as checked; the rest is asked again on the next fetch.
+    for (const id of await fetchTombstonesFor(pending, token)) s.checked.add(id);
   }
 
   /** On every relay connect: which of the caller's own listings have been deleted (e.g. from another device)? */
