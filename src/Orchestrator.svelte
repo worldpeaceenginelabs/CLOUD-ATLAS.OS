@@ -2277,14 +2277,16 @@
 
     const now = Math.floor(Date.now() / 1000);
 
-    // `since` stays fixed: on a relay reconnect the stored subscription is
-    // replayed with it and delivers whatever was missed.
+    // Only what is deleted from now on: the catch-up for everything older is
+    // the per-relay mission sync (syncMissionTombstonesFromRelay), which walks
+    // page by page. `since` stays fixed: on a relay reconnect the stored
+    // subscription is replayed with it and delivers what was missed since.
     missionTombstoneSub = client.subscribe(
       'tombstones-mission',
       buildFilter({
         kinds: [MISSION_KIND],
         tags: { t: [DELETION_TAG_VALUE] },
-        since: now - MISSION_TTL_DAYS * 86400,
+        since: now,
       }),
       (event) => {
         processEvent(event, { persist: true });
@@ -2642,11 +2644,48 @@
   }
 
   /**
+   * The same walk for the mission tombstones: what was deleted while we were
+   * away. A deleted mission is gone from the relay's mission list (its
+   * tombstone replaced it), but a copy in our cache stays visible until the
+   * tombstone reaches us — so the tombstones need the same page-by-page
+   * walk as the missions, not a single request a relay may cut short.
+   *
+   * Returns true only if the relay answered every page completely.
+   */
+  async function syncMissionTombstonesFromRelay(url: string, since: number): Promise<boolean> {
+    if (!client) return false;
+
+    const run = await runRelayPages(
+      (filter) =>
+        client!.queryRelay(url, filter, { timeoutMs: MISSION_QUERY_TIMEOUT_MS }),
+      buildFilter({ kinds: [MISSION_KIND], tags: { t: [DELETION_TAG_VALUE] } }),
+      {
+        since,
+        limit: MISSION_SYNC_PAGE_LIMIT,
+        maxPages: Infinity,
+        shouldStop: () => destroyed,
+        onEvents: async (events) => {
+          for (const event of events) {
+            if (missionSyncProcessed.has(event.id)) continue;
+
+            await processEvent(event, { persist: true });
+
+            missionSyncProcessed.add(event.id);
+          }
+        },
+      },
+    );
+
+    return run.complete;
+  }
+
+  /**
    * One sync run against one relay: first contact → everything of the last
    * MISSION_TTL_DAYS; later → only what is new since this relay's stored
-   * cursor (minus a safety overlap). The cursor only advances after a
-   * complete run, so a relay that stalls just keeps its old cursor and is
-   * retried — every other relay is unaffected.
+   * cursor (minus a safety overlap). Missions and their tombstones are
+   * walked one after the other. The cursor only advances after both
+   * walks are complete, so a relay that stalls just keeps its old cursor and
+   * is retried — every other relay is unaffected.
    */
   async function runMissionSyncForRelay(url: string) {
     if (!client || destroyed || missionSyncRunning.has(url)) return;
@@ -2672,7 +2711,9 @@
     let complete = false;
 
     try {
-      complete = await syncMissionsFromRelay(url, since);
+      complete =
+        (await syncMissionsFromRelay(url, since)) &&
+        (await syncMissionTombstonesFromRelay(url, since));
     } catch (err) {
       console.warn(`[Orchestrator] Mission sync with ${url} failed:`, err);
     }
