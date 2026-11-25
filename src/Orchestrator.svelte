@@ -139,8 +139,10 @@
 
   /** Mission sync pages are requested newest-first and walk backwards through `until`. A relay may answer with fewer events than this (its own cap) — the sync keeps going until a page brings nothing new. */
   const MISSION_SYNC_PAGE_LIMIT = 500;
-  /** Resuming from a relay's stored cursor re-reads this much history, to absorb relay clock skew and late propagation. */
+  /** How far into the past a mission sync or live subscription reaches beyond its start, to absorb the clock skew of other clients and late propagation: the sync resumes this much before a relay's stored cursor, the live subscriptions start this much before now. */
   const MISSION_SYNC_OVERLAP_SECS = 3600;
+  /** The other half of the clock-skew rule: an event dated further than this into the future is discarded on receipt (relays commonly refuse such events as well). Without it an author could keep an entry at the top of every result list. */
+  const EVENT_MAX_FUTURE_SECS = 900;
   /** A relay whose sync run did not complete is retried after this delay, doubling on every further failure up to the maximum. */
   const MISSION_SYNC_RETRY_BASE_MS = 30_000;
   const MISSION_SYNC_RETRY_MAX_MS = 300_000;
@@ -422,9 +424,12 @@
   /**
    * Returns the event's NIP-40 `expiration` if it is acceptable on
    * receipt, otherwise null (→ the caller discards the event). Required:
-   * no tag, a malformed tag, or an expiration more than `maxDays` from now
-   * is rejected. An expiration in the past is still returned — the caller
-   * treats that as "expired" and removes the record.
+   * no tag, a malformed tag, or an expiration more than `maxDays` after the
+   * event's own `created_at` is rejected. Measured from `created_at`, not
+   * from now: that is what guarantees nothing lives longer than `maxDays`
+   * after its `created_at` (see horizonSecs), and it does not depend on
+   * the receiver's clock. An expiration in the past is still returned —
+   * the caller treats that as "expired" and removes the record.
    */
   function acceptableExpiration(event: NostrEvent, maxDays: number): number | null {
     const tag = event.tags?.find((t) => t[0] === 'expiration')?.[1];
@@ -433,7 +438,7 @@
     const expiresAt = getExpiration(event);
     if (expiresAt === undefined) return null;
 
-    if (expiresAt > Math.floor(Date.now() / 1000) + maxDays * 86400) return null;
+    if (expiresAt > event.created_at + maxDays * 86400) return null;
 
     return expiresAt;
   }
@@ -483,6 +488,9 @@
     event: NostrEvent,
     opts: ProcessEventOptions = { persist: true },
   ) {
+    // Before anything else, so that such an event cannot even move the stale guard.
+    if (event.created_at > nowSecs() + EVENT_MAX_FUTURE_SECS) return;
+
     switch (event.kind) {
       case LISTING_KIND:
         return processListingEvent(event, opts);
@@ -1564,7 +1572,7 @@
     return Math.floor(Date.now() / 1000);
   }
 
-  /** The oldest `created_at` a live listing can have: nothing lives longer than ABSOLUTE_MAX_VALIDITY_DAYS. */
+  /** The oldest `created_at` a live listing can have: acceptableExpiration lets nothing live longer than ABSOLUTE_MAX_VALIDITY_DAYS after its `created_at`. */
   function horizonSecs(): number {
     return nowSecs() - ABSOLUTE_MAX_VALIDITY_DAYS * 86400;
   }
@@ -2275,18 +2283,17 @@
   function startTombstoneWatchers() {
     if (!client) return;
 
-    const now = Math.floor(Date.now() / 1000);
-
-    // Only what is deleted from now on: the catch-up for everything older is
-    // the per-relay mission sync (syncMissionTombstonesFromRelay), which walks
-    // page by page. `since` stays fixed: on a relay reconnect the stored
-    // subscription is replayed with it and delivers what was missed since.
+    // Only what is deleted from now on (minus the clock-skew overlap): the
+    // catch-up for everything older is the per-relay mission sync
+    // (syncMissionTombstonesFromRelay), which walks page by page. `since`
+    // stays fixed: on a relay reconnect the stored subscription is replayed
+    // with it and delivers what was missed since.
     missionTombstoneSub = client.subscribe(
       'tombstones-mission',
       buildFilter({
         kinds: [MISSION_KIND],
         tags: { t: [DELETION_TAG_VALUE] },
-        since: now,
+        since: nowSecs() - MISSION_SYNC_OVERLAP_SECS,
       }),
       (event) => {
         processEvent(event, { persist: true });
@@ -2456,7 +2463,7 @@
     // Must come after the stale check: an old, already-expired version
     // handed back by a lagging relay must not remove a freshly renewed one.
     // A mission without a valid `expiration` tag (or one beyond
-    // MISSION_TTL_DAYS from now) is discarded — no fallback.
+    // MISSION_TTL_DAYS after its `created_at`) is discarded — no fallback.
     const expiresAt =
       acceptableExpiration(
         event,
@@ -2761,7 +2768,7 @@
       buildFilter({
         kinds: [MISSION_KIND],
         tags: { t: ['mission'] },
-        since: Math.floor(Date.now() / 1000),
+        since: nowSecs() - MISSION_SYNC_OVERLAP_SECS,
       }),
       (event) => {
         processEvent(event, { persist: true });
