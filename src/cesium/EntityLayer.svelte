@@ -26,6 +26,12 @@
   // `deleteRequest`/`missionSubmit` props. This component never calls
   // Orchestrator or Nostr itself.
   //
+  // A click on the device's own location rings is not a record: it opens the
+  // profile panel (profile/ProfilePanel.svelte), which this component hosts
+  // next to EntityDetails. It is fed from the Store (own records, key import
+  // state) and only re-dispatches `importKey` upward — App.svelte turns that
+  // into Orchestrator's `importKeyRequest` prop, like `delete`/`missionSubmit`.
+  //
   // `deepLink` (set by App.svelte from the current URL) reuses this exact
   // same "look the record up in the Store and select it" mechanism — see
   // selectRecordById below — rather than a second, parallel selection
@@ -45,12 +51,37 @@
   import type { EntityOptions, RoutePreview } from './api';
   import { appStore, type AppState, type EntityRecord, type LiveRecord, type ListingRecord, type MissionRecord, type DeepLink } from '../orchestrator/appStore';
   import EntityDetails from './EntityDetails.svelte';
+  import ProfilePanel from '../profile/ProfilePanel.svelte';
   import { waitForGlobeLoaded } from './viewer';
 
   /** Set by App.svelte from the current URL (see its own header comment) — the resource (author + d-tag) this deep link should open, once it's known locally. */
   export let deepLink: DeepLink | null = null;
 
+  /** Hands the secret key (`nsec…`) to the profile panel on click — supplied by App.svelte, this component never touches the key store. */
+  export let loadNsec: () => Promise<string>;
+
   const dispatch = createEventDispatcher();
+
+  /** The profile panel (own identity, listings, missions, key backup) — opened by a click on the device's own location rings. */
+  let profileOpen = false;
+
+  $: ownListings = Object.values($appStore.listings)
+    .filter((l) => l.author === $appStore.ownPubkey)
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  $: ownMissions = Object.values($appStore.missions)
+    .filter((m) => m.author === $appStore.ownPubkey)
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  /** A profile row: same path as clicking the record's pin. The profile stays open, the details panel opens above it. */
+  function openFromProfile(recordId: string) {
+    if (!selectRecordById(recordId)) return;
+
+    // `selectedRecord` is reactive and not updated yet — read the Store directly.
+    const state = appStore.get();
+    const record = state.listings[recordId] ?? state.missions[recordId];
+    if (record) flyToRecord(record);
+  }
 
   const activeMarkerIds = new Set<string>(); // record ids currently rendered as Cesium entities
   /**
@@ -79,9 +110,6 @@
     : temporaryRecord;
   let globeReady = false;
 
-
-  /** Set once showUserLocation() resolves the device position — reused so a click on the "Your Location!" entity can fly back there without re-fetching position. */
-  let userLocationCoords: { longitude: number; latitude: number } | null = null;
 
   /** The one place a record gets selected, regardless of why — an entity click or a resolved deep link both funnel through this, across every record kind. */
   function selectRecordById(recordId: string): boolean {
@@ -398,21 +426,13 @@
 
         if (!recordId) return;
 
+        // The pulsing "Your Location!" rings open the profile instead of zooming in.
         if (
-          (recordId === 'Your Location!' ||
-           recordId === 'Your Location!_outer' ||
-           recordId === 'Your Location!_inner') &&
-          userLocationCoords
+          recordId === 'Your Location!' ||
+          recordId === 'Your Location!_outer' ||
+          recordId === 'Your Location!_inner'
         ) {
-          camera.flyTo(
-            {
-              longitude: userLocationCoords.longitude,
-              latitude: userLocationCoords.latitude,
-              height: 5000,
-            },
-            { duration: 1.5 }
-          );
-
+          profileOpen = true;
           return;
         }
 
@@ -427,8 +447,6 @@
   async function showUserLocation() {
     try {
       const { longitude, latitude } = await location.getCurrentPosition();
-
-      userLocationCoords = { longitude, latitude };
 
       const position = Cesium.Cartesian3.fromDegrees(longitude, latitude);
 
@@ -510,6 +528,21 @@
     driverRoutePreview = null;
   });
 </script>
+
+{#if profileOpen}
+  <ProfilePanel
+    ownPubkey={$appStore.ownPubkey}
+    listings={ownListings}
+    missions={ownMissions}
+    reloadRequired={$appStore.reloadRequired}
+    importError={$appStore.keyImportError}
+    {loadNsec}
+    on:open={(e) => openFromProfile(e.detail.id)}
+    on:importKey={(e) => dispatch('importKey', e.detail)}
+    on:reload={() => window.location.reload()}
+    on:close={() => (profileOpen = false)}
+  />
+{/if}
 
 {#if selectedRecord}
 <EntityDetails

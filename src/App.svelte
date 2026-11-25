@@ -12,6 +12,7 @@
   import About from "./shared/About.svelte";
   import ProgressBar from "./shared/ProgressBar.svelte";
   import Onboarding from "./onboarding/Onboarding.svelte";
+    import { exportNsec } from "./orchestrator/keyManager";
 
   import {
     appStore,
@@ -133,6 +134,17 @@
     appStore.update((s) => ({ ...s, lastError: null }));
   }
 
+  // A key pasted into the profile panel (cesium/EntityLayer.svelte hosts the
+  // panel and re-dispatches its `importKey`). Same pattern as `deleteRequest`:
+  // captured here as plain reactive state, passed straight down to
+  // Orchestrator, which owns the key store and reports the outcome back
+  // through the Store (`reloadRequired` / `keyImportError`).
+  let importKeyRequest: { input: string } | null = null;
+
+  function handleImportKey(e) {
+    importKeyRequest = { input: e.detail.input };
+  }
+
   let workspaceEl;
   let resizeObserver;
   let landscape = true;
@@ -231,6 +243,8 @@
         {deepLink}
         on:delete={handleDeleteRequest}
         on:missionSubmit={handleMissionSubmit}
+        on:importKey={handleImportKey}
+        loadNsec={exportNsec}
       />
 
       <OverlayLayer {tooltip} />
@@ -240,6 +254,7 @@
       {submit}
       {deleteRequest}
       {missionSubmit}
+      {importKeyRequest}
       openDeepLink={deepLink}
     />
 

@@ -173,6 +173,10 @@ export interface AppState {
   lastError: string | null;
   /** This client's own public key, once known (set once, right after the Nostr client is created) — lets any reader determine "am I the author of this record" without talking to Nostr itself. */
   ownPubkey: string | null;
+  /** True once a key was imported and saved: the running Nostr client still uses the old key, the app has to be reloaded. */
+  reloadRequired: boolean;
+  /** Why the last key import was rejected (not a valid key / could not be saved). Cleared on the next attempt. */
+  keyImportError: 'invalid' | 'failed' | null;
 }
 
 const initialState: AppState = {
@@ -184,6 +188,8 @@ const initialState: AppState = {
   openRequest: null,
   lastError: null,
   ownPubkey: null,
+  reloadRequired: false,
+  keyImportError: null,
 };
 
 export const appStore: Store<AppState> = createStore(initialState);

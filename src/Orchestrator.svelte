@@ -71,7 +71,7 @@
     ABSOLUTE_MAX_VALIDITY_DAYS,
     type ListingModelPolicy,
   } from './orchestrator/listingPolicy';
-  import { getKeypair } from './orchestrator/keyManager';
+  import { getKeypair, parseSecretKey, saveSecretKey } from './orchestrator/keyManager';
   import {
     appStore,
     type AppState,
@@ -176,6 +176,35 @@
   $: if (deleteRequest) {
     if (deleteRequest.kind === 'mission') deleteOwnMission(deleteRequest.id);
     else deleteOwnListing(deleteRequest.id);
+  }
+
+  /**
+   * A key pasted into the profile panel (see profile/ProfilePanel.svelte).
+   * Same prop-down pattern as `deleteRequest`: a small isolated operation,
+   * not a workflow. The outcome goes back through the Store only — the
+   * running client keeps its old key, so success sets `reloadRequired`.
+   */
+  export let importKeyRequest: { input: string } | null = null;
+
+  $: if (importKeyRequest) importKey(importKeyRequest.input);
+
+  async function importKey(input: string) {
+    appStore.update((s) => ({ ...s, keyImportError: null }));
+
+    const sk = parseSecretKey(input);
+
+    if (!sk) {
+      appStore.update((s) => ({ ...s, keyImportError: 'invalid' }));
+      return;
+    }
+
+    try {
+      await saveSecretKey(sk);
+      appStore.update((s) => ({ ...s, reloadRequired: true }));
+    } catch (error) {
+      console.warn('[Orchestrator] Could not save the imported key:', error);
+      appStore.update((s) => ({ ...s, keyImportError: 'failed' }));
+    }
   }
 
   /**

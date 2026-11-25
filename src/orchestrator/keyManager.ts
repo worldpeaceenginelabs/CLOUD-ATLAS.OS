@@ -11,9 +11,14 @@
  * persisted keypair. Secret keys aren't natively structured-clone-safe
  * across every environment, so they're stored hex-encoded and decoded
  * back into a Uint8Array on read.
+ *
+ * Importing a key (parseSecretKey + saveSecretKey) replaces the stored
+ * one. The running NostrClient keeps using the key it was created with —
+ * the app has to be reloaded for the new key to take effect.
  */
 
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
+import { decode, nsecEncode } from 'nostr-tools/nip19';
 import { IdbDatabase } from '../idb';
 
 const DB_NAME = 'app-identity';
@@ -77,4 +82,32 @@ export async function getKeypair(): Promise<{ sk: Uint8Array; pk: string }> {
 
   cached = { sk, pk };
   return cached;
+}
+
+/** Reads a secret key from what a person pastes: an `nsec…` or 64 hex characters. Null if it is neither. */
+export function parseSecretKey(input: string): Uint8Array | null {
+  const value = input.trim();
+
+  if (/^[0-9a-fA-F]{64}$/.test(value)) return fromHex(value.toLowerCase());
+
+  try {
+    const decoded = decode(value);
+    return decoded.type === 'nsec' ? decoded.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Replaces the stored keypair with the one for `sk`. */
+export async function saveSecretKey(sk: Uint8Array): Promise<void> {
+  const db = await getDb();
+  const pk = getPublicKey(sk);
+  await db.set<StoredKeypair>(STORE_NAME, { sk: toHex(sk), pk }, KEYPAIR_KEY);
+  cached = { sk, pk };
+}
+
+/** The current secret key as `nsec…`, for backing it up. */
+export async function exportNsec(): Promise<string> {
+  const { sk } = await getKeypair();
+  return nsecEncode(sk);
 }
