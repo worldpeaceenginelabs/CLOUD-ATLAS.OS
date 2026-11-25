@@ -15,7 +15,7 @@
   //
   // ─── Integration contract ─────────────────────────────────────────────
   // Mounted once, persistently, alongside HexMenu/Cesium — it owns a
-  // standing relay connection, the tombstone watcher, and whatever LIVE
+  // standing relay connection, the mission tombstone watcher, and whatever LIVE
   // heartbeat/expansion is currently in progress, none of which should be
   // torn down between individual user actions. New work arrives purely
   // through a prop, not an imperative method call: the parent tracks the
@@ -24,12 +24,13 @@
   // wrapper/controller layer.
   //
   // Exactly one workflow (a LIVE search/offer, a LISTING search/offer, a
-  // Mission publish, or a "Load More") may run at a time. A new `submit`
+  // listing gap load or area switch, or a Mission publish) may run at a time. A new `submit`
   // or `missionSubmit` value while one is already active is ignored — the
   // only way to stop a running workflow is the Abort control this
   // component renders itself, right below the rest of its workflow-status
   // UI (relay connection, in-flight/sync state, errors, the current LIVE
-  // match, "Load More" for LISTING search). `$appStore.inFlight` reflects
+  // match; the LISTING result list is its own component,
+  // ListingResultList). `$appStore.inFlight` reflects
   // exactly this "a workflow is active" state for any other consumer that
   // needs it. `missionSubmit` drives its workflow through the same
   // beginWorkflow/endWorkflow/activeWorkflowToken mechanism as `submit` —
@@ -218,7 +219,8 @@
   // ─── Single active workflow (§1/§2 of the second review) ────────────
   //
   // Exactly one user-initiated workflow (a LIVE search/offer, a LISTING
-  // search/offer, a Mission publish, or a "Load More") may run at a time.
+  // search/offer, a listing gap load or area switch, or a Mission publish)
+  // may run at a time.
   // `activeWorkflowToken` identifies whichever one is currently running —
   // every async workflow step captures it locally and checks it's still
   // current after each `await`, before touching the Store, so a stale
@@ -339,8 +341,6 @@
 
   let liveSession: LiveSessionInternal | null = null;
 
-  // ─── LISTING search state — tracks the active search scope for "Load More" ──
-
   // ─── LISTING: local cache + the active search ──────────────────────
   //
   // Every listing ever received is cached (IndexedDB, mirrored in
@@ -378,9 +378,10 @@
   let listingWorkflowToken: symbol | null = null;
   let openNonce = 0;
 
-  // ─── Background tombstone watcher (§4) — runs for the component's whole lifetime ──
+  // ─── Mission tombstone watcher (§4) — runs for the component's whole lifetime ──
 
-  // Missions are one global stream, so their tombstones are watched globally.
+  // Missions are one global stream, so their tombstones are watched globally:
+  // live here, the older ones are caught up by the mission sync.
   // Listing tombstones are not: a search asks for the tombstones of exactly
   // the listings it shows (see fetchTombstonesFor), and each relay is asked
   // once for the caller's own on connect (see checkOwnTombstonesOnRelay).
@@ -402,9 +403,9 @@
 
   // ─── Generic event processing — kind-agnostic dispatch (persist → store) ──
   //
-  // Every place in this file that receives a raw Nostr event — discovery
-  // queries, live subscriptions, our own publish-echoes, deletion/tombstone
-  // confirmations, deep-link fetches — hands it to processEvent() instead
+  // Every place in this file that receives a raw Nostr event — listing
+  // searches, mission syncs, live subscriptions, our own publish-echoes,
+  // tombstone checks, deep-link fetches — hands it to processEvent() instead
   // of deciding for itself whether it's a LISTING or a MISSION. The switch
   // on `event.kind` lives in exactly one place, right below; nowhere else
   // in the orchestrator branches on kind or calls processListingEvent()/
@@ -2417,7 +2418,8 @@
   /**
    * The single receive-path pipeline for every mission-kind event,
    * regardless of source (mission sync, the live subscription, our own
-   * just-published mission fetched back, or the tombstone watcher). Only ever called from
+   * just-published mission fetched back, or the mission tombstone sync and
+   * watcher). Only ever called from
    * processEvent() — the `MISSION_KIND` case of its switch — never
    * directly. Same persist → store contract as processListingEvent():
    * persistence is always awaited to completion before the store is
@@ -2615,9 +2617,12 @@
    * Walks one relay's missions since `since`, newest first, page by page:
    * each page asks for the events up to `until` (the oldest `created_at` of
    * the previous page), and the walk ends when a page brings no event that
-   * this relay hasn't delivered already. That end condition doesn't depend
-   * on how many events the relay is willing to return per request, so no
-   * relay-side cap can cut the result short.
+   * this relay hasn't delivered already and is shorter than the page limit.
+   * A full page of events already seen means one second holds more events
+   * than a page: that second is fetched whole before the walk moves on (see
+   * pagedQuery.ts). This assumes the relay answers at least the page limit
+   * per request; a relay capped below it can still cut a burst within one
+   * second short.
    *
    * Returns true only if the relay answered every page completely (EOSE).
    * Anything else — not connected, stalled, dropped — is false: the events
@@ -2755,7 +2760,8 @@
 
   /**
    * The live subscription goes up *before* any catch-up starts, so nothing
-   * published while the syncs run can slip through. After that every relay
+   * published while the syncs run can slip through; it reaches back
+   * MISSION_SYNC_OVERLAP_SECS to absorb clock skew. After that every relay
    * syncs itself independently: the ones already connected right now, and
    * each one that connects later (first connect or reconnect) the moment it
    * does.

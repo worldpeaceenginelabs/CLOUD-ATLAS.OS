@@ -198,7 +198,7 @@
   let selModel = null;     // null | a model id from the selected domain
   let selAnypay = [];      // array of ANYPAY_OPTIONS[].id — multi-select
   let anypayModalOpen = false;
-  let detailsValues = {};  // { interactionMode, title, categoryId|categoryIds, date, description, contact }
+  let detailsValues: Record<string, unknown> = {};  // { interactionMode, title, categoryId|categoryIds, date, description, contact }
   let detailsModalOpen = false;
   let selLocation: LocationValue | null = null;
   let locationModalOpen = false;
