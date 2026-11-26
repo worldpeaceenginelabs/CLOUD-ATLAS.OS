@@ -11,7 +11,6 @@ export const strings = {
     pubkeyHeading: 'Public key',
     pubkeyInfo: 'Your public key is your identity. You can share it freely.',
     pubkeyNpub: 'npub (to share)',
-    pubkeyHex: 'Hex (for configuration)',
     pubkeyCopyFailed: 'Copying is not possible – please select the key by hand.',
     listingsHeading: 'My listings',
     listingsEmpty: 'You have no active listings.',

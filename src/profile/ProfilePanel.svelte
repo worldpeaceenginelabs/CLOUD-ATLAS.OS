@@ -37,8 +37,7 @@
 
   $: npub = ownPubkey ? npubEncode(ownPubkey) : null;
 
-  /** Which public-key format was copied last ('npub' | 'hex'), for the button label. */
-  let pubCopied: 'npub' | 'hex' | null = null;
+  let pubCopied = false;
   let pubCopyFailed = false;
 
   let nsec = '';
@@ -88,20 +87,17 @@
     }
   }
 
-  async function copyPubkey(kind: 'npub' | 'hex') {
-    const value = kind === 'npub' ? npub : ownPubkey;
-    if (!value) return;
+  async function copyPubkey() {
+    if (!npub) return;
 
     try {
-      await navigator.clipboard.writeText(value);
-      pubCopied = kind;
+      await navigator.clipboard.writeText(npub);
+      pubCopied = true;
       pubCopyFailed = false;
-      setTimeout(() => {
-        if (pubCopied === kind) pubCopied = null;
-      }, 2000);
+      setTimeout(() => (pubCopied = false), 2000);
     } catch (error) {
       console.warn('[ProfilePanel] Clipboard unavailable:', error);
-      pubCopied = null;
+      pubCopied = false;
       pubCopyFailed = true;
     }
   }
@@ -120,122 +116,111 @@
 
     <h2 class="heading">{strings.profile.heading}</h2>
 
-    <h3 class="subheading first">{strings.profile.pubkeyHeading}</h3>
-    <p class="warning">{strings.profile.pubkeyInfo}</p>
+    <section class="section">
+      <h3 class="subheading first">{strings.profile.listingsHeading}</h3>
+      {#if listings.length}
+        <div class="items">
+          {#each listings as record (record.id)}
+            <button class="item" on:click={() => dispatch('open', { id: record.id })}>
+              <span class="item-title">{titleOf(record)}</span>
+              <span class="item-meta">{record.domain} · expires {formatExpiry(record.expiresAt)}</span>
+            </button>
+          {/each}
+        </div>
+      {:else}
+        <p class="warning">{strings.profile.listingsEmpty}</p>
+      {/if}
 
-    {#if ownPubkey && npub}
-      <span class="label small">{strings.profile.pubkeyNpub}</span>
+      <h3 class="subheading">{strings.profile.missionsHeading}</h3>
+      {#if missions.length}
+        <div class="items">
+          {#each missions as record (record.id)}
+            <button class="item mission" on:click={() => dispatch('open', { id: record.id })}>
+              <span class="item-title">{titleOf(record)}</span>
+              <span class="item-meta">expires {formatExpiry(record.expiresAt)}</span>
+            </button>
+          {/each}
+        </div>
+      {:else}
+        <p class="warning">{strings.profile.missionsEmpty}</p>
+      {/if}
+    </section>
+
+    <section class="section">
+      <h3 class="subheading first">{strings.profile.pubkeyHeading}</h3>
+      <p class="warning">{strings.profile.pubkeyInfo}</p>
+
+      {#if ownPubkey && npub}
+        <span class="label small">{strings.profile.pubkeyNpub}</span>
+        <input
+          class="input mono"
+          type="text"
+          readonly
+          value={npub}
+          aria-label={strings.profile.pubkeyNpub}
+          on:click={(e) => e.currentTarget.select()}
+        />
+        <div class="row">
+          <button class="button" on:click={copyPubkey}>
+            {pubCopied ? strings.profile.keyCopied : strings.profile.keyCopy}
+          </button>
+        </div>
+
+        {#if pubCopyFailed}
+          <p class="error">{strings.profile.pubkeyCopyFailed}</p>
+        {/if}
+      {/if}
+
+      <h3 class="subheading">{strings.profile.keyHeading}</h3>
+      <p class="warning">{strings.profile.keyWarning}</p>
+
+      {#if nsec}
+        <input class="input mono" type="text" readonly value={nsec} aria-label={strings.profile.keyHeading} on:click={(e) => e.currentTarget.select()} />
+        <div class="row">
+          <button class="button" on:click={copyKey}>{copied ? strings.profile.keyCopied : strings.profile.keyCopy}</button>
+          <button class="button ghost" on:click={hideKey}>{strings.profile.keyHide}</button>
+        </div>
+        {#if copyFailed}
+          <p class="error">{strings.profile.keyCopyFailed}</p>
+        {/if}
+      {:else}
+        <div class="row">
+          <button class="button ghost" on:click={showKey}>{strings.profile.keyShow}</button>
+        </div>
+      {/if}
+
+      {#if exportFailed}
+        <p class="error">{strings.profile.keyExportFailed}</p>
+      {/if}
+
+      <h3 class="subheading">{strings.profile.importHeading}</h3>
+      <p class="warning">{strings.profile.importWarning}</p>
       <input
         class="input mono"
-        type="text"
-        readonly
-        value={npub}
-        aria-label={strings.profile.pubkeyNpub}
-        on:click={(e) => e.currentTarget.select()}
+        type="password"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder={strings.profile.importPlaceholder}
+        aria-label={strings.profile.importHeading}
+        bind:value={importInput}
       />
       <div class="row">
-        <button class="button" on:click={() => copyPubkey('npub')}>
-          {pubCopied === 'npub' ? strings.profile.keyCopied : strings.profile.keyCopy}
-        </button>
+        <button class="button" disabled={!importInput.trim()} on:click={importKey}>{strings.profile.importButton}</button>
       </div>
 
-      <span class="label small spaced">{strings.profile.pubkeyHex}</span>
-      <input
-        class="input mono"
-        type="text"
-        readonly
-        value={ownPubkey}
-        aria-label={strings.profile.pubkeyHex}
-        on:click={(e) => e.currentTarget.select()}
-      />
-      <div class="row">
-        <button class="button" on:click={() => copyPubkey('hex')}>
-          {pubCopied === 'hex' ? strings.profile.keyCopied : strings.profile.keyCopy}
-        </button>
-      </div>
-
-      {#if pubCopyFailed}
-        <p class="error">{strings.profile.pubkeyCopyFailed}</p>
+      {#if importError}
+        <p class="error">
+          {importError === 'invalid' ? strings.profile.importInvalid : strings.profile.importFailed}
+        </p>
       {/if}
-    {/if}
 
-    <h3 class="subheading">{strings.profile.listingsHeading}</h3>
-    {#if listings.length}
-      <div class="items">
-        {#each listings as record (record.id)}
-          <button class="item" on:click={() => dispatch('open', { id: record.id })}>
-            <span class="item-title">{titleOf(record)}</span>
-            <span class="item-meta">{record.domain} · expires {formatExpiry(record.expiresAt)}</span>
-          </button>
-        {/each}
-      </div>
-    {:else}
-      <p class="warning">{strings.profile.listingsEmpty}</p>
-    {/if}
-
-    <h3 class="subheading">{strings.profile.missionsHeading}</h3>
-    {#if missions.length}
-      <div class="items">
-        {#each missions as record (record.id)}
-          <button class="item mission" on:click={() => dispatch('open', { id: record.id })}>
-            <span class="item-title">{titleOf(record)}</span>
-            <span class="item-meta">expires {formatExpiry(record.expiresAt)}</span>
-          </button>
-        {/each}
-      </div>
-    {:else}
-      <p class="warning">{strings.profile.missionsEmpty}</p>
-    {/if}
-
-    <h3 class="subheading">{strings.profile.keyHeading}</h3>
-    <p class="warning">{strings.profile.keyWarning}</p>
-
-    {#if nsec}
-      <input class="input mono" type="text" readonly value={nsec} aria-label={strings.profile.keyHeading} on:click={(e) => e.currentTarget.select()} />
-      <div class="row">
-        <button class="button" on:click={copyKey}>{copied ? strings.profile.keyCopied : strings.profile.keyCopy}</button>
-        <button class="button ghost" on:click={hideKey}>{strings.profile.keyHide}</button>
-      </div>
-      {#if copyFailed}
-        <p class="error">{strings.profile.keyCopyFailed}</p>
+      {#if reloadRequired}
+        <div class="reload">
+          <p>{strings.profile.reloadNotice}</p>
+          <button class="button primary" on:click={() => dispatch('reload')}>{strings.profile.reload}</button>
+        </div>
       {/if}
-    {:else}
-      <div class="row">
-        <button class="button ghost" on:click={showKey}>{strings.profile.keyShow}</button>
-      </div>
-    {/if}
-
-    {#if exportFailed}
-      <p class="error">{strings.profile.keyExportFailed}</p>
-    {/if}
-
-    <h3 class="subheading">{strings.profile.importHeading}</h3>
-    <p class="warning">{strings.profile.importWarning}</p>
-    <input
-      class="input mono"
-      type="password"
-      autocomplete="off"
-      spellcheck="false"
-      placeholder={strings.profile.importPlaceholder}
-      aria-label={strings.profile.importHeading}
-      bind:value={importInput}
-    />
-    <div class="row">
-      <button class="button" disabled={!importInput.trim()} on:click={importKey}>{strings.profile.importButton}</button>
-    </div>
-
-    {#if importError}
-      <p class="error">
-        {importError === 'invalid' ? strings.profile.importInvalid : strings.profile.importFailed}
-      </p>
-    {/if}
-
-    {#if reloadRequired}
-      <div class="reload">
-        <p>{strings.profile.reloadNotice}</p>
-        <button class="button primary" on:click={() => dispatch('reload')}>{strings.profile.reload}</button>
-      </div>
-    {/if}
+    </section>
   </div>
 </div>
 
@@ -274,8 +259,18 @@
   }
 
   .heading {
-    margin: 0 2.5rem 0.2rem 0;
+    margin: 0;
+    padding: 0 2.5rem; /* symmetric, so the text stays centred next to the close button */
+    text-align: center;
     font-size: 1.2em;
+  }
+
+  .section {
+    margin-top: 1.4rem;
+    padding: 0.2rem 1rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
   }
 
   .subheading {
@@ -284,7 +279,7 @@
   }
 
   .subheading.first {
-    margin-top: 1rem;
+    margin-top: 0.9rem;
   }
 
   .label {
@@ -295,10 +290,6 @@
     display: block;
     margin-bottom: 0.3rem;
     font-size: 0.78em;
-  }
-
-  .label.spaced {
-    margin-top: 1rem;
   }
 
   .mono {
