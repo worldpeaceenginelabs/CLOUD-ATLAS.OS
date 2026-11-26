@@ -249,7 +249,7 @@
     position: relative;
     width: min(520px, 100%);
     box-sizing: border-box;
-    padding: 1.5rem;
+    overflow: hidden; /* sections run edge to edge, the card's corners clip them */
     background: var(--accent-stripe), var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
@@ -260,17 +260,19 @@
 
   .heading {
     margin: 0;
-    padding: 0 2.5rem; /* symmetric, so the text stays centred next to the close button */
+    padding: 1.5rem 3rem 1.2rem; /* symmetric, so the text stays centred next to the close button */
     text-align: center;
     font-size: 1.2em;
   }
 
+  /* Stacked cards: flush against each other, separated by a hairline. */
   .section {
-    margin-top: 1.4rem;
-    padding: 0.2rem 1rem 1rem;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
+    padding: 0 1.5rem 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .section + .section {
+    background: rgba(0, 0, 0, 0.18);
   }
 
   .subheading {
@@ -279,7 +281,7 @@
   }
 
   .subheading.first {
-    margin-top: 0.9rem;
+    margin-top: 1.2rem;
   }
 
   .label {
