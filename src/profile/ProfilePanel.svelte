@@ -111,10 +111,13 @@
 </script>
 
 <div class="overlay" role="dialog" aria-label={strings.profile.heading}>
-  <div class="stack">
-    <CloseButton position="absolute" top="12px" right="12px" onClose={() => dispatch('close')} />
+  <div class="column">
+    <div class="header">
+      <CloseButton position="absolute" top="0" right="0" onClose={() => dispatch('close')} />
+      <h2 class="heading">{strings.profile.heading}</h2>
+    </div>
 
-    <h2 class="heading">{strings.profile.heading}</h2>
+    <div class="stack">
 
     <section class="block">
       <h3 class="subheading first">{strings.profile.listingsHeading}</h3>
@@ -224,12 +227,15 @@
         </div>
       {/if}
     </section>
+    </div>
   </div>
 </div>
 
 <style>
-  /* Fills the globe window it is mounted in. Below EntityDetails (z-index
-     40): a record opened from a row appears on top, the profile stays open. */
+  /* Positions the column inside the globe window; it has no background and
+     lets every click and drag outside the cards through to the globe. Below
+     EntityDetails (z-index 40): a record opened from a row appears on top,
+     the profile stays open. */
   .overlay {
     position: absolute;
     inset: 0;
@@ -237,32 +243,44 @@
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: calc(1.5rem + env(safe-area-inset-top, 0px)) 1rem calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem calc(4.5rem + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
-    background: rgba(8, 20, 30, 0.6);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
+    pointer-events: none;
     color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
-  /* Three separate cards, one below the other. */
-  .stack {
+  .column {
     position: relative;
+    display: flex;
+    flex-direction: column;
     width: min(520px, 100%);
-    box-sizing: border-box;
+    max-height: 100%;
+    pointer-events: auto;
+  }
+
+  .header {
+    position: relative;
+    flex: none;
+  }
+
+  /* Three separate cards, one below the other; only this part scrolls. */
+  .stack {
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .heading {
     margin: 0;
-    padding: 0.2rem 3rem 0.4rem; /* symmetric, so the text stays centred next to the close button */
+    padding: 0.2rem 3rem 0.6rem; /* symmetric, so the text stays centred next to the close button */
     text-align: center;
     font-size: 1.2em;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
   }
 
   .block {
@@ -274,7 +292,7 @@
     border: var(--glass-border);
     border-left: 3px solid #335bf4;
     border-radius: var(--glass-radius);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
 
   .subheading {
