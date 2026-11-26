@@ -111,12 +111,12 @@
 </script>
 
 <div class="overlay" role="dialog" aria-label={strings.profile.heading}>
-  <div class="card">
+  <div class="stack">
     <CloseButton position="absolute" top="12px" right="12px" onClose={() => dispatch('close')} />
 
     <h2 class="heading">{strings.profile.heading}</h2>
 
-    <section class="section">
+    <section class="block">
       <h3 class="subheading first">{strings.profile.listingsHeading}</h3>
       {#if listings.length}
         <div class="items">
@@ -131,7 +131,10 @@
         <p class="warning">{strings.profile.listingsEmpty}</p>
       {/if}
 
-      <h3 class="subheading">{strings.profile.missionsHeading}</h3>
+    </section>
+
+    <section class="block">
+      <h3 class="subheading first">{strings.profile.missionsHeading}</h3>
       {#if missions.length}
         <div class="items">
           {#each missions as record (record.id)}
@@ -146,7 +149,7 @@
       {/if}
     </section>
 
-    <section class="section">
+    <section class="block">
       <h3 class="subheading first">{strings.profile.pubkeyHeading}</h3>
       <p class="warning">{strings.profile.pubkeyInfo}</p>
 
@@ -245,34 +248,33 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
-  .card {
+  /* Three separate cards, one below the other. */
+  .stack {
     position: relative;
     width: min(520px, 100%);
     box-sizing: border-box;
-    overflow: hidden; /* sections run edge to edge, the card's corners clip them */
-    background: var(--accent-stripe), var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: var(--glass-border);
-    border-radius: var(--glass-radius);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
   }
 
   .heading {
     margin: 0;
-    padding: 1.5rem 3rem 1.2rem; /* symmetric, so the text stays centred next to the close button */
+    padding: 0.2rem 3rem 0.4rem; /* symmetric, so the text stays centred next to the close button */
     text-align: center;
     font-size: 1.2em;
   }
 
-  /* Stacked cards: flush against each other, separated by a hairline. */
-  .section {
-    padding: 0 1.5rem 1.5rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
-  }
-
-  .section + .section {
-    background: rgba(0, 0, 0, 0.18);
+  .block {
+    box-sizing: border-box;
+    padding: 0 1.2rem 1.2rem;
+    background: var(--accent-stripe), var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-left: 3px solid #335bf4;
+    border-radius: var(--glass-radius);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   }
 
   .subheading {
@@ -372,14 +374,10 @@
     text-align: left;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-left: 3px solid #335bf4;
     border-radius: 8px;
     color: #fff;
     font: inherit;
     cursor: pointer;
-  }
-  .item.mission {
-    border-left-color: #7e57c2;
   }
   .item:hover,
   .item:focus-visible {
