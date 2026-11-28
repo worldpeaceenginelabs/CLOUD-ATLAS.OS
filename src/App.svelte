@@ -258,12 +258,17 @@
       openDeepLink={deepLink}
     />
 
+    <!-- Portrait: the search result list takes the top half of the screen,
+         including the corner of this button — so it is hidden while the list
+         is open. In landscape the button sits above the globe and stays. -->
+    {#if landscape || !$appStore.listingView}
     <button class="corner-btn mission-tv-btn" on:click={() => (missionTVOpen = true)} title="MissionTV">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
         <polyline points="17 2 12 7 7 2"/>
       </svg>
     </button>
+    {/if}
 
     {#if missionTVOpen}
       <MissionTV on:close={() => (missionTVOpen = false)} />

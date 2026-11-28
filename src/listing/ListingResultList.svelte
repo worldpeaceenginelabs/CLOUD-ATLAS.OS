@@ -145,12 +145,12 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
-  /* Portrait: top half of the screen, full width — but stopping left of the
-     MissionTV button (top right): gap + button + gap from the right edge. */
+  /* Portrait: top half of the screen, full width. The MissionTV button is
+     hidden while the list is open (App.svelte), so no room is kept for it. */
   @media (orientation: portrait) {
     .list {
       width: auto;
-      right: calc(2 * var(--gap) + var(--btn));
+      right: var(--gap);
       max-height: calc(50dvh - (var(--gap) + env(safe-area-inset-top, 0px)) - var(--gap));
     }
   }
