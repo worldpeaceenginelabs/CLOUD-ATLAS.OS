@@ -58,20 +58,22 @@
 </script>
 
 <div class="list" role="region" aria-label="Search results">
-  <CloseButton position="absolute" top="12px" right="12px" onClose={() => dispatch('close')} />
-
   <div class="head">
-    <span class="area">{view.areaLabel}</span>
+    <div class="titles">
+      <span class="area">{view.areaLabel}</span>
 
-    {#if view.updatedAt !== null}
-      <span class="updated">Updated {ago(view.updatedAt, now)}</span>
-    {/if}
+      {#if view.updatedAt !== null}
+        <span class="updated">Updated {ago(view.updatedAt, now)}</span>
+      {/if}
+    </div>
+
+    <CloseButton position="relative" top="0" right="0" onClose={() => dispatch('close')} />
   </div>
 
   <div class="rows">
     {#each view.rows as row (row.type === 'listing' ? row.id : row.key)}
       {#if row.type === 'listing'}
-        <button class="row" on:click={() => dispatch('open', { id: row.id })}>
+        <button type="button" class="row" on:click={() => dispatch('open', { id: row.id })}>
           <span class="title">{row.title}</span>
           <span class="meta">{row.category} · expires {formatExpiry(row.expiresAt)}</span>
           <span class="badge">{INTERACTION_MODE_LABELS[row.interactionMode]}</span>
@@ -81,7 +83,7 @@
           <span>
             Listings published between {when(row.lo)} and {when(row.hi)} may be missing.
           </span>
-          <button class="action" on:click={() => dispatch('gap', { lo: row.lo, hi: row.hi })}>
+          <button type="button" class="action" on:click={() => dispatch('gap', { lo: row.lo, hi: row.hi })}>
             Load missing listings
           </button>
         </div>
@@ -93,12 +95,16 @@
     {/if}
   </div>
 
-  {#if view.canWiden}
-    <button class="action area-switch" on:click={() => dispatch('widen')}>Search wider area</button>
-  {/if}
+  {#if view.canWiden || view.canNarrow}
+    <div class="foot">
+      {#if view.canWiden}
+        <button type="button" class="action" on:click={() => dispatch('widen')}>Search wider area</button>
+      {/if}
 
-  {#if view.canNarrow}
-    <button class="action area-switch" on:click={() => dispatch('narrow')}>Back to nearby</button>
+      {#if view.canNarrow}
+        <button type="button" class="action" on:click={() => dispatch('narrow')}>Back to nearby</button>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -133,8 +139,8 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 0.5em;
-    padding: 2.6em 0.9em 0.9em;
+    gap: 0.6em;
+    padding: 0.9em;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
@@ -143,6 +149,7 @@
     color: #fff;
     font: 0.85em -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
   }
 
   /* Portrait: top half of the screen, full width. The MissionTV button is
@@ -155,17 +162,27 @@
     }
   }
 
+  /* Header: normal flow — title block left, close button right. Nothing is
+     absolutely positioned, so a long area name wraps instead of running
+     into the rows below. */
   .head {
-    position: absolute;
-    top: 0.9em;
-    left: 0.9em;
-    right: 3em;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75em;
+  }
+
+  .titles {
+    min-width: 0;
     display: flex;
     flex-direction: column;
+    gap: 0.1em;
   }
 
   .area {
     font-weight: 600;
+    overflow-wrap: anywhere;
   }
 
   .updated {
@@ -179,40 +196,66 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 0.4em;
+    gap: 0.5em;
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
 
+  /* Rows never shrink (that is what made them overlap); the container
+     scrolls instead. */
+  .row,
+  .gap {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+  }
+
   .row {
     display: grid;
-    gap: 0.15em;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2em;
     text-align: left;
-    padding: 0.55em 0.7em;
+    padding: 0.6em 0.75em;
     color: inherit;
     font: inherit;
     cursor: pointer;
     background: var(--glass-bg-inset);
     border: var(--glass-border);
     border-radius: 10px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .row:hover {
-    background: rgba(255, 255, 255, 0.3);
+  @media (hover: hover) {
+    .row:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  .row:active {
+    background: rgba(255, 255, 255, 0.4);
   }
 
   .title {
     font-weight: 600;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
   }
 
   .meta {
     font-size: 0.85em;
     opacity: 0.8;
+    overflow-wrap: anywhere;
   }
 
   .badge {
     justify-self: start;
-    margin-top: 0.2em;
+    margin-top: 0.15em;
     padding: 0.1em 0.55em;
     font-size: 0.78em;
     border-radius: 999px;
@@ -221,30 +264,43 @@
 
   .gap {
     display: grid;
-    gap: 0.4em;
-    padding: 0.55em 0.7em;
+    gap: 0.5em;
+    padding: 0.6em 0.75em;
     font-size: 0.85em;
     border: 1px dashed rgba(255, 255, 255, 0.55);
     border-radius: 10px;
   }
 
+  .foot {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5em;
+  }
+
   .action {
     justify-self: start;
-    padding: 0.35em 0.9em;
+    flex: 0 0 auto;
+    padding: 0.4em 0.95em;
     color: #fff;
     font: inherit;
     cursor: pointer;
     background: rgba(255, 255, 255, 0.25);
     border: var(--glass-border);
     border-radius: 999px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .action:hover {
+  .action:active {
     background: rgba(255, 255, 255, 0.4);
   }
 
-  .area-switch {
-    align-self: center;
+  @media (hover: hover) {
+    .action:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
   }
 
   .empty {

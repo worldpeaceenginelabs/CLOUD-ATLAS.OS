@@ -103,6 +103,44 @@
   /** The newest OpenRequest already acted on — a request stays in the Store, it must only act once. */
   let handledNonce = 0;
 
+  // ORDER MATTERS — keep these two reactive statements ABOVE
+  // `$: selectedRecord` below. Both only change `selectedId` /
+  // `temporaryRecord` from inside a function (handleOpenRequest,
+  // selectRecordById); Svelte cannot see that, so it does not re-sort
+  // the statements, and `selectedRecord` would be computed from the
+  // state BEFORE the request — the panel would then only appear on the
+  // next unrelated Store update (a click that "does nothing", a panel
+  // that pops up later for an entry clicked earlier).
+  $: handleOpenRequest($appStore.openRequest);
+
+  // Deep-link resolution: keeps checking every time the Store changes
+  // (a fresh discovery result, a fetch Orchestrator triggered for this
+  // exact resource via its own `openDeepLink` prop, ...) until the target
+  // record shows up, then stops — `deepLinkResolved` also stops it from
+  // reopening itself if the person closes the panel afterward.
+  let deepLinkResolved = false;
+
+  $: if (deepLink && !deepLinkResolved && $appStore) {
+    const state = appStore.get();
+
+    const link = deepLink;
+    const id = `${link.author}:${link.dTag}`;
+
+    // The domain segment must agree with the record: `mission` only
+    // matches a mission, any other domain only a listing of that domain.
+    const match =
+      link.domain === 'mission'
+        ? state.missions[id]
+        : state.listings[id]?.domain === link.domain
+          ? state.listings[id]
+          : undefined;
+
+    if (match) {
+      selectRecordById(match.id);
+      deepLinkResolved = true;
+    }
+  }
+
   /** Only what EntityDetails can show: a listing or a mission — always the Store's current version of the selected id (null once it's gone, e.g. deleted or expired). */
   let selectedRecord: ListingRecord | MissionRecord | null = null;
   $: selectedRecord = selectedId
@@ -194,36 +232,6 @@
     }
 
     if (request.fly) flyToRecord(request.record);
-  }
-
-  $: handleOpenRequest($appStore.openRequest);
-
-  // Deep-link resolution: keeps checking every time the Store changes
-  // (a fresh discovery result, a fetch Orchestrator triggered for this
-  // exact resource via its own `openDeepLink` prop, ...) until the target
-  // record shows up, then stops — `deepLinkResolved` also stops it from
-  // reopening itself if the person closes the panel afterward.
-  let deepLinkResolved = false;
-
-  $: if (deepLink && !deepLinkResolved && $appStore) {
-    const state = appStore.get();
-
-    const link = deepLink;
-    const id = `${link.author}:${link.dTag}`;
-
-    // The domain segment must agree with the record: `mission` only
-    // matches a mission, any other domain only a listing of that domain.
-    const match =
-      link.domain === 'mission'
-        ? state.missions[id]
-        : state.listings[id]?.domain === link.domain
-          ? state.listings[id]
-          : undefined;
-
-    if (match) {
-      selectRecordById(match.id);
-      deepLinkResolved = true;
-    }
   }
 
   function colorFor(record: EntityRecord): string {
