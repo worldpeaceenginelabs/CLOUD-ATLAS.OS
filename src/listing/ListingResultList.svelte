@@ -103,13 +103,33 @@
 </div>
 
 <style>
+  /*
+   * Placement: the half of the screen that belongs to the HexMenu — the left
+   * half in landscape, the top half in portrait (the globe window takes the
+   * other half, see App.svelte). Edge distances are the corner buttons' own
+   * (--edge-gap, defined on .workspace in App.svelte, safe-area insets added
+   * on top/bottom exactly like there), so the list lines up with them on
+   * every device.
+   *
+   * Stacking: HexMenu (<= 15) < this list < EntityDetails. In split view the
+   * details live inside .globe-window (z 20), so the list sits just below it
+   * (18). In fullscreen App.svelte lifts the list above the globe and lets
+   * the details paint above it (--result-list-z).
+   */
   .list {
+    --gap: var(--edge-gap, 10px);
+    --btn: 40px; /* corner-btn size in App.svelte */
+
     position: fixed;
-    top: 1em;
-    right: 1em;
-    z-index: 25;
-    width: min(24em, 46vw);
-    max-height: calc(100vh - 2em);
+    top: calc(var(--gap) + env(safe-area-inset-top, 0px));
+    left: var(--gap);
+    z-index: var(--result-list-z, 18);
+    width: calc(50vw - 2 * var(--gap));
+    /* leaves room at the bottom for the About button (bottom left) */
+    max-height: calc(
+      100dvh - (var(--gap) + env(safe-area-inset-top, 0px)) -
+        (2 * var(--gap) + var(--btn) + env(safe-area-inset-bottom, 0px))
+    );
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -123,6 +143,16 @@
     color: #fff;
     font: 0.85em -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Portrait: top half of the screen, full width — but stopping left of the
+     MissionTV button (top right): gap + button + gap from the right edge. */
+  @media (orientation: portrait) {
+    .list {
+      width: auto;
+      right: calc(2 * var(--gap) + var(--btn));
+      max-height: calc(50dvh - (var(--gap) + env(safe-area-inset-top, 0px)) - var(--gap));
+    }
   }
 
   .head {

@@ -216,7 +216,7 @@
     </div>
   </div>
 {:else}
-  <div class="workspace" bind:this={workspaceEl}>
+  <div class="workspace" class:fullscreen={fullGlobe} bind:this={workspaceEl}>
 
     <div class="background-layer" class:hidden={fullGlobe}>
       <HexMenu
@@ -317,6 +317,25 @@
        left, Fullscreen/Split View bottom right) from the screen edge. The
        top/bottom edges add their safe-area inset on top of it. */
     --edge-gap: 10px;
+
+    /* z-index of the search result list (ListingResultList). Stacking order
+       is HexMenu < result list < EntityDetails. EntityDetails renders inside
+       .globe-window, so in split view the list sits just below it (18 < 20). */
+    --result-list-z: 18;
+  }
+
+  /* Fullscreen: the list must stay on top of the globe, with EntityDetails
+     still above the list. EntityDetails lives inside .globe-window, so the
+     window must not form its own stacking context here (z-index: auto) —
+     its children (details 40/41) then compete directly with the list. The
+     Cesium canvas is isolated in .cesium-layer so its internal z-indexes
+     cannot leak above the list. */
+  .workspace.fullscreen {
+    --result-list-z: 25;
+  }
+
+  .globe-window.fullscreen {
+    z-index: auto;
   }
 
   .background-layer {
@@ -366,6 +385,7 @@
   .cesium-layer {
     width: 100%;
     height: 100%;
+    isolation: isolate;
   }
 
   /* Round-cornered glass buttons (MissionTV, About, Fullscreen/Split View)
